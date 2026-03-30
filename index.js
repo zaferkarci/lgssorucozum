@@ -5,19 +5,26 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 1. MONGODB BAĞLANTISI (Buraya Kendi Linkini Yapıştır!)
-// 9. Satırda BURAYI DÜZELT:
-const dbURI = "mongodb+srv://zaferkarci:Uras.0203@lgssorucozum.nlmudhf.mongodb.net/?appName=lgssorucozum";
+// 1. MONGODB BAĞLANTISI (Kendi linkini buraya yapıştır!)
+const dbURI = "mongodb+srv://zaferkarci:Uras0203@lgssorucozum.nlmudhf.mongodb.net/?appName=lgssorucozum";
 
+mongoose.connect(dbURI, {
+    serverSelectionTimeoutMS: 5000 // 5 saniye bekleyip bağlanamazsa hata ver
+})
+.then(() => console.log("✅ MONGODB BAGLANTISI KURULDU!"))
+.catch(err => console.log("❌ BAGLANTI HATASI DETAYI:", err.message));
 
-mongoose.connect(dbURI)
-    .then(() => console.log("✅ MongoDB Bağlantısı Başarılı!"))
-    .catch(err => console.log("❌ Bağlantı Hatası:", err.message));
-
-// 2. KULLANICI MODELİ
+// 2. MODELLER
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: { type: String, required: true, unique: true },
     sifre: { type: String, required: true }
+}));
+
+const Soru = mongoose.model('Soru', new mongoose.Schema({ 
+    ders: String, 
+    soruMetni: String, 
+    secenekler: [String], 
+    dogruCevap: String 
 }));
 
 // 3. ANA SAYFA (Giriş/Kayıt)
@@ -35,7 +42,7 @@ app.get('/', (req, res) => {
                 </form>
                 <hr>
                 <form action="/kayit" method="POST">
-                    <p style="font-size:14px; color:#666;">Hesabın yok mu? Kayıt Ol:</p>
+                    <p style="font-size:14px; color:#666;">Kayıt Ol:</p>
                     <input type="text" name="kullaniciAdi" placeholder="Yeni Kullanıcı Adı" required>
                     <input type="password" name="sifre" placeholder="Şifre" required>
                     <button type="submit" class="btn-kayit">KAYIT OL</button>
@@ -46,57 +53,52 @@ app.get('/', (req, res) => {
     `);
 });
 
-// 4. PROFİL SAYFASI (Giriş Sonrası - İstediğin Bölüm)
+// 4. PROFİL SAYFASI
 app.get('/profil/:isim', (req, res) => {
     const isim = req.params.isim;
     res.send(`
-        <html>
-        <head>
-            <title>Profil - ${isim}</title>
-            <style>
-                body{font-family:sans-serif; text-align:center; padding-top:100px; background:#f0f2f5; margin:0;}
-                .profile-card{background:white; padding:50px; border-radius:20px; display:inline-block; box-shadow:0 10px 30px rgba(0,0,0,0.1); width:400px;}
-                h1 { color: #333; margin-bottom: 10px; }
-                p { color: #666; margin-bottom: 30px; }
-                .btn-coz {
-                    display:block; background:#007bff; color:white; padding:20px; 
-                    border-radius:15px; text-decoration:none; font-weight:bold; 
-                    font-size:22px; transition:0.3s; box-shadow: 0 4px 15px rgba(0,123,255,0.3);
-                }
-                .btn-coz:hover { transform: scale(1.05); background:#0056b3; }
-                .logout { display:inline-block; margin-top:30px; color:#999; text-decoration:none; font-size:14px; }
-            </style>
-        </head>
-        <body>
-            <div class="profile-card">
-                <h1>Merhaba, ${isim}! 👋</h1>
-                <p>Hazırsan LGS sorularını çözmeye başlayalım.</p>
-                <a href="/soru-havuzu" class="btn-coz">🚀 SORU ÇÖZMEYE BAŞLA</a>
-                <a href="/" class="logout">Oturumu Kapat</a>
-            </div>
-        </body>
-        </html>
-    `);
-});
-
-// 5. SORU HAVUZU (Taslak)
-app.get('/soru-havuzu', (req, res) => {
-    res.send(`
         <div style="text-align:center; padding-top:100px; font-family:sans-serif;">
-            <h1>📚 Soru Havuzu</h1>
-            <p>Burada çözmen gereken sorular listelenecek.</p>
-            <a href="javascript:history.back()">Geri Dön</a>
+            <h1>Merhaba, ${isim}! 👋</h1>
+            <p>Hazırsan LGS sorularını çözmeye başlayalım.</p>
+            <br>
+            <a href="/soru-havuzu" style="background:#007bff; color:white; padding:20px; border-radius:15px; text-decoration:none; font-weight:bold; font-size:22px; display:inline-block; box-shadow: 0 4px 15px rgba(0,123,255,0.3);">🚀 SORU ÇÖZMEYE BAŞLA</a>
+            <br><br>
+            <a href="/" style="color:gray; text-decoration:none; font-size:14px;">Oturumu Kapat</a>
         </div>
     `);
 });
 
-// 6. İŞLEMLER
+// 5. SORU HAVUZU (Veritabanından Soru Çeker)
+app.get('/soru-havuzu', async (req, res) => {
+    try {
+        const soru = await Soru.findOne(); 
+        if (!soru) return res.send("<h1>📚 Henüz soru eklenmemiş!</h1><a href='/'>Geri Dön</a>");
+
+        res.send(`
+            <div style="max-width:500px; margin:50px auto; font-family:sans-serif; border:1px solid #ddd; padding:30px; border-radius:15px; box-shadow:0 0 20px rgba(0,0,0,0.1); text-align:center;">
+                <p style="color:blue; font-weight:bold;">Ders: ${soru.ders}</p>
+                <h2 style="margin:20px 0;">${soru.soruMetni}</h2>
+                <hr>
+                ${soru.secenekler.map(s => `
+                    <button onclick="alert('${s === soru.dogruCevap ? '✅ TEBRİKLER! DOĞRU CEVAP.' : '❌ MAALESEF YANLIŞ.'}')" 
+                    style="display:block; width:100%; margin:10px 0; padding:15px; cursor:pointer; border:1px solid #ddd; border-radius:10px; background:white; font-size:16px;">
+                        ${s}
+                    </button>
+                `).join('')}
+                <br>
+                <a href="/profil/ogrenci" style="color:#999; text-decoration:none; font-size:14px;">⬅ Profilime Dön</a>
+            </div>
+        `);
+    } catch (err) { res.send("Hata: " + err.message); }
+});
+
+// 6. İŞLEMLER (Giriş ve Kayıt)
 app.post('/kayit', async (req, res) => {
     try {
         const yeni = new Kullanici({ kullaniciAdi: req.body.kullaniciAdi, sifre: req.body.sifre });
         await yeni.save();
         res.send("<h1>✅ Kayıt Başarılı!</h1><a href='/'>Geri Dön ve Giriş Yap</a>");
-    } catch (error) { res.send("<h1>❌ Hata!</h1><a href='/'>Geri Dön</a>"); }
+    } catch (error) { res.send("<h1>❌ Hata: Kullanıcı adı zaten var!</h1><a href='/'>Geri Dön</a>"); }
 });
 
 app.post('/giris', async (req, res) => {
@@ -105,8 +107,23 @@ app.post('/giris', async (req, res) => {
     if (kullanici) {
         res.redirect('/profil/' + kullaniciAdi);
     } else {
-        res.send("<h1>❌ Bilgiler Yanlış!</h1><a href='/'>Tekrar Dene</a>");
+        res.send("<h1>❌ Kullanıcı adı veya şifre yanlış!</h1><a href='/'>Tekrar Dene</a>");
     }
 });
 
-app.listen(process.env.PORT || 3000, () => console.log("🌍 Sunucu Aktif!"));
+// 7. ÖRNEK SORU EKLEME (Bu linke bir kez git: ://siteniz.com)
+app.get('/soru-ekle', async (req, res) => {
+    try {
+        const yeniSoru = new Soru({
+            ders: "Fen Bilimleri",
+            soruMetni: "Dünyanın kendi ekseni etrafında dönmesi sonucunda ne oluşur?",
+            secenekler: ["Mevsimler", "Gece ve Gündüz", "Yıllık Sıcaklık Farkı", "Ay Tutulması"],
+            dogruCevap: "Gece ve Gündüz"
+        });
+        await yeniSoru.save();
+        res.send("<h1>✅ Örnek soru veritabanına eklendi!</h1><a href='/'>Ana Sayfaya Dön</a>");
+    } catch (err) { res.send("Soru ekleme hatası: " + err.message); }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("🌍 Sunucu Aktif: " + PORT));
