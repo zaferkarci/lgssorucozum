@@ -6,7 +6,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 1. MONGODB BAĞLANTISI (Buraya Kendi Linkini Dikkatlice Yapıştır!)
-const dbURI = "mongodb+srv://zaferkarci:Uras.0203@lgssorucozum.nlmudhf.mongodb.net/?appName=lgssorucozum";
+const dbURI = "mongodb+srv://zaferkarci:Uras0203@lgssorucozum.nlmudhf.mongodb.net/?appName=lgssorucozum";
 
 mongoose.connect(dbURI, { serverSelectionTimeoutMS: 5000 })
     .then(() => console.log("✅ MongoDB Bağlantısı Başarılı!"))
