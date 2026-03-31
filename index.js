@@ -130,43 +130,40 @@ app.post('/admin-giris', (req, res) => {
 
 app.get('/admin', (req, res) => {
     res.send(`
-        <html>
-        <head><title>Admin Girişi</title><style>body{font-family:sans-serif; display:flex; justify-content:center; padding-top:100px; background:#343a40; color:white;} .admin-box{background:#495057; padding:30px; border-radius:15px; width:300px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%; padding:12px; margin:10px 0; border-radius:5px; border:none;} button{width:100%; padding:12px; background:#ffc107; border:none; border-radius:5px; cursor:pointer; font-weight:bold;}</style></head>
-        <body>
-            <div class="admin-box">
-                <h2>Admin Paneli</h2>
-                <form action="/admin-giris" method="POST">
-                    <input type="text" name="adminAdi" placeholder="Admin Kullanıcı Adı" required>
-                    <input type="password" name="adminSifre" placeholder="Admin Şifresi" required>
-                    <button type="submit">SİSTEME GİRİŞ YAP</button>
-                </form>
-                <br><a href="/" style="color:#bbb; text-decoration:none; font-size:12px;">Ana Sayfaya Dön</a>
-            </div>
-        </body>
-        </html>
+        <div style="text-align:center; padding-top:100px; font-family:sans-serif;">
+            <h2>🔐 Admin Girişi</h2>
+            <form action="/admin-giris" method="POST" style="display:inline-block; text-align:left; background:#eee; padding:20px; border-radius:10px;">
+                Kullanıcı Adı:<br>
+                <input type="text" name="adminAdi" required><br><br>
+                Şifre:<br>
+                <input type="password" name="adminSifre" required><br><br>
+                <button type="submit" style="width:100%; cursor:pointer;">GİRİŞ YAP</button>
+            </form>
+        </div>
     `);
 });
+
 
 // 8. ADMIN GİRİŞ İŞLEMİ
 app.post('/admin-giris', (req, res) => {
     const { adminAdi, adminSifre } = req.body;
 
-    // BURAYI KENDİNE GÖRE DEĞİŞTİR:
+    // Şifreyi ve kullanıcı adını tam olarak buradan kontrol et:
     if (adminAdi === "zaferadmin" && adminSifre === "123456") {
         res.send(`
             <div style="text-align:center; font-family:sans-serif; padding-top:100px;">
-                <h1>🔐 Admin Yönetim Merkezi</h1>
-                <p>Hoş geldin Zafer! Buradan soruları ve kullanıcıları yönetebilirsin.</p>
-                <hr>
-                <a href="/lgs-yukle" style="display:inline-block; padding:15px; background:blue; color:white; text-decoration:none; border-radius:10px;">📚 Soruları Güncelle/Yükle</a>
-                <br><br>
-                <a href="/" style="color:red;">Çıkış Yap</a>
+                <h1>✅ Admin Paneline Giriş Başarılı</h1>
+                <p>Soruları yüklemek için: <a href="/lgs-yukle">BURAYA TIKLA</a></p>
+                <br><a href="/">Ana Sayfaya Dön</a>
             </div>
         `);
     } else {
-        res.send("<h1>❌ Yetkisiz Erişim!</h1><a href='/admin'>Tekrar Dene</a>");
+        // Hata durumunda ne yazıldığını görmek için konsola basalım
+        console.log("Hatalı deneme:", adminAdi, adminSifre);
+        res.send("<h1>❌ Bilgiler yanlış!</h1><p>Girdiğiniz: " + adminAdi + "</p><a href='/admin'>Tekrar Dene</a>");
     }
 });
+
 
 
 const PORT = process.env.PORT || 3000;
