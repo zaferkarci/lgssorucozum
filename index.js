@@ -107,6 +107,27 @@ app.get('/lgs-yukle', async (req, res) => {
 });
 
 // 7. ADMIN GİRİŞ SAYFASI
+
+// ADMIN PANELİ GİRİŞİ (POST İŞLEMİ)
+app.post('/admin-giris', (req, res) => {
+    const { adminAdi, adminSifre } = req.body;
+
+    // Belirlediğimiz bilgilerle kontrol ediyoruz
+    if (adminAdi === "zaferadmin" && adminSifre === "123456") {
+        // Giriş başarılıysa admin yönetim sayfasına git
+        res.send(`
+            <div style="text-align:center; font-family:sans-serif; padding-top:100px;">
+                <h1>🔐 Admin Paneline Hoş Geldiniz</h1>
+                <p>Soruları yönetmek için <a href="/lgs-yukle">buraya tıklayın</a>.</p>
+                <br><a href="/" style="color:red;">Güvenli Çıkış</a>
+            </div>
+        `);
+    } else {
+        res.send("<h1>❌ Hatalı Giriş!</h1><a href='/admin'>Geri Dön</a>");
+    }
+});
+
+
 app.get('/admin', (req, res) => {
     res.send(`
         <html>
