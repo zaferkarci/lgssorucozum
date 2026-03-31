@@ -107,60 +107,40 @@ app.get('/lgs-yukle', async (req, res) => {
 });
 
 // 7. ADMIN GİRİŞ SAYFASI
-
-// ADMIN PANELİ GİRİŞİ (POST İŞLEMİ)
-app.post('/admin-giris', (req, res) => {
-    const { adminAdi, adminSifre } = req.body;
-
-    // Belirlediğimiz bilgilerle kontrol ediyoruz
-    if (adminAdi === "zaferadmin" && adminSifre === "123456") {
-        // Giriş başarılıysa admin yönetim sayfasına git
-        res.send(`
-            <div style="text-align:center; font-family:sans-serif; padding-top:100px;">
-                <h1>🔐 Admin Paneline Hoş Geldiniz</h1>
-                <p>Soruları yönetmek için <a href="/lgs-yukle">buraya tıklayın</a>.</p>
-                <br><a href="/" style="color:red;">Güvenli Çıkış</a>
-            </div>
-        `);
-    } else {
-        res.send("<h1>❌ Hatalı Giriş!</h1><a href='/admin'>Geri Dön</a>");
-    }
-});
-
-
+// 1. ADMIN GİRİŞ FORMU
 app.get('/admin', (req, res) => {
     res.send(`
         <div style="text-align:center; padding-top:100px; font-family:sans-serif;">
-            <h2>🔐 Admin Girişi</h2>
-            <form action="/admin-giris" method="POST" style="display:inline-block; text-align:left; background:#eee; padding:20px; border-radius:10px;">
-                Kullanıcı Adı:<br>
-                <input type="text" name="adminAdi" required><br><br>
-                Şifre:<br>
-                <input type="password" name="adminSifre" required><br><br>
-                <button type="submit" style="width:100%; cursor:pointer;">GİRİŞ YAP</button>
-            </form>
+            <div style="display:inline-block; background:#f8f9fa; padding:30px; border-radius:15px; border:1px solid #ddd;">
+                <h2>🔐 Admin Girişi</h2>
+                <form action="/admin-giris" method="POST">
+                    <input type="text" name="adminAdi" placeholder="Kullanıcı Adı" style="padding:10px; margin-bottom:10px; width:200px;" required><br>
+                    <input type="password" name="adminSifre" placeholder="Şifre" style="padding:10px; margin-bottom:10px; width:200px;" required><br>
+                    <button type="submit" style="padding:10px 20px; cursor:pointer; background:#343a40; color:white; border:none; border-radius:5px;">GİRİŞ YAP</button>
+                </form>
+            </div>
         </div>
     `);
 });
 
-
-// 8. ADMIN GİRİŞ İŞLEMİ
+// 2. ADMIN GİRİŞ KONTROLÜ (Hata Vermeyen Versiyon)
 app.post('/admin-giris', (req, res) => {
-    const { adminAdi, adminSifre } = req.body;
+    const adminAdi = req.body.adminAdi;
+    const adminSifre = req.body.adminSifre;
 
-    // Şifreyi ve kullanıcı adını tam olarak buradan kontrol et:
+    // Kontrol: zaferadmin / 123456
     if (adminAdi === "zaferadmin" && adminSifre === "123456") {
         res.send(`
-            <div style="text-align:center; font-family:sans-serif; padding-top:100px;">
-                <h1>✅ Admin Paneline Giriş Başarılı</h1>
-                <p>Soruları yüklemek için: <a href="/lgs-yukle">BURAYA TIKLA</a></p>
-                <br><a href="/">Ana Sayfaya Dön</a>
+            <div style="text-align:center; padding-top:100px; font-family:sans-serif;">
+                <h1>✅ Hoş geldin Zafer!</h1>
+                <p>Sistem Yönetim Merkezi Aktif.</p>
+                <a href="/lgs-yukle" style="padding:15px; background:green; color:white; text-decoration:none; border-radius:10px;">📚 Soruları Veritabanına Yükle</a>
+                <br><br>
+                <a href="/">Ana Sayfaya Dön</a>
             </div>
         `);
     } else {
-        // Hata durumunda ne yazıldığını görmek için konsola basalım
-        console.log("Hatalı deneme:", adminAdi, adminSifre);
-        res.send("<h1>❌ Bilgiler yanlış!</h1><p>Girdiğiniz: " + adminAdi + "</p><a href='/admin'>Tekrar Dene</a>");
+        res.send("<h1>❌ Hatalı Giriş!</h1><p>Girdiğiniz: " + adminAdi + "</p><a href='/admin'>Tekrar Dene</a>");
     }
 });
 
