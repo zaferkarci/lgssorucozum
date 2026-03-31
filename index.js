@@ -14,10 +14,12 @@ mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlantısı Başar
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({ kullaniciAdi: String, sifre: String }));
 const Soru = mongoose.model('Soru', new mongoose.Schema({ 
     sinif: String, ders: String, unite: String, konu: String, 
+    soruOnculu: String, // Yeni: Sorunun en üstündeki metin
     soruMetni: String, soruResmi: String, 
     secenekler: [{ metin: String, gorsel: String }], 
     dogruCevapIndex: Number 
 }));
+
 
 // 3. ANA SAYFA VE GİRİŞ
 app.get('/', (req, res) => {
@@ -50,28 +52,78 @@ app.post('/admin-giris', (req, res) => {
 
 app.get('/admin-panel', (req, res) => {
     res.send(`
-        <div style="max-width:600px; margin:20px auto; font-family:sans-serif; border:1px solid #ddd; padding:20px; border-radius:10px;">
-            <h2 style="text-align:center;">📝 Yeni Soru Ekle</h2>
+        <div style="max-width:800px; margin:20px auto; font-family:sans-serif; background:#fff; padding:30px; border-radius:15px; box-shadow:0 0 20px rgba(0,0,0,0.1);">
+            <h2 style="text-align:center; color:#007bff;">🚀 Gelişmiş Soru Ekleme Paneli</h2>
             <form action="/soru-kaydet" method="POST">
-                <input type="text" name="sinif" placeholder="Sınıf (Örn: 8)" style="width:48%;" required>
-                <input type="text" name="ders" placeholder="Ders (Örn: Matematik)" style="width:48%;" required><br><br>
-                <input type="text" name="unite" placeholder="Ünite" style="width:48%;" required>
-                <input type="text" name="konu" placeholder="Konu" style="width:48%;" required><br><br>
-                <label>Soru Görseli URL:</label><br>
-                <input type="text" name="soruResmi" placeholder="https://resim-linki.com" style="width:100%;"><br><br>
-                <textarea name="soruMetni" placeholder="Soru Metni" style="width:100%; height:50px;"></textarea><br><br>
+                
+                <!-- SEÇİMLER (Açılır Menü) -->
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <select name="sinif" style="flex:1; padding:10px;">
+                        <option value="8">8. Sınıf</option>
+                        <option value="7">7. Sınıf</option>
+                    </select>
+                    <select name="ders" style="flex:1; padding:10px;">
+                        <option value="Matematik">Matematik</option>
+                        <option value="Fen Bilimleri">Fen Bilimleri</option>
+                        <option value="Türkçe">Türkçe</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <label>Ünite ve Konu Seçimi:</label><br>
+                    <select name="konu" style="width:100%; padding:10px; margin-top:5px;">
+                        <optgroup label="Matematik">
+                            <option value="Çarpanlar ve Katlar">Çarpanlar ve Katlar</option>
+                            <option value="Üslü İfadeler">Üslü İfadeler</option>
+                            <option value="Kareköklü İfadeler">Kareköklü İfadeler</option>
+                            <option value="Veri Analizi">Veri Analizi</option>
+                            <option value="Basit Olayların Olma Olasılığı">Basit Olayların Olma Olasılığı</option>
+                            <option value="Cebirsel İfadeler">Cebirsel İfadeler</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <label><b>Soru Öncülü (Resmin Üstündeki Metin):</b></label><br>
+                <textarea name="soruOnculu" placeholder="Örn: Verilen bilgilere göre soruları cevaplayınız..." style="width:100%; height:60px; margin:10px 0;"></textarea><br>
+
+                <label><b>Soru Görseli (URL):</b></label><br>
+                <input type="text" name="soruResmi" placeholder="https://resim-linki.com" style="width:100%; padding:10px; margin-bottom:15px;"><br>
+
+                <label><b>Soru Kökü (Asıl Soru):</b></label><br>
+                <textarea name="soruMetni" placeholder="Örn: Buna göre x kaçtır?" style="width:100%; height:40px; margin-bottom:15px; font-weight:bold;"></textarea><br>
+                
+                <h3 style="border-bottom:2px solid #eee; padding-bottom:5px;">Şıklar</h3>
                 ${['A', 'B', 'C', 'D'].map((harf, i) => `
-                    <div style="background:#f9f9f9; padding:10px; margin:5px 0; border-radius:5px;">
-                        <strong>${harf} Şıkkı:</strong><br>
-                        <input name="metin${i}" placeholder="Metin">
-                        <input name="gorsel${i}" placeholder="Görsel URL">
-                        <input type="radio" name="dogruCevap" value="${i}" required> Doğru
+                    <div style="background:#f9f9f9; padding:10px; margin:5px 0; border-radius:5px; border-left:4px solid #007bff;">
+                        <strong>${harf} Şıkkı:</strong>
+                        <input name="metin${i}" placeholder="Şık metni" style="width:35%;">
+                        <input name="gorsel${i}" placeholder="Şık Görsel URL" style="width:35%;">
+                        <input type="radio" name="dogruCevap" value="${i}" required> <b>Doğru</b>
                     </div>
                 `).join('')}
-                <br><button type="submit" style="width:100%; padding:10px; background:green; color:white; border:none; cursor:pointer; font-weight:bold;">SİSTEME KAYDET</button>
+                
+                <br><button type="submit" style="width:100%; padding:15px; background:#28a745; color:white; border:none; border-radius:10px; font-size:18px; cursor:pointer; font-weight:bold;">SORUYU KAYDET</button>
             </form>
         </div>
     `);
+});
+
+// Kaydetme fonksiyonuna soruOnculu'yu da eklemeyi unutma:
+app.post('/soru-kaydet', async (req, res) => {
+    const yeniSoru = new Soru({
+        sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu,
+        soruOnculu: req.body.soruOnculu, // eklendi
+        soruMetni: req.body.soruMetni, soruResmi: req.body.soruResmi,
+        secenekler: [
+            { metin: req.body.metin0, gorsel: req.body.gorsel0 },
+            { metin: req.body.metin1, gorsel: req.body.gorsel1 },
+            { metin: req.body.metin2, gorsel: req.body.gorsel2 },
+            { metin: req.body.metin3, gorsel: req.body.gorsel3 }
+        ],
+        dogruCevapIndex: parseInt(req.body.dogruCevap)
+    });
+    await yeniSoru.save();
+    res.send("✅ Soru Kaydedildi! <a href='/admin-panel'>Yeni Soru Ekle</a>");
 });
 
 app.post('/soru-kaydet', async (req, res) => {
