@@ -106,5 +106,48 @@ app.get('/lgs-yukle', async (req, res) => {
     res.send("<h1>✅ Sorular Yüklendi!</h1><a href='/soru-havuzu'>Başla</a>");
 });
 
+// 7. ADMIN GİRİŞ SAYFASI
+app.get('/admin', (req, res) => {
+    res.send(`
+        <html>
+        <head><title>Admin Girişi</title><style>body{font-family:sans-serif; display:flex; justify-content:center; padding-top:100px; background:#343a40; color:white;} .admin-box{background:#495057; padding:30px; border-radius:15px; width:300px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.5);} input{width:100%; padding:12px; margin:10px 0; border-radius:5px; border:none;} button{width:100%; padding:12px; background:#ffc107; border:none; border-radius:5px; cursor:pointer; font-weight:bold;}</style></head>
+        <body>
+            <div class="admin-box">
+                <h2>Admin Paneli</h2>
+                <form action="/admin-giris" method="POST">
+                    <input type="text" name="adminAdi" placeholder="Admin Kullanıcı Adı" required>
+                    <input type="password" name="adminSifre" placeholder="Admin Şifresi" required>
+                    <button type="submit">SİSTEME GİRİŞ YAP</button>
+                </form>
+                <br><a href="/" style="color:#bbb; text-decoration:none; font-size:12px;">Ana Sayfaya Dön</a>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+// 8. ADMIN GİRİŞ İŞLEMİ
+app.post('/admin-giris', (req, res) => {
+    const { adminAdi, adminSifre } = req.body;
+
+    // BURAYI KENDİNE GÖRE DEĞİŞTİR:
+    if (adminAdi === "zaferadmin" && adminSifre === "123456") {
+        res.send(`
+            <div style="text-align:center; font-family:sans-serif; padding-top:100px;">
+                <h1>🔐 Admin Yönetim Merkezi</h1>
+                <p>Hoş geldin Zafer! Buradan soruları ve kullanıcıları yönetebilirsin.</p>
+                <hr>
+                <a href="/lgs-yukle" style="display:inline-block; padding:15px; background:blue; color:white; text-decoration:none; border-radius:10px;">📚 Soruları Güncelle/Yükle</a>
+                <br><br>
+                <a href="/" style="color:red;">Çıkış Yap</a>
+            </div>
+        `);
+    } else {
+        res.send("<h1>❌ Yetkisiz Erişim!</h1><a href='/admin'>Tekrar Dene</a>");
+    }
+});
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Sunucu Hazır!"));
+
