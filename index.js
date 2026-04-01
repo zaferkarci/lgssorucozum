@@ -106,7 +106,48 @@ app.get('/admin', (req, res) => {
         res.set('WWW-Authenticate', 'Basic realm="401"');
         res.status(401).send('Yetkisiz erişim!');
     }
+})app.get('/admin', (req, res) => {
+    // Render panelindeki isimlerle birebir aynı olmalı
+    const expectedUser = process.env.ADMIN_USER;
+    const expectedPass = process.env.ADMIN_PASSWORD;
+
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Basic ')) {
+        res.set('WWW-Authenticate', 'Basic realm="Admin Paneli"');
+        return res.status(401).send('Giriş gerekli!');
+    }
+
+    const b64auth = authHeader.split(' ')[1];
+    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+    // Boşlukları temizleyerek kontrol et (trim)
+    if (login?.trim() === expectedUser?.trim() && password?.trim() === expectedPass?.trim()) {
+        res.send(`
+        <div style="max-width:600px; margin:auto; font-family:sans-serif; padding:20px;">
+            <h2 style="color:orange;">🛠️ Soru Ekle</h2>
+            <form action="/soru-ekle" method="POST">
+                <input name="sinif" placeholder="Sınıf" required style="width:45%;">
+                <input name="ders" placeholder="Ders" required style="width:45%;"><br><br>
+                <input name="konu" placeholder="Konu" style="width:100%;"><br><br>
+                <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:100%; height:60px;"></textarea><br><br>
+                <textarea name="soruMetni" placeholder="Soru Metni" style="width:100%; height:40px;" required></textarea>
+                <h3>Şıklar</h3>
+                ${[0,1,2,3].map(i => `
+                    <div style="margin-bottom:8px;">
+                        <input name="metin${i}" placeholder="Şık ${i+1}" required style="width:70%;">
+                        <input type="radio" name="dogruCevap" value="${i}" required> Doğru
+                    </div>
+                `).join('')}
+                <button style="width:100%; padding:15px; background:orange; color:white; border:none; cursor:pointer;">KAYDET</button>
+            </form>
+            <br><a href="/">Ana Sayfaya Dön</a>
+        </div>`);
+    } else {
+        res.set('WWW-Authenticate', 'Basic realm="Admin Paneli"');
+        res.status(401).send('Hatalı kullanıcı adı veya şifre!');
+    }
 });
+
 
 app.post('/soru-ekle', async (req, res) => {
     const yeniSoru = new Soru({
