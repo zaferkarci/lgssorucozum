@@ -11,7 +11,7 @@ app.listen(PORT, '0.0.0.0', () => { console.log(`🚀 Sunucu aktif: ${PORT}`); }
 const dbURI = process.env.MONGO_URI; 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER (Görsel Desteği Ekli) ---
+// --- MODELLER ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: String, sifre: String, soruIndex: { type: Number, default: 0 }, puan: { type: Number, default: 0 }
 }));
@@ -19,7 +19,7 @@ const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
 const Soru = mongoose.model('Soru', new mongoose.Schema({
     sinif: String, ders: String, konu: String, soruOnculu: String, 
     soruMetni: String, soruResmi: String, 
-    secenekler: [{ metin: String, gorsel: String }], // Görsel alanı eklendi
+    secenekler: [{ metin: String, gorsel: String }],
     dogruCevapIndex: Number
 }));
 
@@ -45,7 +45,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     res.send(`
     <div style="max-width:700px; margin:auto; font-family:sans-serif; padding:20px;">
         <h3>${soru.sinif}. Sınıf - ${soru.ders} - Puan: ${k.puan}</h3>
-        ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px;">${soru.soruOnculu}</p>` : ""}
+        ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px; border-radius:5px;">${soru.soruOnculu}</p>` : ""}
         ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%; margin-bottom:10px;">` : ""}
         <h2>${soru.soruMetni}</h2>
         ${soru.secenekler.map((s,i)=>`
@@ -53,7 +53,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
                 <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}">
                 <button style="width:100%; margin:5px 0; padding:12px; text-align:left; cursor:pointer; background:white; border:1px solid #ccc; border-radius:8px;">
                     <b>${harfler[i]})</b> ${s.metin || ""}
-                    ${s.gorsel ? `<br><img src="${s.gorsel}" style="height:80px; margin-top:5px;">` : ""}
+                    ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-height:100px; margin-top:5px;">` : ""}
                 </button>
             </form>
         `).join('')}
@@ -69,19 +69,24 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- 🛡️ ADMIN PANELİ (SİLME VE GÖRSEL DESTEĞİ İLE) ---
-
+// --- 🛡️ ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
-    const auth = req.headers.authorization || '';
-    const credentials = Buffer.from(auth.split(' ')[1] || '', 'base64').toString();
+    const authHeader = req.headers.authorization || '';
+    
+    if (!authHeader.startsWith('Basic ')) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).send('Giriş gerekli!');
+    }
+
+    const base64Content = authHeader.split(' ')[1]; // [1] ile sadece base64 kısmını alıyoruz
+    const credentials = Buffer.from(base64Content, 'base64').toString();
     const [user, pass] = credentials.split(':');
 
-    if (user === process.env.ADMIN_USER && pass === process.env.ADMIN_PASSWORD) {
+    if (user === (process.env.ADMIN_USER || '').trim() && pass === (process.env.ADMIN_PASSWORD || '').trim()) {
         const tumSorular = await Soru.find();
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
             <h2 style="color:orange;">🛠️ Soru Yönetimi</h2>
-            
             <form action="/soru-ekle" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
                 <h3>Yeni Soru Ekle</h3>
                 <input name="sinif" placeholder="Sınıf" style="width:20%;"> <input name="ders" placeholder="Ders" style="width:70%;"><br><br>
@@ -89,20 +94,17 @@ app.get('/admin', async (req, res) => {
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%; height:50px;"></textarea><br><br>
                 <input name="soruResmi" placeholder="Soru Görseli URL" style="width:95%;"><br><br>
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:95%;" required></textarea>
-                
                 <h4>Şıklar</h4>
                 ${[0,1,2,3].map(i => `
                     <div style="margin-bottom:10px;">
                         <input name="metin${i}" placeholder="Şık ${i+1} Metni" style="width:40%;">
-                        <input name="gorsel${i}" placeholder="Şık ${i+1} Görsel URL" style="width:40%;">
+                        <input name="gorsel${i}" placeholder="Görsel URL" style="width:40%;">
                         <input type="radio" name="dogruCevap" value="${i}" required> Doğru
                     </div>
                 `).join('')}
                 <button style="width:100%; padding:15px; background:green; color:white; border:none; cursor:pointer;">KAYDET</button>
             </form>
-
             <hr style="margin:40px 0;">
-
             <h3>Mevcut Sorular (${tumSorular.length})</h3>
             ${tumSorular.map((s, index) => `
                 <div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between; align-items:center;">
@@ -113,10 +115,10 @@ app.get('/admin', async (req, res) => {
                     </form>
                 </div>
             `).join('')}
-            <br><a href="/">Ana Sayfaya Dön</a>
         </div>`);
     } else {
-        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); res.status(401).send('Yetkisiz!');
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
+        res.status(401).send('Yetkisiz!');
     }
 });
 
