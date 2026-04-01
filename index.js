@@ -11,7 +11,7 @@ app.listen(PORT, '0.0.0.0', () => { console.log(`🚀 Sunucu aktif: ${PORT}`); }
 const dbURI = process.env.MONGO_URI; 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER ---
+// --- MODELLER (Görsel Desteği Aynen Korundu) ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: String, sifre: String, soruIndex: { type: Number, default: 0 }, puan: { type: Number, default: 0 }
 }));
@@ -69,16 +69,15 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- 🛡️ ADMIN PANELİ ---
+// --- 🛡️ ADMIN PANELİ (Sınıf Seçimi ve Silme Özelliği Korundu) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
         return res.status(401).send('Giriş gerekli!');
     }
-
     const base64Content = authHeader.split(' ');
-    const credentials = Buffer.from(base64Content, 'base64').toString();
+    const credentials = Buffer.from(base64Content[1] || '', 'base64').toString();
     const [user, pass] = credentials.split(':');
 
     if (user === (process.env.ADMIN_USER || '').trim() && pass === (process.env.ADMIN_PASSWORD || '').trim()) {
@@ -89,8 +88,7 @@ app.get('/admin', async (req, res) => {
             <form action="/soru-ekle" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
                 <h3>Yeni Soru Ekle</h3>
                 
-                <!-- Sınıf Seçimi: 1'den 12'ye kadar, 8 seçili -->
-                <label>Sınıf:</label>
+                <label>Sınıf Seç:</label>
                 <select name="sinif" style="padding:5px; margin-right:10px;">
                     ${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `
                         <option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>
@@ -104,14 +102,14 @@ app.get('/admin', async (req, res) => {
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:95%;" required></textarea>
                 
                 <h4>Şıklar</h4>
-                ${.map(i => `
+                ${[0,1,2,3].map(i => `
                     <div style="margin-bottom:10px;">
                         <input name="metin${i}" placeholder="Şık ${i+1} Metni" style="width:40%;">
                         <input name="gorsel${i}" placeholder="Görsel URL" style="width:40%;">
                         <input type="radio" name="dogruCevap" value="${i}" required> Doğru
                     </div>
                 `).join('')}
-                <button style="width:100%; padding:15px; background:green; color:white; border:none; cursor:pointer;">KAYDET</button>
+                <button style="width:100%; padding:15px; background:green; color:white; border:none; cursor:pointer; font-weight:bold;">SİSTEME KAYDET</button>
             </form>
             <hr style="margin:40px 0;">
             <h3>Mevcut Sorular (${tumSorular.length})</h3>
@@ -124,6 +122,7 @@ app.get('/admin', async (req, res) => {
                     </form>
                 </div>
             `).join('')}
+            <br><a href="/">Ana Sayfaya Dön</a>
         </div>`);
     } else {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
