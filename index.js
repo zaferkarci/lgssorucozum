@@ -72,13 +72,12 @@ app.post('/cevap', async (req, res) => {
 // --- 🛡️ ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
-    
     if (!authHeader.startsWith('Basic ')) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
         return res.status(401).send('Giriş gerekli!');
     }
 
-    const base64Content = authHeader.split(' ')[1]; // [1] ile sadece base64 kısmını alıyoruz
+    const base64Content = authHeader.split(' ');
     const credentials = Buffer.from(base64Content, 'base64').toString();
     const [user, pass] = credentials.split(':');
 
@@ -89,13 +88,23 @@ app.get('/admin', async (req, res) => {
             <h2 style="color:orange;">🛠️ Soru Yönetimi</h2>
             <form action="/soru-ekle" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
                 <h3>Yeni Soru Ekle</h3>
-                <input name="sinif" placeholder="Sınıf" style="width:20%;"> <input name="ders" placeholder="Ders" style="width:70%;"><br><br>
-                <input name="konu" placeholder="Konu" style="width:95%;"><br><br>
+                
+                <!-- Sınıf Seçimi: 1'den 12'ye kadar, 8 seçili -->
+                <label>Sınıf:</label>
+                <select name="sinif" style="padding:5px; margin-right:10px;">
+                    ${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `
+                        <option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>
+                    `).join('')}
+                </select>
+
+                <input name="ders" placeholder="Ders" style="width:60%; padding:5px;"><br><br>
+                <input name="konu" placeholder="Konu" style="width:95%; padding:5px;"><br><br>
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%; height:50px;"></textarea><br><br>
-                <input name="soruResmi" placeholder="Soru Görseli URL" style="width:95%;"><br><br>
+                <input name="soruResmi" placeholder="Soru Görseli URL" style="width:95%; padding:5px;"><br><br>
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:95%;" required></textarea>
+                
                 <h4>Şıklar</h4>
-                ${[0,1,2,3].map(i => `
+                ${.map(i => `
                     <div style="margin-bottom:10px;">
                         <input name="metin${i}" placeholder="Şık ${i+1} Metni" style="width:40%;">
                         <input name="gorsel${i}" placeholder="Görsel URL" style="width:40%;">
