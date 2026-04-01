@@ -5,14 +5,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// GÜVENLİ MONGODB BAĞLANTISI
+// RENDER'DAN GELEN DEĞİŞKENLER
 const dbURI = process.env.MONGO_URI; 
 
 mongoose.connect(dbURI)
 .then(() => console.log("✅ MongoDB Bağlandı"))
-.catch(err => console.log("❌ MongoDB Hatası:", err));
+.catch(err => {
+    console.error("❌ MongoDB Bağlantı Hatası:", err.message);
+    process.exit(1); // Bağlantı olmazsa uygulamayı güvenle durdur
+});
 
-// MODELLER (Aynı kalıyor)
+// MODELLER
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: String,
     sifre: String,
@@ -27,7 +30,7 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     dogruCevapIndex: Number
 }));
 
-// ANA SAYFA (Admin linkini kaldırdık, sadece sen biliyorsun)
+// ANA SAYFA
 app.get('/', (req, res) => {
     res.send(`
     <div style="text-align:center; padding-top:50px; font-family:sans-serif;">
@@ -41,14 +44,18 @@ app.get('/', (req, res) => {
     `);
 });
 
-// GİRİŞ VE SORU İŞLEMLERİ (Eski kodunla aynı...)
+// GİRİŞ
 app.post('/giris', async (req, res) => {
     const { kullaniciAdi, sifre } = req.body;
     let kullanici = await Kullanici.findOne({ kullaniciAdi, sifre });
-    if (!kullanici) { kullanici = new Kullanici({ kullaniciAdi, sifre }); await kullanici.save(); }
+    if (!kullanici) { 
+        kullanici = new Kullanici({ kullaniciAdi, sifre }); 
+        await kullanici.save(); 
+    }
     res.redirect('/soru/' + kullaniciAdi);
 });
 
+// SORU SAYFASI
 app.get('/soru/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     const sorular = await Soru.find();
@@ -58,7 +65,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     const harfler = ["A","B","C","D"];
     res.send(`
     <div style="max-width:700px; margin:auto; font-family:sans-serif; padding:20px;">
-        <h3>${soru.sinif}. Sınıf - ${soru.ders} (${soru.konu}) - Puan: ${k.puan}</h3>
+        <h3>${soru.sinif}. Sınıf - ${soru.ders} - Puan: ${k.puan}</h3>
         ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:10px;">${soru.soruOnculu}</p>` : ""}
         ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%;">` : ""}
         <h2>${soru.soruMetni}</h2>
@@ -76,6 +83,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     `);
 });
 
+// CEVAP
 app.post('/cevap', async (req, res) => {
     const { kullaniciAdi, soruId, secilenIndex } = req.body;
     const soru = await Soru.findById(soruId);
@@ -86,9 +94,9 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// 🛡️ GÜVENLİ ADMİN PANELİ (Kullanıcı adı/Şifre Render'dan gelecek)
+// 🛡️ ADMİN PANELİ (GÜVENLİ)
 app.get('/admin', (req, res) => {
-    const b64auth = (req.headers.authorization || '').split(' ') [1] || '';
+    const b64auth = (req.headers.authorization || '').split(' ') || '';
     const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
 
     if (login && password && login === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
@@ -101,7 +109,7 @@ app.get('/admin', (req, res) => {
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:100%; height:60px;"></textarea><br>
                 <input name="soruResmi" placeholder="Soru Görseli URL" style="width:100%;"><br>
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:100%; height:40px; margin:10px 0;"></textarea>
-                ${[0,1,2,3].map(i=>`
+                ${[0, 1, 2, 3].map(i => `
                     <div>
                         <input name="metin${i}" placeholder="Şık ${i+1}">
                         <input type="radio" name="dogruCevap" value="${i}" required> Doğru
@@ -117,6 +125,7 @@ app.get('/admin', (req, res) => {
     }
 });
 
+// SORU KAYDET
 app.post('/soru-ekle', async (req, res) => {
     const yeniSoru = new Soru({
         sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu,
@@ -131,6 +140,6 @@ app.post('/soru-ekle', async (req, res) => {
     res.send("✅ Soru eklendi! <a href='/admin'>Geri dön</a>");
 });
 
-// SERVER
+// SUNUCU
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server çalışıyor: ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Sunucu aktif: ${PORT}`));
