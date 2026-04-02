@@ -8,6 +8,9 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 10000;
 const dbURI = process.env.MONGO_URI;
 
+// MathJax Scripti (Matematiksel formüller için)
+const mathJaxScript = `<script src="https://polyfill.io"></script><script id="MathJax-script" async src="https://jsdelivr.net"></script>`;
+
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
 // --- MODELLER ---
@@ -34,11 +37,10 @@ app.get('/', (req, res) => {
     <div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f0f2f5; font-family:'Segoe UI',Tahoma,sans-serif;">
         <div style="background:white; padding:40px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:100%; max-width:350px; text-align:center;">
             <h2 style="color:#1a73e8; margin-bottom:10px;">LGS Hazırlık</h2>
-            <p style="color:#5f6368; margin-bottom:25px;">Soru Çözüm Platformuna Giriş Yap</p>
             <form action="/giris" method="POST">
                 <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #dadce0; border-radius:8px; box-sizing:border-box;">
                 <input type="password" name="sifre" placeholder="Şifre" required style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #dadce0; border-radius:8px; box-sizing:border-box;">
-                <button style="width:100%; padding:12px; background:#1a73e8; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px;">GİRİŞ YAP</button>
+                <button style="width:100%; padding:12px; background:#1a73e8; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">GİRİŞ YAP</button>
             </form>
             <p style="margin-top:20px; font-size:14px;">Hesabınız yok mu? <a href="/kayit" style="color:#1a73e8; text-decoration:none; font-weight:bold;">Kayıt Ol</a></p>
         </div>
@@ -60,8 +62,8 @@ app.get('/kayit', (req, res) => {
                     ${iller.map(il => `<option value="${il}" ${il === "Aydın" ? "selected" : ""}>${il}</option>`).join('')}
                 </select>
                 <select name="ilce" id="ilceSelect" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">İlçe Seçiniz</option></select>
-                <input name="okul" placeholder="Okulunuzun Adı" required style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;">
-                <button style="width:100%; padding:12px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px;">KAYDI TAMAMLA</button>
+                <input name="okul" placeholder="Okulunuzun Adı" required style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+                <button style="width:100%; padding:12px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDI TAMAMLA</button>
             </form>
             <p style="text-align:center; margin-top:15px;"><a href="/" style="color:#5f6368; text-decoration:none; font-size:14px;">Geri Dön</a></p>
         </div>
@@ -103,27 +105,28 @@ app.post('/giris', async (req, res) => {
 app.get('/soru/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     const sorular = await Soru.find();
-    if (!sorular.length) return res.send("<div style='text-align:center; padding:50px; font-family:sans-serif;'><h2>Henüz soru eklenmemiş.</h2><a href='/'>Geri Dön</a></div>");
+    if (!sorular.length) return res.send("Soru yok.");
     const soru = sorular[k.soruIndex % sorular.length];
     const harfler = ["A","B","C","D"];
     res.send(`
+    <head>${mathJaxScript}</head>
     <div style="max-width:800px; margin:20px auto; font-family:'Segoe UI',sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);">
         <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #eee;">
             <div style="color:#333;">🎓 <b>${k.okul}</b> | 👤 <b>${k.kullaniciAdi}</b></div>
             <div style="display:flex; gap:15px; align-items:center;">
                 <span style="background:#e8f0fe; color:#1a73e8; padding:5px 12px; border-radius:20px; font-weight:bold;">Puan: ${k.puan}</span>
-                <span style="color:#d93025; font-weight:bold; font-variant-numeric:tabular-nums;">⏱️ <span id="timer">00:00</span> / 05:00</span>
+                <span style="color:#d93025; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00</span>
             </div>
         </div>
         <div style="background:#fff; border:1px solid #eee; padding:25px; border-radius:10px; margin-bottom:20px; line-height:1.6;">
-            ${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px; font-style:italic;">${soru.soruOnculu}</div>` : ""}
-            ${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px; border:1px solid #eee;"></div>` : ""}
+            ${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}
+            ${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px;"></div>` : ""}
             <h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2>
             <div style="display:grid; gap:10px;">
             ${soru.secenekler.map((s,i)=>`
                 <form method="POST" action="/cevap" id="f${i}">
                     <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0">
-                    <button type="button" onclick="document.getElementById('gs${i}').value=saniye; document.getElementById('f${i}').submit();" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; font-size:16px; transition:all 0.2s;">
+                    <button type="button" onclick="document.getElementById('gs${i}').value=saniye; document.getElementById('f${i}').submit();" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; font-size:16px;">
                         <b style="color:#1a73e8; margin-right:10px;">${harfler[i]})</b> ${s.metin || ""}
                     </button>
                 </form>`).join('')}
@@ -133,10 +136,6 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     <script>
         let saniye = 0; const timerElement = document.getElementById('timer');
         const interval = setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); } }, 1000);
-        document.querySelectorAll('button').forEach(btn => {
-            btn.onmouseover = () => btn.style.borderColor = '#1a73e8';
-            btn.onmouseout = () => btn.style.borderColor = '#f1f3f4';
-        });
     </script>`);
 });
 
@@ -161,51 +160,31 @@ app.get('/admin', async (req, res) => {
         const tumSorular = await Soru.find();
         const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
         res.send(`
+        <head>${mathJaxScript}</head>
         <div style="max-width:900px; margin:30px auto; font-family:'Segoe UI',sans-serif; padding:20px; background:#fdfdfd; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.1);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; border-bottom:2px solid #eee; padding-bottom:15px;">
-                <h2 style="color:#202124; margin:0;">🛠️ Admin Kontrol Paneli</h2>
-                <button onclick="document.getElementById('formAlan').style.display='block'" style="background:#1a73e8; color:white; padding:12px 25px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; box-shadow:0 4px 6px rgba(26,115,232,0.2);">SORULAR</button>
+                <h2 style="color:#202124; margin:0;">🛠️ Admin Paneli</h2>
+                <button onclick="document.getElementById('formAlan').style.display='block'" style="background:#1a73e8; color:white; padding:12px 25px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">SORULAR</button>
             </div>
-            
-            <div id="formAlan" style="display:${editSoru ? 'block' : 'none'}; background:#fff; padding:25px; border:1px solid #e0e0e0; border-radius:12px; margin-bottom:30px; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
-                <h3 style="margin-top:0; color:#3c4043;">${editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle'}</h3>
+            <div id="formAlan" style="display:${editSoru ? 'block' : 'none'}; background:#fff; padding:25px; border:1px solid #e0e0e0; border-radius:12px; margin-bottom:30px;">
                 <form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST">
                     ${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
-                        <div>Sınıf: <select name="sinif" style="width:100%; padding:8px; border-radius:5px;">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select></div>
-                        <div>Ders: <select name="ders" style="width:100%; padding:8px; border-radius:5px;">${dersler.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
+                        <div>Sınıf: <select name="sinif" style="width:100%; padding:8px;">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select></div>
+                        <div>Ders: <select name="ders" style="width:100%; padding:8px;">${dersler.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}</select></div>
                     </div>
-                    <input name="konu" placeholder="Konu Başlığı" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
-                    <textarea name="soruOnculu" placeholder="Soru Öncülü (Opsiyonel)" style="width:98%; height:60px; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">${editSoru ? editSoru.soruOnculu : ''}</textarea>
-                    <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
+                    <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
+                    <textarea name="soruOnculu" placeholder="Öncül (Örn: \\( \\sqrt{x} \\) yazabilirsiniz)" style="width:98%; height:60px; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">${editSoru ? editSoru.soruOnculu : ''}</textarea>
+                    <input name="soruResmi" placeholder="Görsel URL" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:5px;">
                     <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:5px;" required>${editSoru ? editSoru.soruMetni : ''}</textarea>
-                    
                     <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;">
-                        <p style="margin:0 0 10px 0; font-weight:bold; color:#5f6368;">Seçenekler ve Doğru Cevap</p>
-                        ${[0,1,2,3].map(i => `
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                            <b>${String.fromCharCode(65+i)}:</b>
-                            <input name="metin${i}" placeholder="Şık Metni" value="${editSoru ? editSoru.secenekler[i].metin : ''}" style="flex:2; padding:8px; border:1px solid #ddd; border-radius:4px;">
-                            <input name="gorsel${i}" placeholder="Şık Görsel URL" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
-                            <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required title="Doğru Cevap">
-                        </div>`).join('')}
+                        ${[0,1,2,3].map(i => `<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;"><b>${String.fromCharCode(65+i)}:</b> <input name="metin${i}" value="${editSoru ? editSoru.secenekler[i].metin : ''}" style="flex:2; padding:8px;"> <input name="gorsel${i}" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}" style="flex:1; padding:8px;"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required></div>`).join('')}
                     </div>
-                    
-                    <button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">${editSoru ? 'GÜNCELLEMEYİ KAYDET' : 'SORUYU YAYINLA'}</button>
-                    <button type="button" onclick="document.getElementById('formAlan').style.display='none'" style="background:#5f6368; color:white; padding:12px 20px; border:none; border-radius:8px; cursor:pointer; margin-left:10px;">KAPAT</button>
-                    <hr style="margin:30px 0; border:0; border-top:1px solid #eee;">
-                    <h3 style="color:#3c4043;">Kayıtlı Sorular</h3>
-                    <div style="display:grid; gap:10px;">
-                    ${tumSorular.map((s, i) => `
-                        <div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#202124;"><b>${i+1}.</b> ${s.soruMetni.substring(0,50)}... <small style="color:#1a73e8; margin-left:10px;">[${s.ders}]</small></span>
-                            <div style="display:flex; gap:10px;">
-                                <a href="/admin?duzenle=${s._id}" style="text-decoration:none; color:#1a73e8; font-weight:bold; font-size:14px; padding:5px 10px; border:1px solid #1a73e8; border-radius:4px;">DÜZENLE</a>
-                                <form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="background:none; border:1px solid #d93025; color:#d93025; cursor:pointer; padding:5px 10px; border-radius:4px; font-weight:bold; font-size:14px;">SİL</button></form>
-                            </div>
-                        </div>`).join('')}
-                    </div>
+                    <button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDET</button>
+                    <button type="button" onclick="document.getElementById('formAlan').style.display='none'" style="padding:12px 20px; border-radius:8px; cursor:pointer; margin-left:10px;">KAPAT</button>
                 </form>
+                <hr style="margin:30px 0; border-top:1px solid #eee;">
+                ${tumSorular.map((s, i) => `<div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> ${s.soruMetni.substring(0,50)}...</span><div><a href="/admin?duzenle=${s._id}" style="color:#1a73e8; font-weight:bold; margin-right:15px;">DÜZENLE</a><form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:#d93025; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></div></div>`).join('')}
             </div>
         </div>`);
     } else { res.status(401).send('Yetkisiz!'); }
