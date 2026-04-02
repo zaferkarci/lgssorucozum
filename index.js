@@ -32,15 +32,6 @@ const Okul = mongoose.model('Okul', new mongoose.Schema({
     ad: String, il: String, ilce: String
 }));
 
-// --- YARDIMCI VERİ: 81 İL VE İLÇELER (Özet Liste - Tarayıcıda Dinamik Yüklenir) ---
-const illerData = {
-    "Aydın": ["Nazilli", "Efeler", "Kuşadası", "Söke", "Didim"],
-    "İzmir": ["Konak", "Bornova", "Karşıyaka", "Buca"],
-    "İstanbul": ["Kadıköy", "Beşiktaş", "Üsküdar", "Fatih"]
-    // Not: Tüm 81 il verisi JS tarafında fetch veya büyük bir obje ile eklenebilir. 
-    // Örnek olması için kritik illeri ekledim.
-};
-
 // --- YOLLAR ---
 
 app.get('/', (req, res) => {
@@ -67,49 +58,34 @@ app.get('/kayit', (req, res) => {
         const iller = ["Adana","Adıyaman","Afyonkarahisar","Ağrı","Amasya","Ankara","Antalya","Artvin","Aydın","Balıkesir","Bilecik","Bingöl","Bitlis","Bolu","Burdur","Bursa","Çanakkale","Çankırı","Çorum","Denizli","Diyarbakır","Edirne","Elazığ","Erzincan","Erzurum","Eskişehir","Gaziantep","Giresun","Gümüşhane","Hakkari","Hatay","Isparta","Mersin","İstanbul","İzmir","Kars","Kastamonu","Kayseri","Kırklareli","Kırşehir","Kocaeli","Konya","Kütahya","Malatya","Manisa","Kahramanmaraş","Mardin","Muğla","Muş","Nevşehir","Niğde","Ordu","Rize","Sakarya","Samsun","Siirt","Sinop","Sivas","Tekirdağ","Tokat","Trabzon","Tunceli","Şanlıurfa","Uşak","Van","Yozgat","Zonguldak","Aksaray","Bayburt","Karaman","Kırıkkale","Batman","Şırnak","Bartın","Ardahan","Iğdır","Yalova","Karabük","Kilis","Osmaniye","Düzce"];
         const ilSelect = document.getElementById('il');
         iller.forEach(il => {
-            let opt = document.createElement('option');
-            opt.value = il; opt.text = il;
-            if(il === "Aydın") opt.selected = true;
-            ilSelect.add(opt);
+            let opt = document.createElement('option'); opt.value = il; opt.text = il;
+            if(il === "Aydın") opt.selected = true; ilSelect.add(opt);
         });
 
         async function getIlce() {
             const il = ilSelect.value;
-            const res = await fetch('/api/ilce/' + il);
-            const ilceler = await res.json();
+            const res = await fetch('https://turkiyeapi.dev' + il);
+            const data = await res.json();
             const ilceSelect = document.getElementById('ilce');
             ilceSelect.innerHTML = '';
-            ilceler.forEach(ilce => {
-                let opt = document.createElement('option');
-                opt.value = ilce; opt.text = ilce;
-                if(il === "Aydın" && ilce === "Nazilli") opt.selected = true;
+            data.data[0].districts.forEach(d => {
+                let opt = document.createElement('option'); opt.value = d.name; opt.text = d.name;
+                if(il === "Aydın" && d.name === "Nazilli") opt.selected = true;
                 ilceSelect.add(opt);
             });
             getOkul();
         }
 
         async function getOkul() {
-            const il = ilSelect.value;
-            const ilce = document.getElementById('ilce').value;
+            const il = ilSelect.value; const ilce = document.getElementById('ilce').value;
             const res = await fetch('/api/okul?il='+il+'&ilce='+ilce);
             const okullar = await res.json();
             const okulSelect = document.getElementById('okul');
             okulSelect.innerHTML = '<option value="">Okul Seçiniz</option>';
-            okullar.forEach(o => {
-                let opt = document.createElement('option');
-                opt.value = o.ad; opt.text = o.ad;
-                okulSelect.add(opt);
-            });
+            okullar.forEach(o => { let opt = document.createElement('option'); opt.value = o.ad; opt.text = o.ad; okulSelect.add(opt); });
         }
         window.onload = getIlce;
     </script>`);
-});
-
-// --- API YOLLARI ---
-app.get('/api/ilce/:il', (req, res) => {
-    // Burada tüm ilçeler için bir kütüphane kullanılabilir, şimdilik örnek:
-    const ilceler = illerData[req.params.il] || ["Merkez"];
-    res.json(ilceler);
 });
 
 app.get('/api/okul', async (req, res) => {
@@ -117,12 +93,11 @@ app.get('/api/okul', async (req, res) => {
     res.json(okullar);
 });
 
-// --- KAYIT VE GİRİŞ İŞLEMLERİ ---
 app.post('/kayit-yap', async (req, res) => {
     const { kullaniciAdi, sifre, sifreTekrar, il, ilce, okul } = req.body;
     if (sifre !== sifreTekrar) return res.send("<script>alert('Şifreler uyuşmuyor!'); window.history.back();</script>");
     const varMi = await Kullanici.findOne({ kullaniciAdi });
-    if (varMi) return res.send("<script>alert('Bu kullanıcı zaten var!'); window.history.back();</script>");
+    if (varMi) return res.send("<script>alert('Kullanıcı adı alınmış!'); window.history.back();</script>");
     const yeniK = new Kullanici({ kullaniciAdi, sifre, il, ilce, okul });
     await yeniK.save();
     res.send("<script>alert('Kayıt Başarılı!'); window.location.href='/';</script>");
@@ -135,7 +110,6 @@ app.post('/giris', async (req, res) => {
     res.redirect('/soru/' + k.kullaniciAdi);
 });
 
-// --- SORU ÇÖZME SAYFASI (SAYAÇ KORUNDU) ---
 app.get('/soru/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     const sorular = await Soru.find();
@@ -145,10 +119,10 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     res.send(`
     <div style="max-width:700px; margin:auto; font-family:sans-serif; padding:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; background:#eee; padding:10px; border-radius:5px; margin-bottom:15px;">
-            <span><b>${k.okul}</b> (${k.ilce})</span>
+            <span><b>${k.okul}</b> - Puan: <b>${k.puan}</b></span>
             <div style="color:red; font-weight:bold;">Süre: <span id="timer">00:00</span> / 05:00</div>
         </div>
-        ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px;">${soru.soruOnculu}</p>` : ""}
+        ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px; border-radius:5px;">${soru.soruOnculu}</p>` : ""}
         ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%; margin-bottom:10px;">` : ""}
         <h2>${soru.soruMetni}</h2>
         ${soru.secenekler.map((s,i)=>`
@@ -156,108 +130,79 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
                 <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gecenSureInput${i}" value="0">
                 <button type="button" onclick="submitWithTime(${i})" style="width:100%; margin:5px 0; padding:12px; text-align:left; cursor:pointer; background:white; border:1px solid #ccc; border-radius:8px;">
                     <b>${harfler[i]})</b> ${s.metin || ""}
-                    ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-height:100px;">` : ""}
+                    ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-height:100px; margin-top:5px;">` : ""}
                 </button>
             </form>
         `).join('')}
     </div>
     <script>
         let saniye = 0; const timerElement = document.getElementById('timer');
-        const interval = setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); }, 1000);
+        const interval = setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); } }, 1000);
         function submitWithTime(index) { document.getElementById('gecenSureInput' + index).value = saniye; document.getElementById('form' + index).submit(); }
     </script>`);
 });
 
 app.post('/cevap', async (req, res) => {
     const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
-    const s = await Soru.findById(soruId);
-    const k = await Kullanici.findOne({ kullaniciAdi });
-    k.toplamSure += parseInt(gecenSure);
-    k.cozumSureleri.push({ soruId, sure: parseInt(gecenSure) });
+    const s = await Soru.findById(soruId); const k = await Kullanici.findOne({ kullaniciAdi });
+    k.toplamSure += parseInt(gecenSure); k.cozumSureleri.push({ soruId, sure: parseInt(gecenSure) });
     if (parseInt(secilenIndex) === s.dogruCevapIndex) k.puan += 10;
-    k.soruIndex += 1; await k.save();
-    res.redirect('/soru/' + kullaniciAdi);
+    k.soruIndex += 1; await k.save(); res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- 🛡️ ADMIN PANELİ (OKUL YÖNETİMİ EKLENDİ) ---
+// --- 🛡️ ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
     const [user, pass] = credentials.split(':');
-
     if (user === (process.env.ADMIN_USER || '').trim() && pass === (process.env.ADMIN_PASSWORD || '').trim()) {
-        const tumSorular = await Soru.find();
-        const tumOkullar = await Okul.find();
-        let editSoru = req.query.duzenle ? await Soru.findById(req.query.duzenle) : null;
-        let editOkul = req.query.okulDuzenle ? await Okul.findById(req.query.okulDuzenle) : null;
+        const tumSorular = await Soru.find(); const tumOkullar = await Okul.find();
+        let editS = req.query.duzenle ? await Soru.findById(req.query.duzenle) : null;
+        let editO = req.query.okulDuzenle ? await Okul.findById(req.query.okulDuzenle) : null;
+        const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "İngilizce", "Din Kültürü"];
 
         res.send(`
-        <div style="max-width:900px; margin:auto; font-family:sans-serif; padding:20px;">
-            <div style="display:flex; gap:20px; margin-bottom:30px;">
-                <a href="/admin" style="padding:10px; background:#eee; text-decoration:none; color:black;">Soru Yönetimi</a>
-                <a href="/admin?tab=okul" style="padding:10px; background:#eee; text-decoration:none; color:black;">Okul Yönetimi</a>
-            </div>
-
+        <div style="max-width:850px; margin:auto; font-family:sans-serif; padding:20px;">
+            <div style="margin-bottom:20px;"><a href="/admin">Soru İşlemleri</a> | <a href="/admin?tab=okul">Okul İşlemleri</a></div>
             ${req.query.tab === 'okul' ? `
-                <!-- OKUL YÖNETİMİ -->
-                <h3>${editOkul ? 'Okul Güncelle' : 'Yeni Okul Ekle'}</h3>
-                <form action="${editOkul ? '/okul-guncelle' : '/okul-ekle'}" method="POST" style="background:#f9f9f9; padding:20px;">
-                    ${editOkul ? `<input type="hidden" name="id" value="${editOkul._id}">` : ''}
-                    <input name="il" placeholder="İl" value="${editOkul ? editOkul.il : ''}" required>
-                    <input name="ilce" placeholder="İlçe" value="${editOkul ? editOkul.ilce : ''}" required>
-                    <input name="ad" placeholder="Okul Adı" value="${editOkul ? editOkul.ad : ''}" required style="width:50%;">
-                    <button style="background:green; color:white; padding:10px;">${editOkul ? 'GÜNCELLE' : 'EKLE'}</button>
+                <h3>${editO ? 'Okul Güncelle' : 'Okul Ekle'}</h3>
+                <form action="${editO ? '/okul-guncelle' : '/okul-ekle'}" method="POST" style="background:#f4f4f4; padding:20px;">
+                    ${editO ? `<input type="hidden" name="id" value="${editO._id}">` : ''}
+                    <input name="il" placeholder="İl" value="${editO ? editO.il : ''}" required> <input name="ilce" placeholder="İlçe" value="${editO ? editO.ilce : ''}" required> <input name="ad" placeholder="Okul Adı" value="${editO ? editO.ad : ''}" required>
+                    <button>${editO ? 'GÜNCELLE' : 'EKLE'}</button>
                 </form>
-                <hr>
-                <h4>Mevcut Okullar</h4>
-                ${tumOkullar.map(o => `<div>${o.il} / ${o.ilce} - ${o.ad} 
-                    <a href="/admin?tab=okul&okulDuzenle=${o._id}">Düzenle</a> | 
-                    <form action="/okul-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${o._id}"><button style="color:red; border:none; background:none; cursor:pointer;">Sil</button></form>
-                </div>`).join('')}
+                <h4>Kayıtlı Okullar</h4>
+                ${tumOkullar.map(o => `<div>${o.il}-${o.ilce}: ${o.ad} <a href="/admin?tab=okul&okulDuzenle=${o._id}">Düzenle</a> | <form action="/okul-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${o._id}"><button style="color:red;border:none;background:none;cursor:pointer;">Sil</button></form></div>`).join('')}
             ` : `
-                <!-- SORU YÖNETİMİ -->
-                <h3>${editSoru ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}</h3>
-                <form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST" style="background:#f9f9f9; padding:20px;">
-                    ${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}
-                    <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
-                    <select name="ders">${["Matematik", "Türkçe", "Fen Bilimleri", "İngilizce", "Din Kültürü"].map(d => `<option value="${d}" ${(editSoru ? editSoru.ders == d : d == 'Matematik') ? 'selected' : ''}>${d}</option>`).join('')}</select>
-                    <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}"><br><br>
-                    <textarea name="soruMetni" required style="width:100%;">${editSoru ? editSoru.soruMetni : ''}</textarea><br>
-                    ${[0,1,2,3].map(i => `<div> Şık ${i+1}: <input name="metin${i}" value="${editSoru ? editSoru.secenekler[i].metin : ''}"> <input type="radio" name="dogruCevap" value="${i}" required ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''}> Doğru</div>`).join('')}
-                    <button style="background:green; color:white; width:100%; padding:10px; margin-top:10px;">${editSoru ? 'GÜNCELLE' : 'KAYDET'}</button>
+                <h3>${editS ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}</h3>
+                <form action="${editS ? '/soru-guncelle' : '/soru-ekle'}" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
+                    ${editS ? `<input type="hidden" name="id" value="${editS._id}">` : ''}
+                    Sınıf: <select name="sinif">${.map(s => `<option value="${s}" ${(editS ? editS.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
+                    Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${(editS ? editS.ders == d : d == 'Matematik') ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br>
+                    <input name="konu" placeholder="Konu" value="${editS ? editS.konu : ''}" style="width:95%;"><br><br>
+                    <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%; height:50px;">${editS ? editS.soruOnculu : ''}</textarea><br><br>
+                    <input name="soruResmi" placeholder="Soru Görseli URL" value="${editS ? editS.soruResmi : ''}" style="width:95%;"><br><br>
+                    <textarea name="soruMetni" placeholder="Soru Metni" style="width:95%;" required>${editS ? editS.soruMetni : ''}</textarea>
+                    <h4>Şıklar</h4>
+                    ${.map(i => `<div style="margin-bottom:10px;"><input name="metin${i}" placeholder="Şık Metni" value="${editS ? editS.secenekler[i].metin : ''}"> <input name="gorsel${i}" placeholder="Şık Görsel URL" value="${editS ? editS.secenekler[i].gorsel : ''}"> <input type="radio" name="dogruCevap" value="${i}" required ${editS && editS.dogruCevapIndex === i ? 'checked' : ''}> Doğru</div>`).join('')}
+                    <button style="width:100%; padding:15px; background:green; color:white; border:none; cursor:pointer;">${editS ? 'GÜNCELLE' : 'KAYDET'}</button>
                 </form>
                 <hr>
-                <h4>Sorular</h4>
-                ${tumSorular.map(s => `<div>${s.ders} - ${s.soruMetni.substring(0,30)}... <a href="/admin?duzenle=${s._id}">Düzenle</a></div>`).join('')}
+                ${tumSorular.map((s, index) => `<div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between;"><div><b>${index+1}.</b> ${s.soruMetni.substring(0, 40)}...</div><div><a href="/admin?duzenle=${s._id}">DÜZENLE</a> | <form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="background:red; color:white; border:none; cursor:pointer;">SİL</button></form></div></div>`).join('')}
             `}
         </div>`);
     } else { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); res.status(401).send('Yetkisiz!'); }
 });
 
-// --- OKUL İŞLEMLERİ POST YOLLARI ---
-app.post('/okul-ekle', async (req, res) => {
-    const yeni = new Okul(req.body); await yeni.save(); res.redirect('/admin?tab=okul');
+app.post('/okul-ekle', async (req, res) => { await new Okul(req.body).save(); res.redirect('/admin?tab=okul'); });
+app.post('/okul-guncelle', async (req, res) => { await Okul.findByIdAndUpdate(req.body.id, req.body); res.redirect('/admin?tab=okul'); });
+app.post('/okul-sil', async (req, res) => { await Okul.findByIdAndDelete(req.body.id); res.redirect('/admin?tab=okul'); });
+app.post('/soru-ekle', async (req, res) => { 
+    const yeni = new Soru({ ...req.body, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsver0 }] });
+    await yeni.save(); res.redirect('/admin'); 
 });
-app.post('/okul-guncelle', async (req, res) => {
-    await Okul.findByIdAndUpdate(req.body.id, req.body); res.redirect('/admin?tab=okul');
-});
-app.post('/okul-sil', async (req, res) => {
-    await Okul.findByIdAndDelete(req.body.id); res.redirect('/admin?tab=okul');
-});
-
-// --- SORU İŞLEMLERİ (Önceki kodla aynı) ---
-app.post('/soru-ekle', async (req, res) => { /* ... önceki ekle mantığı ... */ 
-    const yeni = new Soru({
-        sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruMetni: req.body.soruMetni,
-        secenekler: [{ metin: req.body.metin0 }, { metin: req.body.metin1 }, { metin: req.body.metin2 }, { metin: req.body.metin3 }],
-        dogruCevapIndex: parseInt(req.body.dogruCevap)
-    });
-    await yeni.save(); res.redirect('/admin');
-});
-app.post('/soru-guncelle', async (req, res) => { /* ... önceki güncelle mantığı ... */ 
-    await Soru.findByIdAndUpdate(req.body.id, {
-        sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruMetni: req.body.soruMetni,
-        dogruCevapIndex: parseInt(req.body.dogruCevap)
-    });
+app.post('/soru-guncelle', async (req, res) => {
+    await Soru.findByIdAndUpdate(req.body.id, { ...req.body, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }] });
     res.redirect('/admin');
 });
+app.post('/soru-sil', async (req, res) => { await Soru.findByIdAndDelete(req.body.id); res.redirect('/admin'); });
