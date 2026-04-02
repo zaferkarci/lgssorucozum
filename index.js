@@ -77,7 +77,7 @@ app.get('/admin', async (req, res) => {
         return res.status(401).send('Giriş gerekli!');
     }
 
-    // GÜNCELLEME: Şifre çözme mantığı en garantili hale getirildi
+    // DÜZELTİLEN SATIR: [1] ekleyerek sadece base64 kısmını metin olarak alıyoruz
     const base64Content = authHeader.split(' ')[1]; 
     const credentials = Buffer.from(base64Content, 'base64').toString();
     const [user, pass] = credentials.split(':');
