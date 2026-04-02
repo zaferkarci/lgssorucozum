@@ -72,13 +72,14 @@ app.post('/cevap', async (req, res) => {
 // --- 🛡️ ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
+    
     if (!authHeader.startsWith('Basic ')) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
         return res.status(401).send('Giriş gerekli!');
     }
 
-    // DÜZELTİLEN SATIR: [1] ekleyerek sadece base64 kısmını metin olarak alıyoruz
-    const base64Content = authHeader.split(' ')[1]; 
+    // KESİN ÇÖZÜM: 'Basic ' kısmını atıp kalan base64 metnini direkt alıyoruz
+    const base64Content = authHeader.replace('Basic ', '');
     const credentials = Buffer.from(base64Content, 'base64').toString();
     const [user, pass] = credentials.split(':');
 
@@ -133,7 +134,7 @@ app.get('/admin', async (req, res) => {
         </div>`);
     } else {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
-        res.status(401).send('Yetkisiz!');
+        res.status(401).send('Yetkisiz! Kullanıcı adı veya şifre yanlış.');
     }
 });
 
