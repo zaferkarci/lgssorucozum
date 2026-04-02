@@ -76,8 +76,10 @@ app.get('/admin', async (req, res) => {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
         return res.status(401).send('Giriş gerekli!');
     }
-    const base64Content = authHeader.split(' ');
-    const credentials = Buffer.from(base64Content[1] || '', 'base64').toString();
+
+    // GÜNCELLEME: Şifre çözme mantığı en garantili hale getirildi
+    const base64Content = authHeader.split(' ')[1]; 
+    const credentials = Buffer.from(base64Content, 'base64').toString();
     const [user, pass] = credentials.split(':');
 
     if (user === (process.env.ADMIN_USER || '').trim() && pass === (process.env.ADMIN_PASSWORD || '').trim()) {
