@@ -18,7 +18,7 @@ const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     soruIndex: { type: Number, default: 0 }, 
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },
-    cozumSureleri: [{ soruId: String, sure: Number }] // Cevap süreleri burada saklanıyor
+    cozumSureleri: [{ soruId: String, sure: Number }]
 }));
 
 const Soru = mongoose.model('Soru', new mongoose.Schema({
@@ -35,6 +35,8 @@ app.get('/', (req, res) => {
 });
 
 app.get('/kayit', (req, res) => {
+    const iller = ["Adana","Adıyaman","Afyonkarahisar","Ağrı","Aksaray","Amasya","Ankara","Antalya","Ardahan","Artvin","Aydın","Balıkesir","Bartın","Batman","Bayburt","Bilecik","Bingöl","Bitlis","Bolu","Burdur","Bursa","Çanakkale","Çankırı","Çorum","Denizli","Diyarbakır","Düzce","Edirne","Elazığ","Erzincan","Erzurum","Eskişehir","Gaziantep","Giresun","Gümüşhane","Hakkari","Hatay","Iğdır","Isparta","İstanbul","İzmir","Kahramanmaraş","Karabük","Karaman","Kars","Kastamonu","Kayseri","Kilis","Kırıkkale","Kırklareli","Kırşehir","Kocaeli","Konya","Kütahya","Malatya","Manisa","Mardin","Mersin","Muğla","Muş","Nevşehir","Niğde","Ordu","Osmaniye","Rize","Sakarya","Samsun","Şanlıurfa","Siirt","Sinop","Sivas","Şırnak","Tekirdağ","Tokat","Trabzon","Tunceli","Uşak","Van","Yalova","Yozgat","Zonguldak"];
+    
     res.send(`
     <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
         <h2 style="color:#2c3e50;">Yeni Kayıt</h2>
@@ -43,7 +45,8 @@ app.get('/kayit', (req, res) => {
             <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             <input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required style="width:90%; padding:10px; margin-bottom:15px;"><br>
             <select name="il" id="ilSelect" onchange="ilDegisti()" required style="width:95%; padding:10px; margin-bottom:10px;">
-                <option value="">İl Seçiniz...</option><option value="Aydın">Aydın</option><option value="İzmir">İzmir</option>
+                <option value="">İl Seçiniz...</option>
+                ${iller.map(il => `<option value="${il}">${il}</option>`).join('')}
             </select>
             <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required style="width:95%; padding:10px; margin-bottom:10px;"><option value="">İlçe Seçiniz</option></select>
             <select name="okul" id="okulSelect" required style="width:95%; padding:10px; margin-bottom:20px;"><option value="">Okul Seçiniz</option></select>
@@ -52,8 +55,23 @@ app.get('/kayit', (req, res) => {
     </div>
     <script>
         const veriler = { "Aydın": { "Efeler": ["Efeler Ortaokulu", "Gazipaşa Ortaokulu"], "Nazilli": ["Nazilli Ortaokulu", "Beşeylül Ortaokulu"] }, "İzmir": { "Konak": ["Konak Ortaokulu", "Atatürk Ortaokulu"], "Bornova": ["Bornova Ortaokulu", "Yavuz Selim Ortaokulu"] } };
-        function ilDegisti() { const il = document.getElementById('ilSelect').value; const ilceSelect = document.getElementById('ilceSelect'); ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>'; if(il) { Object.keys(veriler[il]).forEach(ilce => { ilceSelect.innerHTML += '<option value="'+ilce+'">'+ilce+'</option>'; }); } ilceDegisti(); }
-        function ilceDegisti() { const il = document.getElementById('ilSelect').value; const ilce = document.getElementById('ilceSelect').value; const okulSelect = document.getElementById('okulSelect'); okulSelect.innerHTML = '<option value="">Okul Seçiniz</option>'; if(il && ilce) { veriler[il][ilce].forEach(okul => { okulSelect.innerHTML += '<option value="'+okul+'">'+okul+'</option>'; }); } }
+        
+        function ilDegisti() { 
+            const il = document.getElementById('ilSelect').value; 
+            const ilceSelect = document.getElementById('ilceSelect'); 
+            ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>'; 
+            if(veriler[il]) { Object.keys(veriler[il]).forEach(ilce => { ilceSelect.innerHTML += '<option value="'+ilce+'">'+ilce+'</option>'; }); } 
+            ilceDegisti(); 
+        }
+        
+        function ilceDegisti() { 
+            const il = document.getElementById('ilSelect').value; 
+            const ilce = document.getElementById('ilceSelect').value; 
+            const okulSelect = document.getElementById('okulSelect'); 
+            okulSelect.innerHTML = '<option value="">Okul Seçiniz</option>'; 
+            if(veriler[il] && veriler[il][ilce]) { veriler[il][ilce].forEach(okul => { okulSelect.innerHTML += '<option value="'+okul+'">'+okul+'</option>'; }); } 
+        }
+
         window.onload = function() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -61,12 +79,18 @@ app.get('/kayit', (req, res) => {
                         const r = await fetch('https://openstreetmap.org);
                         const d = await r.json();
                         const sehir = d.address.province || d.address.city || "";
-                        const ilS = document.getElementById('ilSelect');
-                        if (sehir.includes("Aydın")) ilS.value = "Aydın"; else if (sehir.includes("İzmir")) ilS.value = "İzmir"; else ilS.value = "Aydın";
+                        const ilSelect = document.getElementById('ilSelect');
+                        
+                        for (let option of ilSelect.options) {
+                            if (sehir.includes(option.value) && option.value !== "") {
+                                ilSelect.value = option.value;
+                                break;
+                            }
+                        }
                         ilDegisti();
-                    } catch(e) { document.getElementById('ilSelect').value = "Aydın"; ilDegisti(); }
-                }, () => { document.getElementById('ilSelect').value = "Aydın"; ilDegisti(); });
-            } else { document.getElementById('ilSelect').value = "Aydın"; ilDegisti(); }
+                    } catch(e) { console.log("Konum hatası"); }
+                });
+            }
         };
     </script>`);
 });
@@ -133,17 +157,13 @@ app.post('/cevap', async (req, res) => {
     const s = await Soru.findById(soruId);
     const k = await Kullanici.findOne({ kullaniciAdi });
     if (parseInt(secilenIndex) === s.dogruCevapIndex) k.puan += 10;
-    
-    // Süre Verilerinin Saklanması:
     k.toplamSure += parseInt(gecenSure);
     k.cozumSureleri.push({ soruId: soruId, sure: parseInt(gecenSure) });
-    
     k.soruIndex += 1; 
     await k.save();
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
