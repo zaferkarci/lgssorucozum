@@ -127,7 +127,7 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ (TÜM ÖZELLİKLER GERİ EKLENDİ) ---
+// --- ADMIN PANELİ (SINIF SEVİYESİ VE 8. SINIF VARSAYILAN GERİ GELDİ) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
@@ -139,8 +139,11 @@ app.get('/admin', async (req, res) => {
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
             <h2>🛠️ Admin Paneli</h2>
             <form action="/soru-ekle" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
-                <input name="konu" placeholder="Konu" style="width:48%; padding:5px;">
-                <select name="ders" style="width:48%; padding:5px;"><option>Matematik</option><option>Türkçe</option><option>Fen Bilimleri</option><option>İngilizce</option><option>Din Kültürü</option></select><br><br>
+                <label>Sınıf:</label> 
+                <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
+                <label> Ders:</label> 
+                <select name="ders"><option>Matematik</option><option>Türkçe</option><option>Fen Bilimleri</option><option>İngilizce</option><option>Din Kültürü</option></select><br><br>
+                <input name="konu" placeholder="Konu" style="width:98%; padding:5px;"><br><br>
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:98%;"></textarea><br><br>
                 <input name="soruResmi" placeholder="Soru Görsel URL" style="width:98%;"><br><br>
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%;" required></textarea><br><br>
@@ -155,7 +158,7 @@ app.get('/admin', async (req, res) => {
 
 app.post('/soru-ekle', async (req, res) => {
     await new Soru({
-        ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni,
+        sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni,
         secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }],
         dogruCevapIndex: parseInt(req.body.dogruCevap)
     }).save();
