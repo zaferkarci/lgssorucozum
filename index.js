@@ -127,7 +127,7 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ (SINIF SEVİYESİ VE 8. SINIF VARSAYILAN GERİ GELDİ) ---
+// --- ADMIN PANELİ (SİLME ÖZELLİĞİ EKLENDİ) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
@@ -151,7 +151,14 @@ app.get('/admin', async (req, res) => {
                 <button style="padding:10px 20px; background:green; color:white; border:none; cursor:pointer;">SORUYU KAYDET</button>
             </form>
             <hr><h3>Mevcut Sorular</h3>
-            ${tumSorular.map((s, i) => `<div style="border-bottom:1px solid #ccc; padding:10px;">${i+1}. ${s.soruMetni.substring(0,40)}...</div>`).join('')}
+            ${tumSorular.map((s, i) => `
+                <div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>${i+1}. ${s.soruMetni.substring(0,40)}...</span>
+                    <form action="/soru-sil" method="POST" onsubmit="return confirm('Bu soruyu silmek istediğinize emin misiniz?')">
+                        <input type="hidden" name="id" value="${s._id}">
+                        <button style="background:red; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:3px;">SİL</button>
+                    </form>
+                </div>`).join('')}
         </div>`);
     } else { res.status(401).send('Yetkisiz!'); }
 });
@@ -162,6 +169,12 @@ app.post('/soru-ekle', async (req, res) => {
         secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }],
         dogruCevapIndex: parseInt(req.body.dogruCevap)
     }).save();
+    res.redirect('/admin');
+});
+
+// --- YENİ: SORU SİLME ROTASI ---
+app.post('/soru-sil', async (req, res) => {
+    await Soru.findByIdAndDelete(req.body.id);
     res.redirect('/admin');
 });
 
