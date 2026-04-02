@@ -39,9 +39,6 @@ app.get('/kayit', (req, res) => {
     res.send(`
     <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
         <h2 style="color:#2c3e50;">Yeni Kayıt Oluştur</h2>
-        <div style="margin-bottom:15px;">
-            <button type="button" onclick="konumBul()" style="padding:10px; background:#f39c12; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📍 Bulunduğum İli Seç</button>
-        </div>
         <form action="/kayit-yap" method="POST" style="max-width:400px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
             <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
@@ -59,28 +56,6 @@ app.get('/kayit', (req, res) => {
         const veriler = { "Aydın": { "Efeler": ["Efeler Ortaokulu", "Gazipaşa Ortaokulu"], "Nazilli": ["Nazilli Ortaokulu", "Beşeylül Ortaokulu"] }, "İzmir": { "Konak": ["Konak Ortaokulu", "Atatürk Ortaokulu"], "Bornova": ["Bornova Ortaokulu", "Yavuz Selim Ortaokulu"] } };
         function ilDegisti() { const il = document.getElementById('ilSelect').value; const ilceSelect = document.getElementById('ilceSelect'); ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>'; if(veriler[il]) { Object.keys(veriler[il]).forEach(ilce => { ilceSelect.innerHTML += '<option value="'+ilce+'">'+ilce+'</option>'; }); } ilceDegisti(); }
         function ilceDegisti() { const il = document.getElementById('ilSelect').value; const ilce = document.getElementById('ilceSelect').value; const okulSelect = document.getElementById('okulSelect'); okulSelect.innerHTML = '<option value="">Okul Seçiniz</option>'; if(veriler[il] && veriler[il][ilce]) { veriler[il][ilce].forEach(okul => { okulSelect.innerHTML += '<option value="'+okul+'">'+okul+'</option>'; }); } }
-        
-        function konumBul() {
-            if (!navigator.geolocation) { alert("Tarayıcınız konumu desteklemiyor."); return; }
-            navigator.geolocation.getCurrentPosition(async (pos) => {
-                try {
-                    const r = await fetch('https://openstreetmap.org);
-                    const d = await r.json();
-                    const sehir = d.address.province || d.address.city || d.address.state || "";
-                    const ilSelect = document.getElementById('ilSelect');
-                    for (let option of ilSelect.options) {
-                        if (sehir.toLocaleLowerCase('tr').includes(option.value.toLocaleLowerCase('tr')) && option.value !== "") {
-                            ilSelect.value = option.value;
-                            break;
-                        }
-                    }
-                    ilDegisti();
-                } catch(e) { alert("Şehir belirlenemedi."); }
-            }, (err) => {
-                if(err.code === 1) alert("Konum izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.");
-                else alert("Konum alınamadı.");
-            }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
-        }
         window.onload = ilDegisti;
     </script>`);
 });
