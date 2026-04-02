@@ -127,17 +127,17 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ (DÜZENLEME ÖZELLİĞİ EKLENDİ) ---
+// --- ADMIN PANELİ (TC İNKILAP EKLENDİ, MATEMATİK VARSAYILAN) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
     const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
     const [user, pass] = credentials.split(':');
     if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
-        
         let editSoru = null;
         if (req.query.duzenle) editSoru = await Soru.findById(req.query.duzenle);
         const tumSorular = await Soru.find();
+        const dersListesi = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
 
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
@@ -148,7 +148,7 @@ app.get('/admin', async (req, res) => {
                 <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
                 <label> Ders:</label> 
                 <select name="ders">
-                    ${["Matematik", "Türkçe", "Fen Bilimleri", "İngilizce", "Din Kültürü"].map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}
+                    ${dersListesi.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}
                 </select><br><br>
                 <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:5px;"><br><br>
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:98%;">${editSoru ? editSoru.soruOnculu : ''}</textarea><br><br>
@@ -183,7 +183,6 @@ app.post('/soru-ekle', async (req, res) => {
     res.redirect('/admin');
 });
 
-// --- YENİ: SORU GÜNCELLEME ROTASI ---
 app.post('/soru-guncelle', async (req, res) => {
     await Soru.findByIdAndUpdate(req.body.id, {
         sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni,
