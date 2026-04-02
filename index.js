@@ -34,24 +34,13 @@ const Okul = mongoose.model('Okul', new mongoose.Schema({
 
 // --- YOLLAR ---
 
-// 1. ANA SAYFA (GİRİŞ)
 app.get('/', (req, res) => {
-    res.send(`
-    <div style="text-align:center; padding-top:50px; font-family:sans-serif;">
-        <h2 style="color:#2c3e50;">LGS Soru Çözüm - Giriş</h2>
-        <form action="/giris" method="POST" style="max-width:300px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
-            <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
-            <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:15px;"><br>
-            <button style="width:95%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px; cursor:pointer;">GİRİŞ YAP</button>
-        </form>
-        <p>Hesabınız yok mu? <a href="/kayit">Kayıt Ol</a></p>
-    </div>`);
+    res.send(`<div style="text-align:center; padding-top:50px; font-family:sans-serif;"><h2>LGS Soru Çözüm - Giriş</h2><form action="/giris" method="POST" style="max-width:300px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br><input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:15px;"><br><button style="width:95%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px; cursor:pointer;">GİRİŞ YAP</button></form><p>Hesabınız yok mu? <a href="/kayit">Kayıt Ol</a></p></div>`);
 });
 
-// 2. KAYIT SAYFASI (ÇİFT ŞİFRE VE 81 İL)
 app.get('/kayit', (req, res) => {
     res.send(`
-    <div style="text-align:center; padding-top:20px; font-family:sans-serif;">
+    <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
         <h2>Yeni Kayıt Oluştur</h2>
         <form action="/kayit-yap" method="POST" style="max-width:400px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
             <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
@@ -99,7 +88,6 @@ app.get('/kayit', (req, res) => {
     </script>`);
 });
 
-// --- API VE KAYIT İŞLEMLERİ ---
 app.get('/api/okul', async (req, res) => {
     const okullar = await Okul.find({ il: req.query.il, ilce: req.query.ilce });
     res.json(okullar);
@@ -108,20 +96,20 @@ app.get('/api/okul', async (req, res) => {
 app.post('/kayit-yap', async (req, res) => {
     const { kullaniciAdi, sifre, sifreTekrar, il, ilce, okul } = req.body;
     if (sifre !== sifreTekrar) return res.send("<script>alert('Şifreler uyuşmuyor!'); window.history.back();</script>");
-    try {
-        const yeniK = new Kullanici({ kullaniciAdi, sifre, il, ilce, okul });
-        await yeniK.save();
-        res.send("<script>alert('Kayıt Başarılı!'); window.location.href='/';</script>");
-    } catch(e) { res.send("<script>alert('Hata: Kullanıcı adı alınmış olabilir.'); window.history.back();</script>"); }
+    const varMi = await Kullanici.findOne({ kullaniciAdi });
+    if (varMi) return res.send("<script>alert('Kullanıcı adı alınmış!'); window.history.back();</script>");
+    const yeniK = new Kullanici({ kullaniciAdi, sifre, il, ilce, okul });
+    await yeniK.save();
+    res.send("<script>alert('Kayıt Başarılı!'); window.location.href='/';</script>");
 });
 
 app.post('/giris', async (req, res) => {
-    const k = await Kullanici.findOne({ kullaniciAdi: req.body.kullaniciAdi, sifre: req.body.sifre });
+    const { kullaniciAdi, sifre } = req.body;
+    const k = await Kullanici.findOne({ kullaniciAdi, sifre });
     if (!k) return res.send("<script>alert('Hatalı giriş!'); window.history.back();</script>");
     res.redirect('/soru/' + k.kullaniciAdi);
 });
 
-// --- SORU SAYFASI (SAYAÇ KORUNDU) ---
 app.get('/soru/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     const sorular = await Soru.find();
@@ -131,7 +119,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     res.send(`
     <div style="max-width:700px; margin:auto; font-family:sans-serif; padding:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; background:#eee; padding:10px; border-radius:5px; margin-bottom:15px;">
-            <span><b>${k.okul}</b> - Hoş geldin, <b>${k.kullaniciAdi}</b></span>
+            <span><b>${k.okul}</b> - Puan: <b>${k.puan}</b></span>
             <div style="color:red; font-weight:bold;">Süre: <span id="timer">00:00</span> / 05:00</div>
         </div>
         ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px; border-radius:5px;">${soru.soruOnculu}</p>` : ""}
@@ -181,7 +169,7 @@ app.get('/admin', async (req, res) => {
                 <form action="${editO ? '/okul-guncelle' : '/okul-ekle'}" method="POST" style="background:#f4f4f4; padding:20px;">
                     ${editO ? `<input type="hidden" name="id" value="${editO._id}">` : ''}
                     <input name="il" placeholder="İl" value="${editO ? editO.il : ''}" required> <input name="ilce" placeholder="İlçe" value="${editO ? editO.ilce : ''}" required> <input name="ad" placeholder="Okul Adı" value="${editO ? editO.ad : ''}" required>
-                    <button style="background:green; color:white; padding:10px;">${editO ? 'GÜNCELLE' : 'EKLE'}</button>
+                    <button>${editO ? 'GÜNCELLE' : 'EKLE'}</button>
                 </form>
                 <h4>Kayıtlı Okullar</h4>
                 ${tumOkullar.map(o => `<div>${o.il}-${o.ilce}: ${o.ad} <a href="/admin?tab=okul&okulDuzenle=${o._id}">Düzenle</a> | <form action="/okul-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${o._id}"><button style="color:red;border:none;background:none;cursor:pointer;">Sil</button></form></div>`).join('')}
@@ -189,35 +177,32 @@ app.get('/admin', async (req, res) => {
                 <h3>${editS ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}</h3>
                 <form action="${editS ? '/soru-guncelle' : '/soru-ekle'}" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
                     ${editS ? `<input type="hidden" name="id" value="${editS._id}">` : ''}
-                    Sınıf: <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editS ? editS.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
+                    Sınıf: <select name="sinif">${.map(s => `<option value="${s}" ${(editS ? editS.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
                     Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${(editS ? editS.ders == d : d == 'Matematik') ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br>
-                    <input name="konu" placeholder="Konu" value="${editS ? editS.konu : ''}" style="width:95%; padding:5px;"><br><br>
+                    <input name="konu" placeholder="Konu" value="${editS ? editS.konu : ''}" style="width:95%;"><br><br>
                     <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%; height:50px;">${editS ? editS.soruOnculu : ''}</textarea><br><br>
-                    <input name="soruResmi" placeholder="Soru Görseli URL" value="${editS ? editS.soruResmi : ''}" style="width:95%; padding:5px;"><br><br>
-                    <textarea name="soruMetni" required style="width:95%;" placeholder="Soru Metni">${editS ? editS.soruMetni : ''}</textarea>
+                    <input name="soruResmi" placeholder="Soru Görseli URL" value="${editS ? editS.soruResmi : ''}" style="width:95%;"><br><br>
+                    <textarea name="soruMetni" placeholder="Soru Metni" style="width:95%;" required>${editS ? editS.soruMetni : ''}</textarea>
                     <h4>Şıklar</h4>
-                    ${[0,1,2,3].map(i => `<div> Şık ${i+1}: <input name="metin${i}" value="${editS ? editS.secenekler[i].metin : ''}"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editS ? editS.secenekler[i].gorsel : ''}"> <input type="radio" name="dogruCevap" value="${i}" required ${editS && editS.dogruCevapIndex === i ? 'checked' : ''}> Doğru</div>`).join('')}
-                    <button style="background:green; color:white; width:100%; padding:10px; margin-top:10px; cursor:pointer;">${editS ? 'GÜNCELLE' : 'KAYDET'}</button>
+                    ${.map(i => `<div style="margin-bottom:10px;"><input name="metin${i}" placeholder="Şık Metni" value="${editS ? editS.secenekler[i].metin : ''}"> <input name="gorsel${i}" placeholder="Şık Görsel URL" value="${editS ? editS.secenekler[i].gorsel : ''}"> <input type="radio" name="dogruCevap" value="${i}" required ${editS && editS.dogruCevapIndex === i ? 'checked' : ''}> Doğru</div>`).join('')}
+                    <button style="width:100%; padding:15px; background:green; color:white; border:none; cursor:pointer;">${editS ? 'GÜNCELLE' : 'KAYDET'}</button>
                 </form>
                 <hr>
-                ${tumSorular.map(s => `<div>${s.ders} - ${s.soruMetni.substring(0,30)}... <a href="/admin?duzenle=${s._id}">Düzenle</a> | <form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:red;border:none;background:none;cursor:pointer;">Sil</button></form></div>`).join('')}
+                ${tumSorular.map((s, index) => `<div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between;"><div><b>${index+1}.</b> ${s.soruMetni.substring(0, 40)}...</div><div><a href="/admin?duzenle=${s._id}">DÜZENLE</a> | <form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="background:red; color:white; border:none; cursor:pointer;">SİL</button></form></div></div>`).join('')}
             `}
         </div>`);
     } else { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); res.status(401).send('Yetkisiz!'); }
 });
 
-// OKUL İŞLEMLERİ
 app.post('/okul-ekle', async (req, res) => { await new Okul(req.body).save(); res.redirect('/admin?tab=okul'); });
 app.post('/okul-guncelle', async (req, res) => { await Okul.findByIdAndUpdate(req.body.id, req.body); res.redirect('/admin?tab=okul'); });
 app.post('/okul-sil', async (req, res) => { await Okul.findByIdAndDelete(req.body.id); res.redirect('/admin?tab=okul'); });
-
-// SORU İŞLEMLERİ
 app.post('/soru-ekle', async (req, res) => { 
-    const yeni = new Soru({ ...req.body, secenekler: [0,1,2,3].map(i => ({ metin: req.body['metin'+i], gorsel: req.body['gorsel'+i] })) });
+    const yeni = new Soru({ ...req.body, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsver0 }] });
     await yeni.save(); res.redirect('/admin'); 
 });
 app.post('/soru-guncelle', async (req, res) => {
-    await Soru.findByIdAndUpdate(req.body.id, { ...req.body, secenekler: [0,1,2,3].map(i => ({ metin: req.body['metin'+i], gorsel: req.body['gorsel'+i] })) });
+    await Soru.findByIdAndUpdate(req.body.id, { ...req.body, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }] });
     res.redirect('/admin');
 });
 app.post('/soru-sil', async (req, res) => { await Soru.findByIdAndDelete(req.body.id); res.redirect('/admin'); });
