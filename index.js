@@ -18,7 +18,7 @@ const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     soruIndex: { type: Number, default: 0 }, 
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },
-    cozumSureleri: [{ soruId: String, sure: Number }]
+    cozumSureleri: [{ soruId: String, sure: Number }] // Cevap süreleri burada saklanıyor
 }));
 
 const Soru = mongoose.model('Soru', new mongoose.Schema({
@@ -133,7 +133,12 @@ app.post('/cevap', async (req, res) => {
     const s = await Soru.findById(soruId);
     const k = await Kullanici.findOne({ kullaniciAdi });
     if (parseInt(secilenIndex) === s.dogruCevapIndex) k.puan += 10;
-    k.soruIndex += 1; k.toplamSure += parseInt(gecenSure);
+    
+    // Süre Verilerinin Saklanması:
+    k.toplamSure += parseInt(gecenSure);
+    k.cozumSureleri.push({ soruId: soruId, sure: parseInt(gecenSure) });
+    
+    k.soruIndex += 1; 
     await k.save();
     res.redirect('/soru/' + kullaniciAdi);
 });
@@ -149,7 +154,6 @@ app.get('/admin', async (req, res) => {
         if (req.query.duzenle) editSoru = await Soru.findById(req.query.duzenle);
         const tumSorular = await Soru.find();
         const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
-
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
             <h2>🛠️ Admin Paneli</h2>
@@ -158,29 +162,16 @@ app.get('/admin', async (req, res) => {
                 <label>Sınıf:</label> 
                 <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
                 <label> Ders:</label> 
-                <select name="ders">
-                    ${dersler.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}
-                </select><br><br>
+                <select name="ders">${dersler.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br>
                 <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:5px;"><br><br>
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:98%;">${editSoru ? editSoru.soruOnculu : ''}</textarea><br><br>
                 <input name="soruResmi" placeholder="Soru Görsel URL" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%;"><br><br>
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%;" required>${editSoru ? editSoru.soruMetni : ''}</textarea><br><br>
-                ${[0,1,2,3].map(i => `Şık ${i+1}: <input name="metin${i}" placeholder="Metin" value="${editSoru ? editSoru.secenekler[i].metin : ''}"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required><br><br>`).join('')}
+                ${[0,1,2,3].map(i => `Şık ${i+1}: <input name="metin${i}" value="${editSoru ? editSoru.secenekler[i].metin : ''}"> <input name="gorsel${i}" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required><br><br>`).join('')}
                 <button style="padding:10px 20px; background:${editSoru ? 'blue' : 'green'}; color:white; border:none; cursor:pointer;">${editSoru ? 'SORUYU GÜNCELLE' : 'SORUYU KAYDET'}</button>
-                ${editSoru ? '<a href="/admin" style="margin-left:10px;">İptal</a>' : ''}
             </form>
             <hr><h3>Mevcut Sorular</h3>
-            ${tumSorular.map((s, i) => `
-                <div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between; align-items:center;">
-                    <span>${i+1}. ${s.soruMetni.substring(0,40)}...</span>
-                    <div style="display:flex; gap:10px;">
-                        <a href="/admin?duzenle=${s._id}" style="background:#3498db; color:white; padding:5px 10px; text-decoration:none; border-radius:3px; font-size:12px;">DÜZENLE</a>
-                        <form action="/soru-sil" method="POST" onsubmit="return confirm('Silinsin mi?')">
-                            <input type="hidden" name="id" value="${s._id}">
-                            <button style="background:red; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:3px; font-size:12px;">SİL</button>
-                        </form>
-                    </div>
-                </div>`).join('')}
+            ${tumSorular.map((s, i) => `<div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between; align-items:center;"><span>${i+1}. ${s.soruMetni.substring(0,40)}...</span><div style="display:flex; gap:10px;"><a href="/admin?duzenle=${s._id}">DÜZENLE</a><form action="/soru-sil" method="POST" onsubmit="return confirm('Silinsin mi?')"><input type="hidden" name="id" value="${s._id}"><button style="background:red; color:white; border:none; cursor:pointer;">SİL</button></form></div></div>`).join('')}
         </div>`);
     } else { res.status(401).send('Yetkisiz!'); }
 });
