@@ -40,13 +40,16 @@ app.get('/kayit', (req, res) => {
     res.send(`
     <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
         <h2 style="color:#2c3e50;">Yeni Kayıt</h2>
+        <div style="margin-bottom:15px;">
+            <button type="button" onclick="konumBul()" style="padding:10px; background:#f39c12; color:white; border:none; border-radius:5px; cursor:pointer;">📍 Bulunduğum İli Seç</button>
+        </div>
         <form action="/kayit-yap" method="POST" style="max-width:400px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
             <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             <input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required style="width:90%; padding:10px; margin-bottom:15px;"><br>
             <select name="il" id="ilSelect" onchange="ilDegisti()" required style="width:95%; padding:10px; margin-bottom:10px;">
                 <option value="">İl Seçiniz...</option>
-                ${iller.map(il => `<option value="${il}">${il}</option>`).join('')}
+                ${iller.map(il => `<option value="${il}" ${il === "Aydın" ? "selected" : ""}>${il}</option>`).join('')}
             </select>
             <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required style="width:95%; padding:10px; margin-bottom:10px;"><option value="">İlçe Seçiniz</option></select>
             <select name="okul" id="okulSelect" required style="width:95%; padding:10px; margin-bottom:20px;"><option value="">Okul Seçiniz</option></select>
@@ -72,26 +75,33 @@ app.get('/kayit', (req, res) => {
             if(veriler[il] && veriler[il][ilce]) { veriler[il][ilce].forEach(okul => { okulSelect.innerHTML += '<option value="'+okul+'">'+okul+'</option>'; }); } 
         }
 
-        window.onload = function() {
+        async function konumBul() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     try {
                         const r = await fetch('https://openstreetmap.org);
                         const d = await r.json();
-                        const sehir = d.address.province || d.address.city || "";
+                        const sehir = d.address.province || d.address.city || d.address.state || "";
                         const ilSelect = document.getElementById('ilSelect');
                         
                         for (let option of ilSelect.options) {
-                            if (sehir.includes(option.value) && option.value !== "") {
+                            if (sehir.toLocaleLowerCase('tr').includes(option.value.toLocaleLowerCase('tr')) && option.value !== "") {
                                 ilSelect.value = option.value;
                                 break;
                             }
                         }
                         ilDegisti();
-                    } catch(e) { console.log("Konum hatası"); }
+                    } catch(e) { alert("Şehir ismi belirlenemedi."); }
+                }, (err) => { 
+                    alert("Konum izni reddedildi veya bir hata oluştu.");
                 });
+            } else {
+                alert("Tarayıcınız konum özelliğini desteklemiyor.");
             }
-        };
+        }
+
+        // Sayfa açıldığında Aydın seçili olduğu için ilçeleri doldur
+        window.onload = ilDegisti;
     </script>`);
 });
 
