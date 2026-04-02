@@ -8,19 +8,6 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 10000;
 const dbURI = process.env.MONGO_URI;
 
-// MathJax Yapılandırması (Karekök ve formülleri tanıması için)
-const mathJaxScript = `
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-      displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-      processEscapes: true
-    }
-  };
-</script>
-<script id="MathJax-script" async src="https://jsdelivr.net"></script>`;
-
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
 // --- MODELLER ---
@@ -107,21 +94,20 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     const soru = sorular[k.soruIndex % sorular.length];
     const harfler = ["A","B","C","D"];
     res.send(`
-    <head>${mathJaxScript}</head>
     <div style="max-width:800px; margin:20px auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);">
         <div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #eee;">
             <span><b>${k.okul}</b> | <b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span>
             <div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00</div>
         </div>
         ${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}
-        ${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px;"></div>` : ""}
+        ${soru.soruResmi && soru.soruResmi.trim() !== "" ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px;"></div>` : ""}
         <h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2>
         <div style="display:grid; gap:10px;">
         ${soru.secenekler.map((s,i)=>`
             <form method="POST" action="/cevap" id="f${i}">
                 <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0">
                 <button type="button" onclick="document.getElementById('gs${i}').value=saniye; document.getElementById('f${i}').submit();" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer;">
-                    <b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;">` : ""}
+                    <b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel && s.gorsel.trim() !== "" ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;">` : ""}
                 </button>
             </form>`).join('')}
         </div>
@@ -153,7 +139,6 @@ app.get('/admin', async (req, res) => {
         const tumSorular = await Soru.find();
         const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
         res.send(`
-        <head>${mathJaxScript}</head>
         <div style="max-width:900px; margin:30px auto; font-family:sans-serif; padding:20px; background:#fdfdfd; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.1);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2>🛠️ Admin Paneli</h2>
@@ -176,7 +161,7 @@ app.get('/admin', async (req, res) => {
                             <b>${String.fromCharCode(65+i)}:</b> 
                             <input name="metin${i}" placeholder="Metin" value="${editSoru ? editSoru.secenekler[i].metin : ''}" style="width:40%;">
                             <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}" style="width:30%;">
-                            <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required> Doğru mu?
+                            <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required>
                         </div>`).join('')}
                     </div>
                     
