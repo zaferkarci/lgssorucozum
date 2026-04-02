@@ -11,7 +11,7 @@ app.listen(PORT, '0.0.0.0', () => { console.log(`🚀 Sunucu aktif: ${PORT}`); }
 const dbURI = process.env.MONGO_URI; 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER (Görsel Desteği Aynen Korundu) ---
+// --- MODELLER ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: String, sifre: String, soruIndex: { type: Number, default: 0 }, puan: { type: Number, default: 0 }
 }));
@@ -69,7 +69,7 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- 🛡️ ADMIN PANELİ (Sınıf Seçimi ve Silme Özelliği Korundu) ---
+// --- 🛡️ ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) {
@@ -82,6 +82,8 @@ app.get('/admin', async (req, res) => {
 
     if (user === (process.env.ADMIN_USER || '').trim() && pass === (process.env.ADMIN_PASSWORD || '').trim()) {
         const tumSorular = await Soru.find();
+        const dersListesi = ["Matematik", "Türkçe", "Fen Bilimleri", "İngilizce", "Din Kültürü"];
+        
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
             <h2 style="color:orange;">🛠️ Soru Yönetimi</h2>
@@ -95,7 +97,14 @@ app.get('/admin', async (req, res) => {
                     `).join('')}
                 </select>
 
-                <input name="ders" placeholder="Ders" style="width:60%; padding:5px;"><br><br>
+                <label>Ders Seç:</label>
+                <select name="ders" style="padding:5px; margin-right:10px;">
+                    ${dersListesi.map(d => `
+                        <option value="${d}" ${d === 'Matematik' ? 'selected' : ''}>${d}</option>
+                    `).join('')}
+                </select>
+                <br><br>
+
                 <input name="konu" placeholder="Konu" style="width:95%; padding:5px;"><br><br>
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%; height:50px;"></textarea><br><br>
                 <input name="soruResmi" placeholder="Soru Görseli URL" style="width:95%; padding:5px;"><br><br>
