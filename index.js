@@ -127,37 +127,48 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ (SİLME ÖZELLİĞİ EKLENDİ) ---
+// --- ADMIN PANELİ (DÜZENLEME ÖZELLİĞİ EKLENDİ) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
     const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
     const [user, pass] = credentials.split(':');
     if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        
+        let editSoru = null;
+        if (req.query.duzenle) editSoru = await Soru.findById(req.query.duzenle);
         const tumSorular = await Soru.find();
+
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
             <h2>🛠️ Admin Paneli</h2>
-            <form action="/soru-ekle" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
+            <form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
+                ${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}
                 <label>Sınıf:</label> 
-                <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
+                <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
                 <label> Ders:</label> 
-                <select name="ders"><option>Matematik</option><option>Türkçe</option><option>Fen Bilimleri</option><option>İngilizce</option><option>Din Kültürü</option></select><br><br>
-                <input name="konu" placeholder="Konu" style="width:98%; padding:5px;"><br><br>
-                <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:98%;"></textarea><br><br>
-                <input name="soruResmi" placeholder="Soru Görsel URL" style="width:98%;"><br><br>
-                <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%;" required></textarea><br><br>
-                ${[0,1,2,3].map(i => `Şık ${i+1}: <input name="metin${i}" placeholder="Metin"> <input name="gorsel${i}" placeholder="Görsel URL"> <input type="radio" name="dogruCevap" value="${i}" required><br><br>`).join('')}
-                <button style="padding:10px 20px; background:green; color:white; border:none; cursor:pointer;">SORUYU KAYDET</button>
+                <select name="ders">
+                    ${["Matematik", "Türkçe", "Fen Bilimleri", "İngilizce", "Din Kültürü"].map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}
+                </select><br><br>
+                <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:5px;"><br><br>
+                <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:98%;">${editSoru ? editSoru.soruOnculu : ''}</textarea><br><br>
+                <input name="soruResmi" placeholder="Soru Görsel URL" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%;"><br><br>
+                <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%;" required>${editSoru ? editSoru.soruMetni : ''}</textarea><br><br>
+                ${[0,1,2,3].map(i => `Şık ${i+1}: <input name="metin${i}" placeholder="Metin" value="${editSoru ? editSoru.secenekler[i].metin : ''}"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required><br><br>`).join('')}
+                <button style="padding:10px 20px; background:${editSoru ? 'blue' : 'green'}; color:white; border:none; cursor:pointer;">${editSoru ? 'SORUYU GÜNCELLE' : 'SORUYU KAYDET'}</button>
+                ${editSoru ? '<a href="/admin" style="margin-left:10px;">İptal</a>' : ''}
             </form>
             <hr><h3>Mevcut Sorular</h3>
             ${tumSorular.map((s, i) => `
                 <div style="border-bottom:1px solid #ccc; padding:10px; display:flex; justify-content:space-between; align-items:center;">
                     <span>${i+1}. ${s.soruMetni.substring(0,40)}...</span>
-                    <form action="/soru-sil" method="POST" onsubmit="return confirm('Bu soruyu silmek istediğinize emin misiniz?')">
-                        <input type="hidden" name="id" value="${s._id}">
-                        <button style="background:red; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:3px;">SİL</button>
-                    </form>
+                    <div style="display:flex; gap:10px;">
+                        <a href="/admin?duzenle=${s._id}" style="background:#3498db; color:white; padding:5px 10px; text-decoration:none; border-radius:3px; font-size:12px;">DÜZENLE</a>
+                        <form action="/soru-sil" method="POST" onsubmit="return confirm('Silinsin mi?')">
+                            <input type="hidden" name="id" value="${s._id}">
+                            <button style="background:red; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:3px; font-size:12px;">SİL</button>
+                        </form>
+                    </div>
                 </div>`).join('')}
         </div>`);
     } else { res.status(401).send('Yetkisiz!'); }
@@ -172,7 +183,16 @@ app.post('/soru-ekle', async (req, res) => {
     res.redirect('/admin');
 });
 
-// --- YENİ: SORU SİLME ROTASI ---
+// --- YENİ: SORU GÜNCELLEME ROTASI ---
+app.post('/soru-guncelle', async (req, res) => {
+    await Soru.findByIdAndUpdate(req.body.id, {
+        sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni,
+        secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }],
+        dogruCevapIndex: parseInt(req.body.dogruCevap)
+    });
+    res.redirect('/admin');
+});
+
 app.post('/soru-sil', async (req, res) => {
     await Soru.findByIdAndDelete(req.body.id);
     res.redirect('/admin');
