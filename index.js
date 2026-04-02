@@ -11,13 +11,11 @@ app.listen(PORT, '0.0.0.0', () => { console.log(`🚀 Sunucu aktif: ${PORT}`); }
 const dbURI = process.env.MONGO_URI; 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER (İl, İlçe, Okul Eklendi) ---
+// --- MODELLER ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
-    kullaniciAdi: String, 
+    kullaniciAdi: { type: String, unique: true }, 
     sifre: String, 
-    il: String,
-    ilce: String,
-    okul: String,
+    il: String, ilce: String, okul: String,
     soruIndex: { type: Number, default: 0 }, 
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },
@@ -33,87 +31,95 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
 
 // --- YOLLAR ---
 
+// 1. ANA SAYFA (SADECE GİRİŞ)
 app.get('/', (req, res) => {
     res.send(`
-    <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
-        <h2 style="color:#2c3e50;">LGS Soru Çözüm - Kayıt & Giriş</h2>
-        <form action="/giris" method="POST" style="max-width:400px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px; background:#fdfdfd;">
+    <div style="text-align:center; padding-top:50px; font-family:sans-serif;">
+        <h2 style="color:#2c3e50;">LGS Soru Çözüm - Giriş</h2>
+        <form action="/giris" method="POST" style="max-width:300px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
             <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:15px;"><br>
+            <button style="width:95%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px; cursor:pointer;">GİRİŞ YAP</button>
+        </form>
+        <p>Hesabınız yok mu? <a href="/kayit">Kayıt Ol</a></p>
+    </div>`);
+});
+
+// 2. KAYIT SAYFASI (YENİ ÖZELLİK)
+app.get('/kayit', (req, res) => {
+    res.send(`
+    <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
+        <h2 style="color:#2c3e50;">Yeni Kayıt Oluştur</h2>
+        <form action="/kayit-yap" method="POST" style="max-width:400px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
+            <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             
-            <label style="display:block; text-align:left; margin-left:5%; font-size:14px;">İl Seçiniz:</label>
+            <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
+            <input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required style="width:90%; padding:10px; margin-bottom:15px;"><br>
+
             <select name="il" id="ilSelect" onchange="ilDegisti()" required style="width:95%; padding:10px; margin-bottom:10px;">
-                <option value="">Seçiniz...</option>
+                <option value="">İl Seçiniz...</option>
                 <option value="Aydın">Aydın</option>
                 <option value="İzmir">İzmir</option>
             </select>
-
-            <label style="display:block; text-align:left; margin-left:5%; font-size:14px;">İlçe Seçiniz:</label>
             <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required style="width:95%; padding:10px; margin-bottom:10px;">
-                <option value="">Önce İl Seçin</option>
+                <option value="">İlçe Seçiniz</option>
             </select>
-
-            <label style="display:block; text-align:left; margin-left:5%; font-size:14px;">Okul Seçiniz:</label>
             <select name="okul" id="okulSelect" required style="width:95%; padding:10px; margin-bottom:20px;">
-                <option value="">Önce İlçe Seçin</option>
+                <option value="">Okul Seçiniz</option>
             </select>
 
-            <button style="width:95%; padding:15px; background:#3498db; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">GİRİŞ YAP / KAYIT OL</button>
+            <button style="width:95%; padding:15px; background:#3498db; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">KAYDI TAMAMLA</button>
+            <br><br><a href="/">Giriş Sayfasına Dön</a>
         </form>
     </div>
-
     <script>
         const veriler = {
-            "Aydın": {
-                "Efeler": ["Efeler Ortaokulu", "Gazipaşa Ortaokulu"],
-                "Nazilli": ["Nazilli Ortaokulu", "Beşeylül Ortaokulu"]
-            },
-            "İzmir": {
-                "Konak": ["Konak Ortaokulu", "Atatürk Ortaokulu"],
-                "Bornova": ["Bornova Ortaokulu", "Yavuz Selim Ortaokulu"]
-            }
+            "Aydın": { "Efeler": ["Efeler Ortaokulu", "Gazipaşa Ortaokulu"], "Nazilli": ["Nazilli Ortaokulu", "Beşeylül Ortaokulu"] },
+            "İzmir": { "Konak": ["Konak Ortaokulu", "Atatürk Ortaokulu"], "Bornova": ["Bornova Ortaokulu", "Yavuz Selim Ortaokulu"] }
         };
-
         function ilDegisti() {
             const il = document.getElementById('ilSelect').value;
             const ilceSelect = document.getElementById('ilceSelect');
             ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
-            document.getElementById('okulSelect').innerHTML = '<option value="">Önce İlçe Seçin</option>';
-            
-            if(il) {
-                Object.keys(veriler[il]).forEach(ilce => {
-                    ilceSelect.innerHTML += '<option value="'+ilce+'">'+ilce+'</option>';
-                });
-            }
+            if(il) { Object.keys(veriler[il]).forEach(ilce => { ilceSelect.innerHTML += '<option value="'+ilce+'">'+ilce+'</option>'; }); }
         }
-
         function ilceDegisti() {
             const il = document.getElementById('ilSelect').value;
             const ilce = document.getElementById('ilceSelect').value;
             const okulSelect = document.getElementById('okulSelect');
             okulSelect.innerHTML = '<option value="">Okul Seçiniz</option>';
-            
-            if(il && ilce) {
-                veriler[il][ilce].forEach(okul => {
-                    okulSelect.innerHTML += '<option value="'+okul+'">'+okul+'</option>';
-                });
-            }
+            if(il && ilce) { veriler[il][ilce].forEach(okul => { okulSelect.innerHTML += '<option value="'+okul+'">'+okul+'</option>'; }); }
         }
-    </script>
-    `);
+    </script>`);
 });
 
-app.post('/giris', async (req, res) => {
-    const { kullaniciAdi, sifre, il, ilce, okul } = req.body;
-    let k = await Kullanici.findOne({ kullaniciAdi, sifre });
-    if (!k) { 
-        k = new Kullanici({ kullaniciAdi, sifre, il, ilce, okul }); 
-        await k.save(); 
+// 3. KAYIT İŞLEMİ (ŞİFRE KONTROLLÜ)
+app.post('/kayit-yap', async (req, res) => {
+    const { kullaniciAdi, sifre, sifreTekrar, il, ilce, okul } = req.body;
+
+    if (sifre !== sifreTekrar) {
+        return res.send("<script>alert('Şifreler uyuşmuyor!'); window.history.back();</script>");
     }
+
+    try {
+        const varMi = await Kullanici.findOne({ kullaniciAdi });
+        if (varMi) return res.send("<script>alert('Bu kullanıcı adı zaten alınmış!'); window.history.back();</script>");
+
+        const yeniK = new Kullanici({ kullaniciAdi, sifre, il, ilce, okul });
+        await yeniK.save();
+        res.send("<script>alert('Kayıt Başarılı! Şimdi giriş yapabilirsiniz.'); window.location.href='/';</script>");
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// 4. GİRİŞ İŞLEMİ
+app.post('/giris', async (req, res) => {
+    const { kullaniciAdi, sifre } = req.body;
+    const k = await Kullanici.findOne({ kullaniciAdi, sifre });
+    if (!k) return res.send("<script>alert('Kullanıcı adı veya şifre hatalı!'); window.history.back();</script>");
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- SORU SAYFASI (Sayaç ve Diğer Özellikler Korundu) ---
+// --- SORU SAYFASI (SAYAÇ VE ÖZELLİKLER KORUNDU) ---
 app.get('/soru/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     const sorular = await Soru.find();
@@ -124,20 +130,15 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     res.send(`
     <div style="max-width:700px; margin:auto; font-family:sans-serif; padding:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; background:#eee; padding:10px; border-radius:5px; margin-bottom:15px;">
-            <span><b>${k.okul}</b> - Puan: <b>${k.puan}</b></span>
+            <span style="font-size:14px;"><b>${k.okul}</b> | Hoş geldin, <b>${k.kullaniciAdi}</b></span>
             <div style="color:red; font-weight:bold;">Süre: <span id="timer">00:00</span> / 05:00</div>
         </div>
-
         ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px; border-radius:5px;">${soru.soruOnculu}</p>` : ""}
         ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%; margin-bottom:10px;">` : ""}
         <h2>${soru.soruMetni}</h2>
-        
         ${soru.secenekler.map((s,i)=>`
             <form method="POST" action="/cevap" id="form${i}">
-                <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}">
-                <input type="hidden" name="soruId" value="${soru._id}">
-                <input type="hidden" name="secilenIndex" value="${i}">
-                <input type="hidden" name="gecenSure" id="gecenSureInput${i}" value="0">
+                <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gecenSureInput${i}" value="0">
                 <button type="button" onclick="submitWithTime(${i})" style="width:100%; margin:5px 0; padding:12px; text-align:left; cursor:pointer; background:white; border:1px solid #ccc; border-radius:8px;">
                     <b>${harfler[i]})</b> ${s.metin || ""}
                     ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-height:100px; margin-top:5px;">` : ""}
@@ -145,7 +146,6 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
             </form>
         `).join('')}
     </div>
-
     <script>
         let saniye = 0;
         const timerElement = document.getElementById('timer');
@@ -155,13 +155,8 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
             timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn);
             if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); }
         }, 1000);
-
-        function submitWithTime(index) {
-            document.getElementById('gecenSureInput' + index).value = saniye;
-            document.getElementById('form' + index).submit();
-        }
-    </script>
-    `);
+        function submitWithTime(index) { document.getElementById('gecenSureInput' + index).value = saniye; document.getElementById('form' + index).submit(); }
+    </script>`);
 });
 
 app.post('/cevap', async (req, res) => {
@@ -175,7 +170,7 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- 🛡️ ADMIN PANELİ (Düzenleme, Sınıf Seçimi, Ders Seçimi ve Silme Özelliği Korundu) ---
+// --- 🛡️ ADMIN PANELİ (DÜZENLEME/SİLME ÖZELLİKLERİ KORUNDU) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) {
@@ -191,20 +186,17 @@ app.get('/admin', async (req, res) => {
         if (req.query.duzenle) editSoru = await Soru.findById(req.query.duzenle);
         const tumSorular = await Soru.find();
         const dersListesi = ["Matematik", "Türkçe", "Fen Bilimleri", "İngilizce", "Din Kültürü"];
-        
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
             <h2 style="color:orange;">🛠️ Soru Yönetimi</h2>
             <form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST" style="background:#f9f9f9; padding:20px; border:1px solid #ddd;">
                 <h3>${editSoru ? 'Soruyu Düzenle' : 'Yeni Soru Ekle'}</h3>
                 ${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}
-                <label>Sınıf:</label>
-                <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
-                <label>Ders:</label>
-                <select name="ders">${dersListesi.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders == d : d == 'Matematik') ? 'selected' : ''}>${d}</option>`).join('')}</select>
+                <label>Sınıf:</label> <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
+                <label>Ders:</label> <select name="ders">${dersListesi.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders == d : d == 'Matematik') ? 'selected' : ''}>${d}</option>`).join('')}</select>
                 <br><br>
                 <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:95%;"><br><br>
-                <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%;">${editSoru ? editSoru.soruOnculu : ''}</textarea><br><br>
+                <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:95%; height:50px;">${editSoru ? editSoru.soruOnculu : ''}</textarea><br><br>
                 <input name="soruResmi" placeholder="Soru Görseli URL" value="${editSoru ? editSoru.soruResmi : ''}" style="width:95%;"><br><br>
                 <textarea name="soruMetni" placeholder="Soru Metni" style="width:95%;" required>${editSoru ? editSoru.soruMetni : ''}</textarea>
                 <h4>Şıklar</h4>
