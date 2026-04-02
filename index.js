@@ -31,13 +31,13 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
 // --- YOLLAR ---
 
 app.get('/', (req, res) => {
-    res.send(`<div style="text-align:center; padding-top:50px; font-family:sans-serif;"><h2>LGS Soru Çözüm - Giriş</h2><form action="/giris" method="POST" style="max-width:300px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br><input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:15px;"><br><button style="width:95%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px; cursor:pointer;">GİRİŞ YAP</button></form><p>Hesabınız yok mu? <a href="/kayit">Kayıt Ol</a></p></div>`);
+    res.send(`<div style="text-align:center; padding-top:50px; font-family:sans-serif;"><h2>LGS Giriş</h2><form action="/giris" method="POST" style="max-width:300px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br><input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:15px;"><br><button style="width:95%; padding:10px; background:#2ecc71; color:white; border:none; border-radius:5px; cursor:pointer;">GİRİŞ YAP</button></form><p><a href="/kayit">Kayıt Ol</a></p></div>`);
 });
 
 app.get('/kayit', (req, res) => {
     res.send(`
     <div style="text-align:center; padding-top:30px; font-family:sans-serif;">
-        <h2 style="color:#2c3e50;">Yeni Kayıt Oluştur</h2>
+        <h2 style="color:#2c3e50;">Yeni Kayıt</h2>
         <form action="/kayit-yap" method="POST" style="max-width:400px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;">
             <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
             <input type="password" name="sifre" placeholder="Şifre" required style="width:90%; padding:10px; margin-bottom:10px;"><br>
@@ -127,7 +127,7 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ (TC İNKILAP EKLENDİ, MATEMATİK VARSAYILAN) ---
+// --- ADMIN PANELİ (DERS LİSTESİ HATASI DÜZELTİLDİ) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
@@ -137,7 +137,7 @@ app.get('/admin', async (req, res) => {
         let editSoru = null;
         if (req.query.duzenle) editSoru = await Soru.findById(req.query.duzenle);
         const tumSorular = await Soru.find();
-        const dersListesi = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
+        const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
 
         res.send(`
         <div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px;">
@@ -148,7 +148,7 @@ app.get('/admin', async (req, res) => {
                 <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select>
                 <label> Ders:</label> 
                 <select name="ders">
-                    ${dersListesi.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}
+                    ${dersler.map(d => `<option value="${d}" ${(editSoru ? editSoru.ders === d : d === "Matematik") ? 'selected' : ''}>${d}</option>`).join('')}
                 </select><br><br>
                 <input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:5px;"><br><br>
                 <textarea name="soruOnculu" placeholder="Soru Öncülü" style="width:98%;">${editSoru ? editSoru.soruOnculu : ''}</textarea><br><br>
