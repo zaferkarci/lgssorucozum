@@ -98,7 +98,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     <div style="max-width:700px; margin:auto; font-family:sans-serif; padding:20px;">
         <div style="display:flex; justify-content:space-between; background:#eee; padding:10px; border-radius:5px;">
             <span><b>${k.okul}</b> | <b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span>
-            <div style="color:red; font-weight:bold;">Süre: <span id="timer">00:00</span></div>
+            <div style="color:red; font-weight:bold;">Süre: <span id="timer">00:00</span> / 05:00</div>
         </div>
         ${soru.soruOnculu ? `<p style="background:#f4f4f4; padding:15px; margin-top:15px;">${soru.soruOnculu}</p>` : ""}
         ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%; margin:10px 0;">` : ""}
@@ -106,14 +106,25 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
         ${soru.secenekler.map((s,i)=>`
             <form method="POST" action="/cevap" id="f${i}">
                 <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0">
-                <button type="button" onclick="document.getElementById('gs${i}').value=saniye; document.getElementById('f${i}').submit();" style="width:100%; margin:5px 0; padding:12px; text-align:left; cursor:pointer; background:white; border:1px solid #ccc; border-radius:8px;">
+                <button type="button" onclick="submitWithTime(${i})" style="width:100%; margin:5px 0; padding:12px; text-align:left; cursor:pointer; background:white; border:1px solid #ccc; border-radius:8px;">
                     <b>${harfler[i]})</b> ${s.metin || ""}
                     ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-height:100px;">` : ""}
                 </button>
             </form>`).join('')}
     </div>
     <script>
-        let saniye = 0; setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; document.getElementById('timer').innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); }, 1000);
+        let saniye = 0;
+        const timerElement = document.getElementById('timer');
+        const interval = setInterval(() => {
+            saniye++;
+            let dk = Math.floor(saniye / 60); let sn = saniye % 60;
+            timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn);
+            if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); }
+        }, 1000);
+        function submitWithTime(index) { 
+            document.getElementById('gs' + index).value = saniye; 
+            document.getElementById('f' + index).submit(); 
+        }
     </script>`);
 });
 
@@ -127,7 +138,7 @@ app.post('/cevap', async (req, res) => {
     res.redirect('/soru/' + kullaniciAdi);
 });
 
-// --- ADMIN PANELİ (DERS LİSTESİ HATASI DÜZELTİLDİ) ---
+// --- ADMIN PANELİ ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
