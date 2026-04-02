@@ -112,7 +112,7 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
             <div style="color:#333;">🎓 <b>${k.okul}</b> | 👤 <b>${k.kullaniciAdi}</b></div>
             <div style="display:flex; gap:15px; align-items:center;">
                 <span style="background:#e8f0fe; color:#1a73e8; padding:5px 12px; border-radius:20px; font-weight:bold;">Puan: ${k.puan}</span>
-                <span style="color:#d93025; font-weight:bold; font-variant-numeric:tabular-nums;">⏱️ <span id="timer">00:00</span></span>
+                <span style="color:#d93025; font-weight:bold; font-variant-numeric:tabular-nums;">⏱️ <span id="timer">00:00</span> / 05:00</span>
             </div>
         </div>
         <div style="background:#fff; border:1px solid #eee; padding:25px; border-radius:10px; margin-bottom:20px; line-height:1.6;">
@@ -133,7 +133,6 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     <script>
         let saniye = 0; const timerElement = document.getElementById('timer');
         const interval = setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); } }, 1000);
-        // Hover efekti
         document.querySelectorAll('button').forEach(btn => {
             btn.onmouseover = () => btn.style.borderColor = '#1a73e8';
             btn.onmouseout = () => btn.style.borderColor = '#f1f3f4';
@@ -194,20 +193,19 @@ app.get('/admin', async (req, res) => {
                     
                     <button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">${editSoru ? 'GÜNCELLEMEYİ KAYDET' : 'SORUYU YAYINLA'}</button>
                     <button type="button" onclick="document.getElementById('formAlan').style.display='none'" style="background:#5f6368; color:white; padding:12px 20px; border:none; border-radius:8px; cursor:pointer; margin-left:10px;">KAPAT</button>
+                    <hr style="margin:30px 0; border:0; border-top:1px solid #eee;">
+                    <h3 style="color:#3c4043;">Kayıtlı Sorular</h3>
+                    <div style="display:grid; gap:10px;">
+                    ${tumSorular.map((s, i) => `
+                        <div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#202124;"><b>${i+1}.</b> ${s.soruMetni.substring(0,50)}... <small style="color:#1a73e8; margin-left:10px;">[${s.ders}]</small></span>
+                            <div style="display:flex; gap:10px;">
+                                <a href="/admin?duzenle=${s._id}" style="text-decoration:none; color:#1a73e8; font-weight:bold; font-size:14px; padding:5px 10px; border:1px solid #1a73e8; border-radius:4px;">DÜZENLE</a>
+                                <form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="background:none; border:1px solid #d93025; color:#d93025; cursor:pointer; padding:5px 10px; border-radius:4px; font-weight:bold; font-size:14px;">SİL</button></form>
+                            </div>
+                        </div>`).join('')}
+                    </div>
                 </form>
-                
-                <hr style="margin:30px 0; border:0; border-top:1px solid #eee;">
-                <h3 style="color:#3c4043;">Kayıtlı Sorular</h3>
-                <div style="display:grid; gap:10px;">
-                ${tumSorular.map((s, i) => `
-                    <div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s;">
-                        <span style="color:#202124;"><b>${i+1}.</b> ${s.soruMetni.substring(0,50)}... <small style="color:#1a73e8; margin-left:10px;">[${s.ders}]</small></span>
-                        <div style="display:flex; gap:10px;">
-                            <a href="/admin?duzenle=${s._id}" style="text-decoration:none; color:#1a73e8; font-weight:bold; font-size:14px; padding:5px 10px; border:1px solid #1a73e8; border-radius:4px;">DÜZENLE</a>
-                            <form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="background:none; border:1px solid #d93025; color:#d93025; cursor:pointer; padding:5px 10px; border-radius:4px; font-weight:bold; font-size:14px;">SİL</button></form>
-                        </div>
-                    </div>`).join('')}
-                </div>
             </div>
         </div>`);
     } else { res.status(401).send('Yetkisiz!'); }
