@@ -89,8 +89,9 @@ app.post('/giris', async (req, res) => {
 
 app.get('/soru/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
+    if (!k) return res.send("Kullanıcı bulunamadı.");
     const sorular = await Soru.find();
-    if (!sorular.length) return res.send("Soru yok.");
+    if (!sorular.length) return res.send("Henüz soru eklenmemiş.");
     const soru = sorular[k.soruIndex % sorular.length];
     const harfler = ["A","B","C","D"];
     res.send(`
@@ -103,14 +104,21 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
         ${soru.soruResmi && soru.soruResmi.trim() !== "" ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px;" onerror="this.parentElement.style.display='none'"></div>` : ""}
         <h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2>
         <div style="display:grid; gap:10px;">
-        ${soru.secenekler.map((s,i)=>`
-            <form method="POST" action="/cevap" id="f${i}" style="margin:0;">
-                <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0">
+        ${[0,1,2,3].map(i => {
+            const s = soru.secenekler[i];
+            if(!s) return "";
+            return `
+            <form method="POST" action="/cevap" style="margin:0;">
+                <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}">
+                <input type="hidden" name="soruId" value="${soru._id}">
+                <input type="hidden" name="secilenIndex" value="${i}">
+                <input type="hidden" name="gecenSure" id="gs${i}" value="0">
                 <button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;">
                     <b>${harfler[i]})</b> ${s.metin || ""} 
                     ${s.gorsel && s.gorsel.trim() !== "" ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;" onerror="this.style.display='none'">` : ""}
                 </button>
-            </form>`).join('')}
+            </form>`;
+        }).join('')}
         </div>
     </div>
     <script>
@@ -120,14 +128,19 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
 });
 
 app.post('/cevap', async (req, res) => {
-    const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
-    const s = await Soru.findById(soruId);
-    const k = await Kullanici.findOne({ kullaniciAdi });
-    if (parseInt(secilenIndex) === s.dogruCevapIndex) k.puan += 10;
-    k.toplamSure += parseInt(gecenSure);
-    k.cozumSureleri.push({ soruId: soruId, sure: parseInt(gecenSure) });
-    k.soruIndex += 1; await k.save();
-    res.redirect('/soru/' + kullaniciAdi);
+    try {
+        const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
+        const s = await Soru.findById(soruId);
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (s && k) {
+            if (parseInt(secilenIndex) === s.dogruCevapIndex) k.puan += 10;
+            k.toplamSure += parseInt(gecenSure);
+            k.cozumSureleri.push({ soruId: soruId, sure: parseInt(gecenSure) });
+            k.soruIndex += 1;
+            await k.save();
+        }
+        res.redirect('/soru/' + encodeURIComponent(kullaniciAdi));
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
 app.get('/admin', async (req, res) => {
@@ -155,12 +168,12 @@ app.get('/admin', async (req, res) => {
                     <input name="soruResmi" placeholder="Soru Görsel URL" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;">
                     <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:10px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea>
                     <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;">
-                        <p>Şıklar (Doğru cevabı en sağdaki kutudan seçiniz):</p>
+                        <p>Şıklar (Doğru cevabı seçiniz):</p>
                         ${[0,1,2,3].map(i => `
                         <div style="margin-bottom:8px; display:flex; align-items:center; gap:5px;">
                             <b>${String.fromCharCode(65+i)}:</b> 
-                            <input name="metin${i}" placeholder="Metin" value="${editSoru ? (editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '') : ''}" style="width:40%;">
-                            <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? (editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : '') : ''}" style="width:30%;">
+                            <input name="metin${i}" placeholder="Metin" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].metin : ''}" style="width:40%;">
+                            <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : ''}" style="width:30%;">
                             <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required>
                         </div>`).join('')}
                     </div>
