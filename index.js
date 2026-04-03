@@ -10,7 +10,7 @@ const dbURI = process.env.MONGO_URI;
 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER (Yeni İstatistik Alanları Eklendi) ---
+// --- MODELLER ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: { type: String, unique: true }, 
     sifre: String, 
@@ -64,8 +64,29 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
     const sorular = await Soru.find();
     if (!sorular.length) return res.send("Soru yok.");
     const soru = sorular[k.soruIndex % sorular.length];
+    
+    // --- ZORLUK SEVİYESİ HESAPLAMA ---
+    const dersSorulari = await Soru.find({ ders: soru.ders, cozulmeSayisi: { $gt: 0 } });
+    let zorlukEtiketi = "Orta"; let zorlukRengi = "#f39c12";
+    if (dersSorulari.length > 1 && soru.cozulmeSayisi > 0) {
+        const basariOranlari = dersSorulari.map(s => (s.dogruSayisi / s.cozulmeSayisi) * 100);
+        const sureler = dersSorulari.map(s => s.ortalamaSure || 0);
+        const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
+        const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
+        const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
+        const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
+        const zB = (((soru.dogruSayisi / soru.cozulmeSayisi) * 100) - mBasari) / sBasari;
+        const zS = (soru.ortalamaSure - mSure) / sSure;
+        const skor = (zS * 0.5) - (zB * 0.5);
+        if (skor < -1.2) { zorlukEtiketi = "Çok Kolay"; zorlukRengi = "#27ae60"; }
+        else if (skor < -0.5) { zorlukEtiketi = "Kolay"; zorlukRengi = "#2ecc71"; }
+        else if (skor < 0.5) { zorlukEtiketi = "Orta"; zorlukRengi = "#f39c12"; }
+        else if (skor < 1.2) { zorlukEtiketi = "Zor"; zorlukRengi = "#e67e22"; }
+        else { zorlukEtiketi = "Çok Zor"; zorlukRengi = "#c0392b"; }
+    }
+
     const harfler = ["A","B","C","D"];
-    res.send(`<div style="max-width:800px; margin:20px auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #eee;"><span><b>${k.okul}</b> | <b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span><div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00</div></div>${soru.soruOnculu && soru.soruOnculu.trim() !== "" ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}${soru.soruResmi && soru.soruResmi.trim() !== "" ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px;" onerror="this.parentElement.style.display='none'"></div>` : ""}<h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2><div style="display:grid; gap:10px;">${[0,1,2,3].map(i => { const s = soru.secenekler[i]; if(!s) return ""; return `<form method="POST" action="/cevap" style="margin:0;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0"><button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;"><b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel && s.gorsel.trim() !== "" ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;" onerror="this.style.display='none'">` : ""}</button></form>`; }).join('')}</div></div><script>let saniye = 0; const timerElement = document.getElementById('timer');const interval = setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); } }, 1000);</script>`);
+    res.send(`<div style="max-width:800px; margin:20px auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #eee;"><span><b>${k.okul}</b> | <b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span><div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00</div></div><div style="margin-bottom:15px;"><span style="background:${zorlukRengi}; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold;">Zorluk: ${zorlukEtiketi}</span> <span style="background:#3498db; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold; margin-left:5px;">Ders: ${soru.ders}</span></div>${soru.soruOnculu && soru.soruOnculu.trim() !== "" ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}${soru.soruResmi && soru.soruResmi.trim() !== "" ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:5px;" onerror="this.parentElement.style.display='none'"></div>` : ""}<h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2><div style="display:grid; gap:10px;">${[0,1,2,3].map(i => { const s = soru.secenekler[i]; if(!s) return ""; return `<form method="POST" action="/cevap" style="margin:0;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0"><button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;"><b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel && s.gorsel.trim() !== "" ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;" onerror="this.style.display='none'">` : ""}</button></form>`; }).join('')}</div></div><script>let saniye = 0; const timerElement = document.getElementById('timer');const interval = setInterval(() => { saniye++; let dk = Math.floor(saniye / 60); let sn = saniye % 60; timerElement.innerText = (dk < 10 ? '0'+dk : dk) + ":" + (sn < 10 ? '0'+sn : sn); if (saniye >= 300) { clearInterval(interval); alert("Süre Doldu!"); } }, 1000);</script>`);
 });
 
 app.post('/cevap', async (req, res) => {
