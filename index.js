@@ -83,7 +83,7 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
                 const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
                 const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
                 const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sSure;
+                const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
                 const zB = (((soru.dogruSayisi / soru.cozulmeSayisi) * 100) - mBasari) / sBasari;
                 const zS = (soru.ortalamaSure - mSure) / sSure;
                 const skor = (zS * 0.5) - (zB * 0.5);
@@ -123,7 +123,7 @@ app.post('/cevap', async (req, res) => {
                     const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
                     const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
                     const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                    const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sSure;
+                    const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
                     const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
                     const zS = (s.ortalamaSure - mSure) / sSure;
                     const zorluk = (zS * 0.5) - (zB * 0.5);
@@ -144,7 +144,6 @@ app.post('/cevap', async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
-// --- ADMIN PANELİ (MENÜLÜ VE TÜM ÖZELLİKLİ FORM) ---
 app.get('/admin', async (req, res) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
