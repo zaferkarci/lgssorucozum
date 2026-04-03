@@ -155,8 +155,9 @@ app.get('/admin', async (req, res) => {
                     <input name="soruResmi" placeholder="Soru Görsel URL" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;">
                     <textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:10px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea>
                     <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;">
+                        <p>Şıklar (Doğru cevabı en sağdaki kutudan seçiniz):</p>
                         ${[0,1,2,3].map(i => `
-                        <div style="margin-bottom:8px;">
+                        <div style="margin-bottom:8px; display:flex; align-items:center; gap:5px;">
                             <b>${String.fromCharCode(65+i)}:</b> 
                             <input name="metin${i}" placeholder="Metin" value="${editSoru ? editSoru.secenekler[i].metin : ''}" style="width:40%;">
                             <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}" style="width:30%;">
