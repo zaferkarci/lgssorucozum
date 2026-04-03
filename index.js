@@ -115,14 +115,14 @@ app.post('/cevap', async (req, res) => {
                 const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
                 let kazanilanPuan = 10;
                 if (dersSorulari.length > 1) {
-                    const basariOranlari = dersSorulari.map(soru => (soru.dogruSayisi / soru.cozulmeSayisi) * 100);
-                    const sureler = dersSorulari.map(soru => soru.ortalamaSure || 0);
-                    const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
-                    const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
-                    const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                    const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
-                    const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
-                    const zS = (s.ortalamaSure - mSure) / sSure;
+                    const bO = dersSorulari.map(sr => (sr.dogruSayisi / sr.cozulmeSayisi) * 100);
+                    const sr = dersSorulari.map(sr => sr.ortalamaSure || 0);
+                    const mB = bO.reduce((a, b) => a + b, 0) / bO.length;
+                    const sB = Math.sqrt(bO.reduce((a, b) => a + Math.pow(b - mB, 2), 0) / bO.length) || 1;
+                    const mS = sr.reduce((a, b) => a + b, 0) / sr.length;
+                    const sS = Math.sqrt(sr.reduce((a, b) => a + Math.pow(b - mS, 2), 0) / sr.length) || 1;
+                    const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mB) / sB;
+                    const zS = (s.ortalamaSure - mS) / sS;
                     const zorluk = (zS * 0.5) - (zB * 0.5);
                     if (zorluk < -1.2) kazanilanPuan = 5;
                     else if (zorluk < -0.5) kazanilanPuan = 8;
@@ -167,10 +167,4 @@ app.post('/soru-ekle', async (req, res) => {
 });
 
 app.post('/soru-guncelle', async (req, res) => {
-    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.
-app.post('/soru-sil', async (req, res) => {
-    await Soru.findByIdAndDelete(req.body.id);
-    res.redirect('/admin?mod=soruListesi');
-});
-
-app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
+    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler:
