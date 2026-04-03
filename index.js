@@ -159,8 +159,8 @@ app.get('/admin', async (req, res) => {
                         ${[0,1,2,3].map(i => `
                         <div style="margin-bottom:8px; display:flex; align-items:center; gap:5px;">
                             <b>${String.fromCharCode(65+i)}:</b> 
-                            <input name="metin${i}" placeholder="Metin" value="${editSoru ? editSoru.secenekler[i].metin : ''}" style="width:40%;">
-                            <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? editSoru.secenekler[i].gorsel : ''}" style="width:30%;">
+                            <input name="metin${i}" placeholder="Metin" value="${editSoru ? (editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '') : ''}" style="width:40%;">
+                            <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru ? (editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : '') : ''}" style="width:30%;">
                             <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required>
                         </div>`).join('')}
                     </div>
