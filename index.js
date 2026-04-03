@@ -83,7 +83,7 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
                 const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
                 const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
                 const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
+                const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sSure;
                 const zB = (((soru.dogruSayisi / soru.cozulmeSayisi) * 100) - mBasari) / sBasari;
                 const zS = (soru.ortalamaSure - mSure) / sSure;
                 const skor = (zS * 0.5) - (zB * 0.5);
