@@ -104,9 +104,9 @@ app.get('/soru/:kullaniciAdi', async (req, res) => {
         <h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2>
         <div style="display:grid; gap:10px;">
         ${soru.secenekler.map((s,i)=>`
-            <form method="POST" action="/cevap" id="f${i}">
+            <form method="POST" action="/cevap" id="f${i}" style="margin:0;">
                 <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0">
-                <button type="button" onclick="document.getElementById('gs${i}').value=saniye; document.getElementById('f${i}').submit();" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer;">
+                <button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;">
                     <b>${harfler[i]})</b> ${s.metin || ""} 
                     ${s.gorsel && s.gorsel.trim() !== "" ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;" onerror="this.style.display='none'">` : ""}
                 </button>
