@@ -46,8 +46,7 @@ app.get('/kayit', (req, res) => {
         s.innerHTML = '<option value="">İl Seçiniz</option>';
         d.data.forEach(il => {
             let opt = document.createElement('option');
-            opt.value = il.name;
-            opt.text = il.name;
+            opt.value = il.name; opt.text = il.name;
             opt.setAttribute('data-id', il.id);
             if(il.name === 'Aydın') opt.selected = true;
             s.appendChild(opt);
@@ -92,6 +91,7 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
     const mod = req.query.mod || 'soru';
+
     let icerik = "";
     if (mod === 'profil') {
         icerik = `<div style="background:white; padding:30px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><h2>Profil Bilgileri</h2><p><b>Kullanıcı Adı:</b> ${k.kullaniciAdi}</p><p><b>Sınıf:</b> ${k.sinif}. Sınıf</p><p><b>Okul:</b> ${k.okul}</p><p><b>İl/İlçe:</b> ${k.il} / ${k.ilce}</p><p><b>Toplam Puan:</b> ${k.puan}</p><p><b>Çözülen Soru:</b> ${k.soruIndex}</p></div>`;
@@ -213,5 +213,4 @@ app.post('/soru-guncelle', async (req, res) => {
 });
 
 app.post('/soru-sil', async (req, res) => {
-    await Soru.findByIdAndDelete(req.body.id);
-    res.redirect('/admin?mod=sor
+    await Soru.findByIdAndDelete(req.body
