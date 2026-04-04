@@ -76,7 +76,7 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
         } else {
             const soru = sorular[k.soruIndex % sorular.length];
             const dersSorulari = await Soru.find({ ders: soru.ders, cozulmeSayisi: { $gt: 0 } });
-            let zorlukEtiketi = "Orta"; let zorlukRengi = "#f39c12";
+            let zorlukEtiketi = "Çok Kolay"; let zorlukRengi = "#27ae60";
             if (dersSorulari.length > 1 && soru.cozulmeSayisi > 0) {
                 const basariOranlari = dersSorulari.map(s => (s.dogruSayisi / s.cozulmeSayisi) * 100);
                 const sureler = dersSorulari.map(s => s.ortalamaSure || 0);
@@ -116,8 +116,8 @@ app.post('/cevap', async (req, res) => {
 
             if (dogruMu) {
                 const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
-                let Z_katsayi = 3; 
-                if (dersSorulari.length > 1) {
+                let Z_katsayi = 1; 
+                if (dersSorulari.length > 1 && s.cozulmeSayisi > 1) {
                     const basariOranlari = dersSorulari.map(soru => (soru.dogruSayisi / soru.cozulmeSayisi) * 100);
                     const sureler = dersSorulari.map(soru => soru.ortalamaSure || 0);
                     const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
