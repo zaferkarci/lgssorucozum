@@ -115,7 +115,7 @@ app.post('/cevap', async (req, res) => {
             await s.save();
 
             if (dogruMu) {
-                const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
+                const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } }).select('dogruSayisi cozulmeSayisi ortalamaSure').lean();
                 let Z_katsayi = 1; 
                 if (dersSorulari.length > 1 && s.cozulmeSayisi > 1) {
                     const basariOranlari = dersSorulari.map(soru => (soru.dogruSayisi / soru.cozulmeSayisi) * 100);
