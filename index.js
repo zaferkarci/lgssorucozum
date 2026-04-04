@@ -39,18 +39,16 @@ app.get('/', (req, res) => {
 
 app.get('/kayit', (req, res) => {
     res.send(`<div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f0f2f5; font-family:sans-serif; padding:20px;"><div style="background:white; padding:30px; border-radius:15px; width:450px;"><h2 style="color:#1a73e8; text-align:center;">Yeni Kayıt</h2><form action="/kayit-yap" method="POST"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><input type="password" name="sifre" placeholder="Şifre" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><select name="sinif" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">Sınıf Seçiniz</option>${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select><select name="il" id="ilSelect" onchange="ilDegisti()" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">Yükleniyor...</option></select><select name="ilce" id="ilceSelect" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">İlçe Seçiniz</option></select><input name="okul" placeholder="Okulunuzun Adı" required style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><button style="width:100%; padding:12px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDI TAMAMLA</button></form></div></div><script>
-    let tumIller = [];
     async function illeriGetir() {
-        const r = await fetch('https://api.turkiyeapi.dev/v1/provinces');
+        const r = await fetch('https://turkiyeapi.dev');
         const d = await r.json();
-        tumIller = d.data;
         const s = document.getElementById('ilSelect');
         s.innerHTML = '<option value="">İl Seçiniz</option>';
-        tumIller.forEach(il => {
+        d.data.forEach(il => {
             let opt = document.createElement('option');
             opt.value = il.name;
             opt.text = il.name;
-            opt.dataset.id = il.id;
+            opt.setAttribute('data-id', il.id);
             if(il.name === 'Aydın') opt.selected = true;
             s.appendChild(opt);
         });
@@ -58,17 +56,17 @@ app.get('/kayit', (req, res) => {
     }
     async function ilDegisti() {
         const s = document.getElementById('ilSelect');
-        const id = s.options[s.selectedIndex].dataset.id;
+        const opt = s.options[s.selectedIndex];
+        const id = opt ? opt.getAttribute('data-id') : null;
         const ilceS = document.getElementById('ilceSelect');
+        if(!id) return;
         ilceS.innerHTML = '<option value="">Yükleniyor...</option>';
-        if(id) {
-            const r = await fetch('https://api.turkiyeapi.dev/v1/provinces/' + id);
-            const d = await r.json();
-            ilceS.innerHTML = '<option value="">İlçe Seçiniz</option>';
-            d.data.districts.forEach(ilce => {
-                ilceS.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
-            });
-        }
+        const r = await fetch('https://turkiyeapi.dev/' + id);
+        const d = await r.json();
+        ilceS.innerHTML = '<option value="">İlçe Seçiniz</option>';
+        d.data.districts.forEach(ilce => {
+            ilceS.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
+        });
     }
     window.onload = illeriGetir;</script>`);
 });
@@ -219,4 +217,6 @@ app.post('/soru-guncelle', async (req, res) => {
     res.redirect('/admin?mod=soruListesi');
 });
 
-app.post('/soru-sil',
+app.post('/soru-sil', async (req, res) => {
+    await Soru.findByIdAndDelete(req.body.id);
+    res.redirect('/admin?mod=soruListesi');
