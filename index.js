@@ -1,5 +1,8 @@
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.5 (Günlük Skor Güncelleme: 05:00 AM) ---
+
 const mongoose = require('mongoose');
 const express = require('express');
+const cron = require('node-cron'); // Yeni eklendi: Zamanlanmış görevler için
 const app = express();
 
 app.use(express.json());
@@ -29,10 +32,44 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     dogruCevapIndex: Number,
     cozulmeSayisi: { type: Number, default: 0 },
     dogruSayisi: { type: Number, default: 0 },
-    ortalamaSure: { type: Number, default: 0 }
+    ortalamaSure: { type: Number, default: 0 },
+    guncelZorluk: { type: Number, default: 3 } // V1.5: Günlük hesaplanan zorluk katsayısı
 }));
 
-// --- YOLLAR ---
+// --- V1.5: GÜNLÜK HESAPLAMA FONKSİYONU (05:00 AM) ---
+cron.schedule('0 5 * * *', async () => {
+    console.log("⏳ Günlük skor güncelleniyor...");
+    const tumSorular = await Soru.find({ cozulmeSayisi: { $gt: 0 } });
+    const dersler = [...new Set(tumSorular.map(s => s.ders))];
+
+    for (const ders of dersler) {
+        const dersSorulari = tumSorular.filter(s => s.ders === ders);
+        if (dersSorulari.length > 1) {
+            const basariOranlari = dersSorulari.map(s => (s.dogruSayisi / s.cozulmeSayisi) * 100);
+            const sureler = dersSorulari.map(s => s.ortalamaSure || 0);
+            const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
+            const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
+            const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
+            const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
+
+            for (const s of dersSorulari) {
+                const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
+                const zS = (s.ortalamaSure - mSure) / sSure;
+                const zorlukSkoru = (zS * 0.5) - (zB * 0.5);
+
+                if (zorlukSkoru < -1.2) s.guncelZorluk = 1;
+                else if (zorlukSkoru < -0.5) s.guncelZorluk = 2;
+                else if (zorlukSkoru < 0.5) s.guncelZorluk = 3;
+                else if (zorlukSkoru < 1.2) s.guncelZorluk = 4;
+                else s.guncelZorluk = 5;
+                await s.save();
+            }
+        }
+    }
+    console.log("✅ Günlük skor güncellemesi tamamlandı.");
+});
+
+// --- YOLLAR (V1.4 ile aynı) ---
 app.get('/', (req, res) => {
     res.send(`<div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f0f2f5; font-family:sans-serif;"><div style="background:white; padding:40px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:350px; text-align:center;"><h2 style="color:#1a73e8;">LGS Hazırlık</h2><form action="/giris" method="POST"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;"><input type="password" name="sifre" placeholder="Şifre" required style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;"><button style="width:100%; padding:12px; background:#1a73e8; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">GİRİŞ YAP</button></form><p>Hesabınız yok mu? <a href="/kayit">Kayıt Ol</a></p></div></div>`);
 });
@@ -77,22 +114,15 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
             const soru = sorular[k.soruIndex % sorular.length];
             const dersSorulari = await Soru.find({ ders: soru.ders, cozulmeSayisi: { $gt: 0 } });
             let zorlukEtiketi = "Orta"; let zorlukRengi = "#f39c12";
-            if (dersSorulari.length > 1 && soru.cozulmeSayisi > 0) {
-                const basariOranlari = dersSorulari.map(s => (s.dogruSayisi / s.cozulmeSayisi) * 100);
-                const sureler = dersSorulari.map(s => s.ortalamaSure || 0);
-                const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
-                const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
-                const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
-                const zB = (((soru.dogruSayisi / soru.cozulmeSayisi) * 100) - mBasari) / sBasari;
-                const zS = (soru.ortalamaSure - mSure) / sSure;
-                const skor = (zS * 0.5) - (zB * 0.5);
-                if (skor < -1.2) { zorlukEtiketi = "Çok Kolay"; zorlukRengi = "#27ae60"; }
-                else if (skor < -0.5) { zorlukEtiketi = "Kolay"; zorlukRengi = "#2ecc71"; }
-                else if (skor < 0.5) { zorlukEtiketi = "Orta"; zorlukRengi = "#f39c12"; }
-                else if (skor < 1.2) { zorlukEtiketi = "Zor"; zorlukRengi = "#e67e22"; }
-                else { zorlukEtiketi = "Çok Zor"; zorlukRengi = "#c0392b"; }
-            }
+            
+            // V1.5: Görüntüleme için s.guncelZorluk kullanılıyor
+            const zLevel = soru.guncelZorluk || 3;
+            if (zLevel === 1) { zorlukEtiketi = "Çok Kolay"; zorlukRengi = "#27ae60"; }
+            else if (zLevel === 2) { zorlukEtiketi = "Kolay"; zorlukRengi = "#2ecc71"; }
+            else if (zLevel === 3) { zorlukEtiketi = "Orta"; zorlukRengi = "#f39c12"; }
+            else if (zLevel === 4) { zorlukEtiketi = "Zor"; zorlukRengi = "#e67e22"; }
+            else { zorlukEtiketi = "Çok Zor"; zorlukRengi = "#c0392b"; }
+
             const harfler = ["A","B","C","D"];
             icerik = `<div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #eee;"><span><b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span><div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div></div><div style="margin-bottom:15px;"><span style="background:${zorlukRengi}; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold;">Zorluk: ${zorlukEtiketi}</span> <span style="background:#3498db; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold; margin-left:5px;">Ders: ${soru.ders}</span></div>${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:8px;"></div>` : ""}<h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2><div style="display:grid; gap:10px;">${[0,1,2,3].map(i => { const s = soru.secenekler[i]; if(!s) return ""; return `<form method="POST" action="/cevap" style="margin:0;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0"><button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;"><b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;">` : ""}</button></form>`; }).join('')}</div></div><script>let saniye = 0; let timerInterval = setInterval(() => { saniye++; let dk = Math.floor(saniye/60); let sn = saniye%60; document.getElementById('timer').innerText = (dk<10?'0'+dk:dk)+":"+(sn<10?'0'+sn:sn); if(saniye >= 300) { clearInterval(timerInterval); if(confirm('Süreniz doldu! Sıradaki soruya geçmek istiyor musunuz?')) { window.location.href='/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true'; } } }, 1000);</script>`;
         }
@@ -115,10 +145,12 @@ app.post('/cevap', async (req, res) => {
             await s.save();
 
             if (dogruMu) {
-                const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
-                let Z_katsayi = 3; 
+                // V1.5: Anlık hesaplama yerine önceden hesaplanmış s.guncelZorluk kullanılıyor
+                let Z_katsayi = s.guncelZorluk || 3;
                 let GE = 0.05; 
-
+                
+                // GE hesaplaması için anlık istatistikler hala gerekli
+                const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
                 if (dersSorulari.length > 1) {
                     const basariOranlari = dersSorulari.map(soru => (soru.dogruSayisi / soru.cozulmeSayisi) * 100);
                     const sureler = dersSorulari.map(soru => soru.ortalamaSure || 0);
@@ -126,19 +158,10 @@ app.post('/cevap', async (req, res) => {
                     const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
                     const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
                     const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
-                    
                     const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
                     const zS = (s.ortalamaSure - mSure) / sSure;
-                    const zorluk = (zS * 0.5) - (zB * 0.5);
-
-                    if (zorluk < -1.2) Z_katsayi = 1;
-                    else if (zorluk < -0.5) Z_katsayi = 2;
-                    else if (zorluk < 0.5) Z_katsayi = 3;
-                    else if (zorluk < 1.2) Z_katsayi = 4;
-                    else Z_katsayi = 5;
-
                     const hamGE = (Math.abs(zB) + Math.abs(zS)) / 20;
-                    GE = Math.min(Math.max(hamGE, 0.02), 0.10); 
+                    GE = Math.min(Math.max(hamGE, 0.02), 0.10);
                 }
 
                 const T_ref = s.ortalamaSure || 60;
@@ -178,18 +201,4 @@ app.get('/admin', async (req, res) => {
 });
 
 app.post('/soru-ekle', async (req, res) => {
-    await new Soru({ sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
-    res.redirect('/admin?mod=soruListesi');
-});
-
-app.post('/soru-guncelle', async (req, res) => {
-    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) });
-    res.redirect('/admin?mod=soruListesi');
-});
-
-app.post('/soru-sil', async (req, res) => {
-    await Soru.findByIdAndDelete(req.body.id);
-    res.redirect('/admin?mod=soruListesi');
-});
-
-app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
+    await new Soru({ sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel:
