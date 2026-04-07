@@ -198,4 +198,6 @@ app.post('/soru-sil', async (req, res) => {
     res.redirect('/admin?mod=soruListesi');
 });
 
-app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Sunucu ${PORT} portunda hazır!`);
+});
