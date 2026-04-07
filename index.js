@@ -137,8 +137,26 @@ app.post('/soru/cevapla', async (req, res) => {
 
     const T_ref = s.ortalamaSure;
     const T_ogr = Math.max(parseInt(ogrenciSure),1);
-    const GE = 0.05; // dinamik katsayı
-    s.puan = Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE) || 1;
+    
+    const T_ref = s.ortalamaSure || 60;
+const T_ogr = Math.max(parseInt(gecenSure), 1);
+
+// --- Dinamik GE ---
+function hesaplaGE(soru) {
+    const maxGE = 0.10;
+    const minGE = 0.02;
+
+    const cozulme = soru.cozulmeSayisi || 1;
+
+    let ge = maxGE - (cozulme - 1) * 0.002;
+
+    if (ge < minGE) ge = minGE;
+    return ge;
+}
+
+const GE = hesaplaGE(s);
+
+const kazanilanPuan = Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE) || 1;
 
     await s.save();
     res.send({ message: "Soru puanı güncellendi", soru: s });
