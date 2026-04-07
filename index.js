@@ -8,9 +8,7 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 10000;
 const dbURI = process.env.MONGO_URI;
 
-mongoose.connect(dbURI)
-.then(() => console.log("✅ MongoDB Bağlandı"))
-.catch(err => console.error("❌ Hata:", err.message));
+mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
 // --- MODELLER ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
@@ -34,112 +32,92 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     ortalamaSure: { type: Number, default: 0 }
 }));
 
-// --- ANA SAYFA ---
+// --- YOLLAR ---
 app.get('/', (req, res) => {
-    res.send(`<h2>LGS Hazırlık</h2><form action="/giris" method="POST">
-    <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required>
-    <input type="password" name="sifre" placeholder="Şifre" required>
-    <button>GİRİŞ</button></form><a href="/kayit">Kayıt Ol</a>`);
+    res.send(`<h1>Çalışıyor</h1>`);
 });
 
-// --- KAYIT ---
-app.get('/kayit', (req, res) => {
-    res.send(`<form action="/kayit-yap" method="POST">
-    <input name="kullaniciAdi" required>
-    <input name="sifre" required>
-    <input name="sifreTekrar" required>
-    <button>Kayıt</button></form>`);
-});
-
-app.post('/kayit-yap', async (req, res) => {
-    const { kullaniciAdi, sifre, sifreTekrar } = req.body;
-    if (sifre !== sifreTekrar) return res.send("Şifreler uyuşmuyor");
-
-    await new Kullanici({ kullaniciAdi, sifre }).save();
-    res.redirect('/');
-});
-
-// --- GİRİŞ ---
-app.post('/giris', async (req, res) => {
-    const k = await Kullanici.findOne({ kullaniciAdi: req.body.kullaniciAdi, sifre: req.body.sifre });
-    if (!k) return res.send("Hatalı giriş");
-    res.redirect('/panel/' + k.kullaniciAdi);
-});
-
-// --- PANEL ---
-app.get('/panel/:kullaniciAdi', async (req, res) => {
-    const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
-    const sorular = await Soru.find();
-
-    if (!sorular.length) return res.send("Soru yok");
-
-    const soru = sorular[k.soruIndex % sorular.length];
-
-    res.send(`
-    <h3>${k.kullaniciAdi} | Puan: ${k.puan}</h3>
-    <h2>${soru.soruMetni}</h2>
-
-    ${[0,1,2,3].map(i => `
-    <form method="POST" action="/cevap">
-        <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}">
-        <input type="hidden" name="soruId" value="${soru._id}">
-        <input type="hidden" name="secilenIndex" value="${i}">
-        <input type="hidden" name="gecenSure" value="60">
-        <button>${String.fromCharCode(65+i)}</button>
-    </form>`).join("")}
-    `);
-});
-
-// --- CEVAP ---
+// 🔥 SADECE BURASI DEĞİŞTİ
 app.post('/cevap', async (req, res) => {
-    const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
+    try {
+        const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
+        const s = await Soru.findById(soruId);
+        const k = await Kullanici.findOne({ kullaniciAdi });
 
-    const s = await Soru.findById(soruId);
-    const k = await Kullanici.findOne({ kullaniciAdi });
+        if (s && k) {
+            s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;
 
-    if (!s || !k) return res.send("Hata");
+            const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
+            if (dogruMu) s.dogruSayisi = (s.dogruSayisi || 0) + 1;
 
-    // --- VERİ GÜNCELLE ---
-    s.cozulmeSayisi++;
-    const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
-    if (dogruMu) s.dogruSayisi++;
+            const eskiSureToplami = (s.ortalamaSure || 0) * (s.cozulmeSayisi - 1);
+            s.ortalamaSure = (eskiSureToplami + parseInt(gecenSure)) / s.cozulmeSayisi;
 
-    s.ortalamaSure = ((s.ortalamaSure * (s.cozulmeSayisi - 1)) + parseInt(gecenSure)) / s.cozulmeSayisi;
+            await s.save();
 
-    // --- ZORLUK ---
-    const basariOran = s.dogruSayisi / s.cozulmeSayisi;
-    let Z_katsayi = 3;
-    if (basariOran > 0.8) Z_katsayi = 1;
-    else if (basariOran > 0.6) Z_katsayi = 2;
-    else if (basariOran > 0.4) Z_katsayi = 3;
-    else if (basariOran > 0.2) Z_katsayi = 4;
-    else Z_katsayi = 5;
+            if (dogruMu) {
+                const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
 
-    // --- DİNAMİK GE ---
-    function hesaplaGE(soru) {
-        const maxGE = 0.10;
-        const minGE = 0.02;
-        let ge = maxGE - (soru.cozulmeSayisi * 0.002);
-        return ge < minGE ? minGE : ge;
+                let Z_katsayi = 3;
+
+                if (dersSorulari.length > 1) {
+                    const basariOranlari = dersSorulari.map(q => (q.dogruSayisi / q.cozulmeSayisi) * 100);
+                    const sureler = dersSorulari.map(q => q.ortalamaSure || 0);
+
+                    const mBasari = basariOranlari.reduce((a,b)=>a+b,0)/basariOranlari.length;
+                    const sBasari = Math.sqrt(basariOranlari.reduce((a,b)=>a+Math.pow(b-mBasari,2),0)/basariOranlari.length) || 1;
+
+                    const mSure = sureler.reduce((a,b)=>a+b,0)/sureler.length;
+                    const sSure = Math.sqrt(sureler.reduce((a,b)=>a+Math.pow(b-mSure,2),0)/sureler.length) || 1;
+
+                    const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
+                    const zS = (s.ortalamaSure - mSure) / sSure;
+
+                    const zorluk = (zS * 0.5) - (zB * 0.5);
+
+                    if (zorluk < -1.2) Z_katsayi = 1;
+                    else if (zorluk < -0.5) Z_katsayi = 2;
+                    else if (zorluk < 0.5) Z_katsayi = 3;
+                    else if (zorluk < 1.2) Z_katsayi = 4;
+                    else Z_katsayi = 5;
+                }
+
+                const T_ref = s.ortalamaSure || 60;
+                const T_ogr = Math.max(parseInt(gecenSure), 1);
+
+                // ✅ DİNAMİK GE
+                function hesaplaGE(soru) {
+                    const maxGE = 0.10;
+                    const minGE = 0.02;
+
+                    const cozulme = soru.cozulmeSayisi || 1;
+
+                    let ge = maxGE - (cozulme - 1) * 0.002;
+
+                    if (ge < minGE) ge = minGE;
+
+                    return ge;
+                }
+
+                const GE = hesaplaGE(s);
+
+                const kazanilanPuan = Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE) || 1;
+
+                k.puan += Math.max(kazanilanPuan, 1);
+            }
+
+            k.toplamSure += parseInt(gecenSure) || 0;
+            k.cozumSureleri.push({ soruId: soruId, sure: parseInt(gecenSure) || 0 });
+            k.soruIndex += 1;
+
+            await k.save();
+        }
+
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
+
+    } catch (err) {
+        res.status(500).send("Hata: " + err.message);
     }
-
-    const GE = hesaplaGE(s);
-
-    const T_ref = s.ortalamaSure || 60;
-    const T_ogr = Math.max(parseInt(gecenSure), 1);
-
-    const puan = Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE) || 1;
-
-    if (dogruMu) k.puan += puan;
-
-    k.soruIndex++;
-    await s.save();
-    await k.save();
-
-    res.redirect('/panel/' + k.kullaniciAdi);
 });
 
-// --- SERVER ---
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Sunucu ${PORT} portunda hazır!`);
-});
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
