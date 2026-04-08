@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.6 (Ortalama Puan Gösterimi) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.6 (Tam ve Eksiksiz) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -36,7 +36,7 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     guncelZorluk: { type: Number, default: 3 }
 }));
 
-// --- V1.5'TEN GELEN GÜNLÜK HESAPLAMA ---
+// --- GÜNLÜK HESAPLAMA (05:00 AM) ---
 cron.schedule('0 5 * * *', async () => {
     console.log("⏳ Günlük skor güncelleniyor...");
     try {
@@ -102,11 +102,7 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
 
     let icerik = "";
     if (mod === 'profil') {
-        // --- VERSİYON 1.6: ORTALAMA PUAN HESAPLAMA ---
-        let ortalamaPuan = 0;
-        if (k.soruIndex > 0) {
-            ortalamaPuan = (k.puan / k.soruIndex).toFixed(2);
-        }
+        let ortalamaPuan = k.soruIndex > 0 ? (k.puan / k.soruIndex).toFixed(2) : 0;
         icerik = `<div style="background:white; padding:30px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><h2>Profil Bilgileri</h2><p><b>Kullanıcı Adı:</b> ${k.kullaniciAdi}</p><p><b>Sınıf:</b> ${k.sinif}. Sınıf</p><p><b>Okul:</b> ${k.okul}</p><p><b>İl/İlçe:</b> ${k.il} / ${k.ilce}</p><p><b>Ortalama Puan:</b> ${ortalamaPuan}</p><p><b>Çözülen Soru:</b> ${k.soruIndex}</p></div>`;
     } else {
         const sorular = await Soru.find();
@@ -199,4 +195,8 @@ app.get('/admin', async (req, res) => {
 
 app.post('/soru-ekle', async (req, res) => {
     await new Soru({ sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
-    res.redirect('/
+    res.redirect('/admin?mod=soruListesi');
+});
+
+app.post('/soru-guncelle', async (req, res) => {
+    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu
