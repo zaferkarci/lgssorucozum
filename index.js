@@ -1,4 +1,4 @@
--const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 const express = require('express');
 const app = express();
 
@@ -186,3 +186,4 @@ app.post('/soru-sil', async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
+
