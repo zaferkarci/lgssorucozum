@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.7 (Admin Zorluk Gösterimi) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.8 (Gelişmiş Soru Skoru Analizi) ---
 const mongoose = require('mongoose');
 const express = require('express');
 const cron = require('node-cron');
@@ -50,11 +50,14 @@ cron.schedule('0 5 * * *', async () => {
                 for (const s of ds) {
                     const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mB) / sB;
                     const zS = (s.ortalamaSure - mS) / sS;
-                    const zorlukSkoru = (zS * 0.5) - (zB * 0.5);
-                    if (zorlukSkoru < -1.2) s.guncelZorluk = 1;
-                    else if (zorlukSkoru < -0.5) s.guncelZorluk = 2;
-                    else if (zorlukSkoru < 0.5) s.guncelZorluk = 3;
-                    else if (zorlukSkoru < 1.2) s.guncelZorluk = 4;
+                    // Dinamik GE etkisini hesaba dahil ediyoruz (zB ve zS üzerinden ayırt edicilik)
+                    const anlikGE = Math.min(Math.max((Math.abs(zB) + Math.abs(zS)) / 20, 0.02), 0.10);
+                    const nihaiSkor = (zS * 0.4) - (zB * 0.4) + (anlikGE * 10); // GE katsayısı skorun %20'sini etkiler
+
+                    if (nihaiSkor < -1.2) s.guncelZorluk = 1;
+                    else if (nihaiSkor < -0.5) s.guncelZorluk = 2;
+                    else if (nihaiSkor < 0.5) s.guncelZorluk = 3;
+                    else if (nihaiSkor < 1.2) s.guncelZorluk = 4;
                     else s.guncelZorluk = 5;
                     await s.save();
                 }
@@ -133,6 +136,7 @@ app.post('/cevap', async (req, res) => {
             await s.save();
 
             if (dogruMu) {
+                // --- LOGARİTMİK DİNAMİK PUANLAMA & DİNAMİK GE ---
                 let Z_katsayi = s.guncelZorluk || 3;
                 let GE = 0.05; 
                 const ds = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
@@ -145,10 +149,12 @@ app.post('/cevap', async (req, res) => {
                     const sS = Math.sqrt(su.reduce((a, b) => a + Math.pow(b - mS, 2), 0) / su.length) || 1;
                     const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mB) / sB;
                     const zS = (s.ortalamaSure - mS) / sS;
+                    // Dinamik GE (Gelişim Katsayısı) Hesabı
                     GE = Math.min(Math.max((Math.abs(zB) + Math.abs(zS)) / 20, 0.02), 0.10);
                 }
                 const T_ref = s.ortalamaSure || 60;
                 const T_ogr = Math.max(parseInt(gecenSure), 1);
+                // Logaritmik Puan Formülü
                 k.puan += Math.max(Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE), 1);
             }
             k.toplamSure += parseInt(gecenSure) || 0;
@@ -175,7 +181,7 @@ app.get('/admin', async (req, res) => {
         if (mod === 'soruEkle') {
             icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>${editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle'}</h3><form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST">${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}Sınıf: <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select> Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br><input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" style="width:98%; height:60px; padding:10px; margin-bottom:10px; border:1px solid #ddd;">${editSoru ? editSoru.soruOnculu : ''}</textarea><input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:10px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea><div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;"><p>Şıklar:</p>${[0,1,2,3].map(i => `<div style="margin-bottom:8px; display:flex; align-items:center; gap:10px;"><b>${String.fromCharCode(65+i)}:</b> <input name="metin${i}" placeholder="Metin" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].metin : ''}" style="flex:2;"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : ''}" style="flex:1;"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required></div>`).join('')}</div><button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDET</button></form></div>`;
         } else {
-            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>Tüm Sorular</h3><div style="display:grid; gap:10px;">${tumSorular.map((s, i) => `<div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> [Zorluk: ${s.guncelZorluk || 3}] [${s.ders}] ${s.soruMetni.substring(0,40)}...</span><div><a href="/admin?duzenle=${s._id}&mod=soruEkle" style="color:#1a73e8; font-weight:bold; text-decoration:none; margin-right:10px;">DÜZENLE</a><form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></div></div>`).join('')}</div></div>`;
+            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>Tüm Sorular</h3><div style="display:grid; gap:10px;">${tumSorular.map((s, i) => `<div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> [Soru Skoru: ${s.guncelZorluk || 3}] [${s.ders}] ${s.soruMetni.substring(0,40)}...</span><div><a href="/admin?duzenle=${s._id}&mod=soruEkle" style="color:#1a73e8; font-weight:bold; text-decoration:none; margin-right:10px;">DÜZENLE</a><form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></div></div>`).join('')}</div></div>`;
         }
         res.send(`<div style="display:flex; min-height:100vh; font-family:sans-serif; background:#f0f2f5;"><div style="width:250px; background:#202124; color:white; padding:20px; box-sizing:border-box;"><h2 style="margin-bottom:30px; text-align:center;">🛠️ Admin</h2><a href="/admin?mod=soruListesi" style="display:block; color:white; text-decoration:none; padding:15px; margin-bottom:10px; border-radius:8px; background:${mod==='soruListesi'?'#3c4043':''};">📋 Soruları Listele</a><a href="/admin?mod=soruEkle" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='soruEkle'?'#3c4043':''};">➕ Yeni Soru Ekle</a><hr style="margin:20px 0; opacity:0.3;"><a href="/" style="display:block; color:#ffcccc; text-decoration:none; padding:15px;">Çıkış Yap</a></div><div style="flex:1; padding:30px; overflow-y:auto;">${icerik}</div></div>`);
     } else { res.status(401).send('Yetkisiz!'); }
