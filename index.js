@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 2.1 (v1.7 Form Yapısı Entegre Edildi) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 2.1 (TAM VE KESİN SÜRÜM) ---
 const mongoose = require('mongoose');
 const express = require('express');
 const cron = require('node-cron');
@@ -10,9 +10,9 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 10000;
 const dbURI = process.env.MONGO_URI;
 
-mongoose.connect(dbURI).then(() => console.log("✅ v2.1 (Form v1.7) Aktif")).catch(err => console.error("❌ Hata:", err.message));
+mongoose.connect(dbURI).then(() => console.log("✅ v2.1 (Tam Koruma) Aktif")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER (v1.7'nin tüm alanları geri getirildi) ---
+// --- MODELLER ---
 const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
     kullaniciAdi: { type: String, unique: true }, 
     sifre: String, il: String, ilce: String, okul: String,
@@ -26,61 +26,56 @@ const Kullanici = mongoose.model('Kullanici', new mongoose.Schema({
 
 const Soru = mongoose.model('Soru', new mongoose.Schema({
     sinif: String, ders: String, konu: String, 
-    soruOnculu: String, // v1.7'den geri gelen alan
-    soruMetni: String, 
-    soruResmi: String,  // v1.7'den geri gelen alan
-    secenekler: [
-        { metin: String, gorsel: String } // v1.7 görsel desteği
-    ],
+    soruOnculu: String, soruMetni: String, soruResmi: String, 
+    secenekler: [{ metin: String, gorsel: String }],
     dogruCevapIndex: Number,
     cozulmeSayisi: { type: Number, default: 0 },
     dogruSayisi: { type: Number, default: 0 },
     ortalamaSure: { type: Number, default: 0 },
     guncelZorluk: { type: Number, default: 10 }
 }));
-// --- GÜNLÜK SINIRSIZ SKOR HESAPLAMA (05:00 AM) - v2.1 Mekanizması Tam Koruma ---
+// --- GÜNLÜK SINIRSIZ SKOR HESAPLAMA (HER SABAH 05:00 AM) ---
 cron.schedule('0 5 * * *', async () => {
     try {
-        // Sadece en az 1 kez çözülmüş soruları analize al
+        console.log("🕒 Saat 05:00 - Sınırsız Karmaşıklık Analizi Başlatılıyor...");
+        
         const tumSorular = await Soru.find({ cozulmeSayisi: { $gt: 0 } });
         const dersler = [...new Set(tumSorular.map(s => s.ders))];
         
         for (const ders of dersler) {
             const ds = tumSorular.filter(s => s.ders === ders);
             if (ds.length > 1) {
-                // İstatistiksel veri setlerini oluştur
+                // İstatistiksel veri setleri (Başarı ve Süre)
                 const bo = ds.map(s => (s.dogruSayisi / s.cozulmeSayisi) * 100);
                 const su = ds.map(s => s.ortalamaSure || 0);
                 
-                // Matematiksel Ortalamalar
+                // Matematiksel Ortalamalar ve Standart Sapmalar (Z-Skoru)
                 const mB = bo.reduce((a, b) => a + b, 0) / bo.length;
                 const mS = su.reduce((a, b) => a + b, 0) / su.length;
-                
-                // Standart Sapma Hesaplamaları
                 const sB = Math.sqrt(bo.reduce((a, b) => a + Math.pow(b - mB, 2), 0) / bo.length) || 1;
                 const sS = Math.sqrt(su.reduce((a, b) => a + Math.pow(b - mS, 2), 0) / su.length) || 1;
 
                 for (const s of ds) {
-                    // Z-Skoru Analizi: Başarı (zB) ve Süre (zS)
+                    // v2.1 Karmaşıklık Analizi: zB (Başarı Sapması), zS (Süre Sapması)
                     const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mB) / sB;
                     const zS = (s.ortalamaSure - mS) / sS;
                     
-                    // Gelişim Katsayısı (GE): Dinamik zorluk esnekliği
+                    // Gelişim Katsayısı (GE): Sapma şiddetine göre 0.02 - 0.10 arası esneklik
                     const GE = Math.min(Math.max((Math.abs(zB) + Math.abs(zS)) / 20, 0.02), 0.10);
                     
-                    // v2.1 Karmaşıklık Formülü: Skor ucu açık ve sınırsızdır.
+                    // v2.1 Sınırsız Skor Formülü: Negatif başarı ve pozitif süre skoru ucu açık artırır.
                     const hamSkor = ((zS * 10) - (zB * 10)) * (GE * 100);
                     s.guncelZorluk = Math.max(parseFloat((20 + hamSkor).toFixed(2)), 1); 
                     await s.save();
                 }
             }
         }
-        console.log("✅ Sınırsız Karmaşıklık Analizi Tamamlandı.");
+        console.log("✅ Günlük Sınırsız Soru Skorları (05:00 AM) Başarıyla Yenilendi.");
     } catch (err) { 
-        console.error("❌ Motor Hatası:", err.message); 
+        console.error("❌ 05:00 Analiz Hatası:", err.message); 
     }
 });
-// --- ÖĞRENCİ PANELİ VE GÖRSEL DESTEKLİ SORU EKRANI (v1.7 & v2.1 Hibrit) ---
+// --- ÖĞRENCİ PANELİ VE DETAYLI SORU EKRANI (Tüm Görsel Özellikler Korundu) ---
 
 app.get('/panel/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
@@ -90,13 +85,34 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
     let icerik = "";
     if (mod === 'profil') {
         let verimlilik = k.soruIndex > 0 ? (k.puan / k.soruIndex).toFixed(2) : 0;
-        icerik = `<div style="background:white; padding:30px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><h2 style="color:#1a73e8;">Başarı Raporu</h2><div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;"><div style="background:#e8f0fe; padding:15px; border-radius:10px;"><small>Toplam Sınırsız Puan</small><div style="font-size:24px; font-weight:bold; color:#1967d2;">${k.puan.toLocaleString()}</div></div><div style="background:#e6ffed; padding:15px; border-radius:10px;"><small>Verimlilik</small><div style="font-size:24px; font-weight:bold; color:#188038;">${verimlilik}</div></div></div><p style="margin-top:20px;"><b>Okul:</b> ${k.okul}</p><p><b>Son Kazanılan:</b> <span style="color:#e67e22; font-weight:bold;">+${k.sonKazanilanPuan.toFixed(2)}</span></p></div>`;
+        icerik = `
+        <div style="background:white; padding:30px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);">
+            <h2 style="color:#1a73e8;">Kişisel Başarı Raporu</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
+                <div style="background:#e8f0fe; padding:15px; border-radius:10px;">
+                    <small>Toplam Sınırsız Puan</small>
+                    <div style="font-size:24px; font-weight:bold; color:#1967d2;">${k.puan.toLocaleString()}</div>
+                </div>
+                <div style="background:#e6ffed; padding:15px; border-radius:10px;">
+                    <small>Verimlilik Skoru</small>
+                    <div style="font-size:24px; font-weight:bold; color:#188038;">${verimlilik}</div>
+                </div>
+            </div>
+            <p style="margin-top:20px;"><b>Okul:</b> ${k.okul} | <b>İl/İlçe:</b> ${k.il}/${k.ilce}</p>
+            <p><b>Son Kazanılan Puan:</b> <span style="color:#e67e22; font-weight:bold;">+${k.sonKazanilanPuan.toFixed(2)}</span></p>
+        </div>`;
     } else {
         const sorular = await Soru.find();
         if (!sorular.length) {
-            icerik = `<h2>Soru bulunamadı.</h2>`;
+            icerik = `<div style="text-align:center; margin-top:50px;"><h2>Henüz soru eklenmemiş.</h2></div>`;
         } else if (!req.query.basla) {
-            icerik = `<div style="text-align:center; margin-top:100px;"><h1 style="color:#1a73e8;">Hazır mısın?</h1><a href="/panel/${k.kullaniciAdi}?mod=soru&basla=true" style="display:inline-block; padding:15px 40px; background:#34a853; color:white; text-decoration:none; border-radius:30px; font-weight:bold;">BAŞLA</a></div>`;
+            icerik = `
+            <div style="text-align:center; margin-top:100px;">
+                <h1 style="color:#1a73e8;">Hoş Geldin, ${k.kullaniciAdi}!</h1>
+                <p>Sınırsız Karmaşıklık Motoru senin için yeni bir soru hazırladı.</p>
+                <a href="/panel/${k.kullaniciAdi}?mod=soru&basla=true" style="display:inline-block; padding:15px 40px; background:#34a853; color:white; text-decoration:none; border-radius:30px; font-weight:bold; font-size:18px;">BAŞLA</a>
+                <p style="margin-top:20px; font-size:12px; color:#999;">Soru değerleri her sabah 05:00'te performansına göre güncellenir.</p>
+            </div>`;
         } else {
             const soru = sorular[k.soruIndex % sorular.length];
             const sSkor = soru.guncelZorluk || 10;
@@ -105,25 +121,24 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
             <div style="max-width:800px; margin:auto; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.1); overflow:hidden;">
                 <div style="background:#f8f9fa; padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-weight:bold; color:#5f6368;">${soru.ders} - ${soru.konu}</span>
-                    <span style="background:#fff7e6; color:#d48806; padding:4px 12px; border-radius:15px; font-weight:bold; border:1px solid #ffe58f;">💎 Değer: ${sSkor.toFixed(2)}</span>
+                    <span style="background:#fff7e6; color:#d48806; padding:4px 12px; border-radius:15px; font-weight:bold; border:1px solid #ffe58f;">💎 Potansiyel Puan: ${sSkor.toFixed(2)}</span>
                 </div>
                 <div style="padding:25px;">
-                    <!-- v1.7 Öncül ve Soru Resmi -->
-                    ${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px; font-style:italic;">${soru.soruOnculu}</div>` : ''}
-                    ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%; border-radius:8px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">` : ''}
+                    ${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px; font-style:italic; line-height:1.5; color:#444; border-left:4px solid #1a73e8;">${soru.soruOnculu}</div>` : ''}
+                    ${soru.soruResmi ? `<img src="${soru.soruResmi}" style="max-width:100%; border-radius:8px; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1);">` : ''}
                     
-                    <p style="font-size:18px; font-weight:bold; line-height:1.6;">${soru.soruMetni}</p>
-                    <div id="soruSure" style="text-align:right; font-weight:bold; color:#ea4335; margin-bottom:10px;">⏱️ 0s</div>
+                    <p style="font-size:19px; font-weight:600; line-height:1.6; color:#202124;">${soru.soruMetni}</p>
+                    <div id="soruSure" style="text-align:right; font-weight:bold; color:#ea4335; margin-bottom:15px;">⏱️ 0s</div>
                     
                     <form action="/cevap" method="POST" id="cevapForm">
                         <input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}">
                         <input type="hidden" name="soruId" value="${soru._id}">
                         <input type="hidden" name="gecenSure" id="gecenSure" value="0">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:20px;">
                             ${soru.secenekler.map((s, i) => `
-                                <button name="secilenIndex" value="${i}" style="padding:15px; text-align:left; border:2px solid #eee; border-radius:10px; background:white; cursor:pointer;">
-                                    <b>${["A","B","C","D"][i]})</b> ${s.metin}
-                                    ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-width:100%; margin-top:10px; border-radius:5px;">` : ''}
+                                <button name="secilenIndex" value="${i}" style="padding:15px; text-align:left; border:2px solid #eee; border-radius:10px; background:white; cursor:pointer; font-size:16px; transition:0.2s;" onmouseover="this.style.borderColor='#1a73e8';this.style.background='#f8fbff';" onmouseout="this.style.borderColor='#eee';this.style.background='white';">
+                                    <b style="color:#1a73e8; margin-right:5px;">${["A","B","C","D"][i]})</b> ${s.metin}
+                                    ${s.gorsel ? `<img src="${s.gorsel}" style="max-width:100%; margin-top:10px; border-radius:5px; display:block;">` : ''}
                                 </button>
                             `).join('')}
                         </div>
@@ -133,9 +148,10 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
             <script>let sn=0; setInterval(()=>{sn++; document.getElementById('soruSure').innerText='⏱️ '+sn+'s'; document.getElementById('gecenSure').value=sn;},1000);</script>`;
         }
     }
-    res.send(`<div style="display:flex; min-height:100vh; font-family:sans-serif; background:#f0f2f5;"><div style="width:250px; background:#1a73e8; color:white; padding:20px; box-sizing:border-box;"><h2 style="text-align:center;">LGS v2.1+</h2><a href="/panel/${k.kullaniciAdi}?mod=soru" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='soru'?'#1557b0':''};">📖 Soru Çöz</a><a href="/panel/${k.kullaniciAdi}?mod=profil" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='profil'?'#1557b0':''};">📊 Profilim</a><hr style="opacity:0.3;"><a href="/" style="color:#ffcccc; text-decoration:none; padding:15px; display:block;">Çıkış</a></div><div style="flex:1; padding:30px; overflow-y:auto;">${icerik}</div></div>`);
+    // Ana Layout yapısı (Mavi Sidebar korundu)
+    res.send(`<div style="display:flex; min-height:100vh; font-family:sans-serif; background:#f0f2f5;"><div style="width:250px; background:#1a73e8; color:white; padding:20px; box-sizing:border-box;"><h2 style="margin-bottom:30px; text-align:center;">LGS PRO v2.1</h2><a href="/panel/${k.kullaniciAdi}?mod=soru" style="display:block; color:white; text-decoration:none; padding:15px; margin-bottom:10px; border-radius:8px; background:${mod==='soru'?'#1557b0':''};">📖 Sınırsız Soru</a><a href="/panel/${k.kullaniciAdi}?mod=profil" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='profil'?'#1557b0':''};">📊 Başarı Analizi</a><hr style="margin:20px 0; opacity:0.3;"><a href="/" style="display:block; color:#ffcccc; text-decoration:none; padding:15px;">Çıkış Yap</a></div><div style="flex:1; padding:30px; overflow-y:auto;">${icerik}</div></div>`);
 });
-// --- PUANLAMA VE SONUÇ EKRANI (v2.1 Hassasiyet ve v1.7 Görsellik Uyumu) ---
+// --- PUANLAMA VE SONUÇ EKRANI (v2.0 Tasarımı ve v2.1 Matematiği Tam Koruma) ---
 
 app.post('/cevap', async (req, res) => {
     try {
@@ -145,7 +161,7 @@ app.post('/cevap', async (req, res) => {
         
         if (!s || !k) return res.redirect('/');
 
-        // 1. İstatistikleri Güncelle
+        // 1. Soru İstatistik Güncelleme
         s.cozulmeSayisi += 1;
         const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
         if (dogruMu) s.dogruSayisi += 1;
@@ -177,11 +193,11 @@ app.post('/cevap', async (req, res) => {
             const T_ref = s.ortalamaSure || 60;
             const T_ogr = Math.max(parseInt(gecenSure), 1);
             
-            // v2.1 Logaritmik Verim Hesabı
+            // v2.1 Logaritmik Verim Denklemi (Puan = Zorluk * Hız Verimi * Gelişim Katsayısı)
             kazanilanPuan = Math.max(parseFloat(((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE).toFixed(2)), 0.1);
         }
 
-        // 3. Kullanıcı Verilerini Güncelle
+        // 3. Kullanıcı Bakiyesi Güncelleme
         k.puan += kazanilanPuan;
         k.sonKazanilanPuan = kazanilanPuan;
         k.toplamSure += parseInt(gecenSure);
@@ -189,24 +205,25 @@ app.post('/cevap', async (req, res) => {
         k.soruIndex += 1;
         await k.save();
 
-        // 4. v2.1 Şeffaf Sonuç Ekranı
+        // 4. v2.0 Şeffaf Sonuç Ekranı Tasarımı
         res.send(`
             <div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f0f2f5; font-family:sans-serif;">
                 <div style="background:white; padding:40px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.1); text-align:center; max-width:400px; width:90%;">
-                    <div style="font-size:60px; margin-bottom:10px;">${dogruMu ? '🚀' : '📚'}</div>
-                    <h2 style="color:${dogruMu ? '#34a853' : '#ea4335'};">${dogruMu ? 'Harika, Doğru!' : 'Bir Sonrakine Odaklan'}</h2>
+                    <div style="font-size:60px; margin-bottom:10px;">${dogruMu ? '🎉' : '😕'}</div>
+                    <h2 style="color:${dogruMu ? '#34a853' : '#ea4335'};">${dogruMu ? 'Doğru Cevap!' : 'Yanlış Cevap'}</h2>
                     
                     <div style="margin:20px 0; padding:20px; background:#f8f9fa; border-radius:15px; border:1px solid #eee;">
-                        <p style="margin:0; color:#666; font-size:14px;">Kazanılan Sınırsız Skor</p>
+                        <p style="margin:0; color:#666; font-size:14px;">Bu Sorudan Kazanılan</p>
                         <div style="font-size:36px; font-weight:bold; color:#1a73e8;">+${kazanilanPuan.toFixed(2)}</div>
+                        <p style="margin:0; font-size:12px; color:#999;">Sınırsız Karmaşıklık Puanı</p>
                     </div>
 
-                    <div style="display:flex; justify-content:space-between; margin-bottom:25px; color:#555; font-size:13px; background:#fff; padding:10px; border-radius:8px;">
+                    <div style="display:flex; justify-content:space-around; margin-bottom:25px; color:#555; font-size:14px;">
                         <span>⏱️ <b>${gecenSure}s</b> Süre</span>
                         <span>💎 Toplam: <b>${k.puan.toFixed(2)}</b></span>
                     </div>
 
-                    <a href="/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true" style="display:block; padding:16px; background:#1a73e8; color:white; text-decoration:none; border-radius:12px; font-weight:bold; transition: 0.3s; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">SIRADAKİ SORUYA GEÇ</a>
+                    <a href="/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true" style="display:block; padding:15px; background:#1a73e8; color:white; text-decoration:none; border-radius:10px; font-weight:bold; transition: 0.3s; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);">SIRADAKİ SORUYA GEÇ</a>
                 </div>
             </div>
         `);
