@@ -117,6 +117,8 @@ app.post('/cevap', async (req, res) => {
             if (dogruMu) {
                 const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
                 let Z_katsayi = 3; 
+                let GE = 0.05; // Varsayılan GE
+
                 if (dersSorulari.length > 1) {
                     const basariOranlari = dersSorulari.map(soru => (soru.dogruSayisi / soru.cozulmeSayisi) * 100);
                     const sureler = dersSorulari.map(soru => soru.ortalamaSure || 0);
@@ -124,18 +126,27 @@ app.post('/cevap', async (req, res) => {
                     const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
                     const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
                     const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
+                    
                     const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
                     const zS = (s.ortalamaSure - mSure) / sSure;
                     const zorluk = (zS * 0.5) - (zB * 0.5);
+
+                    // Z Katsayısı Belirleme
                     if (zorluk < -1.2) Z_katsayi = 1;
                     else if (zorluk < -0.5) Z_katsayi = 2;
                     else if (zorluk < 0.5) Z_katsayi = 3;
                     else if (zorluk < 1.2) Z_katsayi = 4;
                     else Z_katsayi = 5;
+
+                    // --- VERSİYON 1.4: DİNAMİK GE HESAPLAMA ---
+                    // GE, sorunun ayırt ediciliği ve zorluğuyla orantılı değişir.
+                    // Formül: (Zorluk Sapması + Başarı Sapması) / 20. Limitler: 0.02 - 0.10
+                    const hamGE = (Math.abs(zB) + Math.abs(zS)) / 20;
+                    GE = Math.min(Math.max(hamGE, 0.02), 0.10); 
                 }
+
                 const T_ref = s.ortalamaSure || 60;
                 const T_ogr = Math.max(parseInt(gecenSure), 1);
-                const GE = 0.05;
                 const kazanilanPuan = Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE) || 1;
                 k.puan += Math.max(kazanilanPuan, 1);
             }
@@ -176,13 +187,4 @@ app.post('/soru-ekle', async (req, res) => {
 });
 
 app.post('/soru-guncelle', async (req, res) => {
-    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) });
-    res.redirect('/admin?mod=soruListesi');
-});
-
-app.post('/soru-sil', async (req, res) => {
-    await Soru.findByIdAndDelete(req.body.id);
-    res.redirect('/admin?mod=soruListesi');
-});
-
-app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
+    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, soruOnculu: req.body.soruOnculu, soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dog
