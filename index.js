@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.4 (Dinamik GE Algoritması) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.5 (Dinamik Ham Puan & Zorluk Algoritması) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -31,8 +31,101 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     dogruCevapIndex: Number,
     cozulmeSayisi: { type: Number, default: 0 },
     dogruSayisi: { type: Number, default: 0 },
-    ortalamaSure: { type: Number, default: 0 }
+    ortalamaSure: { type: Number, default: 0 },
+    // --- v1.5: Yeni alanlar ---
+    hamPuan: { type: Number, default: null },       // null = henüz hesaplanmadı (varsayılan kullanılır)
+    zorlukKatsayisi: { type: Number, default: 3 },  // 1-5 arası, başlangıçta orta
+    cozumSureleriTum: [Number]                      // standart sapma hesabı için tüm süreler
 }));
+
+// --- v1.5: YARDIMCI FONKSİYONLAR ---
+
+// Standart sapma hesabı
+function stdSapma(dizi) {
+    if (!dizi || dizi.length < 2) return 0;
+    const ort = dizi.reduce((a, b) => a + b, 0) / dizi.length;
+    return Math.sqrt(dizi.reduce((a, b) => a + Math.pow(b - ort, 2), 0) / dizi.length);
+}
+
+// Ham puan hesabı (tek soru için)
+function hamPuanHesapla(soru) {
+    if (!soru.cozulmeSayisi || soru.cozulmeSayisi === 0) return null;
+
+    const T_ref = soru.ortalamaSure || 60;
+    const T_ogr = T_ref; // ham puan soruya ait genel istatistikten hesaplanır, öğrenci süresinden değil
+
+    // 1. Süre bileşeni
+    const sureBileseni = Math.log2(1 + (T_ref / T_ogr)); // kendi ortalamasına göre = log2(2) = 1 (sabit)
+    // Not: ham puan hesabında T_ogr yerine sorunun kendi ortalama süresini kullanıyoruz.
+    // Öğrencinin kazandığı puan hesabında T_ogr devreye girer (aşağıda).
+
+    // 2. Başarı bileşeni (düşük başarı = zor soru = yüksek ham puan)
+    const basariBileseni = 1 - (soru.dogruSayisi / soru.cozulmeSayisi);
+
+    // 3. Standart sapma faktörü
+    const sigmaSure = stdSapma(soru.cozumSureleriTum || []);
+    const sigmaBasari = soru.cozulmeSayisi > 1
+        ? stdSapma(
+            Array(soru.dogruSayisi).fill(1).concat(
+                Array(soru.cozulmeSayisi - soru.dogruSayisi).fill(0)
+            )
+          )
+        : 0;
+    const sapmaFaktoru = 1 + ((sigmaSure / (T_ref || 1)) + sigmaBasari) / 2;
+
+    // 4. Ham puan
+    const SABIT_CARPAN = 100;
+    return sureBileseni * basariBileseni * sapmaFaktoru * SABIT_CARPAN;
+}
+
+// Zorluk katsayısını tüm sorulara göre normalize et (1-5)
+async function zorlukGuncelle(soruId) {
+    const MINIMUM_COZUM = 50;
+
+    // Tüm soruları çek
+    const tumSorular = await Soru.find();
+
+    // Mevcut gerçek ham puanları hesapla
+    const gercekHamPuanlar = tumSorular
+        .filter(s => s.cozulmeSayisi >= MINIMUM_COZUM)
+        .map(s => hamPuanHesapla(s))
+        .filter(p => p !== null);
+
+    // Ortalama ham puan (yeni/az çözülen sorular için varsayılan)
+    const ortalamaHamPuan = gercekHamPuanlar.length > 0
+        ? gercekHamPuanlar.reduce((a, b) => a + b, 0) / gercekHamPuanlar.length
+        : 50;
+
+    const minPuan = gercekHamPuanlar.length > 0 ? Math.min(...gercekHamPuanlar) : 0;
+    const maxPuan = gercekHamPuanlar.length > 0 ? Math.max(...gercekHamPuanlar) : 100;
+    const aralik = maxPuan - minPuan || 1;
+
+    // Tüm soruların ham puan ve zorluk katsayısını güncelle
+    for (const s of tumSorular) {
+        let gercekHP = hamPuanHesapla(s);
+
+        let finalHP;
+        if (s.cozulmeSayisi >= MINIMUM_COZUM) {
+            // Yeterli veri var, gerçek ham puanı kullan
+            finalHP = gercekHP;
+        } else {
+            // Kademeli geçiş: az çözüldüyse varsayılan ile karıştır
+            const agirlik = s.cozulmeSayisi / MINIMUM_COZUM;
+            finalHP = gercekHP !== null
+                ? (agirlik * gercekHP) + ((1 - agirlik) * ortalamaHamPuan)
+                : ortalamaHamPuan;
+        }
+
+        // Z katsayısı: 1-5 arası normalize
+        const Z = minPuan === maxPuan
+            ? 3 // tüm sorular eşit zorluktaysa orta kabul et
+            : 1 + ((finalHP - minPuan) / aralik) * 4;
+
+        s.hamPuan = finalHP;
+        s.zorlukKatsayisi = Math.min(Math.max(Math.round(Z * 10) / 10, 1), 5); // 1 ondalık, 1-5 arası
+        await s.save();
+    }
+}
 
 // --- YOLLAR ---
 app.get('/', (req, res) => {
@@ -77,24 +170,16 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
             icerik = `<div style="text-align:center; margin-top:100px;"><h1 style="color:#1a73e8;">Hazır mısın?</h1><p>Sıradaki soruyu çözmek için butona tıkla.</p><a href="/panel/${k.kullaniciAdi}?mod=soru&basla=true" style="display:inline-block; padding:15px 40px; background:#34a853; color:white; text-decoration:none; border-radius:30px; font-weight:bold; font-size:18px;">SORU ÇÖZMEYE BAŞLA</a></div>`;
         } else {
             const soru = sorular[k.soruIndex % sorular.length];
-            const dersSorulari = await Soru.find({ ders: soru.ders, cozulmeSayisi: { $gt: 0 } });
+
+            // --- v1.5: Zorluk etiketi zorlukKatsayisi alanından okunuyor ---
+            const zorlukKatsayisi = soru.zorlukKatsayisi || 3;
             let zorlukEtiketi = "Orta"; let zorlukRengi = "#f39c12";
-            if (dersSorulari.length > 1 && soru.cozulmeSayisi > 0) {
-                const basariOranlari = dersSorulari.map(s => (s.dogruSayisi / s.cozulmeSayisi) * 100);
-                const sureler = dersSorulari.map(s => s.ortalamaSure || 0);
-                const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
-                const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
-                const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
-                const zB = (((soru.dogruSayisi / soru.cozulmeSayisi) * 100) - mBasari) / sBasari;
-                const zS = (soru.ortalamaSure - mSure) / sSure;
-                const skor = (zS * 0.5) - (zB * 0.5);
-                if (skor < -1.2) { zorlukEtiketi = "Çok Kolay"; zorlukRengi = "#27ae60"; }
-                else if (skor < -0.5) { zorlukEtiketi = "Kolay"; zorlukRengi = "#2ecc71"; }
-                else if (skor < 0.5) { zorlukEtiketi = "Orta"; zorlukRengi = "#f39c12"; }
-                else if (skor < 1.2) { zorlukEtiketi = "Zor"; zorlukRengi = "#e67e22"; }
-                else { zorlukEtiketi = "Çok Zor"; zorlukRengi = "#c0392b"; }
-            }
+            if (zorlukKatsayisi < 1.5)      { zorlukEtiketi = "Çok Kolay"; zorlukRengi = "#27ae60"; }
+            else if (zorlukKatsayisi < 2.5) { zorlukEtiketi = "Kolay";     zorlukRengi = "#2ecc71"; }
+            else if (zorlukKatsayisi < 3.5) { zorlukEtiketi = "Orta";      zorlukRengi = "#f39c12"; }
+            else if (zorlukKatsayisi < 4.5) { zorlukEtiketi = "Zor";       zorlukRengi = "#e67e22"; }
+            else                            { zorlukEtiketi = "Çok Zor";   zorlukRengi = "#c0392b"; }
+
             const harfler = ["A","B","C","D"];
             icerik = `<div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #eee;"><span><b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span><div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div></div><div style="margin-bottom:15px;"><span style="background:${zorlukRengi}; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold;">Zorluk: ${zorlukEtiketi}</span> <span style="background:#3498db; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold; margin-left:5px;">Ders: ${soru.ders}</span></div>${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:8px;"></div>` : ""}<h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2><div style="display:grid; gap:10px;">${[0,1,2,3].map(i => { const s = soru.secenekler[i]; if(!s) return ""; return `<form method="POST" action="/cevap" style="margin:0;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0"><button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;"><b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;">` : ""}</button></form>`; }).join('')}</div></div><script>let saniye = 0; let timerInterval = setInterval(() => { saniye++; let dk = Math.floor(saniye/60); let sn = saniye%60; document.getElementById('timer').innerText = (dk<10?'0'+dk:dk)+":"+(sn<10?'0'+sn:sn); if(saniye >= 300) { clearInterval(timerInterval); if(confirm('Süreniz doldu! Sıradaki soruya geçmek istiyor musunuz?')) { window.location.href='/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true'; } } }, 1000);</script>`;
         }
@@ -109,49 +194,58 @@ app.post('/cevap', async (req, res) => {
         const s = await Soru.findById(soruId);
         const k = await Kullanici.findOne({ kullaniciAdi });
         if (s && k) {
+            const T_ogr = Math.max(parseInt(gecenSure) || 1, 1);
+
+            // --- Soru istatistiklerini güncelle ---
             s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;
             const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
             if (dogruMu) s.dogruSayisi = (s.dogruSayisi || 0) + 1;
             const eskiSureToplami = (s.ortalamaSure || 0) * (s.cozulmeSayisi - 1);
-            s.ortalamaSure = (eskiSureToplami + parseInt(gecenSure)) / s.cozulmeSayisi;
+            s.ortalamaSure = (eskiSureToplami + T_ogr) / s.cozulmeSayisi;
+            s.cozumSureleriTum = s.cozumSureleriTum || [];
+            s.cozumSureleriTum.push(T_ogr);
             await s.save();
 
+            // --- v1.5: Puan hesaplama ---
             if (dogruMu) {
-                const dersSorulari = await Soru.find({ ders: s.ders, cozulmeSayisi: { $gt: 0 } });
-                let Z_katsayi = 3; 
-                let GE = 0.05; 
-
-                if (dersSorulari.length > 1) {
-                    const basariOranlari = dersSorulari.map(soru => (soru.dogruSayisi / soru.cozulmeSayisi) * 100);
-                    const sureler = dersSorulari.map(soru => soru.ortalamaSure || 0);
-                    const mBasari = basariOranlari.reduce((a, b) => a + b, 0) / basariOranlari.length;
-                    const sBasari = Math.sqrt(basariOranlari.reduce((a, b) => a + Math.pow(b - mBasari, 2), 0) / basariOranlari.length) || 1;
-                    const mSure = sureler.reduce((a, b) => a + b, 0) / sureler.length;
-                    const sSure = Math.sqrt(sureler.reduce((a, b) => a + Math.pow(b - mSure, 2), 0) / sureler.length) || 1;
-                    
-                    const zB = (((s.dogruSayisi / s.cozulmeSayisi) * 100) - mBasari) / sBasari;
-                    const zS = (s.ortalamaSure - mSure) / sSure;
-                    const zorluk = (zS * 0.5) - (zB * 0.5);
-
-                    if (zorluk < -1.2) Z_katsayi = 1;
-                    else if (zorluk < -0.5) Z_katsayi = 2;
-                    else if (zorluk < 0.5) Z_katsayi = 3;
-                    else if (zorluk < 1.2) Z_katsayi = 4;
-                    else Z_katsayi = 5;
-
-                    const hamGE = (Math.abs(zB) + Math.abs(zS)) / 20;
-                    GE = Math.min(Math.max(hamGE, 0.02), 0.10); 
-                }
-
                 const T_ref = s.ortalamaSure || 60;
-                const T_ogr = Math.max(parseInt(gecenSure), 1);
-                const kazanilanPuan = Math.round((Z_katsayi * T_ref * Math.log2(1 + (T_ref / T_ogr))) * GE) || 1;
-                k.puan += Math.max(kazanilanPuan, 1);
+                const T_min = 10; // minimum anlamlı süre (sn)
+
+                // 1. Hız bileşeni: logaritmik, üstten baskılı (0-1 arası)
+                const logPayda = Math.log2(1 + (T_ref / T_min)) || 1;
+                const H = Math.log2(1 + (T_ref / T_ogr)) / logPayda;
+
+                // 2. Zorluk bileşeni (düşük doğru oranı = zor soru)
+                const dogruOrani = s.dogruSayisi / s.cozulmeSayisi;
+                const sigmaBasari = s.cozulmeSayisi > 1
+                    ? stdSapma(
+                        Array(s.dogruSayisi).fill(1).concat(
+                            Array(s.cozulmeSayisi - s.dogruSayisi).fill(0)
+                        )
+                      )
+                    : 0;
+                const Z_katsayi = Math.min(1 + 4 * (1 - dogruOrani) * (1 + sigmaBasari), 5);
+
+                // 3. Dinamik GE: süre standart sapmasına göre (0.02-0.10 arası)
+                const sigmaSure = stdSapma(s.cozumSureleriTum);
+                const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
+
+                // 4. Final puan: Z × T_ref × H × GE
+                const kazanilanPuan = Math.max(
+                    Math.round(Z_katsayi * T_ref * H * GE),
+                    1
+                );
+
+                k.puan += kazanilanPuan;
             }
-            k.toplamSure += parseInt(gecenSure) || 0;
-            k.cozumSureleri.push({ soruId: soruId, sure: parseInt(gecenSure) || 0 });
+
+            k.toplamSure += T_ogr;
+            k.cozumSureleri.push({ soruId: soruId, sure: T_ogr });
             k.soruIndex += 1;
             await k.save();
+
+            // --- v1.5: Zorluk katsayılarını güncelle ---
+            await zorlukGuncelle(soruId);
         }
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
@@ -172,7 +266,7 @@ app.get('/admin', async (req, res) => {
         if (mod === 'soruEkle') {
             icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>${editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle'}</h3><form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST">${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}Sınıf: <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select> Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br><input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" style="width:98%; height:60px; padding:10px; margin-bottom:10px; border:1px solid #ddd;">${editSoru ? editSoru.soruOnculu : ''}</textarea><input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:10px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea><div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;"><p>Şıklar (Doğru seçeneği işaretleyin):</p>${[0,1,2,3].map(i => `<div style="margin-bottom:8px; display:flex; align-items:center; gap:10px;"><b>${String.fromCharCode(65+i)}:</b> <input name="metin${i}" placeholder="Metin" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].metin : ''}" style="flex:2;"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : ''}" style="flex:1;"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required></div>`).join('')}</div><button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDET</button></form></div>`;
         } else {
-            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>Tüm Sorular</h3><div style="display:grid; gap:10px;">${tumSorular.map((s, i) => `<div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> [${s.sinif}. Sınıf - ${s.ders}] ${s.soruMetni.substring(0,50)}...</span><div><a href="/admin?duzenle=${s._id}&mod=soruEkle" style="color:#1a73e8; font-weight:bold; text-decoration:none; margin-right:10px;">DÜZENLE</a><form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></div></div>`).join('')}</div></div>`;
+            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>Tüm Sorular</h3><div style="display:grid; gap:10px;">${tumSorular.map((s, i) => `<div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> [${s.sinif}. Sınıf - ${s.ders}] ${s.soruMetni.substring(0,50)}... <small style="color:#888;">Z:${(s.zorlukKatsayisi||3).toFixed(1)}</small></span><div><a href="/admin?duzenle=${s._id}&mod=soruEkle" style="color:#1a73e8; font-weight:bold; text-decoration:none; margin-right:10px;">DÜZENLE</a><form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></div></div>`).join('')}</div></div>`;
         }
 
         res.send(`<div style="display:flex; min-height:100vh; font-family:sans-serif; background:#f0f2f5;"><div style="width:250px; background:#202124; color:white; padding:20px; box-sizing:border-box;"><h2 style="margin-bottom:30px; text-align:center;">🛠️ Admin</h2><a href="/admin?mod=soruListesi" style="display:block; color:white; text-decoration:none; padding:15px; margin-bottom:10px; border-radius:8px; background:${mod==='soruListesi'?'#3c4043':''};">📋 Soruları Listele</a><a href="/admin?mod=soruEkle" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='soruEkle'?'#3c4043':''};">➕ Yeni Soru Ekle</a><hr style="margin:20px 0; opacity:0.3;"><a href="/" style="display:block; color:#ffcccc; text-decoration:none; padding:15px;">Çıkış Yap</a></div><div style="flex:1; padding:30px; overflow-y:auto;">${icerik}</div></div>`);
