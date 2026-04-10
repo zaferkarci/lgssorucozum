@@ -1,16 +1,3 @@
-{
-  "name": "lgs-hazirlik-v3",
-  "version": "3.0.0",
-  "description": "LGS Hazırlık Soru Çözüm Platformu",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.0.0"
-  },
-  "engines": {
-    "node": "22.x"
-  }
+"scripts": {
+    "start": "node server.js"
 }
