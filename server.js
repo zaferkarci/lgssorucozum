@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.7 (Kademe Bazlı Zorluk Katsayısı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.8 (Admin Kullanıcı Listesi & Veri Sıfırlama) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -284,15 +284,46 @@ app.get('/admin', async (req, res) => {
         const tumSorular = await Soru.find();
         const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
         const mod = req.query.mod || (req.query.duzenle ? 'soruEkle' : 'soruListesi');
+        const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif il ilce okul');
 
         let icerik = "";
         if (mod === 'soruEkle') {
             icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>${editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle'}</h3><form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST">${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}Sınıf: <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select> Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br><input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" style="width:98%; height:60px; padding:10px; margin-bottom:10px; border:1px solid #ddd;">${editSoru ? editSoru.soruOnculu : ''}</textarea><input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:10px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea><div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;"><p>Şıklar (Doğru seçeneği işaretleyin):</p>${[0,1,2,3].map(i => `<div style="margin-bottom:8px; display:flex; align-items:center; gap:10px;"><b>${String.fromCharCode(65+i)}:</b> <input name="metin${i}" placeholder="Metin" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].metin : ''}" style="flex:2;"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : ''}" style="flex:1;"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required></div>`).join('')}</div><button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDET</button></form></div>`;
+        } else if (mod === 'kullanicilar') {
+            const filIl = req.query.il || '';
+            const filIlce = req.query.ilce || '';
+            const filOkul = req.query.okul || '';
+            const filtreliKullanicilar = tumKullanicilar.filter(k => {
+                return (!filIl || k.il === filIl) && (!filIlce || k.ilce === filIlce) && (!filOkul || k.okul === filOkul);
+            });
+            const iller = [...new Set(tumKullanicilar.map(k => k.il).filter(Boolean))].sort();
+            const ilceler = filIl ? [...new Set(tumKullanicilar.filter(k => k.il === filIl).map(k => k.ilce).filter(Boolean))].sort() : [];
+            const okullar = filIlce ? [...new Set(tumKullanicilar.filter(k => k.ilce === filIlce).map(k => k.okul).filter(Boolean))].sort() : [];
+            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;">
+<h3>Kullanıcı Listesi (Toplam: ${filtreliKullanicilar.length})</h3>
+<form method="GET" action="/admin" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+<input type="hidden" name="mod" value="kullanicilar">
+<select name="il" onchange="this.form.submit()" style="padding:8px; border:1px solid #ddd; border-radius:6px;">
+<option value="">Tüm İller</option>${iller.map(il => `<option value="${il}" ${filIl===il?'selected':''}>${il}</option>`).join('')}
+</select>
+<select name="ilce" onchange="this.form.submit()" style="padding:8px; border:1px solid #ddd; border-radius:6px;">
+<option value="">Tüm İlçeler</option>${ilceler.map(ilce => `<option value="${ilce}" ${filIlce===ilce?'selected':''}>${ilce}</option>`).join('')}
+</select>
+<select name="okul" onchange="this.form.submit()" style="padding:8px; border:1px solid #ddd; border-radius:6px;">
+<option value="">Tüm Okullar</option>${okullar.map(okul => `<option value="${okul}" ${filOkul===okul?'selected':''}>${okul}</option>`).join('')}
+</select>
+</form>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+<thead><tr style="background:#f8f9fa;"><th style="padding:10px; border:1px solid #eee; text-align:left;">Kullanıcı Adı</th><th style="padding:10px; border:1px solid #eee;">Sınıf</th><th style="padding:10px; border:1px solid #eee;">İl</th><th style="padding:10px; border:1px solid #eee;">İlçe</th><th style="padding:10px; border:1px solid #eee;">Okul</th><th style="padding:10px; border:1px solid #eee;">Çözülen</th><th style="padding:10px; border:1px solid #eee;">Puan</th></tr></thead>
+<tbody>${filtreliKullanicilar.sort((a,b)=>b.puan-a.puan).map(k => `<tr><td style="padding:8px; border:1px solid #eee;">${k.kullaniciAdi}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.sinif}</td><td style="padding:8px; border:1px solid #eee;">${k.il||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.ilce||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.okul||'-'}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.soruIndex}</td><td style="padding:8px; border:1px solid #eee; text-align:center; font-weight:bold; color:#1a73e8;">${k.puan}</td></tr>`).join('')}
+</tbody></table></div>`;
+        } else if (mod === 'sifirla') {
+            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3 style="color:red;">⚠️ Veri Sıfırlama</h3><p>Bu işlem tüm kullanıcıların puan, soru ve istatistik verilerini sıfırlar. Kullanıcı hesapları silinmez. Soru içerikleri silinmez, sadece istatistikler sıfırlanır.</p><p><b>Bu işlem geri alınamaz!</b></p><form action="/sifirla" method="POST"><button onclick="return confirm('Emin misiniz? Bu işlem geri alınamaz!')" style="background:red; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">SIFIRLA</button></form></div>`;
         } else {
             icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>Tüm Sorular</h3><div style="display:grid; gap:10px;">${tumSorular.map((s, i) => `<div style="padding:15px; background:#fff; border:1px solid #eee; border-radius:8px; display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> [${s.sinif}. Sınıf - ${s.ders}] ${s.soruMetni.substring(0,50)}... <small style="color:#888;">Z:${(s.zorlukKatsayisi||3).toFixed(1)}</small></span><div><a href="/admin?duzenle=${s._id}&mod=soruEkle" style="color:#1a73e8; font-weight:bold; text-decoration:none; margin-right:10px;">DÜZENLE</a><form action="/soru-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${s._id}"><button style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></div></div>`).join('')}</div></div>`;
         }
 
-        res.send(`<div style="display:flex; min-height:100vh; font-family:sans-serif; background:#f0f2f5;"><div style="width:250px; background:#202124; color:white; padding:20px; box-sizing:border-box;"><h2 style="margin-bottom:30px; text-align:center;">🛠️ Admin</h2><a href="/admin?mod=soruListesi" style="display:block; color:white; text-decoration:none; padding:15px; margin-bottom:10px; border-radius:8px; background:${mod==='soruListesi'?'#3c4043':''};">📋 Soruları Listele</a><a href="/admin?mod=soruEkle" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='soruEkle'?'#3c4043':''};">➕ Yeni Soru Ekle</a><hr style="margin:20px 0; opacity:0.3;"><a href="/" style="display:block; color:#ffcccc; text-decoration:none; padding:15px;">Çıkış Yap</a></div><div style="flex:1; padding:30px; overflow-y:auto;">${icerik}</div></div>`);
+        res.send(`<div style="display:flex; min-height:100vh; font-family:sans-serif; background:#f0f2f5;"><div style="width:250px; background:#202124; color:white; padding:20px; box-sizing:border-box;"><h2 style="margin-bottom:30px; text-align:center;">🛠️ Admin</h2><a href="/admin?mod=soruListesi" style="display:block; color:white; text-decoration:none; padding:15px; margin-bottom:10px; border-radius:8px; background:${mod==='soruListesi'?'#3c4043':''};">📋 Soruları Listele</a><a href="/admin?mod=soruEkle" style="display:block; color:white; text-decoration:none; padding:15px; border-radius:8px; background:${mod==='soruEkle'?'#3c4043':''};">➕ Yeni Soru Ekle</a><a href="/admin?mod=kullanicilar" style="display:block; color:white; text-decoration:none; padding:15px; margin-top:10px; border-radius:8px; background:${mod==='kullanicilar'?'#3c4043':''};">👥 Kullanıcılar</a><a href="/admin?mod=sifirla" style="display:block; color:#ffaaaa; text-decoration:none; padding:15px; margin-top:10px; border-radius:8px; background:${mod==='sifirla'?'#3c4043':''};">🗑️ Veri Sıfırla</a><hr style="margin:20px 0; opacity:0.3;"><a href="/" style="display:block; color:#ffcccc; text-decoration:none; padding:15px;">Çıkış Yap</a></div><div style="flex:1; padding:30px; overflow-y:auto;">${icerik}</div></div>`);
     } else { res.status(401).send('Yetkisiz!'); }
 });
 
@@ -309,6 +340,20 @@ app.post('/soru-guncelle', async (req, res) => {
 app.post('/soru-sil', async (req, res) => {
     await Soru.findByIdAndDelete(req.body.id);
     res.redirect('/admin?mod=soruListesi');
+});
+
+app.post('/sifirla', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
+    const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
+    const [user, pass] = credentials.split(':');
+    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        try {
+            await Kullanici.updateMany({}, { $set: { soruIndex: 0, puan: 0, toplamSure: 0, cozumSureleri: [] } });
+            await Soru.updateMany({}, { $set: { cozulmeSayisi: 0, dogruSayisi: 0, ortalamaSure: 0, hamPuan: null, zorlukKatsayisi: 3, cozumSureleriTum: [], dogruCevapSureleri: [] } });
+            res.send('<script>alert("Tüm veriler sıfırlandı!"); window.location.href="/admin?mod=soruListesi";</script>');
+        } catch (err) { res.status(500).send('Hata: ' + err.message); }
+    } else { res.status(401).send('Yetkisiz!'); }
 });
 
 app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
