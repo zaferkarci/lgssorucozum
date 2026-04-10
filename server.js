@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 2.0.1 (API Tabanlı İl/İlçe Seçimi) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 2.0.2 (Okul Yönetimi & Autocomplete) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -37,6 +37,10 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     zorlukKatsayisi: { type: Number, default: 3 },  // 1-5 arası, başlangıçta orta
     cozumSureleriTum: [Number],                     // standart sapma hesabı için tüm süreler
     dogruCevapSureleri: [Number]                    // sadece doğru cevap verenlerin süreleri
+}));
+
+const Okul = mongoose.model('Okul', new mongoose.Schema({
+    il: String, ilce: String, ad: String
 }));
 
 // --- v1.5: YARDIMCI FONKSİYONLAR ---
@@ -144,7 +148,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/kayit', (req, res) => {
-    res.send(`<div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f0f2f5; font-family:sans-serif; padding:20px;"><div style="background:white; padding:30px; border-radius:15px; width:450px;"><h2 style="color:#1a73e8; text-align:center;">Yeni Kayıt</h2><form action="/kayit-yap" method="POST"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><input type="password" name="sifre" placeholder="Şifre" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><select name="sinif" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">Sınıf Seçiniz</option>${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select><select name="il" id="ilSelect" onchange="ilDegisti()" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">İl Seçiniz...</option></select><select name="ilce" id="ilceSelect" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">İlçe Seçiniz</option></select><input name="okul" placeholder="Okulunuzun Adı" required style="width:100%; padding:10px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><button style="width:100%; padding:12px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDI TAMAMLA</button></form></div></div><script>
+    res.send(`<div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f0f2f5; font-family:sans-serif; padding:20px;"><div style="background:white; padding:30px; border-radius:15px; width:450px;"><h2 style="color:#1a73e8; text-align:center;">Yeni Kayıt</h2><form action="/kayit-yap" method="POST"><input name="kullaniciAdi" placeholder="Kullanıcı Adı" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><input type="password" name="sifre" placeholder="Şifre" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><br><select name="sinif" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">Sınıf Seçiniz</option>${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${s === 8 ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select><select name="il" id="ilSelect" onchange="ilDegisti()" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">İl Seçiniz...</option></select><select name="ilce" id="ilceSelect" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:6px;"><option value="">İlçe Seçiniz</option></select><input name="okul" id="okulInput" placeholder="Okulunuzun Adı" required autocomplete="off" style="width:100%; padding:10px; margin-bottom:5px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box;"><div id="okulOneri" style="border:1px solid #ddd; border-radius:6px; background:white; max-height:150px; overflow-y:auto; display:none; margin-bottom:15px;"></div><br><button style="width:100%; padding:12px; background:#34a853; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDI TAMAMLA</button></form></div></div><script>
 let ilIdMap = {};
 fetch('https://turkiyeapi.dev/api/v1/provinces?fields=id,name')
   .then(r => r.json())
@@ -167,6 +171,7 @@ function ilDegisti() {
   const ilAdi = document.getElementById('ilSelect').value;
   const ilceSelect = document.getElementById('ilceSelect');
   ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
+  document.getElementById('okulOneri').style.display = 'none';
   const ilId = ilIdMap[ilAdi];
   if (!ilId) return;
   fetch('https://turkiyeapi.dev/api/v1/provinces/' + ilId + '?fields=districts')
@@ -182,6 +187,30 @@ function ilDegisti() {
       ilceSelect.innerHTML = '<option value="">İlçeler yüklenemedi</option>';
     });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const okulInput = document.getElementById('okulInput');
+  const okulOneri = document.getElementById('okulOneri');
+  if (!okulInput) return;
+  okulInput.addEventListener('input', function() {
+    const il = document.getElementById('ilSelect').value;
+    const ilce = document.getElementById('ilceSelect').value;
+    const aranan = this.value.trim();
+    if (!aranan || aranan.length < 2) { okulOneri.style.display='none'; return; }
+    fetch('/api/okullar?il=' + encodeURIComponent(il) + '&ilce=' + encodeURIComponent(ilce))
+      .then(r => r.json())
+      .then(liste => {
+        const filtreli = liste.filter(o => o.toLowerCase().includes(aranan.toLowerCase()));
+        if (filtreli.length === 0) { okulOneri.style.display='none'; return; }
+        okulOneri.innerHTML = filtreli.map(o => '<div style="padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='white'" onclick="document.getElementById('okulInput').value=this.textContent; document.getElementById('okulOneri').style.display='none';">' + o + '</div>').join('');
+        okulOneri.style.display = 'block';
+      })
+      .catch(() => { okulOneri.style.display='none'; });
+  });
+  document.addEventListener('click', function(e) {
+    if (e.target !== okulInput) okulOneri.style.display = 'none';
+  });
+});
 </script>`);
 });
 
@@ -354,6 +383,44 @@ app.get('/admin', async (req, res) => {
 <thead><tr style="background:#f8f9fa;"><th style="padding:10px; border:1px solid #eee; text-align:left;">Kullanıcı Adı</th><th style="padding:10px; border:1px solid #eee;">Sınıf</th><th style="padding:10px; border:1px solid #eee;">İl</th><th style="padding:10px; border:1px solid #eee;">İlçe</th><th style="padding:10px; border:1px solid #eee;">Okul</th><th style="padding:10px; border:1px solid #eee;">Çözülen</th><th style="padding:10px; border:1px solid #eee;">Puan</th><th style="padding:10px; border:1px solid #eee;">İşlem</th></tr></thead>
 <tbody>${filtreliKullanicilar.sort((a,b)=>b.puan-a.puan).map(k => `<tr><td style="padding:8px; border:1px solid #eee;">${k.kullaniciAdi}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.sinif}</td><td style="padding:8px; border:1px solid #eee;">${k.il||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.ilce||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.okul||'-'}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.soruIndex}</td><td style="padding:8px; border:1px solid #eee; text-align:center; font-weight:bold; color:#1a73e8;">${k.puan}</td><td style="padding:8px; border:1px solid #eee; text-align:center;"><form action="/kullanici-sil" method="POST" style="display:inline;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="il" value="${filIl}"><input type="hidden" name="ilce" value="${filIlce}"><input type="hidden" name="okul" value="${filOkul}"><button onclick="return confirm('${k.kullaniciAdi} silinsin mi?')" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></td></tr>`).join('')}
 </tbody></table></div>`;
+        } else if (mod === 'okullar') {
+            const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
+            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>Okul Yönetimi</h3>
+<form action="/okul-ekle" method="POST" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
+<div><label style="font-size:12px; color:#666;">İl</label><br><select name="il" id="adminIlSelect" onchange="adminIlDegisti()" required style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:120px;"><option value="">İl Seçiniz</option></select></div>
+<div><label style="font-size:12px; color:#666;">İlçe</label><br><select name="ilce" id="adminIlceSelect" required style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:120px;"><option value="">İlçe Seçiniz</option></select></div>
+<div><label style="font-size:12px; color:#666;">Okul Adı</label><br><input name="ad" placeholder="Okul adını giriniz" required style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:250px;"></div>
+<button style="background:#34a853; color:white; padding:9px 20px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">EKLE</button>
+</form>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+<thead><tr style="background:#f8f9fa;"><th style="padding:10px; border:1px solid #eee; text-align:left;">İl</th><th style="padding:10px; border:1px solid #eee;">İlçe</th><th style="padding:10px; border:1px solid #eee; text-align:left;">Okul Adı</th><th style="padding:10px; border:1px solid #eee;">İşlem</th></tr></thead>
+<tbody>${tumOkullar.map(o => `<tr><td style="padding:8px; border:1px solid #eee;">${o.il}</td><td style="padding:8px; border:1px solid #eee;">${o.ilce}</td><td style="padding:8px; border:1px solid #eee;">${o.ad}</td><td style="padding:8px; border:1px solid #eee; text-align:center;"><form action="/okul-sil" method="POST" style="display:inline;"><input type="hidden" name="id" value="${o._id}"><button onclick="return confirm('${o.ad} silinsin mi?')" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></td></tr>`).join('')}
+</tbody></table></div>
+<script>
+let adminIlIdMap = {};
+fetch('https://turkiyeapi.dev/api/v1/provinces?fields=id,name')
+  .then(r => r.json()).then(data => {
+    const sel = document.getElementById('adminIlSelect');
+    (data.data||[]).sort((a,b)=>a.name.localeCompare(b.name,'tr')).forEach(il => {
+      adminIlIdMap[il.name] = il.id;
+      sel.innerHTML += '<option value="'+il.name+'">'+il.name+'</option>';
+    });
+  });
+function adminIlDegisti() {
+  const ilAdi = document.getElementById('adminIlSelect').value;
+  const ilceSelect = document.getElementById('adminIlceSelect');
+  ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
+  const ilId = adminIlIdMap[ilAdi];
+  if (!ilId) return;
+  fetch('https://turkiyeapi.dev/api/v1/provinces/'+ilId+'?fields=districts')
+    .then(r=>r.json()).then(data => {
+      ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
+      ((data.data&&data.data.districts)||[]).sort((a,b)=>a.name.localeCompare(b.name,'tr')).forEach(ilce => {
+        ilceSelect.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
+      });
+    });
+}
+</script>`;
         } else if (mod === 'sifirla') {
             icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3 style="color:red;">⚠️ Veri Sıfırlama</h3><p>Bu işlem tüm kullanıcıların puan, soru ve istatistik verilerini sıfırlar. Kullanıcı hesapları silinmez. Soru içerikleri silinmez, sadece istatistikler sıfırlanır.</p><p><b>Bu işlem geri alınamaz!</b></p><form action="/sifirla" method="POST"><button onclick="return confirm('Emin misiniz? Bu işlem geri alınamaz!')" style="background:red; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">SIFIRLA</button></form></div>`;
         } else {
@@ -403,6 +470,44 @@ app.post('/sifirla', async (req, res) => {
             await Kullanici.updateMany({}, { $set: { soruIndex: 0, puan: 0, toplamSure: 0, cozumSureleri: [] } });
             await Soru.updateMany({}, { $set: { cozulmeSayisi: 0, dogruSayisi: 0, ortalamaSure: 0, hamPuan: null, zorlukKatsayisi: 3, cozumSureleriTum: [], dogruCevapSureleri: [] } });
             res.send('<script>alert("Tüm veriler sıfırlandı!"); window.location.href="/admin?mod=soruListesi";</script>');
+        } catch (err) { res.status(500).send('Hata: ' + err.message); }
+    } else { res.status(401).send('Yetkisiz!'); }
+});
+
+app.get('/api/okullar', async (req, res) => {
+    try {
+        const { il, ilce } = req.query;
+        const filtre = {};
+        if (il) filtre.il = il;
+        if (ilce) filtre.ilce = ilce;
+        const okullar = await Okul.find(filtre, 'ad').sort({ ad: 1 });
+        res.json(okullar.map(o => o.ad));
+    } catch (err) { res.status(500).json([]); }
+});
+
+app.post('/okul-ekle', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
+    const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
+    const [user, pass] = credentials.split(':');
+    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        try {
+            const varMi = await Okul.findOne({ il: req.body.il, ilce: req.body.ilce, ad: req.body.ad });
+            if (!varMi) await new Okul({ il: req.body.il, ilce: req.body.ilce, ad: req.body.ad }).save();
+            res.redirect('/admin?mod=okullar');
+        } catch (err) { res.status(500).send('Hata: ' + err.message); }
+    } else { res.status(401).send('Yetkisiz!'); }
+});
+
+app.post('/okul-sil', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
+    const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
+    const [user, pass] = credentials.split(':');
+    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        try {
+            await Okul.findByIdAndDelete(req.body.id);
+            res.redirect('/admin?mod=okullar');
         } catch (err) { res.status(500).send('Hata: ' + err.message); }
     } else { res.status(401).send('Yetkisiz!'); }
 });
