@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 2.0.2 (Okul Yönetimi & Autocomplete) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 2.0.4 (Matematiksel Sembol Araç Çubuğu) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -266,7 +266,33 @@ app.get('/panel/:kullaniciAdi', async (req, res) => {
             else                            { zorlukEtiketi = "Çok Zor";   zorlukRengi = "#c0392b"; }
 
             const harfler = ["A","B","C","D"];
-            icerik = `<div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #eee;"><span><b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span><div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div></div><div style="margin-bottom:15px;"><span style="background:${zorlukRengi}; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold;">Zorluk: ${zorlukEtiketi}</span> <span style="background:#3498db; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold; margin-left:5px;">Ders: ${soru.ders}</span></div>${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:8px;"></div>` : ""}<h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2><div style="display:grid; gap:10px;">${[0,1,2,3].map(i => { const s = soru.secenekler[i]; if(!s) return ""; return `<form method="POST" action="/cevap" style="margin:0;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0"><button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;"><b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;">` : ""}</button></form>`; }).join('')}</div></div><script>let saniye = 0; let timerInterval = setInterval(() => { saniye++; let dk = Math.floor(saniye/60); let sn = saniye%60; document.getElementById('timer').innerText = (dk<10?'0'+dk:dk)+":"+(sn<10?'0'+sn:sn); if(saniye >= 300) { clearInterval(timerInterval); if(confirm('Süreniz doldu! Sıradaki soruya geçmek istiyor musunuz?')) { window.location.href='/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true'; } } }, 1000);</script>`;
+            icerik = `<div style="max-width:800px; margin:auto; font-family:sans-serif; padding:20px; background:#fff; border-radius:12px; box-shadow:0 5px 15px rgba(0,0,0,0.05);"><div style="display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:10px; border:1px solid #eee;"><span><b>${k.kullaniciAdi}</b> | Puan: ${k.puan}</span><div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div></div><div style="margin-bottom:15px;"><span style="background:${zorlukRengi}; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold;">Zorluk: ${zorlukEtiketi}</span> <span style="background:#3498db; color:white; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold; margin-left:5px;">Ders: ${soru.ders}</span></div>${soru.soruOnculu ? `<div style="background:#f1f3f4; padding:15px; border-radius:8px; margin-bottom:15px;">${soru.soruOnculu}</div>` : ""}${soru.soruResmi ? `<div style="text-align:center; margin-bottom:15px;"><img src="${soru.soruResmi}" style="max-width:100%; border-radius:8px;"></div>` : ""}<h2 style="font-size:20px; color:#202124; margin-bottom:20px;">${soru.soruMetni}</h2><div style="display:grid; gap:10px;">${[0,1,2,3].map(i => { const s = soru.secenekler[i]; if(!s) return ""; return `<form method="POST" action="/cevap" style="margin:0;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="soruId" value="${soru._id}"><input type="hidden" name="secilenIndex" value="${i}"><input type="hidden" name="gecenSure" id="gs${i}" value="0"><button type="submit" onclick="document.getElementById('gs${i}').value=saniye;" style="width:100%; text-align:left; padding:15px; background:white; border:2px solid #f1f3f4; border-radius:10px; cursor:pointer; display:block;"><b>${harfler[i]})</b> ${s.metin || ""} ${s.gorsel ? `<br><img src="${s.gorsel}" style="max-width:150px; margin-top:5px;">` : ""}</button></form>`; }).join('')}</div></div><script>
+const SORU_KEY = 'lgs_soru_baslangic_${soru._id}';
+const simdi = Date.now();
+const kayitli = localStorage.getItem(SORU_KEY);
+const baslangic = kayitli ? parseInt(kayitli) : simdi;
+if (!kayitli) localStorage.setItem(SORU_KEY, baslangic);
+let saniye = Math.floor((simdi - baslangic) / 1000);
+if (saniye >= 300) {
+    localStorage.removeItem(SORU_KEY);
+    window.location.href='/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true';
+}
+let timerInterval = setInterval(() => {
+    saniye = Math.floor((Date.now() - baslangic) / 1000);
+    let dk = Math.floor(saniye/60); let sn = saniye%60;
+    document.getElementById('timer').innerText = (dk<10?'0'+dk:dk)+':'+(sn<10?'0'+sn:sn);
+    if (saniye >= 300) {
+        clearInterval(timerInterval);
+        localStorage.removeItem(SORU_KEY);
+        window.location.href='/panel/${encodeURIComponent(k.kullaniciAdi)}?basla=true';
+    }
+}, 1000);
+document.querySelectorAll('button[type=submit]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        localStorage.removeItem(SORU_KEY);
+    });
+});
+</script>`;
         }
     }
 
@@ -362,7 +388,45 @@ app.get('/admin', async (req, res) => {
 
         let icerik = "";
         if (mod === 'soruEkle') {
-            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>${editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle'}</h3><form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST">${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}Sınıf: <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select> Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br><input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" style="width:98%; height:60px; padding:10px; margin-bottom:10px; border:1px solid #ddd;">${editSoru ? editSoru.soruOnculu : ''}</textarea><input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruMetni" placeholder="Soru Metni" style="width:98%; height:80px; padding:10px; margin-bottom:10px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea><div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;"><p>Şıklar (Doğru seçeneği işaretleyin):</p>${[0,1,2,3].map(i => `<div style="margin-bottom:8px; display:flex; align-items:center; gap:10px;"><b>${String.fromCharCode(65+i)}:</b> <input name="metin${i}" placeholder="Metin" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].metin : ''}" style="flex:2;"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : ''}" style="flex:1;"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required></div>`).join('')}</div><button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDET</button></form></div>`;
+            icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3>${editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle'}</h3><form action="${editSoru ? '/soru-guncelle' : '/soru-ekle'}" method="POST">${editSoru ? `<input type="hidden" name="id" value="${editSoru._id}">` : ''}Sınıf: <select name="sinif">${[1,2,3,4,5,6,7,8,9,10,11,12].map(s => `<option value="${s}" ${(editSoru ? editSoru.sinif == s : s == 8) ? 'selected' : ''}>${s}. Sınıf</option>`).join('')}</select> Ders: <select name="ders">${dersler.map(d => `<option value="${d}" ${editSoru && editSoru.ders === d ? 'selected' : ''}>${d}</option>`).join('')}</select><br><br><input name="konu" placeholder="Konu" value="${editSoru ? editSoru.konu : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" style="width:98%; height:60px; padding:10px; margin-bottom:10px; border:1px solid #ddd;">${editSoru ? editSoru.soruOnculu : ''}</textarea><input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="${editSoru ? editSoru.soruResmi : ''}" style="width:98%; padding:10px; margin-bottom:10px; border:1px solid #ddd;"><div style="background:#f0f2f5; padding:8px; border-radius:6px; margin-bottom:5px; display:flex; flex-wrap:wrap; gap:4px;" id="toolbar">
+<button type="button" onclick="ekle(\'soruMetni\',\'<sup></sup>\',4)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;" title="Üst simge">x²</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'<sub></sub>\',5)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;" title="Alt simge">x₂</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'√\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">√</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'π\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">π</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'±\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">±</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'×\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">×</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'÷\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">÷</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'≤\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">≤</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'≥\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">≥</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'≠\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">≠</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'∞\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">∞</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'°\',0)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white;">°</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'<b></b>\',3)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white; font-weight:bold;">B</button>
+<button type="button" onclick="ekle(\'soruMetni\',\'<i></i>\',3)" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px; cursor:pointer; background:white; font-style:italic;">I</button>
+<button type="button" onclick="onizlemeGoster()" style="padding:4px 10px; border:1px solid #1a73e8; border-radius:4px; cursor:pointer; background:#1a73e8; color:white; margin-left:auto;">Önizle</button>
+</div>
+<textarea name="soruMetni" id="soruMetni" placeholder="Soru Metni (HTML desteklenir: &lt;sup&gt;2&lt;/sup&gt; → üst simge)" style="width:98%; height:80px; padding:10px; margin-bottom:5px; border:1px solid #ddd;" required>${editSoru ? editSoru.soruMetni : ''}</textarea>
+<div id="onizleme" style="display:none; background:#fffbe6; border:1px solid #f0c040; border-radius:6px; padding:10px; margin-bottom:10px; font-size:15px;"></div>
+<script>
+function ekle(alanId, html, imlecGeri) {
+  const ta = document.getElementById(alanId);
+  const bas = ta.selectionStart, son = ta.selectionEnd;
+  const secili = ta.value.substring(bas, son);
+  let eklenen = html;
+  if (secili && imlecGeri > 0) {
+    eklenen = html.slice(0, html.length - imlecGeri) + secili + html.slice(html.length - imlecGeri);
+  }
+  ta.value = ta.value.substring(0, bas) + eklened + ta.value.substring(son);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = bas + eklened.length - (secili ? 0 : imlecGeri);
+}
+function onizlemeGoster() {
+  const metin = document.getElementById(\'soruMetni\').value;
+  const div = document.getElementById(\'onizleme\');
+  div.innerHTML = metin;
+  div.style.display = div.style.display === \'none\' ? \'block\' : \'none\';
+}
+</script><div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:20px;"><p>Şıklar (Doğru seçeneği işaretleyin):</p>${[0,1,2,3].map(i => `<div style="margin-bottom:8px; display:flex; align-items:center; gap:10px;"><b>${String.fromCharCode(65+i)}:</b> <input name="metin${i}" placeholder="Metin" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].metin : ''}" style="flex:2;"> <input name="gorsel${i}" placeholder="Görsel URL" value="${editSoru && editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : ''}" style="flex:1;"> <input type="radio" name="dogruCevap" value="${i}" ${editSoru && editSoru.dogruCevapIndex === i ? 'checked' : ''} required></div>`).join('')}</div><button style="background:#34a853; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">KAYDET</button></form></div>`;
         } else if (mod === 'kullanicilar') {
             const filIl = req.query.il || '';
             const filIlce = req.query.ilce || '';
