@@ -202,7 +202,15 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(liste => {
         const filtreli = liste.filter(o => o.toLowerCase().includes(aranan.toLowerCase()));
         if (filtreli.length === 0) { okulOneri.style.display='none'; return; }
-        okulOneri.innerHTML = filtreli.map(o => '<div style="padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f0f2f5'" onmouseout="this.style.background='white'" onclick="document.getElementById('okulInput').value=this.textContent; document.getElementById('okulOneri').style.display='none';">' + o + '</div>').join('');
+        okulOneri.innerHTML = filtreli.map(o => {
+          const div = document.createElement('div');
+          div.style.cssText = 'padding:8px 10px; cursor:pointer; border-bottom:1px solid #eee;';
+          div.textContent = o;
+          div.onmouseover = function(){ this.style.background='#f0f2f5'; };
+          div.onmouseout = function(){ this.style.background='white'; };
+          div.onclick = function(){ okulInput.value = o; okulOneri.style.display='none'; };
+          return div.outerHTML;
+        }).join('');
         okulOneri.style.display = 'block';
       })
       .catch(() => { okulOneri.style.display='none'; });
