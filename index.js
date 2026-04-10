@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.6 (LDP + tanh Baskılı Hız & Dinamik GE) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.7 (Kademe Bazlı Zorluk Katsayısı) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -35,7 +35,8 @@ const Soru = mongoose.model('Soru', new mongoose.Schema({
     // --- v1.5: Yeni alanlar ---
     hamPuan: { type: Number, default: null },       // null = henüz hesaplanmadı (varsayılan kullanılır)
     zorlukKatsayisi: { type: Number, default: 3 },  // 1-5 arası, başlangıçta orta
-    cozumSureleriTum: [Number]                      // standart sapma hesabı için tüm süreler
+    cozumSureleriTum: [Number],                     // standart sapma hesabı için tüm süreler
+    dogruCevapSureleri: [Number]                    // sadece doğru cevap verenlerin süreleri
 }));
 
 // --- v1.5: YARDIMCI FONKSİYONLAR ---
@@ -78,51 +79,61 @@ function hamPuanHesapla(soru) {
     return sureBileseni * basariBileseni * sapmaFaktoru * SABIT_CARPAN;
 }
 
-// Zorluk katsayısını tüm sorulara göre normalize et (1-5)
+// --- v1.7: Kademe bazlı zorluk katsayısı ---
+
+// Doğru oranı kademesi (D): düşük oran = zor = yüksek kademe
+function dogruOraniKademesi(oran) {
+    if (oran <= 0.20) return 5;
+    if (oran <= 0.40) return 4;
+    if (oran <= 0.60) return 3;
+    if (oran <= 0.80) return 2;
+    return 1;
+}
+
+// Süre kademesi (tek süre için)
+function sureKademesi(sure) {
+    if (sure <= 30)  return 1;
+    if (sure <= 60)  return 2;
+    if (sure <= 90)  return 3;
+    if (sure <= 120) return 4;
+    return 5;
+}
+
+// Zorluk katsayısını hesapla ve kaydet
 async function zorlukGuncelle(soruId) {
     const MINIMUM_COZUM = 50;
-
-    // Tüm soruları çek
     const tumSorular = await Soru.find();
 
-    // Mevcut gerçek ham puanları hesapla
-    const gercekHamPuanlar = tumSorular
-        .filter(s => s.cozulmeSayisi >= MINIMUM_COZUM)
-        .map(s => hamPuanHesapla(s))
-        .filter(p => p !== null);
-
-    // Ortalama ham puan (yeni/az çözülen sorular için varsayılan)
-    const ortalamaHamPuan = gercekHamPuanlar.length > 0
-        ? gercekHamPuanlar.reduce((a, b) => a + b, 0) / gercekHamPuanlar.length
-        : 50;
-
-    const minPuan = gercekHamPuanlar.length > 0 ? Math.min(...gercekHamPuanlar) : 0;
-    const maxPuan = gercekHamPuanlar.length > 0 ? Math.max(...gercekHamPuanlar) : 100;
-    const aralik = maxPuan - minPuan || 1;
-
-    // Tüm soruların ham puan ve zorluk katsayısını güncelle
     for (const s of tumSorular) {
-        let gercekHP = hamPuanHesapla(s);
+        let Z_final = 3; // varsayılan: orta
 
-        let finalHP;
-        if (s.cozulmeSayisi >= MINIMUM_COZUM) {
-            // Yeterli veri var, gerçek ham puanı kullan
-            finalHP = gercekHP;
-        } else {
-            // Kademeli geçiş: az çözüldüyse varsayılan ile karıştır
-            const agirlik = s.cozulmeSayisi / MINIMUM_COZUM;
-            finalHP = gercekHP !== null
-                ? (agirlik * gercekHP) + ((1 - agirlik) * ortalamaHamPuan)
-                : ortalamaHamPuan;
+        if (s.cozulmeSayisi > 0) {
+            // 1. D kademesi: doğru cevap oranından
+            const dogruOrani = s.dogruSayisi / s.cozulmeSayisi;
+            const D = dogruOraniKademesi(dogruOrani);
+
+            // 2. S kademesi: doğru cevap verenlerin sürelerinin kademe ortalaması
+            const dogruSureleri = s.dogruCevapSureleri || [];
+            const S = dogruSureleri.length > 0
+                ? dogruSureleri.reduce((acc, sure) => acc + sureKademesi(sure), 0) / dogruSureleri.length
+                : 3; // veri yoksa orta
+
+            // 3. Standart sapma faktörü (sadece doğru cevaplayanların sürelerinden)
+            const sigma = stdSapma(dogruSureleri);
+            const sigma_n = Math.min(sigma / 60, 1); // normalize: 60sn = max etki
+
+            // 4. Z_base: D ağırlıklı (0.6) + S (0.4)
+            const Z_base = (D * 0.6) + (S * 0.4);
+
+            // 5. Z_final: sigma faktörü eklenir (max +0.5)
+            const Z_ham = Z_base + sigma_n * 0.5;
+
+            // 6. Kademeli geçiş: 50 çözüm altında varsayılanla karıştır
+            const agirlik = Math.min(s.cozulmeSayisi / MINIMUM_COZUM, 1);
+            Z_final = (agirlik * Z_ham) + ((1 - agirlik) * 3);
         }
 
-        // Z katsayısı: 1-5 arası normalize
-        const Z = minPuan === maxPuan
-            ? 3 // tüm sorular eşit zorluktaysa orta kabul et
-            : 1 + ((finalHP - minPuan) / aralik) * 4;
-
-        s.hamPuan = finalHP;
-        s.zorlukKatsayisi = Math.min(Math.max(Math.round(Z * 10) / 10, 1), 5); // 1 ondalık, 1-5 arası
+        s.zorlukKatsayisi = Math.min(Math.max(Math.round(Z_final * 10) / 10, 1), 5);
         await s.save();
     }
 }
@@ -244,6 +255,11 @@ app.post('/cevap', async (req, res) => {
             s.ortalamaSure = (eskiSureToplami + T_ogr) / s.cozulmeSayisi;
             s.cozumSureleriTum = s.cozumSureleriTum || [];
             s.cozumSureleriTum.push(T_ogr);
+            // --- v1.7: Doğru cevap verilmişse süreyi dogruCevapSureleri'ne ekle ---
+            if (dogruMu) {
+                s.dogruCevapSureleri = s.dogruCevapSureleri || [];
+                s.dogruCevapSureleri.push(T_ogr);
+            }
             await s.save();
 
             k.toplamSure += T_ogr;
