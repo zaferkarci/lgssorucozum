@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.8 (Admin Kullanıcı Listesi & Veri Sıfırlama) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.9 (Admin Kullanıcı Silme) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -314,8 +314,8 @@ app.get('/admin', async (req, res) => {
 </select>
 </form>
 <table style="width:100%; border-collapse:collapse; font-size:13px;">
-<thead><tr style="background:#f8f9fa;"><th style="padding:10px; border:1px solid #eee; text-align:left;">Kullanıcı Adı</th><th style="padding:10px; border:1px solid #eee;">Sınıf</th><th style="padding:10px; border:1px solid #eee;">İl</th><th style="padding:10px; border:1px solid #eee;">İlçe</th><th style="padding:10px; border:1px solid #eee;">Okul</th><th style="padding:10px; border:1px solid #eee;">Çözülen</th><th style="padding:10px; border:1px solid #eee;">Puan</th></tr></thead>
-<tbody>${filtreliKullanicilar.sort((a,b)=>b.puan-a.puan).map(k => `<tr><td style="padding:8px; border:1px solid #eee;">${k.kullaniciAdi}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.sinif}</td><td style="padding:8px; border:1px solid #eee;">${k.il||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.ilce||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.okul||'-'}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.soruIndex}</td><td style="padding:8px; border:1px solid #eee; text-align:center; font-weight:bold; color:#1a73e8;">${k.puan}</td></tr>`).join('')}
+<thead><tr style="background:#f8f9fa;"><th style="padding:10px; border:1px solid #eee; text-align:left;">Kullanıcı Adı</th><th style="padding:10px; border:1px solid #eee;">Sınıf</th><th style="padding:10px; border:1px solid #eee;">İl</th><th style="padding:10px; border:1px solid #eee;">İlçe</th><th style="padding:10px; border:1px solid #eee;">Okul</th><th style="padding:10px; border:1px solid #eee;">Çözülen</th><th style="padding:10px; border:1px solid #eee;">Puan</th><th style="padding:10px; border:1px solid #eee;">İşlem</th></tr></thead>
+<tbody>${filtreliKullanicilar.sort((a,b)=>b.puan-a.puan).map(k => `<tr><td style="padding:8px; border:1px solid #eee;">${k.kullaniciAdi}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.sinif}</td><td style="padding:8px; border:1px solid #eee;">${k.il||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.ilce||'-'}</td><td style="padding:8px; border:1px solid #eee;">${k.okul||'-'}</td><td style="padding:8px; border:1px solid #eee; text-align:center;">${k.soruIndex}</td><td style="padding:8px; border:1px solid #eee; text-align:center; font-weight:bold; color:#1a73e8;">${k.puan}</td><td style="padding:8px; border:1px solid #eee; text-align:center;"><form action="/kullanici-sil" method="POST" style="display:inline;"><input type="hidden" name="kullaniciAdi" value="${k.kullaniciAdi}"><input type="hidden" name="il" value="${filIl}"><input type="hidden" name="ilce" value="${filIlce}"><input type="hidden" name="okul" value="${filOkul}"><button onclick="return confirm('${k.kullaniciAdi} silinsin mi?')" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">SİL</button></form></td></tr>`).join('')}
 </tbody></table></div>`;
         } else if (mod === 'sifirla') {
             icerik = `<div style="background:white; padding:25px; border:1px solid #e0e0e0; border-radius:12px;"><h3 style="color:red;">⚠️ Veri Sıfırlama</h3><p>Bu işlem tüm kullanıcıların puan, soru ve istatistik verilerini sıfırlar. Kullanıcı hesapları silinmez. Soru içerikleri silinmez, sadece istatistikler sıfırlanır.</p><p><b>Bu işlem geri alınamaz!</b></p><form action="/sifirla" method="POST"><button onclick="return confirm('Emin misiniz? Bu işlem geri alınamaz!')" style="background:red; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">SIFIRLA</button></form></div>`;
@@ -340,6 +340,20 @@ app.post('/soru-guncelle', async (req, res) => {
 app.post('/soru-sil', async (req, res) => {
     await Soru.findByIdAndDelete(req.body.id);
     res.redirect('/admin?mod=soruListesi');
+});
+
+app.post('/kullanici-sil', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    if (!authHeader.startsWith('Basic ')) { res.setHeader('WWW-Authenticate', 'Basic realm="Admin"'); return res.status(401).send('Giriş gerekli!'); }
+    const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
+    const [user, pass] = credentials.split(':');
+    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        try {
+            await Kullanici.findOneAndDelete({ kullaniciAdi: req.body.kullaniciAdi });
+            const params = new URLSearchParams({ mod: 'kullanicilar', il: req.body.il || '', ilce: req.body.ilce || '', okul: req.body.okul || '' }).toString();
+            res.redirect('/admin?' + params);
+        } catch (err) { res.status(500).send('Hata: ' + err.message); }
+    } else { res.status(401).send('Yetkisiz!'); }
 });
 
 app.post('/sifirla', async (req, res) => {
