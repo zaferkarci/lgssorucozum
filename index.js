@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.5 (Dinamik Ham Puan & Zorluk Algoritması) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 1.6 (LDP + tanh Baskılı Hız & Dinamik GE) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -195,49 +195,56 @@ app.post('/cevap', async (req, res) => {
         const k = await Kullanici.findOne({ kullaniciAdi });
         if (s && k) {
             const T_ogr = Math.max(parseInt(gecenSure) || 1, 1);
-
-            // --- Soru istatistiklerini güncelle ---
-            s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;
             const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
-            if (dogruMu) s.dogruSayisi = (s.dogruSayisi || 0) + 1;
-            const eskiSureToplami = (s.ortalamaSure || 0) * (s.cozulmeSayisi - 1);
-            s.ortalamaSure = (eskiSureToplami + T_ogr) / s.cozulmeSayisi;
-            s.cozumSureleriTum = s.cozumSureleriTum || [];
-            s.cozumSureleriTum.push(T_ogr);
-            await s.save();
 
-            // --- v1.5: Puan hesaplama ---
+            // --- v1.5: Puan hesaplama (istatistikler güncellenmeden ÖNCE, eski değerlerle) ---
             if (dogruMu) {
+                const eskiCozulmeSayisi = s.cozulmeSayisi || 0;
+                const eskiDogruSayisi = s.dogruSayisi || 0;
+                const eskiSureleri = [...(s.cozumSureleriTum || [])];
+
                 const T_ref = s.ortalamaSure || 60;
                 const T_min = 10; // minimum anlamlı süre (sn)
 
-                // 1. Hız bileşeni: logaritmik, üstten baskılı (0-1 arası)
-                const logPayda = Math.log2(1 + (T_ref / T_min)) || 1;
-                const H = Math.log2(1 + (T_ref / T_ogr)) / logPayda;
+                // 1. Hız bileşeni: orijinal LDP log2 + tanh üstten baskı (T_min altı yumuşak tavan)
+                const logHiz = Math.log2(1 + (T_ref / T_ogr));
+                const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
+                const hizBileseni = logMax * Math.tanh(logHiz / logMax);
 
-                // 2. Zorluk bileşeni (düşük doğru oranı = zor soru)
-                const dogruOrani = s.dogruSayisi / s.cozulmeSayisi;
-                const sigmaBasari = s.cozulmeSayisi > 1
+                // 2. Zorluk bileşeni (eski istatistiklerle, hiç çözülmemişse orta zorluk varsay)
+                const dogruOrani = eskiCozulmeSayisi > 0
+                    ? eskiDogruSayisi / eskiCozulmeSayisi
+                    : 0.5;
+                const sigmaBasari = eskiCozulmeSayisi > 1
                     ? stdSapma(
-                        Array(s.dogruSayisi).fill(1).concat(
-                            Array(s.cozulmeSayisi - s.dogruSayisi).fill(0)
+                        Array(eskiDogruSayisi).fill(1).concat(
+                            Array(eskiCozulmeSayisi - eskiDogruSayisi).fill(0)
                         )
                       )
                     : 0;
                 const Z_katsayi = Math.min(1 + 4 * (1 - dogruOrani) * (1 + sigmaBasari), 5);
 
                 // 3. Dinamik GE: süre standart sapmasına göre (0.02-0.10 arası)
-                const sigmaSure = stdSapma(s.cozumSureleriTum);
+                const sigmaSure = stdSapma(eskiSureleri);
                 const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
 
-                // 4. Final puan: Z × T_ref × H × GE
+                // 4. Final puan: Z × T_ref × hizBileseni × GE (orijinal LDP, tanh baskılı)
                 const kazanilanPuan = Math.max(
-                    Math.round(Z_katsayi * T_ref * H * GE),
+                    Math.round(Z_katsayi * T_ref * hizBileseni * GE),
                     1
                 );
 
                 k.puan += kazanilanPuan;
             }
+
+            // --- Soru istatistiklerini güncelle (puan hesabından SONRA) ---
+            s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;
+            if (dogruMu) s.dogruSayisi = (s.dogruSayisi || 0) + 1;
+            const eskiSureToplami = (s.ortalamaSure || 0) * (s.cozulmeSayisi - 1);
+            s.ortalamaSure = (eskiSureToplami + T_ogr) / s.cozulmeSayisi;
+            s.cozumSureleriTum = s.cozumSureleriTum || [];
+            s.cozumSureleriTum.push(T_ogr);
+            await s.save();
 
             k.toplamSure += T_ogr;
             k.cozumSureleri.push({ soruId: soruId, sure: T_ogr });
