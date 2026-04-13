@@ -9,20 +9,20 @@
 <body class="auth-body">
 <div class="auth-card" style="width:450px;">
   <h2 class="auth-title">Yeni Kayıt</h2>
-  <form action="/kayit-yap" method="POST">
+  <form action="/kayit-yap" method="POST" id="kayitForm">
     <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required class="input">
     <input type="password" name="sifre" placeholder="Şifre" required class="input">
     <input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required class="input">
     <select name="sinif" required class="input">
       <option value="">Sınıf Seçiniz</option>
-      <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(s => { %>
+      <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
         <option value="<%= s %>" <%= s===8?'selected':'' %>><%= s %>. Sınıf</option>
-      <% }) %>
+      <% }); %>
     </select>
     <select name="il" id="ilSelect" onchange="ilDegisti()" required class="input">
       <option value="">İl Seçiniz...</option>
     </select>
-    <select name="ilce" id="ilceSelect" required class="input">
+    <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required class="input">
       <option value="">İlçe Seçiniz</option>
     </select>
     <input name="okul" id="okulInput" placeholder="Okulunuzun Adı" required autocomplete="off" class="input">
@@ -31,58 +31,86 @@
   </form>
 </div>
 <script>
-let ilIdMap = {};
+var ilIdMap = {};
 fetch('https://turkiyeapi.dev/api/v1/provinces?fields=id,name')
-  .then(r => r.json()).then(data => {
-    const ilSelect = document.getElementById('ilSelect');
-    (data.data||[]).sort((a,b)=>a.name.localeCompare(b.name,'tr')).forEach(il => {
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    var ilSelect = document.getElementById('ilSelect');
+    (data.data||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(il) {
       ilIdMap[il.name] = il.id;
-      const opt = document.createElement('option');
+      var opt = document.createElement('option');
       opt.value = il.name; opt.textContent = il.name;
       ilSelect.appendChild(opt);
     });
-  }).catch(() => { document.getElementById('ilSelect').innerHTML += '<option>İller yüklenemedi</option>'; });
+  })
+  ['catch'](function(e){ document.getElementById('ilSelect').innerHTML += '<option>İller yüklenemedi</option>'; });
 
 function ilDegisti() {
-  const ilAdi = document.getElementById('ilSelect').value;
-  const ilceSelect = document.getElementById('ilceSelect');
+  var ilAdi = document.getElementById('ilSelect').value;
+  var ilceSelect = document.getElementById('ilceSelect');
   ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
   document.getElementById('okulOneri').style.display = 'none';
-  const ilId = ilIdMap[ilAdi];
+  document.getElementById('okulInput').value = '';
+  var ilId = ilIdMap[ilAdi];
   if (!ilId) return;
   fetch('https://turkiyeapi.dev/api/v1/provinces/'+ilId+'?fields=districts')
-    .then(r=>r.json()).then(data => {
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
       ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
-      ((data.data&&data.data.districts)||[]).sort((a,b)=>a.name.localeCompare(b.name,'tr')).forEach(ilce => {
+      ((data.data&&data.data.districts)||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(ilce) {
         ilceSelect.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
       });
-    }).catch(()=>{ ilceSelect.innerHTML='<option>İlçeler yüklenemedi</option>'; });
+    })
+    ['catch'](function(e){ ilceSelect.innerHTML='<option>İlçeler yüklenemedi</option>'; });
+}
+
+function ilceDegisti() {
+  document.getElementById('okulOneri').style.display = 'none';
+  document.getElementById('okulInput').value = '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  const okulInput = document.getElementById('okulInput');
-  const okulOneri = document.getElementById('okulOneri');
+  var okulInput = document.getElementById('okulInput');
+  var okulOneri = document.getElementById('okulOneri');
+
   okulInput.addEventListener('input', function() {
-    const il = document.getElementById('ilSelect').value;
-    const ilce = document.getElementById('ilceSelect').value;
-    const aranan = this.value.trim();
+    var il = document.getElementById('ilSelect').value;
+    var ilce = document.getElementById('ilceSelect').value;
+    var aranan = this.value.trim();
     if (!aranan || aranan.length < 2) { okulOneri.style.display='none'; return; }
     fetch('/api/okullar?il='+encodeURIComponent(il)+'&ilce='+encodeURIComponent(ilce))
-      .then(r=>r.json()).then(liste => {
-        const filtreli = liste.filter(o=>o.toLowerCase().includes(aranan.toLowerCase()));
+      .then(function(r){ return r.json(); })
+      .then(function(liste) {
+        liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });
+        var filtreli = liste.filter(function(o){ return o.toLowerCase().indexOf(aranan.toLowerCase()) !== -1; });
         if (!filtreli.length) { okulOneri.style.display='none'; return; }
         okulOneri.innerHTML = '';
-        filtreli.forEach(o => {
-          const div = document.createElement('div');
+        filtreli.forEach(function(o) {
+          var div = document.createElement('div');
           div.className = 'okul-oneri-item';
           div.textContent = o;
-          div.onclick = () => { okulInput.value = o; okulOneri.style.display='none'; };
+          div.onclick = function() { okulInput.value = o; okulOneri.style.display='none'; };
           okulOneri.appendChild(div);
         });
         okulOneri.style.display = 'block';
-      }).catch(()=>{ okulOneri.style.display='none'; });
+      })
+      ['catch'](function(e){ okulOneri.style.display='none'; });
   });
-  document.addEventListener('click', e => { if (e.target !== okulInput) okulOneri.style.display='none'; });
+
+  document.addEventListener('click', function(e) { if (e.target !== okulInput) okulOneri.style.display='none'; });
+
+  document.getElementById('kayitForm').addEventListener('submit', function() {
+    var il = document.getElementById('ilSelect').value;
+    var ilce = document.getElementById('ilceSelect').value;
+    var okul = okulInput.value.trim();
+    if (il && ilce && okul) {
+      fetch('/okul-kaydet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ il: il, ilce: ilce, ad: okul })
+      });
+    }
+  });
 });
 </script>
 </body>

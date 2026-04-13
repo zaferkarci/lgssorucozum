@@ -110,4 +110,15 @@ router.post('/okul-sil', async (req, res) => {
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
+// Kullanıcı kayıt sırasında okul listesine otomatik ekle (auth gerektirmez)
+router.post('/okul-kaydet', async (req, res) => {
+    try {
+        const { il, ilce, ad } = req.body;
+        if (!il || !ilce || !ad) return res.status(400).json({ ok: false });
+        const varMi = await Okul.findOne({ il, ilce, ad });
+        if (!varMi) await new Okul({ il, ilce, ad }).save();
+        res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false }); }
+});
+
 module.exports = router;
