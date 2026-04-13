@@ -28,14 +28,14 @@
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
       <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><% } %>
       Sınıf: <select name="sinif" class="input-sm">
-        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(s => { %>
+        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
           <option value="<%= s %>" <%= (editSoru ? editSoru.sinif==s : s==8) ? 'selected' : '' %>><%= s %>. Sınıf</option>
-        <% }) %>
+        <% }); %>
       </select>
       Ders: <select name="ders" class="input-sm">
-        <% dersler.forEach(d => { %>
+        <% dersler.forEach(function(d) { %>
           <option value="<%= d %>" <%= editSoru&&editSoru.ders===d ? 'selected' : '' %>><%= d %></option>
-        <% }) %>
+        <% }); %>
       </select>
       <br><br>
       <input name="konu" placeholder="Konu" value="<%= editSoru ? editSoru.konu : '' %>" class="input">
@@ -61,4 +61,177 @@
       <textarea name="soruMetni" id="soruMetni" placeholder="Soru Metni (HTML desteklenir)" class="input" style="height:80px;" required><%= editSoru ? editSoru.soruMetni : '' %></textarea>
       <div id="onizleme" style="display:none; background:#fffbe6; border:1px solid #f0c040; border-radius:6px; padding:10px; margin-bottom:10px; font-size:15px;"></div>
       <div class="siklar">
-        <p>Ş
+        <p>Şıklar (Doğru seçeneği işaretleyin):</p>
+        <% for (var i=0; i<4; i++) { %>
+          <div class="sik-row">
+            <b><%= String.fromCharCode(65+i) %>:</b>
+            <input name="metin<%= i %>" placeholder="Metin" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '' %>" style="flex:2;">
+            <input name="gorsel<%= i %>" placeholder="Görsel URL" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : '' %>" style="flex:1;">
+            <input type="radio" name="dogruCevap" value="<%= i %>" <%= editSoru&&editSoru.dogruCevapIndex===i ? 'checked' : '' %> required>
+          </div>
+        <% } %>
+      </div>
+      <button type="submit" class="btn btn-success">KAYDET</button>
+    </form>
+  </div>
+  <script>
+  function ekle(alanId, html, imlecGeri) {
+    var ta = document.getElementById(alanId);
+    var bas = ta.selectionStart, son = ta.selectionEnd;
+    var secili = ta.value.substring(bas, son);
+    var eklenen = html;
+    if (secili && imlecGeri > 0) {
+      eklenen = html.slice(0, html.length - imlecGeri) + secili + html.slice(html.length - imlecGeri);
+    }
+    ta.value = ta.value.substring(0, bas) + eklenen + ta.value.substring(son);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = bas + eklenen.length - (secili ? 0 : imlecGeri);
+  }
+  function onizlemeGoster() {
+    var metin = document.getElementById('soruMetni').value;
+    var div = document.getElementById('onizleme');
+    div.innerHTML = metin;
+    div.style.display = div.style.display === 'none' ? 'block' : 'none';
+  }
+  </script>
+
+<% } else if (mod === 'kullanicilar') { %>
+  <div class="card">
+    <h3>Kullanıcı Listesi (Toplam: <%= filtreliKullanicilar.length %>)</h3>
+    <form method="GET" action="/admin" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+      <input type="hidden" name="mod" value="kullanicilar">
+      <select name="il" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm İller</option>
+        <% iller.forEach(function(il) { %><option value="<%= il %>" <%= filIl===il?'selected':'' %>><%= il %></option><% }); %>
+      </select>
+      <select name="ilce" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm İlçeler</option>
+        <% ilceler.forEach(function(ilce) { %><option value="<%= ilce %>" <%= filIlce===ilce?'selected':'' %>><%= ilce %></option><% }); %>
+      </select>
+      <select name="okul" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm Okullar</option>
+        <% okullar.forEach(function(okul) { %><option value="<%= okul %>" <%= filOkul===okul?'selected':'' %>><%= okul %></option><% }); %>
+      </select>
+    </form>
+    <table class="tablo">
+      <thead><tr><th>Kullanıcı Adı</th><th>Sınıf</th><th>İl</th><th>İlçe</th><th>Okul</th><th>Çözülen</th><th>Puan</th><th>İşlem</th></tr></thead>
+      <tbody>
+        <% filtreliKullanicilar.sort(function(a,b){ return b.puan-a.puan; }).forEach(function(k) { %>
+          <tr>
+            <td><%= k.kullaniciAdi %></td>
+            <td style="text-align:center;"><%= k.sinif %></td>
+            <td><%= k.il||'-' %></td>
+            <td><%= k.ilce||'-' %></td>
+            <td><%= k.okul||'-' %></td>
+            <td style="text-align:center;"><%= k.soruIndex %></td>
+            <td style="text-align:center; font-weight:bold; color:#1a73e8;"><%= k.puan %></td>
+            <td style="text-align:center;">
+              <form action="/kullanici-sil" method="POST" style="display:inline;">
+                <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                <input type="hidden" name="il" value="<%= filIl %>">
+                <input type="hidden" name="ilce" value="<%= filIlce %>">
+                <input type="hidden" name="okul" value="<%= filOkul %>">
+                <button onclick="return confirm('<%= k.kullaniciAdi %> silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+<% } else if (mod === 'okullar') { %>
+  <div class="card">
+    <h3>Okul Yönetimi</h3>
+    <form action="/okul-ekle" method="POST" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
+      <div><label class="form-label">İl</label><br><select name="il" id="adminIlSelect" onchange="adminIlDegisti()" required class="input-sm"><option value="">İl Seçiniz</option></select></div>
+      <div><label class="form-label">İlçe</label><br><select name="ilce" id="adminIlceSelect" required class="input-sm"><option value="">İlçe Seçiniz</option></select></div>
+      <div><label class="form-label">Okul Adı</label><br><input name="ad" placeholder="Okul adını giriniz" required style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:250px;"></div>
+      <button type="submit" class="btn btn-success">EKLE</button>
+    </form>
+    <table class="tablo">
+      <thead><tr><th>İl</th><th>İlçe</th><th>Okul Adı</th><th>İşlem</th></tr></thead>
+      <tbody>
+        <% tumOkullar.forEach(function(o) { %>
+          <tr>
+            <td><%= o.il %></td>
+            <td><%= o.ilce %></td>
+            <td><%= o.ad %></td>
+            <td style="text-align:center;">
+              <form action="/okul-sil" method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<%= o._id %>">
+                <button onclick="return confirm('<%= o.ad %> silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <script>
+  var adminIlIdMap = {};
+  fetch('https://turkiyeapi.dev/api/v1/provinces?fields=id,name')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var sel = document.getElementById('adminIlSelect');
+      (data.data||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(il) {
+        adminIlIdMap[il.name] = il.id;
+        sel.innerHTML += '<option value="'+il.name+'">'+il.name+'</option>';
+      });
+    })
+    .then(function(){})
+    ['catch'](function(e){ console.log('İller yüklenemedi'); });
+
+  function adminIlDegisti() {
+    var ilAdi = document.getElementById('adminIlSelect').value;
+    var ilceSelect = document.getElementById('adminIlceSelect');
+    ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
+    var ilId = adminIlIdMap[ilAdi];
+    if (!ilId) return;
+    fetch('https://turkiyeapi.dev/api/v1/provinces/'+ilId+'?fields=districts')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
+        ((data.data&&data.data.districts)||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(ilce) {
+          ilceSelect.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
+        });
+      })
+      ['catch'](function(e){ ilceSelect.innerHTML='<option>İlçeler yüklenemedi</option>'; });
+  }
+  </script>
+
+<% } else if (mod === 'sifirla') { %>
+  <div class="card">
+    <h3 style="color:red;">⚠️ Veri Sıfırlama</h3>
+    <p>Bu işlem tüm kullanıcıların puan, soru ve istatistik verilerini sıfırlar. Kullanıcı hesapları ve soru içerikleri silinmez.</p>
+    <p><b>Bu işlem geri alınamaz!</b></p>
+    <form action="/sifirla" method="POST">
+      <button onclick="return confirm('Emin misiniz? Bu işlem geri alınamaz!')" class="btn btn-danger">SIFIRLA</button>
+    </form>
+  </div>
+
+<% } else { %>
+  <div class="card">
+    <h3>Tüm Sorular</h3>
+    <div style="display:grid; gap:10px;">
+      <% tumSorular.forEach(function(s, i) { %>
+        <div class="soru-listesi-item">
+          <span><b><%= i+1 %>.</b> [<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,50) %>...
+            <small style="color:#888;">Z:<%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP:<%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></small>
+          </span>
+          <div>
+            <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="btn-duzenle">DÜZENLE</a>
+            <form action="/soru-sil" method="POST" style="display:inline;">
+              <input type="hidden" name="id" value="<%= s._id %>">
+              <button class="btn-sil">SİL</button>
+            </form>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+<% } %>
+
+</div>
+</body>
+</html>

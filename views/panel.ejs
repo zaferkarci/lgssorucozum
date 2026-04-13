@@ -92,8 +92,33 @@
       </div>
     </div>
     <script>
-    const SORU_KEY = 'lgs_soru_baslangic_<%= soru._id %>';
-    const simdi = Date.now();
-    const kayitli = localStorage.getItem(SORU_KEY);
-    const baslangic = kayitli ? parseInt(kayitli) : simdi;
-    if (!kayitli
+    var SORU_KEY = 'lgs_soru_baslangic_<%= soru._id %>';
+    var simdi = Date.now();
+    var kayitli = localStorage.getItem(SORU_KEY);
+    var baslangic = kayitli ? parseInt(kayitli) : simdi;
+    if (!kayitli) localStorage.setItem(SORU_KEY, baslangic);
+    var saniye = Math.floor((simdi - baslangic) / 1000);
+    if (saniye >= 300) {
+        localStorage.removeItem(SORU_KEY);
+        window.location.href='/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?basla=true';
+    }
+    var timerInterval = setInterval(function() {
+        saniye = Math.floor((Date.now() - baslangic) / 1000);
+        var dk = Math.floor(saniye/60); var sn = saniye%60;
+        document.getElementById('timer').innerText = (dk<10?'0'+dk:dk)+':'+(sn<10?'0'+sn:sn);
+        if (saniye >= 300) {
+            clearInterval(timerInterval);
+            localStorage.removeItem(SORU_KEY);
+            window.location.href='/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?basla=true';
+        }
+    }, 1000);
+    document.querySelectorAll('button[type=submit]').forEach(function(btn) {
+        btn.addEventListener('click', function() { localStorage.removeItem(SORU_KEY); });
+    });
+    </script>
+  <% } %>
+<% } %>
+
+</div>
+</body>
+</html>
