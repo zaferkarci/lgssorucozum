@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGS Hazırlık - Panel</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="panel-body">
+
+<div class="topbar">
+  <span class="topbar-logo">LGS Hazırlık</span>
+  <div class="topbar-nav">
+    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="nav-link <%= mod==='soru'?'active':'' %>">Soru Çöz</a>
+    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="nav-link <%= mod==='profil'?'active':'' %>">Profilim</a>
+    <a href="/" class="nav-link cikis">Çıkış Yap</a>
+  </div>
+</div>
+
+<div class="panel-main">
+
+<% if (mod === 'profil') { %>
+  <div class="card">
+    <p class="card-title">Kişisel bilgiler</p>
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
+      <div class="avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
+      <div>
+        <p style="font-size:16px; font-weight:500; margin:0;"><%= k.kullaniciAdi %></p>
+        <p style="font-size:13px; color:#666; margin:0;"><%= k.sinif %>. Sınıf öğrencisi</p>
+      </div>
+    </div>
+    <div class="info-row"><span class="info-label">Okul</span><span class="info-val"><%= k.okul %></span></div>
+    <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Genel istatistikler</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">Toplam puan</div><div class="stat-val"><%= k.puan %></div></div>
+      <div class="stat"><div class="stat-label">Çözülen soru</div><div class="stat-val"><%= k.soruIndex %></div></div>
+    </div>
+  </div>
+
+<% } else { %>
+
+  <% if (!sorular.length) { %>
+    <div style="text-align:center; margin-top:50px;">
+      <h2>Soru bulunamadı.</h2>
+      <p>Lütfen admin panelinden soru ekleyiniz.</p>
+    </div>
+
+  <% } else if (!basla) { %>
+    <div style="text-align:center; margin-top:100px;">
+      <h1 style="color:#1a73e8;">Hazır mısın?</h1>
+      <p>Sıradaki soruyu çözmek için butona tıkla.</p>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true" class="btn btn-success btn-lg">SORU ÇÖZMEYE BAŞLA</a>
+    </div>
+
+  <% } else {
+    const soru = sorular[k.soruIndex % sorular.length];
+    const zb = zorlukBilgisi(soru);
+    const harfler = ['A','B','C','D'];
+  %>
+    <div class="soru-kart">
+      <div class="soru-header">
+        <span><b><%= k.kullaniciAdi %></b> | Puan: <%= k.puan %></span>
+        <div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div>
+      </div>
+      <div class="soru-etiketler">
+        <span class="etiket" style="background:<%= zb.renk %>">Zorluk: <%= zb.etiket %></span>
+        <span class="etiket" style="background:#3498db">Ders: <%= soru.ders %></span>
+        <% if (soru.konu) { %><span class="etiket" style="background:#8e44ad">Konu: <%= soru.konu %></span><% } %>
+      </div>
+      <% if (soru.soruOnculu) { %><div class="soru-onculu"><%= soru.soruOnculu %></div><% } %>
+      <% if (soru.soruResmi) { %><div style="text-align:center; margin-bottom:15px;"><img src="<%= soru.soruResmi %>" style="max-width:100%; border-radius:8px;"></div><% } %>
+      <h2 class="soru-metni"><%- soru.soruMetni %></h2>
+      <div class="secenekler">
+        <% for (let i=0; i<4; i++) { %>
+          <% if (soru.secenekler[i]) { %>
+          <form method="POST" action="/cevap" style="margin:0;">
+            <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+            <input type="hidden" name="soruId" value="<%= soru._id %>">
+            <input type="hidden" name="secilenIndex" value="<%= i %>">
+            <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
+            <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn">
+              <b><%= harfler[i] %>)</b> <%- soru.secenekler[i].metin || '' %>
+              <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
+            </button>
+          </form>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+    <script>
+    const SORU_KEY = 'lgs_soru_baslangic_<%= soru._id %>';
+    const simdi = Date.now();
+    const kayitli = localStorage.getItem(SORU_KEY);
+    const baslangic = kayitli ? parseInt(kayitli) : simdi;
+    if (!kayitli

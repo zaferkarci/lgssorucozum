@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGS Hazırlık - Admin</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="panel-body">
+
+<div class="topbar" style="background:#202124;">
+  <span class="topbar-logo">🛠️ Admin</span>
+  <div class="topbar-nav">
+    <a href="/admin?mod=soruListesi" class="nav-link <%= mod==='soruListesi'?'active':'' %>">📋 Soruları Listele</a>
+    <a href="/admin?mod=soruEkle" class="nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru Ekle</a>
+    <a href="/admin?mod=kullanicilar" class="nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+    <a href="/admin?mod=okullar" class="nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
+    <a href="/admin?mod=sifirla" class="nav-link" style="color:#ffaaaa;">🗑️ Veri Sıfırla</a>
+    <a href="/" class="nav-link cikis">Çıkış Yap</a>
+  </div>
+</div>
+
+<div class="panel-main">
+
+<% if (mod === 'soruEkle') { %>
+  <div class="card">
+    <h3><%= editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle' %></h3>
+    <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
+      <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><% } %>
+      Sınıf: <select name="sinif" class="input-sm">
+        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(s => { %>
+          <option value="<%= s %>" <%= (editSoru ? editSoru.sinif==s : s==8) ? 'selected' : '' %>><%= s %>. Sınıf</option>
+        <% }) %>
+      </select>
+      Ders: <select name="ders" class="input-sm">
+        <% dersler.forEach(d => { %>
+          <option value="<%= d %>" <%= editSoru&&editSoru.ders===d ? 'selected' : '' %>><%= d %></option>
+        <% }) %>
+      </select>
+      <br><br>
+      <input name="konu" placeholder="Konu" value="<%= editSoru ? editSoru.konu : '' %>" class="input">
+      <textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
+      <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
+      <div class="toolbar">
+        <button type="button" onclick="ekle('soruMetni','<sup></sup>',4)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruMetni','<sub></sub>',5)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruMetni','√',0)" class="toolbar-btn">√</button>
+        <button type="button" onclick="ekle('soruMetni','π',0)" class="toolbar-btn">π</button>
+        <button type="button" onclick="ekle('soruMetni','±',0)" class="toolbar-btn">±</button>
+        <button type="button" onclick="ekle('soruMetni','×',0)" class="toolbar-btn">×</button>
+        <button type="button" onclick="ekle('soruMetni','÷',0)" class="toolbar-btn">÷</button>
+        <button type="button" onclick="ekle('soruMetni','≤',0)" class="toolbar-btn">≤</button>
+        <button type="button" onclick="ekle('soruMetni','≥',0)" class="toolbar-btn">≥</button>
+        <button type="button" onclick="ekle('soruMetni','≠',0)" class="toolbar-btn">≠</button>
+        <button type="button" onclick="ekle('soruMetni','∞',0)" class="toolbar-btn">∞</button>
+        <button type="button" onclick="ekle('soruMetni','°',0)" class="toolbar-btn">°</button>
+        <button type="button" onclick="ekle('soruMetni','<b></b>',3)" class="toolbar-btn" style="font-weight:bold;">B</button>
+        <button type="button" onclick="ekle('soruMetni','<i></i>',3)" class="toolbar-btn" style="font-style:italic;">I</button>
+        <button type="button" onclick="onizlemeGoster()" class="toolbar-btn" style="background:#1a73e8; color:white; border-color:#1a73e8; margin-left:auto;">Önizle</button>
+      </div>
+      <textarea name="soruMetni" id="soruMetni" placeholder="Soru Metni (HTML desteklenir)" class="input" style="height:80px;" required><%= editSoru ? editSoru.soruMetni : '' %></textarea>
+      <div id="onizleme" style="display:none; background:#fffbe6; border:1px solid #f0c040; border-radius:6px; padding:10px; margin-bottom:10px; font-size:15px;"></div>
+      <div class="siklar">
+        <p>Ş
