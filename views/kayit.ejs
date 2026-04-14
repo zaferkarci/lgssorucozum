@@ -25,8 +25,10 @@
     <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required class="input">
       <option value="">İlçe Seçiniz</option>
     </select>
-    <input name="okul" id="okulInput" placeholder="Okulunuzun Adı" required autocomplete="off" class="input">
-    <div id="okulOneri" class="okul-oneri"></div>
+    <select id="okulListesi" class="input" style="display:none;" onchange="okulSecildi()">
+      <option value="">-- Listeden Seçin --</option>
+    </select>
+    <input name="okul" id="okulInput" placeholder="Okulunuzun Adı (elle giriniz veya listeden seçiniz)" required autocomplete="off" class="input">
     <button type="submit" class="btn btn-success">KAYDI TAMAMLA</button>
   </form>
 </div>
@@ -49,7 +51,7 @@ function ilDegisti() {
   var ilAdi = document.getElementById('ilSelect').value;
   var ilceSelect = document.getElementById('ilceSelect');
   ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
-  document.getElementById('okulOneri').style.display = 'none';
+  document.getElementById('okulListesi').style.display = 'none';
   document.getElementById('okulInput').value = '';
   var ilId = ilIdMap[ilAdi];
   if (!ilId) return;
@@ -65,44 +67,39 @@ function ilDegisti() {
 }
 
 function ilceDegisti() {
-  document.getElementById('okulOneri').style.display = 'none';
+  var il = document.getElementById('ilSelect').value;
+  var ilce = document.getElementById('ilceSelect').value;
+  var okulListesi = document.getElementById('okulListesi');
   document.getElementById('okulInput').value = '';
+  okulListesi.innerHTML = '<option value="">-- Listeden Seçin --</option>';
+  okulListesi.style.display = 'none';
+  if (!il || !ilce) return;
+  fetch('/api/okullar?il='+encodeURIComponent(il)+'&ilce='+encodeURIComponent(ilce))
+    .then(function(r){ return r.json(); })
+    .then(function(liste) {
+      liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });
+      if (liste.length > 0) {
+        liste.forEach(function(o) {
+          okulListesi.innerHTML += '<option value="'+o+'">'+o+'</option>';
+        });
+        okulListesi.style.display = 'block';
+      }
+    })
+    ['catch'](function(e){ okulListesi.style.display='none'; });
+}
+
+function okulSecildi() {
+  var secilen = document.getElementById('okulListesi').value;
+  if (secilen) {
+    document.getElementById('okulInput').value = secilen;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var okulInput = document.getElementById('okulInput');
-  var okulOneri = document.getElementById('okulOneri');
-
-  okulInput.addEventListener('input', function() {
-    var il = document.getElementById('ilSelect').value;
-    var ilce = document.getElementById('ilceSelect').value;
-    var aranan = this.value.trim();
-    if (!aranan || aranan.length < 2) { okulOneri.style.display='none'; return; }
-    fetch('/api/okullar?il='+encodeURIComponent(il)+'&ilce='+encodeURIComponent(ilce))
-      .then(function(r){ return r.json(); })
-      .then(function(liste) {
-        liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });
-        var filtreli = liste.filter(function(o){ return o.toLowerCase().indexOf(aranan.toLowerCase()) !== -1; });
-        if (!filtreli.length) { okulOneri.style.display='none'; return; }
-        okulOneri.innerHTML = '';
-        filtreli.forEach(function(o) {
-          var div = document.createElement('div');
-          div.className = 'okul-oneri-item';
-          div.textContent = o;
-          div.onclick = function() { okulInput.value = o; okulOneri.style.display='none'; };
-          okulOneri.appendChild(div);
-        });
-        okulOneri.style.display = 'block';
-      })
-      ['catch'](function(e){ okulOneri.style.display='none'; });
-  });
-
-  document.addEventListener('click', function(e) { if (e.target !== okulInput) okulOneri.style.display='none'; });
-
   document.getElementById('kayitForm').addEventListener('submit', function() {
     var il = document.getElementById('ilSelect').value;
     var ilce = document.getElementById('ilceSelect').value;
-    var okul = okulInput.value.trim();
+    var okul = document.getElementById('okulInput').value.trim();
     if (il && ilce && okul) {
       fetch('/okul-kaydet', {
         method: 'POST',
