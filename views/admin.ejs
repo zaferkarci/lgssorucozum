@@ -143,21 +143,44 @@
 <% } else if (mod === 'okullar') { %>
   <div class="card">
     <h3>Okul Yönetimi</h3>
+
+    <!-- Yeni Okul Ekleme Formu -->
     <form action="/okul-ekle" method="POST" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
       <div><label class="form-label">İl</label><br><select name="il" id="adminIlSelect" onchange="adminIlDegisti()" required class="input-sm"><option value="">İl Seçiniz</option></select></div>
       <div><label class="form-label">İlçe</label><br><select name="ilce" id="adminIlceSelect" required class="input-sm"><option value="">İlçe Seçiniz</option></select></div>
       <div><label class="form-label">Okul Adı</label><br><input name="ad" placeholder="Okul adını giriniz" required style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:250px;"></div>
       <button type="submit" class="btn btn-success">EKLE</button>
     </form>
-    <table class="tablo">
+
+    <!-- Filtre -->
+    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+      <select id="filIlSelect" onchange="filtrele()" class="input-sm"><option value="">Tüm İller</option></select>
+      <select id="filIlceSelect" onchange="filtrele()" class="input-sm"><option value="">Tüm İlçeler</option></select>
+    </div>
+
+    <!-- Düzenleme Formu (gizli) -->
+    <div id="duzenleForm" style="display:none; background:#fffbe6; border:1px solid #f0c040; border-radius:8px; padding:15px; margin-bottom:15px;">
+      <b>Okul Düzenle</b>
+      <form action="/okul-guncelle" method="POST" style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:flex-end;">
+        <input type="hidden" name="id" id="duzenleId">
+        <div><label class="form-label">İl</label><br><input name="il" id="duzenleIl" class="input-sm" required></div>
+        <div><label class="form-label">İlçe</label><br><input name="ilce" id="duzenleIlce" class="input-sm" required></div>
+        <div><label class="form-label">Okul Adı</label><br><input name="ad" id="duzenleAd" style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:250px;" required></div>
+        <button type="submit" class="btn btn-success">KAYDET</button>
+        <button type="button" onclick="document.getElementById('duzenleForm').style.display='none'" class="btn" style="background:#888; color:white;">İPTAL</button>
+      </form>
+    </div>
+
+    <table class="tablo" id="okulTablosu">
       <thead><tr><th>İl</th><th>İlçe</th><th>Okul Adı</th><th>İşlem</th></tr></thead>
       <tbody>
-        <% tumOkullar.forEach(function(o) { %>
-          <tr>
+        <% tumOkullar.sort(function(a,b){ var ilc = a.ilce.localeCompare(b.ilce,'tr'); return ilc !== 0 ? ilc : a.ad.localeCompare(b.ad,'tr'); }).forEach(function(o) { %>
+          <tr data-il="<%= o.il %>" data-ilce="<%= o.ilce %>">
             <td><%= o.il %></td>
             <td><%= o.ilce %></td>
             <td><%= o.ad %></td>
-            <td style="text-align:center;">
+            <td style="text-align:center; white-space:nowrap;">
+              <button onclick="duzenle('<%= o._id %>','<%= o.il %>','<%= o.ilce %>','<%= o.ad %>')" class="btn-duzenle">DÜZENLE</button>
               <form action="/okul-sil" method="POST" style="display:inline;">
                 <input type="hidden" name="id" value="<%= o._id %>">
                 <button onclick="return confirm('<%= o.ad %> silinsin mi?')" class="btn-sil">SİL</button>
@@ -174,9 +197,11 @@
     .then(function(r){ return r.json(); })
     .then(function(data) {
       var sel = document.getElementById('adminIlSelect');
+      var filSel = document.getElementById('filIlSelect');
       (data.data||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(il) {
         adminIlIdMap[il.name] = il.id;
         sel.innerHTML += '<option value="'+il.name+'">'+il.name+'</option>';
+        filSel.innerHTML += '<option value="'+il.name+'">'+il.name+'</option>';
       });
     })
     .then(function(){})
@@ -197,6 +222,45 @@
         });
       })
       ['catch'](function(e){ ilceSelect.innerHTML='<option>İlçeler yüklenemedi</option>'; });
+  }
+
+  function filtrele() {
+    var secIl = document.getElementById('filIlSelect').value;
+    var secIlce = document.getElementById('filIlceSelect').value;
+    var satırlar = document.querySelectorAll('#okulTablosu tbody tr');
+
+    // İlçe filtresini il'e göre güncelle
+    var ilceSet = {};
+    satırlar.forEach(function(tr) {
+      if (!secIl || tr.getAttribute('data-il') === secIl) {
+        ilceSet[tr.getAttribute('data-ilce')] = true;
+      }
+    });
+    var filIlceSel = document.getElementById('filIlceSelect');
+    var mevcutIlce = filIlceSel.value;
+    filIlceSel.innerHTML = '<option value="">Tüm İlçeler</option>';
+    Object.keys(ilceSet).sort(function(a,b){ return a.localeCompare(b,'tr'); }).forEach(function(ilce) {
+      var opt = document.createElement('option');
+      opt.value = ilce; opt.textContent = ilce;
+      if (ilce === mevcutIlce) opt.selected = true;
+      filIlceSel.appendChild(opt);
+    });
+    secIlce = filIlceSel.value;
+
+    satırlar.forEach(function(tr) {
+      var ilEsles = !secIl || tr.getAttribute('data-il') === secIl;
+      var ilceEsles = !secIlce || tr.getAttribute('data-ilce') === secIlce;
+      tr.style.display = (ilEsles && ilceEsles) ? '' : 'none';
+    });
+  }
+
+  function duzenle(id, il, ilce, ad) {
+    document.getElementById('duzenleId').value = id;
+    document.getElementById('duzenleIl').value = il;
+    document.getElementById('duzenleIlce').value = ilce;
+    document.getElementById('duzenleAd').value = ad;
+    document.getElementById('duzenleForm').style.display = 'block';
+    document.getElementById('duzenleForm').scrollIntoView({ behavior: 'smooth' });
   }
   </script>
 

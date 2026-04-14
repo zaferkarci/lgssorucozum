@@ -110,6 +110,14 @@ router.post('/okul-sil', async (req, res) => {
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
+router.post('/okul-guncelle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Okul.findByIdAndUpdate(req.body.id, { il: req.body.il, ilce: req.body.ilce, ad: req.body.ad });
+        res.redirect('/admin?mod=okullar');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
 // Kullanıcı kayıt sırasında okul listesine otomatik ekle (auth gerektirmez)
 router.post('/okul-kaydet', async (req, res) => {
     try {
