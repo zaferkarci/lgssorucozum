@@ -87,7 +87,7 @@ PDF METNİ:
 ${pdfMetni.slice(0, 12000)}`;
 
     const body = {
-        model: 'google/gemini-2.5-flash-preview:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [{ role: 'user', content: PROMPT }],
         max_tokens: 8000,
         temperature: 0.1
