@@ -1,27 +1,22 @@
 // ─── PDF'den Toplu Soru Yükleme — v3.0.0 ────────────────────────────────────
-// Bu route:
-//  1. Admin'in PDF yüklemesini kabul eder (multer, memory storage)
-//  2. PDF'i base64'e çevirip Claude API'ye gönderir
-//  3. Claude, soruları JSON dizisi olarak döndürür
-//  4. Admin önizleme ekranında onaylar / düzenler
-//  5. /pdf-sorulari-kaydet POST ile veritabanına toplu kaydeder
+// Gemini 2.0 Flash API kullanır — günde 1500 istek ücretsiz, kart gerekmez.
 
-const express  = require('express');
-const router   = express.Router();
-const multer   = require('multer');
-const Soru     = require('../models/Soru');
+const express = require('express');
+const router  = express.Router();
+const multer  = require('multer');
+const Soru    = require('../models/Soru');
 
 // PDF bellekte tutulur, diske yazılmaz
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+    limits: { fileSize: 20 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') cb(null, true);
         else cb(new Error('Sadece PDF dosyası kabul edilir.'));
     }
 });
 
-// ── Yetki kontrolü ────────────────────────────────────────────────────────────
+// ── Yetki kontrolü ───────────────────────────────────────────────────────────
 function adminKontrol(req, res) {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) {
@@ -37,146 +32,103 @@ function adminKontrol(req, res) {
     return false;
 }
 
-// ── Dersler (admin.js ile aynı) ───────────────────────────────────────────────
-const DERSLER = [
-    'Matematik', 'Türkçe', 'Fen Bilimleri',
-    'T.C. İnkılâp Tarihi', 'İngilizce', 'Din Kültürü'
-];
-
-// ── Claude API çağrısı ────────────────────────────────────────────────────────
+// ── Gemini API çağrısı ───────────────────────────────────────────────────────
 async function pdfdenSorulariCikar(pdfBase64, sinif, ders, konu) {
-    const SISTEM_PROMPTU = `Sen bir eğitim içeriği analiz uzmanısın.
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('GEMINI_API_KEY environment variable tanımlı değil.');
+
+    const PROMPT = `Sen bir eğitim içeriği analiz uzmanısın.
 Sana verilen PDF'deki çok şıklı soruları analiz et ve her soruyu JSON formatında çıkar.
 Her soru için şu alanları doldur:
 - soruOnculu: Sorudan önce gelen paragraf/metin/tablo (yoksa boş string)
 - soruResmi: Soruda resim/görsel referansı varsa "[GÖRSEL VAR]" yaz, yoksa boş string
-- soruMetni: Soru kökü (tam metin, HTML desteklenir: <sup>, <sub>, <b>, <i> kullanabilirsin)
+- soruMetni: Soru kökü (tam metin, HTML desteklenir: sup, sub, b, i tagları kullanabilirsin)
 - secenekler: 4 elemanlı dizi, her eleman { "metin": "...", "gorsel": "" }
-- dogruCevapIndex: Doğru şık indexi (0=A, 1=B, 2=C, 3=D)
+- dogruCevapIndex: Doğru şık indexi (0=A, 1=B, 2=C, 3=D). Cevap anahtarı yoksa -1 yaz.
 
-SADECE aşağıdaki formatta JSON array döndür, başka hiçbir şey yazma:
-[
-  {
-    "soruOnculu": "...",
-    "soruResmi": "",
-    "soruMetni": "...",
-    "secenekler": [
-      {"metin": "A şıkkı", "gorsel": ""},
-      {"metin": "B şıkkı", "gorsel": ""},
-      {"metin": "C şıkkı", "gorsel": ""},
-      {"metin": "D şıkkı", "gorsel": ""}
-    ],
-    "dogruCevapIndex": 0
-  }
-]
+Matematiksel ifadeleri HTML ile göster (örn: x üzeri 2 için x<sup>2</sup>).
 
-Eğer PDF'de cevap anahtarı yoksa dogruCevapIndex'i -1 yap.
-Matematiksel ifadeleri HTML sup/sub ile göster (örn: x<sup>2</sup>).`;
+SADECE JSON array döndür, başka hiçbir şey yazma, markdown kullanma.
+
+Bilgi: Sinif=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
 
     const body = {
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
-        system: SISTEM_PROMPTU,
-        messages: [{
-            role: 'user',
-            content: [
-                {
-                    type: 'document',
-                    source: {
-                        type: 'base64',
-                        media_type: 'application/pdf',
-                        data: pdfBase64
-                    }
-                },
-                {
-                    type: 'text',
-                    text: `Bu PDF'deki tüm soruları çıkar. Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`
-                }
+        contents: [{
+            parts: [
+                { inline_data: { mime_type: 'application/pdf', data: pdfBase64 } },
+                { text: PROMPT }
             ]
-        }]
+        }],
+        generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+            responseMimeType: 'application/json'
+        }
     };
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY environment variable tanımlı değil.');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(url, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
 
     if (!response.ok) {
         const hata = await response.text();
-        throw new Error('Claude API hatası: ' + hata);
+        throw new Error('Gemini API hatasi: ' + hata);
     }
 
     const veri = await response.json();
-    const metin = (veri.content || []).map(b => b.text || '').join('');
+    const metin = veri?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!metin) throw new Error('Gemini bos yanit dondurdu.');
 
-    // JSON array'i parse et
     const temiz = metin.replace(/```json|```/g, '').trim();
     const bas = temiz.indexOf('[');
     const son = temiz.lastIndexOf(']');
-    if (bas === -1 || son === -1) throw new Error('Claude geçerli JSON döndürmedi.');
+    if (bas === -1 || son === -1) throw new Error('Gemini gecerli JSON dondürmedi: ' + temiz.slice(0, 300));
     return JSON.parse(temiz.slice(bas, son + 1));
 }
 
-// ── GET: PDF yükleme sayfası (admin.ejs içinden çağrılır, mod=pdfYukle) ──────
-// Bu route aslında admin.js GET /admin içinden render edilir.
-// Burada sadece POST işlemleri var.
-
-// ── POST: PDF yükle ve analiz et ──────────────────────────────────────────────
+// ── POST: PDF yukle ve analiz et ─────────────────────────────────────────────
 router.post('/pdf-analiz', upload.single('pdfDosyasi'), async (req, res) => {
     if (!adminKontrol(req, res)) return;
-
     try {
-        if (!req.file) return res.status(400).json({ hata: 'PDF dosyası seçilmedi.' });
-
+        if (!req.file) return res.status(400).json({ hata: 'PDF dosyasi secilmedi.' });
         const { sinif, ders, konu } = req.body;
         const pdfBase64 = req.file.buffer.toString('base64');
-
         const sorular = await pdfdenSorulariCikar(pdfBase64, sinif, ders, konu);
-
-        // Her soruya sinif/ders/konu ekle
         const zenginSorular = sorular.map((s, i) => ({
             ...s,
             sinif: sinif || '8',
-            ders: ders || 'Matematik',
-            konu: konu || '',
-            _gecici_id: i  // frontend için geçici id
+            ders:  ders  || 'Matematik',
+            konu:  konu  || '',
+            _gecici_id: i
         }));
-
         res.json({ ok: true, sorular: zenginSorular, toplamSoru: zenginSorular.length });
-
     } catch (err) {
-        console.error('[PDF Analiz Hatası]', err.message);
+        console.error('[PDF Analiz Hatasi]', err.message);
         res.status(500).json({ hata: err.message });
     }
 });
 
-// ── POST: Onaylanan soruları veritabanına kaydet ──────────────────────────────
+// ── POST: Onaylanan sorulari veritabanina kaydet ──────────────────────────────
 router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req, res) => {
     if (!adminKontrol(req, res)) return;
-
     try {
         const { sorular } = req.body;
-        if (!Array.isArray(sorular) || sorular.length === 0) {
+        if (!Array.isArray(sorular) || sorular.length === 0)
             return res.status(400).json({ hata: 'Kaydedilecek soru yok.' });
-        }
 
         const kayitlar = sorular.map(s => ({
             sinif:           s.sinif,
             ders:            s.ders,
-            konu:            s.konu || '',
-            soruOnculu:      s.soruOnculu || '',
-            soruResmi:       s.soruResmi || '',
+            konu:            s.konu        || '',
+            soruOnculu:      s.soruOnculu  || '',
+            soruResmi:       s.soruResmi   || '',
             soruMetni:       s.soruMetni,
             secenekler:      (s.secenekler || []).map(se => ({
-                                 metin: se.metin || '',
+                                 metin:  se.metin  || '',
                                  gorsel: se.gorsel || ''
                              })),
             dogruCevapIndex: parseInt(s.dogruCevapIndex) >= 0 ? parseInt(s.dogruCevapIndex) : 0
@@ -184,12 +136,10 @@ router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req,
 
         await Soru.insertMany(kayitlar);
         res.json({ ok: true, kaydedilen: kayitlar.length });
-
     } catch (err) {
-        console.error('[Kayıt Hatası]', err.message);
+        console.error('[Kayit Hatasi]', err.message);
         res.status(500).json({ hata: err.message });
     }
 });
 
 module.exports = router;
-module.exports.DERSLER = DERSLER;
