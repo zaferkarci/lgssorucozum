@@ -1,5 +1,5 @@
 // ─── PDF'den Toplu Soru Yükleme — v3.0.0 ────────────────────────────────────
-// OpenRouter API — birden fazla ücretsiz model dener, biri tutarsa geçer.
+// Gemini 2.5 Flash — PDF'i direkt okur, OCR dahil, taranmış belgeler desteklenir.
 
 const express = require('express');
 const router  = express.Router();
@@ -14,14 +14,6 @@ const upload = multer({
         else cb(new Error('Sadece PDF dosyası kabul edilir.'));
     }
 });
-
-// Sırayla denenen ücretsiz modeller
-const MODELLER = [
-    'openrouter/free',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemma-3-27b-it:free',
-    'nvidia/llama-3.1-nemotron-70b-instruct:free'
-];
 
 function adminKontrol(req, res) {
     const authHeader = req.headers.authorization || '';
@@ -38,89 +30,70 @@ function adminKontrol(req, res) {
     return false;
 }
 
-// PDF'den metin çıkar
-function pdfMetniCikar(buffer) {
-    const str = buffer.toString('latin1');
-    const satirlar = [];
-    const regex = /\(([^\)]{2,200})\)/g;
-    let m;
-    while ((m = regex.exec(str)) !== null) {
-        const metin = m[1]
-            .replace(/\\n/g, '\n').replace(/\\r/g, '')
-            .replace(/\\t/g, ' ').replace(/\\\(/g, '(')
-            .replace(/\\\)/g, ')').replace(/\\\\/g, '\\').trim();
-        if (metin.length > 2) satirlar.push(metin);
-    }
-    return satirlar.join('\n');
-}
+async function pdfdenSorulariCikar(pdfBase64, sinif, ders, konu) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('GEMINI_API_KEY environment variable tanımlı değil.');
 
-// Tek model ile deneme
-async function modelDene(apiKey, model, prompt) {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const PROMPT = `Sen bir Türk eğitim sistemi soru analiz uzmanısın.
+Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir, OCR ile oku.
+
+Tüm çok şıklı soruları tespit et ve her biri için şu JSON alanlarını doldur:
+- soruOnculu: Sorudan önce gelen paragraf, şiir, tablo veya metin parçası (yoksa boş string "")
+- soruResmi: Soruda şekil/grafik/görsel varsa "[GÖRSEL VAR]" yaz, yoksa ""
+- soruMetni: Soru kökü tam metin (HTML desteklenir: <sup>, <sub>, <b>, <i> kullanabilirsin)
+- secenekler: Tam olarak 4 eleman: [{"metin":"A şıkkı metni","gorsel":""},...]
+- dogruCevapIndex: Doğru cevap indexi (0=A, 1=B, 2=C, 3=D). Cevap anahtarı yoksa -1.
+
+ÖNEMLİ KURALLAR:
+- Matematiksel üst/alt simgeler için HTML kullan: x² → x<sup>2</sup>
+- Her soruyu eksiksiz çıkar, hiçbirini atlama
+- Sadece JSON array döndür, açıklama veya markdown ekleme
+
+FORMAT:
+[{"soruOnculu":"","soruResmi":"","soruMetni":"soru metni","secenekler":[{"metin":"A şıkkı","gorsel":""},{"metin":"B şıkkı","gorsel":""},{"metin":"C şıkkı","gorsel":""},{"metin":"D şıkkı","gorsel":""}],"dogruCevapIndex":0}]
+
+Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
+
+    const body = {
+        contents: [{
+            parts: [
+                {
+                    inline_data: {
+                        mime_type: 'application/pdf',
+                        data: pdfBase64
+                    }
+                },
+                { text: PROMPT }
+            ]
+        }],
+        generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8192
+        }
+    };
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': process.env.SITE_URL || 'https://lgs-hazirlik.onrender.com',
-            'X-Title': 'LGS Hazirlik'
-        },
-        body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 8000,
-            temperature: 0.1
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
     });
 
     if (!response.ok) {
         const hata = await response.text();
-        throw new Error(`[${model}] ${response.status}: ${hata.slice(0, 200)}`);
+        throw new Error('Gemini API hatası: ' + hata);
     }
 
     const veri = await response.json();
-    const metin = veri?.choices?.[0]?.message?.content || '';
-    if (!metin) throw new Error(`[${model}] Boş yanıt`);
-    return metin;
-}
+    const metin = veri?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!metin) throw new Error('Gemini boş yanıt döndürdü.');
 
-// Tüm modelleri sırayla dene
-async function pdfdenSorulariCikar(pdfBuffer, sinif, ders, konu) {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error('OPENROUTER_API_KEY tanımlı değil.');
-
-    const pdfMetni = pdfMetniCikar(pdfBuffer);
-    if (!pdfMetni || pdfMetni.length < 50)
-        throw new Error('PDF içeriği okunamadı. Metin tabanlı (taranmamış) PDF yükleyin.');
-
-    const PROMPT = `Sen bir eğitim içeriği analiz uzmanısın.
-Aşağıdaki metindeki çok şıklı soruları JSON formatında çıkar.
-Her soru: soruOnculu (önceki metin, yoksa ""), soruResmi ("" veya "[GÖRSEL VAR]"), soruMetni (HTML destekli), secenekler (4 eleman: [{metin,gorsel}]), dogruCevapIndex (0-3, yoksa -1).
-SADECE JSON array döndür, başka hiçbir şey yazma:
-[{"soruOnculu":"","soruResmi":"","soruMetni":"...","secenekler":[{"metin":"...","gorsel":""},{"metin":"...","gorsel":""},{"metin":"...","gorsel":""},{"metin":"...","gorsel":""}],"dogruCevapIndex":0}]
-Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}
-METİN:
-${pdfMetni.slice(0, 10000)}`;
-
-    let sonHata = '';
-    for (const model of MODELLER) {
-        try {
-            console.log(`[PDF] Deneniyor: ${model}`);
-            const metin = await modelDene(apiKey, model, PROMPT);
-            const temiz = metin.replace(/```json|```/g, '').trim();
-            const bas = temiz.indexOf('[');
-            const son = temiz.lastIndexOf(']');
-            if (bas === -1 || son === -1) throw new Error('JSON bulunamadı');
-            const sorular = JSON.parse(temiz.slice(bas, son + 1));
-            console.log(`[PDF] Başarılı: ${model}, ${sorular.length} soru`);
-            return sorular;
-        } catch (err) {
-            console.warn(`[PDF] Başarısız: ${err.message}`);
-            sonHata = err.message;
-            // Kısa bekleme sonra sıradakini dene
-            await new Promise(r => setTimeout(r, 1000));
-        }
-    }
-    throw new Error('Tüm modeller başarısız oldu. Son hata: ' + sonHata);
+    const temiz = metin.replace(/```json|```/g, '').trim();
+    const bas = temiz.indexOf('[');
+    const son = temiz.lastIndexOf(']');
+    if (bas === -1 || son === -1) throw new Error('Gemini geçerli JSON döndürmedi: ' + temiz.slice(0, 300));
+    return JSON.parse(temiz.slice(bas, son + 1));
 }
 
 // POST: PDF yükle ve analiz et
@@ -129,9 +102,14 @@ router.post('/pdf-analiz', upload.single('pdfDosyasi'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ hata: 'PDF seçilmedi.' });
         const { sinif, ders, konu } = req.body;
-        const sorular = await pdfdenSorulariCikar(req.file.buffer, sinif, ders, konu);
+        const pdfBase64 = req.file.buffer.toString('base64');
+        const sorular = await pdfdenSorulariCikar(pdfBase64, sinif, ders, konu);
         const zenginSorular = sorular.map((s, i) => ({
-            ...s, sinif: sinif||'8', ders: ders||'Matematik', konu: konu||'', _gecici_id: i
+            ...s,
+            sinif: sinif || '8',
+            ders:  ders  || 'Matematik',
+            konu:  konu  || '',
+            _gecici_id: i
         }));
         res.json({ ok: true, sorular: zenginSorular, toplamSoru: zenginSorular.length });
     } catch (err) {
@@ -148,10 +126,16 @@ router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req,
         if (!Array.isArray(sorular) || sorular.length === 0)
             return res.status(400).json({ hata: 'Kaydedilecek soru yok.' });
         const kayitlar = sorular.map(s => ({
-            sinif: s.sinif, ders: s.ders, konu: s.konu||'',
-            soruOnculu: s.soruOnculu||'', soruResmi: s.soruResmi||'',
-            soruMetni: s.soruMetni,
-            secenekler: (s.secenekler||[]).map(se => ({ metin: se.metin||'', gorsel: se.gorsel||'' })),
+            sinif:           s.sinif,
+            ders:            s.ders,
+            konu:            s.konu        || '',
+            soruOnculu:      s.soruOnculu  || '',
+            soruResmi:       s.soruResmi   || '',
+            soruMetni:       s.soruMetni,
+            secenekler:      (s.secenekler || []).map(se => ({
+                                 metin:  se.metin  || '',
+                                 gorsel: se.gorsel || ''
+                             })),
             dogruCevapIndex: parseInt(s.dogruCevapIndex) >= 0 ? parseInt(s.dogruCevapIndex) : 0
         }));
         await Soru.insertMany(kayitlar);
