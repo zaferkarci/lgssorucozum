@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 3.0 ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 3.0 (Modüler Yapı) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -16,14 +16,9 @@ const dbURI = process.env.MONGO_URI;
 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
-// --- MODELLER ---
-const Kullanici = require('./models/Kullanici');
-const Soru = require('./models/Soru');
-const Okul = require('./models/Okul');
-
-// --- ROUTE'LAR ---
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/panel'));
 app.use('/', require('./routes/admin'));
+app.use('/', require('./routes/pdfyukle'));
 
 app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));

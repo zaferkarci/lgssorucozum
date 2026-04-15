@@ -13,6 +13,7 @@
   <div class="topbar-nav">
     <a href="/admin?mod=soruListesi" class="nav-link <%= mod==='soruListesi'?'active':'' %>">📋 Soruları Listele</a>
     <a href="/admin?mod=soruEkle" class="nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru Ekle</a>
+    <a href="/admin?mod=pdfYukle" class="nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF'den Toplu Yükle</a>
     <a href="/admin?mod=kullanicilar" class="nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
     <a href="/admin?mod=okullar" class="nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
     <a href="/admin?mod=sifirla" class="nav-link" style="color:#ffaaaa;">🗑️ Veri Sıfırla</a>
@@ -22,7 +23,379 @@
 
 <div class="panel-main">
 
-<% if (mod === 'soruEkle') { %>
+<% if (mod === 'pdfYukle') { %>
+<!-- ═══════════════════════════════════════════════════════════════════
+     PDF'DEN TOPLU SORU YÜKLEME  —  v3.0.0
+     Tasarım mevcut admin stiliyle uyumludur.
+═══════════════════════════════════════════════════════════════════ -->
+<div class="card">
+  <h3>📄 PDF'den Toplu Soru Yükleme</h3>
+  <p style="color:#666; font-size:13px; margin-bottom:16px;">
+    PDF dosyanızı yükleyin. Yapay zeka soruları otomatik olarak analiz eder,
+    önizleme ekranında kontrol edip onaylayın.
+  </p>
+
+  <!-- Adım 1: Yükleme Formu -->
+  <div id="adim1">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
+      <div>
+        <label class="form-label">Sınıf</label><br>
+        <select id="pdf_sinif" class="input-sm">
+          <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
+            <option value="<%= s %>" <%= s==8?'selected':'' %>><%= s %>. Sınıf</option>
+          <% }); %>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Ders</label><br>
+        <select id="pdf_ders" class="input-sm">
+          <% ["Matematik","Türkçe","Fen Bilimleri","T.C. İnkılâp Tarihi","İngilizce","Din Kültürü"].forEach(function(d) { %>
+            <option value="<%= d %>"><%= d %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Konu (opsiyonel)</label><br>
+        <input id="pdf_konu" class="input-sm" placeholder="ör: Kesirler" style="min-width:160px;">
+      </div>
+    </div>
+
+    <div id="pdfDropZone" style="border:2px dashed #1a73e8; border-radius:10px; padding:40px; text-align:center; cursor:pointer; background:#f8f9ff; transition:background .2s;">
+      <div style="font-size:36px; margin-bottom:8px;">📄</div>
+      <div style="color:#1a73e8; font-weight:bold; margin-bottom:4px;">PDF dosyasını buraya sürükleyin veya tıklayın</div>
+      <div style="color:#888; font-size:13px;">Maksimum 20 MB · Tek PDF</div>
+      <input type="file" id="pdfInput" accept=".pdf" style="display:none;">
+    </div>
+
+    <div id="secilenDosya" style="display:none; margin-top:10px; padding:10px 14px; background:#e8f5e9; border-radius:8px; display:flex; align-items:center; gap:10px;">
+      <span style="font-size:20px;">✅</span>
+      <span id="secilenDosyaAd" style="font-weight:500;"></span>
+      <span id="secilenDosyaBoyut" style="color:#666; font-size:12px;"></span>
+    </div>
+
+    <button id="analizBtn" onclick="pdfAnalizBaslat()" class="btn btn-success" style="margin-top:14px; display:none;">
+      🤖 Yapay Zeka ile Analiz Et
+    </button>
+  </div>
+
+  <!-- Yükleniyor -->
+  <div id="yukleniyor" style="display:none; text-align:center; padding:40px 0;">
+    <div style="font-size:40px; margin-bottom:12px;">⏳</div>
+    <div style="font-weight:bold; color:#1a73e8; font-size:16px; margin-bottom:6px;">Sorular analiz ediliyor...</div>
+    <div style="color:#666; font-size:13px;">PDF içeriği okunuyor ve sorular ayrıştırılıyor. Lütfen bekleyin.</div>
+    <div id="yukleniyor_ilerleme" style="margin-top:16px; color:#888; font-size:12px;"></div>
+  </div>
+
+  <!-- Hata -->
+  <div id="hataKutu" style="display:none; margin-top:14px; padding:14px; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; color:#c62828;"></div>
+</div>
+
+<!-- Adım 2: Önizleme + Onay -->
+<div id="adim2" style="display:none;">
+  <div class="card" style="background:#e8f5e9; border-color:#a5d6a7;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <b style="color:#2e7d32; font-size:16px;">✅ <span id="toplamSoru"></span> soru bulundu!</b>
+        <p style="color:#555; font-size:13px; margin-top:4px;">Soruları kontrol edin, gerekiyorsa düzenleyin, ardından kaydedin.</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button onclick="tumunuSec(true)" class="btn" style="background:#1a73e8; color:white; padding:8px 16px; font-size:13px;">Tümünü Seç</button>
+        <button onclick="tumunuSec(false)" class="btn" style="background:#888; color:white; padding:8px 16px; font-size:13px;">Seçimi Kaldır</button>
+        <button onclick="secilenlerKaydet()" class="btn btn-success" style="padding:8px 20px;">💾 Seçilenleri Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sorularListesi"></div>
+
+  <div style="text-align:center; margin:20px 0;">
+    <button onclick="secilenlerKaydet()" class="btn btn-success" style="padding:12px 40px; font-size:16px;">💾 Seçilenleri Veritabanına Kaydet</button>
+    <button onclick="yenidenBaslat()" class="btn" style="background:#888; color:white; padding:12px 24px; margin-left:10px;">↩ Yeni PDF Yükle</button>
+  </div>
+</div>
+
+<!-- Adım 3: Başarı -->
+<div id="adim3" style="display:none;" class="card" style="text-align:center;">
+  <div style="text-align:center; padding:30px 0;">
+    <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+    <div style="font-size:20px; font-weight:bold; color:#2e7d32; margin-bottom:8px;"><span id="kaydedilenSayi"></span> soru veritabanına eklendi!</div>
+    <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+      <a href="/admin?mod=soruListesi" class="btn btn-success">📋 Soruları Görüntüle</a>
+      <button onclick="yenidenBaslat()" class="btn" style="background:#1a73e8; color:white;">📄 Yeni PDF Yükle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Değişkenler ────────────────────────────────────────────────────────────
+var analizSonucu = [];
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────
+(function() {
+  var zone = document.getElementById('pdfDropZone');
+  var input = document.getElementById('pdfInput');
+
+  zone.addEventListener('click', function() { input.click(); });
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.style.background = '#e3f2fd';
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.style.background = '#f8f9ff';
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.style.background = '#f8f9ff';
+    var f = e.dataTransfer.files[0];
+    if (f) dosyaSec(f);
+  });
+  input.addEventListener('change', function() {
+    if (input.files[0]) dosyaSec(input.files[0]);
+  });
+})();
+
+function dosyaSec(f) {
+  if (f.type !== 'application/pdf') {
+    gosterHata('Lütfen yalnızca PDF dosyası seçin.');
+    return;
+  }
+  if (f.size > 20 * 1024 * 1024) {
+    gosterHata('Dosya boyutu 20 MB\'ı aşıyor.');
+    return;
+  }
+  document.getElementById('secilenDosyaAd').textContent = f.name;
+  document.getElementById('secilenDosyaBoyut').textContent = '(' + (f.size / 1024).toFixed(0) + ' KB)';
+  document.getElementById('secilenDosya').style.display = 'flex';
+  document.getElementById('analizBtn').style.display = 'inline-block';
+  document.getElementById('hataKutu').style.display = 'none';
+  // dosyayı global tut
+  window._seciliPdf = f;
+}
+
+// ── Analiz başlat ─────────────────────────────────────────────────────────
+function pdfAnalizBaslat() {
+  if (!window._seciliPdf) { gosterHata('Önce bir PDF seçin.'); return; }
+
+  document.getElementById('adim1').style.display = 'none';
+  document.getElementById('adim2').style.display = 'none';
+  document.getElementById('adim3').style.display = 'none';
+  document.getElementById('hataKutu').style.display = 'none';
+  document.getElementById('yukleniyor').style.display = 'block';
+
+  // İlerleme mesajları
+  var mesajlar = [
+    'PDF içeriği okunuyor...',
+    'Soru kökleri tespit ediliyor...',
+    'Şıklar ayrıştırılıyor...',
+    'Cevap anahtarı kontrol ediliyor...',
+    'Son işlemler yapılıyor...'
+  ];
+  var mi = 0;
+  var prog = document.getElementById('yukleniyor_ilerleme');
+  var ilerlemeInterval = setInterval(function() {
+    prog.textContent = mesajlar[mi % mesajlar.length];
+    mi++;
+  }, 2000);
+
+  var formData = new FormData();
+  formData.append('pdfDosyasi', window._seciliPdf);
+  formData.append('sinif', document.getElementById('pdf_sinif').value);
+  formData.append('ders', document.getElementById('pdf_ders').value);
+  formData.append('konu', document.getElementById('pdf_konu').value);
+
+  fetch('/pdf-analiz', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + btoa(
+        (prompt('Admin kullanıcı adı:') || 'admin') + ':' +
+        (prompt('Admin şifresi:') || '1234')
+      )
+    },
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(veri) {
+    clearInterval(ilerlemeInterval);
+    document.getElementById('yukleniyor').style.display = 'none';
+
+    if (!veri.ok || veri.hata) {
+      document.getElementById('adim1').style.display = 'block';
+      gosterHata('Analiz hatası: ' + (veri.hata || 'Bilinmeyen hata'));
+      return;
+    }
+    analizSonucu = veri.sorular;
+    onizlemeOlustur(veri.sorular);
+  })
+  ['catch'](function(err) {
+    clearInterval(ilerlemeInterval);
+    document.getElementById('yukleniyor').style.display = 'none';
+    document.getElementById('adim1').style.display = 'block';
+    gosterHata('Sunucu hatası: ' + err.message);
+  });
+}
+
+// ── Önizleme ──────────────────────────────────────────────────────────────
+function onizlemeOlustur(sorular) {
+  document.getElementById('toplamSoru').textContent = sorular.length;
+  var kapsayici = document.getElementById('sorularListesi');
+  kapsayici.innerHTML = '';
+
+  var dersler = ["Matematik","Türkçe","Fen Bilimleri","T.C. İnkılâp Tarihi","İngilizce","Din Kültürü"];
+  var siniflar = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+  sorular.forEach(function(s, i) {
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.style.cssText = 'margin-bottom:12px; border-left:4px solid #1a73e8;';
+
+    // Şık HTML
+    var siklHtml = '';
+    var harfler = ['A','B','C','D'];
+    (s.secenekler||[]).forEach(function(se, si) {
+      var renk = si === s.dogruCevapIndex ? '#e8f5e9' : 'white';
+      var kenar = si === s.dogruCevapIndex ? '2px solid #34a853' : '1px solid #eee';
+      siklHtml += '<div style="background:'+renk+'; border:'+kenar+'; border-radius:8px; padding:8px 12px; margin-bottom:6px; display:flex; align-items:center; gap:8px;">' +
+        '<b style="color:#666; min-width:20px;">' + harfler[si] + ':</b>' +
+        '<input value="' + escHtml(se.metin) + '" data-soru="'+i+'" data-sik="'+si+'" onchange="sikGuncelle(this)" style="flex:1; border:none; background:transparent; font-size:14px;">' +
+        '<label style="font-size:12px; color:#666; cursor:pointer;">' +
+          '<input type="radio" name="dogru_'+i+'" value="'+si+'" ' + (si===s.dogruCevapIndex?'checked':'') + ' onchange="dogruDegistir(this,'+i+')" style="margin-right:4px;">' +
+          '✓ Doğru' +
+        '</label>' +
+      '</div>';
+    });
+
+    div.innerHTML =
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">' +
+        '<label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold;">' +
+          '<input type="checkbox" data-soru-idx="'+i+'" checked style="width:16px; height:16px;">' +
+          '<span style="color:#1a73e8;">Soru ' + (i+1) + '</span>' +
+        '</label>' +
+        '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+          '<select data-soru="'+i+'" data-alan="sinif" onchange="soruAlanGuncelle(this)" class="input-sm">' +
+            siniflar.map(function(s2){ return '<option value="'+s2+'"'+(s2==s.sinif?' selected':'')+'>'+s2+'. Sınıf</option>'; }).join('') +
+          '</select>' +
+          '<select data-soru="'+i+'" data-alan="ders" onchange="soruAlanGuncelle(this)" class="input-sm">' +
+            dersler.map(function(d){ return '<option value="'+d+'"'+(d===s.ders?' selected':'')+'>'+d+'</option>'; }).join('') +
+          '</select>' +
+          '<input value="' + escHtml(s.konu||'') + '" data-soru="'+i+'" data-alan="konu" onchange="soruAlanGuncelle(this)" class="input-sm" placeholder="Konu">' +
+        '</div>' +
+      '</div>' +
+
+      // Öncül
+      (s.soruOnculu ? '<div style="background:#f1f3f4; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px;">' +
+        '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Öncül</b>' +
+        '<textarea data-soru="'+i+'" data-alan="soruOnculu" onchange="soruAlanGuncelle(this)" rows="2" style="width:100%; border:none; background:transparent; font-size:13px; resize:vertical; margin-top:4px;">' + escHtml(s.soruOnculu) + '</textarea>' +
+      '</div>' : '') +
+
+      // Soru metni
+      '<div style="margin-bottom:12px;">' +
+        '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Soru Metni</b>' +
+        '<textarea data-soru="'+i+'" data-alan="soruMetni" onchange="soruAlanGuncelle(this)" rows="3" style="width:100%; border:1px solid #eee; border-radius:6px; padding:8px; font-size:14px; margin-top:4px; resize:vertical;">' + escHtml(s.soruMetni) + '</textarea>' +
+      '</div>' +
+
+      // Şıklar
+      '<div>' +
+        '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Şıklar (Yeşil = Doğru Cevap)</b>' +
+        '<div style="margin-top:6px;">' + siklHtml + '</div>' +
+      '</div>';
+
+    kapsayici.appendChild(div);
+  });
+
+  document.getElementById('adim2').style.display = 'block';
+}
+
+// ── Düzenleme yardımcıları ─────────────────────────────────────────────────
+function soruAlanGuncelle(el) {
+  var idx = parseInt(el.getAttribute('data-soru'));
+  var alan = el.getAttribute('data-alan');
+  analizSonucu[idx][alan] = el.value;
+}
+function sikGuncelle(el) {
+  var soruIdx = parseInt(el.getAttribute('data-soru'));
+  var sikIdx = parseInt(el.getAttribute('data-sik'));
+  analizSonucu[soruIdx].secenekler[sikIdx].metin = el.value;
+}
+function dogruDegistir(el, soruIdx) {
+  analizSonucu[soruIdx].dogruCevapIndex = parseInt(el.value);
+  // Arka plan renklerini güncelle
+  var satirlar = el.closest('div').parentElement.querySelectorAll('div');
+  satirlar.forEach(function(d, i) {
+    d.style.background = (i === analizSonucu[soruIdx].dogruCevapIndex) ? '#e8f5e9' : 'white';
+    d.style.border = (i === analizSonucu[soruIdx].dogruCevapIndex) ? '2px solid #34a853' : '1px solid #eee';
+  });
+}
+function tumunuSec(durum) {
+  document.querySelectorAll('[data-soru-idx]').forEach(function(cb) { cb.checked = durum; });
+}
+
+// ── Kaydet ────────────────────────────────────────────────────────────────
+function secilenlerKaydet() {
+  var secili = [];
+  document.querySelectorAll('[data-soru-idx]:checked').forEach(function(cb) {
+    secili.push(analizSonucu[parseInt(cb.getAttribute('data-soru-idx'))]);
+  });
+
+  if (secili.length === 0) {
+    alert('Kaydedilecek en az bir soru seçin.');
+    return;
+  }
+
+  if (!confirm(secili.length + ' soruyu veritabanına kaydetmek istiyor musunuz?')) return;
+
+  // Admin kimlik bilgisi (basit yaklaşım — gerçekte session ile yapılır)
+  var kimlik = btoa(
+    (prompt('Admin kullanıcı adı:') || 'admin') + ':' +
+    (prompt('Admin şifresi:') || '1234')
+  );
+
+  fetch('/pdf-sorulari-kaydet', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + kimlik
+    },
+    body: JSON.stringify({ sorular: secili })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(veri) {
+    if (!veri.ok) { gosterHata('Kayıt hatası: ' + (veri.hata || 'Bilinmeyen')); return; }
+    document.getElementById('kaydedilenSayi').textContent = veri.kaydedilen;
+    document.getElementById('adim2').style.display = 'none';
+    document.getElementById('adim3').style.display = 'block';
+  })
+  ['catch'](function(err) { gosterHata('Sunucu hatası: ' + err.message); });
+}
+
+function yenidenBaslat() {
+  analizSonucu = [];
+  window._seciliPdf = null;
+  document.getElementById('pdfInput').value = '';
+  document.getElementById('secilenDosya').style.display = 'none';
+  document.getElementById('analizBtn').style.display = 'none';
+  document.getElementById('pdf_konu').value = '';
+  document.getElementById('adim2').style.display = 'none';
+  document.getElementById('adim3').style.display = 'none';
+  document.getElementById('adim1').style.display = 'block';
+}
+
+function gosterHata(mesaj) {
+  var kutu = document.getElementById('hataKutu');
+  kutu.textContent = '⚠️ ' + mesaj;
+  kutu.style.display = 'block';
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+</script>
+
+<% } else if (mod === 'soruEkle') { %>
   <div class="card">
     <h3><%= editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle' %></h3>
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
