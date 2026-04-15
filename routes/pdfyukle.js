@@ -1,5 +1,5 @@
 // ─── PDF'den Toplu Soru Yükleme — v3.0.0 ────────────────────────────────────
-// Gemini 2.0 Flash API kullanır — günde 1500 istek ücretsiz, kart gerekmez.
+// OpenRouter API kullanır — ücretsiz modeller mevcut, kart gerekmez.
 
 const express = require('express');
 const router  = express.Router();
@@ -32,69 +32,100 @@ function adminKontrol(req, res) {
     return false;
 }
 
-// ── Gemini API çağrısı ───────────────────────────────────────────────────────
+// ── PDF'i metne çevir (base64 → metin) ───────────────────────────────────────
+// OpenRouter görsel/PDF desteklemediği için PDF'i önce metne çeviriyoruz
+async function pdfBase64tenMetinCikar(pdfBase64) {
+    // Node.js built-in ile basit metin çıkarma
+    const buffer = Buffer.from(pdfBase64, 'base64');
+    const str = buffer.toString('latin1');
+    
+    // PDF içindeki okunabilir metin bloklarını çıkar
+    const satirlar = [];
+    const regex = /\(([^\)]{2,200})\)/g;
+    let eslesen;
+    while ((eslesen = regex.exec(str)) !== null) {
+        const metin = eslesen[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '')
+            .replace(/\\t/g, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\')
+            .trim();
+        if (metin.length > 2) satirlar.push(metin);
+    }
+    return satirlar.join('\n');
+}
+
+// ── OpenRouter API çağrısı ───────────────────────────────────────────────────
 async function pdfdenSorulariCikar(pdfBase64, sinif, ders, konu) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY environment variable tanımlı değil.');
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error('OPENROUTER_API_KEY environment variable tanımlı değil.');
+
+    // PDF metnini çıkar
+    const pdfMetni = await pdfBase64tenMetinCikar(pdfBase64);
+    if (!pdfMetni || pdfMetni.length < 50) {
+        throw new Error('PDF içeriği okunamadı. Lütfen metin tabanlı (taranmış olmayan) bir PDF yükleyin.');
+    }
 
     const PROMPT = `Sen bir eğitim içeriği analiz uzmanısın.
-Sana verilen PDF'deki çok şıklı soruları analiz et ve her soruyu JSON formatında çıkar.
+Aşağıdaki PDF metnindeki çok şıklı soruları analiz et ve her soruyu JSON formatında çıkar.
+
 Her soru için şu alanları doldur:
-- soruOnculu: Sorudan önce gelen paragraf/metin/tablo (yoksa boş string)
-- soruResmi: Soruda resim/görsel referansı varsa "[GÖRSEL VAR]" yaz, yoksa boş string
-- soruMetni: Soru kökü (tam metin, HTML desteklenir: sup, sub, b, i tagları kullanabilirsin)
-- secenekler: 4 elemanlı dizi, her eleman { "metin": "...", "gorsel": "" }
-- dogruCevapIndex: Doğru şık indexi (0=A, 1=B, 2=C, 3=D). Cevap anahtarı yoksa -1 yaz.
+- soruOnculu: Sorudan önce gelen paragraf/metin/tablo (yoksa boş string "")
+- soruResmi: Soruda resim/görsel referansı varsa "[GÖRSEL VAR]" yaz, yoksa ""
+- soruMetni: Soru kökü tam metin (HTML desteklenir: <sup>, <sub>, <b>, <i>)
+- secenekler: 4 elemanlı dizi [{"metin":"...","gorsel":""},...]
+- dogruCevapIndex: Doğru şık indexi (0=A,1=B,2=C,3=D). Yoksa -1.
 
-Matematiksel ifadeleri HTML ile göster (örn: x üzeri 2 için x<sup>2</sup>).
+SADECE JSON array döndür, başka hiçbir şey yazma:
+[{"soruOnculu":"","soruResmi":"","soruMetni":"...","secenekler":[{"metin":"...","gorsel":""},{"metin":"...","gorsel":""},{"metin":"...","gorsel":""},{"metin":"...","gorsel":""}],"dogruCevapIndex":0}]
 
-SADECE JSON array döndür, başka hiçbir şey yazma, markdown kullanma.
+Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}
 
-Bilgi: Sinif=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
+PDF METNİ:
+${pdfMetni.slice(0, 12000)}`;
 
     const body = {
-        contents: [{
-            parts: [
-                { inline_data: { mime_type: 'application/pdf', data: pdfBase64 } },
-                { text: PROMPT }
-            ]
-        }],
-        generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-            responseMimeType: 'application/json'
-        }
+        model: 'google/gemini-2.5-flash-preview:free',
+        messages: [{ role: 'user', content: PROMPT }],
+        max_tokens: 8000,
+        temperature: 0.1
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': process.env.SITE_URL || 'https://lgs-hazirlik.onrender.com',
+            'X-Title': 'LGS Hazirlik'
+        },
         body: JSON.stringify(body)
     });
 
     if (!response.ok) {
         const hata = await response.text();
-        throw new Error('Gemini API hatasi: ' + hata);
+        throw new Error('OpenRouter API hatası: ' + hata);
     }
 
     const veri = await response.json();
-    const metin = veri?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!metin) throw new Error('Gemini bos yanit dondurdu.');
+    const metin = veri?.choices?.[0]?.message?.content || '';
+    if (!metin) throw new Error('API boş yanıt döndürdü.');
 
+    // JSON parse
     const temiz = metin.replace(/```json|```/g, '').trim();
     const bas = temiz.indexOf('[');
     const son = temiz.lastIndexOf(']');
-    if (bas === -1 || son === -1) throw new Error('Gemini gecerli JSON dondürmedi: ' + temiz.slice(0, 300));
+    if (bas === -1 || son === -1) throw new Error('API geçerli JSON döndürmedi: ' + temiz.slice(0, 300));
     return JSON.parse(temiz.slice(bas, son + 1));
 }
 
-// ── POST: PDF yukle ve analiz et ─────────────────────────────────────────────
+// ── POST: PDF yükle ve analiz et ─────────────────────────────────────────────
 router.post('/pdf-analiz', upload.single('pdfDosyasi'), async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        if (!req.file) return res.status(400).json({ hata: 'PDF dosyasi secilmedi.' });
+        if (!req.file) return res.status(400).json({ hata: 'PDF dosyası seçilmedi.' });
         const { sinif, ders, konu } = req.body;
         const pdfBase64 = req.file.buffer.toString('base64');
         const sorular = await pdfdenSorulariCikar(pdfBase64, sinif, ders, konu);
@@ -107,12 +138,12 @@ router.post('/pdf-analiz', upload.single('pdfDosyasi'), async (req, res) => {
         }));
         res.json({ ok: true, sorular: zenginSorular, toplamSoru: zenginSorular.length });
     } catch (err) {
-        console.error('[PDF Analiz Hatasi]', err.message);
+        console.error('[PDF Analiz Hatası]', err.message);
         res.status(500).json({ hata: err.message });
     }
 });
 
-// ── POST: Onaylanan sorulari veritabanina kaydet ──────────────────────────────
+// ── POST: Onaylanan soruları veritabanına kaydet ──────────────────────────────
 router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
@@ -137,7 +168,7 @@ router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req,
         await Soru.insertMany(kayitlar);
         res.json({ ok: true, kaydedilen: kayitlar.length });
     } catch (err) {
-        console.error('[Kayit Hatasi]', err.message);
+        console.error('[Kayıt Hatası]', err.message);
         res.status(500).json({ hata: err.message });
     }
 });
