@@ -206,10 +206,7 @@ function pdfAnalizBaslat() {
   fetch('/pdf-analiz', {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + btoa(
-        (prompt('Admin kullanıcı adı:') || 'admin') + ':' +
-        (prompt('Admin şifresi:') || '1234')
-      )
+      'Authorization': 'Basic <%- adminToken %>'
     },
     body: formData
   })
@@ -343,11 +340,8 @@ function secilenlerKaydet() {
 
   if (!confirm(secili.length + ' soruyu veritabanına kaydetmek istiyor musunuz?')) return;
 
-  // Admin kimlik bilgisi (basit yaklaşım — gerçekte session ile yapılır)
-  var kimlik = btoa(
-    (prompt('Admin kullanıcı adı:') || 'admin') + ':' +
-    (prompt('Admin şifresi:') || '1234')
-  );
+  // Admin kimlik bilgisi — server tarafından inject edildi
+  var kimlik = '<%- adminToken %>';
 
   fetch('/pdf-sorulari-kaydet', {
     method: 'POST',

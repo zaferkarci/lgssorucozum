@@ -37,12 +37,17 @@ router.get('/admin', async (req, res) => {
     const ilceler = filIl ? [...new Set(tumKullanicilar.filter(k => k.il === filIl).map(k => k.ilce).filter(Boolean))].sort() : [];
     const okullar = filIlce ? [...new Set(tumKullanicilar.filter(k => k.ilce === filIlce).map(k => k.okul).filter(Boolean))].sort() : [];
 
+    // PDF analiz fetch'i için tarayıcıya token gönder (prompt() olmadan auth)
+    const adminToken = req.headers.authorization
+        ? req.headers.authorization.replace('Basic ', '')
+        : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
+
     res.render('admin', {
         mod, editSoru, tumSorular, dersler,
         tumKullanicilar, filtreliKullanicilar,
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
-        tumOkullar
+        tumOkullar, adminToken
     });
 });
 
