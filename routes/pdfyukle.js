@@ -17,11 +17,10 @@ const upload = multer({
 
 // Sırayla denenen ücretsiz modeller
 const MODELLER = [
+    'openrouter/free',
     'meta-llama/llama-3.3-70b-instruct:free',
-    'mistralai/mistral-7b-instruct:free',
     'google/gemma-3-27b-it:free',
-    'microsoft/phi-3-medium-128k-instruct:free',
-    'openchat/openchat-7b:free'
+    'nvidia/llama-3.1-nemotron-70b-instruct:free'
 ];
 
 function adminKontrol(req, res) {
