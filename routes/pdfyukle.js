@@ -96,9 +96,16 @@ Matematiksel ifadeleri HTML sup/sub ile göster (örn: x<sup>2</sup>).`;
         }]
     };
 
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('ANTHROPIC_API_KEY environment variable tanımlı değil.');
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+        },
         body: JSON.stringify(body)
     });
 
