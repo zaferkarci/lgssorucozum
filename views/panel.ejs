@@ -68,6 +68,7 @@
       </div>
       <div class="soru-etiketler">
         <span class="etiket" style="background:<%= zb.renk %>">Zorluk: <%= zb.etiket %></span>
+        <% if (soru.sinif) { %><span class="etiket" style="background:#607d8b"><%= soru.sinif %>. Sınıf</span><% } %>
         <span class="etiket" style="background:#3498db">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="etiket" style="background:#16a085">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="etiket" style="background:#8e44ad">Konu: <%= soru.konu %></span><% } %>
