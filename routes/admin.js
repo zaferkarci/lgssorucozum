@@ -123,8 +123,8 @@ router.get('/api/okullar', async (req, res) => {
     try {
         const { il, ilce } = req.query;
         const filtre = {};
-        if (il) filtre.il = { $regex: new RegExp('^' + il.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
-        if (ilce) filtre.ilce = { $regex: new RegExp('^' + ilce.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
+        if (il) filtre.il = { $regex: new RegExp('^' + il + '$', 'i') };
+        if (ilce) filtre.ilce = { $regex: new RegExp('^' + ilce + '$', 'i') };
         const okullar = await Okul.find(filtre, 'ad').sort({ ad: 1 });
         res.json(okullar.map(o => o.ad));
     } catch (err) { res.status(500).json([]); }
