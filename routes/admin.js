@@ -123,8 +123,8 @@ router.get('/api/okullar', async (req, res) => {
     try {
         const { il, ilce } = req.query;
         const filtre = {};
-        if (il) filtre.il = il;
-        if (ilce) filtre.ilce = ilce;
+        if (il) filtre.il = { $regex: new RegExp('^' + il.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
+        if (ilce) filtre.ilce = { $regex: new RegExp('^' + ilce.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') };
         const okullar = await Okul.find(filtre, 'ad').sort({ ad: 1 });
         res.json(okullar.map(o => o.ad));
     } catch (err) { res.status(500).json([]); }
@@ -196,13 +196,18 @@ router.post('/okul-excel-kaydet', async (req, res) => {
         const { okullar, mod } = req.body;
         if (!Array.isArray(okullar) || okullar.length === 0)
             return res.status(400).json({ hata: 'Kaydedilecek okul yok.' });
-        if (mod === 'sifirla') await Okul.deleteMany({});
-        let eklenen = 0;
-        for (const o of okullar) {
-            const varMi = await Okul.findOne({ il: o.il, ilce: o.ilce, ad: o.ad });
-            if (!varMi) { await new Okul({ il: o.il, ilce: o.ilce, ad: o.ad }).save(); eklenen++; }
+        if (mod === 'sifirla') {
+            await Okul.deleteMany({});
+            await Okul.insertMany(okullar.map(o => ({ il: o.il, ilce: o.ilce, ad: o.ad })));
+            res.json({ ok: true, eklenen: okullar.length, atlanan: 0 });
+        } else {
+            // Mevcut okulları çek, set olarak karşılaştır
+            const mevcutlar = await Okul.find({}, 'il ilce ad');
+            const mevcutSet = new Set(mevcutlar.map(o => o.il+'||'+o.ilce+'||'+o.ad));
+            const yeniler = okullar.filter(o => !mevcutSet.has(o.il+'||'+o.ilce+'||'+o.ad));
+            if (yeniler.length > 0) await Okul.insertMany(yeniler.map(o => ({ il: o.il, ilce: o.ilce, ad: o.ad })));
+            res.json({ ok: true, eklenen: yeniler.length, atlanan: okullar.length - yeniler.length });
         }
-        res.json({ ok: true, eklenen, atlanan: okullar.length - eklenen });
     } catch (err) {
         console.error('[Okul Kayıt Hatası]', err.message);
         res.status(500).json({ hata: err.message });
