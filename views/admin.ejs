@@ -411,8 +411,11 @@ function escHtml(str) {
         <% if(editSoru && editSoru.unite) { %><option value="<%= editSoru.unite %>" selected><%= editSoru.unite %></option><% } %>
       </select>
       <br><br>
-      <input name="konu" id="se_konu" list="se_konu_liste" placeholder="Konu" value="<%= editSoru ? editSoru.konu : '' %>" class="input">
-      <datalist id="se_konu_liste"></datalist>
+      Konu: <select name="konu" id="se_konu" class="input-sm" style="min-width:200px;">
+        <option value="">-- Konu Seçin (Opsiyonel) --</option>
+        <% if(editSoru && editSoru.konu) { %><option value="<%= editSoru.konu %>" selected><%= editSoru.konu %></option><% } %>
+      </select>
+      <br><br>
       <textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
       <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
       <div class="toolbar">
@@ -453,7 +456,7 @@ function escHtml(str) {
 
   function sinifDegisti() {
     var sinif = document.getElementById('se_sinif').value;
-    fetch('/api/unite-bilgi?sinif=' + sinif)
+    fetch('/api/unite-bilgi?sinif=' + sinif, { headers: { 'Authorization': 'Basic <%- adminToken %>' } })
       .then(function(r){ return r.json(); })
       .then(function(v){
         if (!v.ok) return;
@@ -496,16 +499,18 @@ function escHtml(str) {
     var sinif = document.getElementById('se_sinif').value;
     var ders  = document.getElementById('se_ders').value;
     var unite = document.getElementById('se_unite').value;
-    var liste = document.getElementById('se_konu_liste');
-    liste.innerHTML = '';
+    var konuSelect = document.getElementById('se_konu');
+    var mevcutKonu = konuSelect.value;
+    konuSelect.innerHTML = '<option value="">-- Konu Seçin (Opsiyonel) --</option>';
     var seciliUnite = _tumUniteler.find(function(u){
       return u.ders === ders && u.uniteAdi === unite && (!u.sinif || u.sinif === sinif);
     });
     if (seciliUnite) {
       seciliUnite.konular.forEach(function(k){
         var opt = document.createElement('option');
-        opt.value = k;
-        liste.appendChild(opt);
+        opt.value = k; opt.textContent = k;
+        if (k === mevcutKonu) opt.selected = true;
+        konuSelect.appendChild(opt);
       });
     }
   }
