@@ -453,8 +453,11 @@ function escHtml(str) {
   </div>
   <script>
   var _tumUniteler = [];
+  // Düzenleme modunda mevcut değerler — EJS server-side inject
+  var _editUnite = '<%- editSoru ? (editSoru.unite||"") : "" %>';
+  var _editKonu  = '<%- editSoru ? (editSoru.konu||"") : "" %>';
 
-  function sinifDegisti() {
+  function sinifDegisti(hedefUnite, hedefKonu) {
     var sinif = document.getElementById('se_sinif').value;
     fetch('/api/unite-bilgi?sinif=' + sinif)
       .then(function(r){ return r.json(); })
@@ -472,44 +475,45 @@ function escHtml(str) {
             dersSelect.appendChild(opt);
           });
         }
-        dersDegisti();
+        dersDegisti(hedefUnite || '', hedefKonu || '');
       })
       ['catch'](function(){});
   }
 
-  function dersDegisti() {
+  function dersDegisti(hedefUnite, hedefKonu) {
     var sinif = document.getElementById('se_sinif').value;
     var ders  = document.getElementById('se_ders').value;
     var uniteSelect = document.getElementById('se_unite');
-    var mevcutUnite = uniteSelect.value;
+    // hedefUnite yoksa mevcut seçimi koru
+    var secilenUnite = (hedefUnite !== undefined) ? hedefUnite : uniteSelect.value;
     uniteSelect.innerHTML = '<option value="">-- Ünite Seçin (Opsiyonel) --</option>';
     _tumUniteler
-      .filter(function(u){ return u.ders === ders && (!u.sinif || u.sinif === sinif); })
+      .filter(function(u){ return u.ders === ders && (!u.sinif || String(u.sinif) === String(sinif)); })
       .forEach(function(u){
         var opt = document.createElement('option');
         opt.value = u.uniteAdi;
         opt.textContent = u.uniteNo + '. ' + u.uniteAdi;
-        if (u.uniteAdi === mevcutUnite) opt.selected = true;
+        if (u.uniteAdi === secilenUnite) opt.selected = true;
         uniteSelect.appendChild(opt);
       });
-    uniteDegisti();
+    uniteDegisti(hedefKonu || '');
   }
 
-  function uniteDegisti() {
+  function uniteDegisti(hedefKonu) {
     var sinif = document.getElementById('se_sinif').value;
     var ders  = document.getElementById('se_ders').value;
     var unite = document.getElementById('se_unite').value;
     var konuSelect = document.getElementById('se_konu');
-    var mevcutKonu = konuSelect.value;
+    var secilenKonu = (hedefKonu !== undefined) ? hedefKonu : konuSelect.value;
     konuSelect.innerHTML = '<option value="">-- Konu Seçin (Opsiyonel) --</option>';
     var seciliUnite = _tumUniteler.find(function(u){
-      return u.ders === ders && u.uniteAdi === unite && (!u.sinif || u.sinif === sinif);
+      return u.ders === ders && u.uniteAdi === unite && (!u.sinif || String(u.sinif) === String(sinif));
     });
     if (seciliUnite) {
       seciliUnite.konular.forEach(function(k){
         var opt = document.createElement('option');
         opt.value = k; opt.textContent = k;
-        if (k === mevcutKonu) opt.selected = true;
+        if (k === secilenKonu) opt.selected = true;
         konuSelect.appendChild(opt);
       });
     }
@@ -534,27 +538,8 @@ function escHtml(str) {
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
   }
   window.addEventListener('DOMContentLoaded', function(){
-    sinifDegisti();
-    // Düzenleme modunda mevcut üniteyi koru
-    var mevcutUnite = '<%= editSoru ? editSoru.unite||"" : "" %>';
-    var mevcutKonu  = '<%= editSoru ? editSoru.konu||"" : "" %>';
-    if (mevcutUnite) {
-      // fetch tamamlandıktan sonra seç
-      setTimeout(function(){
-        var sel = document.getElementById('se_unite');
-        for (var i=0; i<sel.options.length; i++){
-          if (sel.options[i].value === mevcutUnite){ sel.selectedIndex = i; break; }
-        }
-        uniteDegisti();
-        // Konuyu da seç
-        setTimeout(function(){
-          var konuSel = document.getElementById('se_konu');
-          for (var j=0; j<konuSel.options.length; j++){
-            if (konuSel.options[j].value === mevcutKonu){ konuSel.selectedIndex = j; break; }
-          }
-        }, 100);
-      }, 600);
-    }
+    // Düzenleme modunda hedef ünite/konu fetch tamamlanınca seçilir
+    sinifDegisti(_editUnite, _editKonu);
   });
   </script>
 
