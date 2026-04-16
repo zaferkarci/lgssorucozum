@@ -25,10 +25,9 @@
     <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required class="input">
       <option value="">İlçe Seçiniz</option>
     </select>
-    <select id="okulListesi" class="input" style="display:none;" onchange="okulSecildi()">
-      <option value="">-- Listeden Seçin --</option>
+    <select name="okul" id="okulListesi" class="input" required>
+      <option value="">Okul Seçiniz</option>
     </select>
-    <input name="okul" id="okulInput" placeholder="Okulunuzun Adı (elle giriniz veya listeden seçiniz)" required autocomplete="off" class="input">
     <button type="submit" class="btn btn-success">KAYDI TAMAMLA</button>
   </form>
 </div>
@@ -51,8 +50,7 @@ function ilDegisti() {
   var ilAdi = document.getElementById('ilSelect').value;
   var ilceSelect = document.getElementById('ilceSelect');
   ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
-  document.getElementById('okulListesi').style.display = 'none';
-  document.getElementById('okulInput').value = '';
+  document.getElementById('okulListesi').innerHTML = '<option value="">Okul Seçiniz</option>';
   var ilId = ilIdMap[ilAdi];
   if (!ilId) return;
   fetch('https://turkiyeapi.dev/api/v1/provinces/'+ilId+'?fields=districts')
@@ -70,36 +68,29 @@ function ilceDegisti() {
   var il = document.getElementById('ilSelect').value;
   var ilce = document.getElementById('ilceSelect').value;
   var okulListesi = document.getElementById('okulListesi');
-  document.getElementById('okulInput').value = '';
-  okulListesi.innerHTML = '<option value="">-- Listeden Seçin --</option>';
-  okulListesi.style.display = 'none';
-  if (!il || !ilce) return;
+  okulListesi.innerHTML = '<option value="">Yükleniyor...</option>';
+  if (!il || !ilce) { okulListesi.innerHTML = '<option value="">Okul Seçiniz</option>'; return; }
   fetch('/api/okullar?il='+encodeURIComponent(il.toLocaleUpperCase('tr'))+'&ilce='+encodeURIComponent(ilce.toLocaleUpperCase('tr')))
     .then(function(r){ return r.json(); })
     .then(function(liste) {
       liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });
+      okulListesi.innerHTML = '<option value="">Okul Seçiniz</option>';
       if (liste.length > 0) {
         liste.forEach(function(o) {
           okulListesi.innerHTML += '<option value="'+o+'">'+o+'</option>';
         });
-        okulListesi.style.display = 'block';
+      } else {
+        okulListesi.innerHTML = '<option value="">Bu ilçede okul bulunamadı</option>';
       }
     })
-    ['catch'](function(e){ okulListesi.style.display='none'; });
-}
-
-function okulSecildi() {
-  var secilen = document.getElementById('okulListesi').value;
-  if (secilen) {
-    document.getElementById('okulInput').value = secilen;
-  }
+    ['catch'](function(e){ okulListesi.innerHTML = '<option value="">Okullar yüklenemedi</option>'; });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('kayitForm').addEventListener('submit', function() {
     var il = document.getElementById('ilSelect').value;
     var ilce = document.getElementById('ilceSelect').value;
-    var okul = document.getElementById('okulInput').value.trim();
+    var okul = document.getElementById('okulListesi').value;
     if (il && ilce && okul) {
       fetch('/okul-kaydet', {
         method: 'POST',
