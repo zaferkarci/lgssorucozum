@@ -456,7 +456,7 @@ function escHtml(str) {
 
   function sinifDegisti() {
     var sinif = document.getElementById('se_sinif').value;
-    fetch('/api/unite-bilgi?sinif=' + sinif, { headers: { 'Authorization': 'Basic <%- adminToken %>' } })
+    fetch('/api/unite-bilgi?sinif=' + sinif)
       .then(function(r){ return r.json(); })
       .then(function(v){
         if (!v.ok) return;
@@ -533,7 +533,29 @@ function escHtml(str) {
     div.innerHTML = metin;
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
   }
-  window.addEventListener('DOMContentLoaded', function(){ sinifDegisti(); });
+  window.addEventListener('DOMContentLoaded', function(){
+    sinifDegisti();
+    // Düzenleme modunda mevcut üniteyi koru
+    var mevcutUnite = '<%= editSoru ? editSoru.unite||"" : "" %>';
+    var mevcutKonu  = '<%= editSoru ? editSoru.konu||"" : "" %>';
+    if (mevcutUnite) {
+      // fetch tamamlandıktan sonra seç
+      setTimeout(function(){
+        var sel = document.getElementById('se_unite');
+        for (var i=0; i<sel.options.length; i++){
+          if (sel.options[i].value === mevcutUnite){ sel.selectedIndex = i; break; }
+        }
+        uniteDegisti();
+        // Konuyu da seç
+        setTimeout(function(){
+          var konuSel = document.getElementById('se_konu');
+          for (var j=0; j<konuSel.options.length; j++){
+            if (konuSel.options[j].value === mevcutKonu){ konuSel.selectedIndex = j; break; }
+          }
+        }, 100);
+      }, 600);
+    }
+  });
   </script>
 
 <% } else if (mod === 'kullanicilar') { %>
