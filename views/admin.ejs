@@ -454,6 +454,7 @@ function escHtml(str) {
   <script>
   var _tumUniteler = [];
   // Düzenleme modunda mevcut değerler — EJS server-side inject
+  var _editDers  = '<%- editSoru ? (editSoru.ders||"") : "" %>';
   var _editUnite = '<%- editSoru ? (editSoru.unite||"") : "" %>';
   var _editKonu  = '<%- editSoru ? (editSoru.konu||"") : "" %>';
 
@@ -466,14 +467,19 @@ function escHtml(str) {
         _tumUniteler = v.uniteler;
         var dersSelect = document.getElementById('se_ders');
         var mevcutDers = dersSelect.value;
+        // Ünite verisi varsa ders listesini güncelle
         if (v.dersler.length) {
+          // Koruma sırası: 1) mevcut seçili ders, 2) editSoru dersi, 3) Matematik
+          var hedefDers = mevcutDers || _editDers || 'Matematik';
           dersSelect.innerHTML = '';
           v.dersler.forEach(function(d){
             var opt = document.createElement('option');
             opt.value = d; opt.textContent = d;
-            if (d === mevcutDers || (!mevcutDers && d === 'Matematik')) opt.selected = true;
+            if (d === hedefDers) opt.selected = true;
             dersSelect.appendChild(opt);
           });
+          // Hiçbiri seçilmediyse ilkini seç
+          if (!dersSelect.value) dersSelect.selectedIndex = 0;
         }
         dersDegisti(hedefUnite || '', hedefKonu || '');
       })
