@@ -257,10 +257,21 @@ router.post('/unite-sil', async (req, res) => {
 router.get('/api/unite-bilgi', async (req, res) => {
     try {
         const { sinif } = req.query;
-        const filtre = sinif ? { sinif: String(sinif) } : {};
-        const uniteler = await Unite.find(filtre).sort({ ders:1, uniteNo:1 });
-        // Dersleri çıkar
-        const dersler = [...new Set(uniteler.map(u => u.ders))];
+        // Sinif filtresi: string ve number her ikisini de dene, yoksa tümünü getir
+        let uniteler;
+        if (sinif) {
+            uniteler = await Unite.find({
+                $or: [
+                    { sinif: String(sinif) },
+                    { sinif: Number(sinif) },
+                    { sinif: '' },
+                    { sinif: null }
+                ]
+            }).sort({ ders:1, uniteNo:1 });
+        } else {
+            uniteler = await Unite.find().sort({ ders:1, uniteNo:1 });
+        }
+        const dersler = [...new Set(uniteler.map(u => u.ders).filter(Boolean))];
         res.json({ ok: true, dersler, uniteler });
     } catch (err) {
         res.status(500).json({ ok: false, hata: err.message });
