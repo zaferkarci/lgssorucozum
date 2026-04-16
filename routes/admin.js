@@ -135,3 +135,11 @@ router.post('/okul-kaydet', async (req, res) => {
 });
 
 module.exports = router;
+
+router.post('/soru-istatistik-sifirla', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Soru.updateMany({}, { $set: { cozulmeSayisi: 0, dogruSayisi: 0, ortalamaSure: 0, hamPuan: null, zorlukKatsayisi: 3, cozumSureleriTum: [], dogruCevapSureleri: [] } });
+        res.send('<script>alert("Soru istatistikleri sıfırlandı!"); window.location.href="/admin?mod=sifirla";</script>');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});

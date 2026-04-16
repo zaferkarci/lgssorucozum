@@ -641,6 +641,16 @@ function escHtml(str) {
     </form>
   </div>
 
+  <div class="card" style="margin-top:16px;">
+    <h3 style="color:#e65100;">📊 Soru İstatistiklerini Sıfırla</h3>
+    <p>Bu işlem soruların çözülme sayısı, doğru sayısı, ortalama süre ve zorluk katsayısı gibi istatistiklerini sıfırlar.</p>
+    <p>Kullanıcı verileri, soru içerikleri ve öğrenci puanları <b>etkilenmez</b>.</p>
+    <p><b>Bu işlem geri alınamaz!</b></p>
+    <form action="/soru-istatistik-sifirla" method="POST">
+      <button onclick="return confirm('Soru istatistikleri sıfırlansın mı? Bu işlem geri alınamaz!')" class="btn" style="background:#e65100; color:white;">📊 SORU İSTATİSTİKLERİNİ SIFIRLA</button>
+    </form>
+  </div>
+
 <% } else { %>
   <div class="card">
     <h3>Tüm Sorular</h3>
