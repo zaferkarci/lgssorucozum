@@ -74,7 +74,7 @@ function ilceDegisti() {
   okulListesi.innerHTML = '<option value="">-- Listeden Seçin --</option>';
   okulListesi.style.display = 'none';
   if (!il || !ilce) return;
-  fetch('/api/okullar?il='+encodeURIComponent(il)+'&ilce='+encodeURIComponent(ilce))
+  fetch('/api/okullar?il='+encodeURIComponent(il.toLocaleUpperCase('tr'))+'&ilce='+encodeURIComponent(ilce.toLocaleUpperCase('tr')))
     .then(function(r){ return r.json(); })
     .then(function(liste) {
       liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });
