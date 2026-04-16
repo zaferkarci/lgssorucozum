@@ -1,29 +1,15 @@
 const mongoose = require('mongoose');
 
-const soruSchema = new mongoose.Schema({
-  soru_no: Number,
-  ders: String,
-  konu: String,
-  soru_metni: String,
-  gorsel: String,
-
-  secenekler: {
-    A: String,
-    B: String,
-    C: String,
-    D: String
-  },
-
-  dogru_cevap: String,
-
-  GE: { type: Number, default: 0.5 },
-  cozulme_sayisi: { type: Number, default: 0 },
-  dogru_sayisi: { type: Number, default: 0 },
-  toplam_sure: { type: Number, default: 0 },
-
-  // 🔥 YENİ EKLEDİĞİMİZ
-  durum: { type: String, default: "taslak" }
-
-}, { timestamps: true });
-
-module.exports = mongoose.model('Soru', soruSchema);
+module.exports = mongoose.model('Soru', new mongoose.Schema({
+    sinif: String, ders: String, konu: String, soruOnculu: String,
+    soruMetni: String, soruResmi: String,
+    secenekler: [{ metin: String, gorsel: String }],
+    dogruCevapIndex: Number,
+    cozulmeSayisi: { type: Number, default: 0 },
+    dogruSayisi: { type: Number, default: 0 },
+    ortalamaSure: { type: Number, default: 0 },
+    hamPuan: { type: Number, default: null },
+    zorlukKatsayisi: { type: Number, default: 3 },
+    cozumSureleriTum: [Number],
+    dogruCevapSureleri: [Number]
+}));

@@ -69,6 +69,7 @@
       <div class="soru-etiketler">
         <span class="etiket" style="background:<%= zb.renk %>">Zorluk: <%= zb.etiket %></span>
         <span class="etiket" style="background:#3498db">Ders: <%= soru.ders %></span>
+        <% if (soru.unite) { %><span class="etiket" style="background:#16a085">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="etiket" style="background:#8e44ad">Konu: <%= soru.konu %></span><% } %>
       </div>
       <% if (soru.soruOnculu) { %><div class="soru-onculu"><%= soru.soruOnculu %></div><% } %>

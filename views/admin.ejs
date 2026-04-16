@@ -395,18 +395,24 @@ function escHtml(str) {
     <h3><%= editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle' %></h3>
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
       <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><% } %>
-      Sınıf: <select name="sinif" class="input-sm">
+      Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
         <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
           <option value="<%= s %>" <%= (editSoru ? editSoru.sinif==s : s==8) ? 'selected' : '' %>><%= s %>. Sınıf</option>
         <% }); %>
       </select>
-      Ders: <select name="ders" class="input-sm">
+      Ders: <select name="ders" id="se_ders" class="input-sm" onchange="dersDegisti()">
         <% dersler.forEach(function(d) { %>
           <option value="<%= d %>" <%= editSoru&&editSoru.ders===d ? 'selected' : '' %>><%= d %></option>
         <% }); %>
       </select>
       <br><br>
-      <input name="konu" placeholder="Konu" value="<%= editSoru ? editSoru.konu : '' %>" class="input">
+      Ünite: <select name="unite" id="se_unite" class="input-sm" onchange="uniteDegisti()" style="min-width:200px;">
+        <option value="">-- Ünite Seçin (Opsiyonel) --</option>
+        <% if(editSoru && editSoru.unite) { %><option value="<%= editSoru.unite %>" selected><%= editSoru.unite %></option><% } %>
+      </select>
+      <br><br>
+      <input name="konu" id="se_konu" list="se_konu_liste" placeholder="Konu" value="<%= editSoru ? editSoru.konu : '' %>" class="input">
+      <datalist id="se_konu_liste"></datalist>
       <textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
       <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
       <div class="toolbar">
@@ -443,6 +449,67 @@ function escHtml(str) {
     </form>
   </div>
   <script>
+  var _tumUniteler = [];
+
+  function sinifDegisti() {
+    var sinif = document.getElementById('se_sinif').value;
+    fetch('/api/unite-bilgi?sinif=' + sinif)
+      .then(function(r){ return r.json(); })
+      .then(function(v){
+        if (!v.ok) return;
+        _tumUniteler = v.uniteler;
+        var dersSelect = document.getElementById('se_ders');
+        var mevcutDers = dersSelect.value;
+        if (v.dersler.length) {
+          dersSelect.innerHTML = '';
+          v.dersler.forEach(function(d){
+            var opt = document.createElement('option');
+            opt.value = d; opt.textContent = d;
+            if (d === mevcutDers || (!mevcutDers && d === 'Matematik')) opt.selected = true;
+            dersSelect.appendChild(opt);
+          });
+        }
+        dersDegisti();
+      })
+      ['catch'](function(){});
+  }
+
+  function dersDegisti() {
+    var sinif = document.getElementById('se_sinif').value;
+    var ders  = document.getElementById('se_ders').value;
+    var uniteSelect = document.getElementById('se_unite');
+    var mevcutUnite = uniteSelect.value;
+    uniteSelect.innerHTML = '<option value="">-- Ünite Seçin (Opsiyonel) --</option>';
+    _tumUniteler
+      .filter(function(u){ return u.ders === ders && (!u.sinif || u.sinif === sinif); })
+      .forEach(function(u){
+        var opt = document.createElement('option');
+        opt.value = u.uniteAdi;
+        opt.textContent = u.uniteNo + '. ' + u.uniteAdi;
+        if (u.uniteAdi === mevcutUnite) opt.selected = true;
+        uniteSelect.appendChild(opt);
+      });
+    uniteDegisti();
+  }
+
+  function uniteDegisti() {
+    var sinif = document.getElementById('se_sinif').value;
+    var ders  = document.getElementById('se_ders').value;
+    var unite = document.getElementById('se_unite').value;
+    var liste = document.getElementById('se_konu_liste');
+    liste.innerHTML = '';
+    var seciliUnite = _tumUniteler.find(function(u){
+      return u.ders === ders && u.uniteAdi === unite && (!u.sinif || u.sinif === sinif);
+    });
+    if (seciliUnite) {
+      seciliUnite.konular.forEach(function(k){
+        var opt = document.createElement('option');
+        opt.value = k;
+        liste.appendChild(opt);
+      });
+    }
+  }
+
   function ekle(alanId, html, imlecGeri) {
     var ta = document.getElementById(alanId);
     var bas = ta.selectionStart, son = ta.selectionEnd;
@@ -461,6 +528,7 @@ function escHtml(str) {
     div.innerHTML = metin;
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
   }
+  window.addEventListener('DOMContentLoaded', function(){ sinifDegisti(); });
   </script>
 
 <% } else if (mod === 'kullanicilar') { %>
@@ -828,7 +896,7 @@ function gosterExcelHata(msg) {
     <div style="display:grid; gap:10px;">
       <% tumSorular.forEach(function(s, i) { %>
         <div class="soru-listesi-item">
-          <span><b><%= i+1 %>.</b> [<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= (s.soruMetni||'').substring(0,50) %>...
+          <span><b><%= i+1 %>.</b> [<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,50) %>...
             <small style="color:#888;">Z:<%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP:<%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></small>
           </span>
           <div>
