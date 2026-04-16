@@ -765,6 +765,112 @@ function gosterExcelHata(msg) {
 </script>
 
 <% } else if (mod === 'okullar') { %>
+
+  <!-- Excel'den Toplu Okul Yükleme -->
+  <div class="card" style="margin-bottom:16px;">
+    <h3>📊 Excel'den Toplu Okul Yükleme</h3>
+    <p style="color:#666; font-size:13px; margin-bottom:12px;">
+      Excel formatı: <b>A sütunu</b> = İl, <b>B sütunu</b> = İlçe, <b>C sütunu</b> = Okul Adı (1. satır başlık)
+    </p>
+    <div id="okulDropZone" style="border:2px dashed #1a73e8; border-radius:10px; padding:24px; text-align:center; background:#f8f9ff; cursor:pointer; margin-bottom:10px;">
+      <div style="font-size:28px; margin-bottom:4px;">📊</div>
+      <div style="color:#1a73e8; font-weight:bold; margin-bottom:2px;">Excel dosyasını buraya sürükleyin veya tıklayın</div>
+      <div style="color:#888; font-size:12px;">.xlsx veya .xls — Maks 5 MB</div>
+      <input type="file" id="okulExcelInput" accept=".xlsx,.xls" style="display:none;">
+    </div>
+    <div id="okulSecilenDosya" style="display:none; padding:8px 12px; background:#e8f5e9; border-radius:6px; margin-bottom:10px;">
+      ✅ <span id="okulDosyaAd" style="font-weight:500;"></span>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+      <label style="font-size:13px; color:#666;">Kayıt modu:</label>
+      <label style="font-size:13px; cursor:pointer;"><input type="radio" name="okulMod" value="ekle" checked> Mevcut okullara ekle (tekrar olanları atla)</label>
+      <label style="font-size:13px; cursor:pointer;"><input type="radio" name="okulMod" value="sifirla"> Tümünü sil, yeniden yükle</label>
+    </div>
+    <button id="okulAnalizBtn" onclick="okulExcelAnalizBaslat()" class="btn btn-success" style="display:none;">📊 Analiz Et ve Önizle</button>
+    <div id="okulHata" style="display:none; padding:10px; background:#ffebee; border:1px solid #ef9a9a; border-radius:6px; color:#c62828; margin-top:8px;"></div>
+  </div>
+
+  <!-- Önizleme -->
+  <div id="okulOnizleme" style="display:none;" class="card" style="margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#e8f5e9; padding:12px; border-radius:8px; margin-bottom:10px;">
+      <b style="color:#2e7d32;">✅ <span id="okulToplamSayi"></span> okul bulundu</b>
+      <button onclick="okulExcelKaydet()" class="btn btn-success">💾 Kaydet</button>
+    </div>
+    <div id="okulOnizlemeTablosu" style="max-height:300px; overflow-y:auto;">
+      <table class="tablo">
+        <thead><tr><th>İl</th><th>İlçe</th><th>Okul Adı</th></tr></thead>
+        <tbody id="okulOnizlemeSatirlar"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  var _okulOnizlemeVeri = [];
+  (function(){
+    var zone = document.getElementById('okulDropZone');
+    var input = document.getElementById('okulExcelInput');
+    zone.addEventListener('click', function(){ input.click(); });
+    zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.style.background='#e3f2fd'; });
+    zone.addEventListener('dragleave', function(){ zone.style.background='#f8f9ff'; });
+    zone.addEventListener('drop', function(e){
+      e.preventDefault(); zone.style.background='#f8f9ff';
+      if(e.dataTransfer.files[0]) okulDosyaSec(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', function(){ if(input.files[0]) okulDosyaSec(input.files[0]); });
+  })();
+
+  function okulDosyaSec(f) {
+    document.getElementById('okulDosyaAd').textContent = f.name;
+    document.getElementById('okulSecilenDosya').style.display = 'block';
+    document.getElementById('okulAnalizBtn').style.display = 'inline-block';
+    document.getElementById('okulHata').style.display = 'none';
+    window._seciliOkulExcel = f;
+  }
+
+  function okulExcelAnalizBaslat() {
+    if (!window._seciliOkulExcel) return;
+    var fd = new FormData();
+    fd.append('okulExcelDosyasi', window._seciliOkulExcel);
+    fetch('/okul-excel-yukle', {
+      method: 'POST',
+      headers: { 'Authorization': 'Basic <%- adminToken %>' },
+      body: fd
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      if (!v.ok) { document.getElementById('okulHata').textContent = '⚠️ ' + v.hata; document.getElementById('okulHata').style.display='block'; return; }
+      _okulOnizlemeVeri = v.onizleme;
+      document.getElementById('okulToplamSayi').textContent = v.toplam;
+      var tbody = document.getElementById('okulOnizlemeSatirlar');
+      tbody.innerHTML = '';
+      v.onizleme.forEach(function(o){
+        tbody.innerHTML += '<tr><td>'+o.il+'</td><td>'+o.ilce+'</td><td>'+o.ad+'</td></tr>';
+      });
+      document.getElementById('okulOnizleme').style.display = 'block';
+    })
+    ['catch'](function(e){ document.getElementById('okulHata').textContent = '⚠️ ' + e.message; document.getElementById('okulHata').style.display='block'; });
+  }
+
+  function okulExcelKaydet() {
+    if (!_okulOnizlemeVeri.length) return;
+    var mod = document.querySelector('input[name="okulMod"]:checked').value;
+    var onay = mod === 'sifirla' ? 'Tüm okullar silinip yenileri yüklenecek. Emin misiniz?' : _okulOnizlemeVeri.length + ' okul eklenecek. Onaylıyor musunuz?';
+    if (!confirm(onay)) return;
+    fetch('/okul-excel-kaydet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic <%- adminToken %>' },
+      body: JSON.stringify({ okullar: _okulOnizlemeVeri, mod: mod })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      if (!v.ok) { alert('Hata: ' + v.hata); return; }
+      alert(v.eklenen + ' okul eklendi, ' + v.atlanan + ' tekrar atlandı.');
+      window.location.reload();
+    })
+    ['catch'](function(e){ alert('Hata: ' + e.message); });
+  }
+  </script>
+
   <div class="card">
     <h3>Okul Yönetimi</h3>
 

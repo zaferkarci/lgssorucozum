@@ -136,6 +136,62 @@ router.post('/okul-kaydet', async (req, res) => {
     } catch (err) { res.status(500).json({ ok: false }); }
 });
 
+
+// ── Excel'den Okul Yükleme ───────────────────────────────────────────────────
+const uploadOkulExcel = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.match(/\.(xlsx|xls)$/i)) cb(null, true);
+        else cb(new Error('Sadece Excel dosyası kabul edilir.'));
+    }
+});
+
+router.post('/okul-excel-yukle', uploadOkulExcel.single('okulExcelDosyasi'), async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        if (!req.file) return res.status(400).json({ hata: 'Excel dosyası seçilmedi.' });
+        const XLSX = require('xlsx');
+        const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const satirlar = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+        // İlk satır başlık, atla. A=İl, B=İlçe, C=Okul Adı
+        const okullar = [];
+        for (let i = 1; i < satirlar.length; i++) {
+            const s = satirlar[i];
+            if (!s || s.every(h => !h)) continue;
+            const il  = s[0] ? String(s[0]).trim() : '';
+            const ilce = s[1] ? String(s[1]).trim() : '';
+            const ad  = s[2] ? String(s[2]).trim() : '';
+            if (il && ilce && ad) okullar.push({ il, ilce, ad });
+        }
+        res.json({ ok: true, onizleme: okullar, toplam: okullar.length });
+    } catch (err) {
+        console.error('[Okul Excel Hatası]', err.message);
+        res.status(500).json({ hata: err.message });
+    }
+});
+
+router.post('/okul-excel-kaydet', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { okullar, mod } = req.body;
+        if (!Array.isArray(okullar) || okullar.length === 0)
+            return res.status(400).json({ hata: 'Kaydedilecek okul yok.' });
+        if (mod === 'sifirla') await Okul.deleteMany({});
+        let eklenen = 0;
+        for (const o of okullar) {
+            const varMi = await Okul.findOne({ il: o.il, ilce: o.ilce, ad: o.ad });
+            if (!varMi) { await new Okul({ il: o.il, ilce: o.ilce, ad: o.ad }).save(); eklenen++; }
+        }
+        res.json({ ok: true, eklenen, atlanan: okullar.length - eklenen });
+    } catch (err) {
+        console.error('[Okul Kayıt Hatası]', err.message);
+        res.status(500).json({ hata: err.message });
+    }
+});
+
 module.exports = router;
 
 router.post('/soru-istatistik-sifirla', async (req, res) => {
