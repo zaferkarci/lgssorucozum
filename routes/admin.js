@@ -3,6 +3,7 @@ const router = express.Router();
 const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
+const Unite = require('../models/Unite');
 
 function adminKontrol(req, res) {
     const authHeader = req.headers.authorization || '';
@@ -47,7 +48,8 @@ router.get('/admin', async (req, res) => {
         tumKullanicilar, filtreliKullanicilar,
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
-        tumOkullar, adminToken
+        tumOkullar, adminToken,
+        tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 })
     });
 });
 
@@ -141,5 +143,112 @@ router.post('/soru-istatistik-sifirla', async (req, res) => {
     try {
         await Soru.updateMany({}, { $set: { cozulmeSayisi: 0, dogruSayisi: 0, ortalamaSure: 0, hamPuan: null, zorlukKatsayisi: 3, cozumSureleriTum: [], dogruCevapSureleri: [] } });
         res.send('<script>alert("Soru istatistikleri sıfırlandı!"); window.location.href="/admin?mod=sifirla";</script>');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// ── Excel'den Ünite/Konu Yükleme ─────────────────────────────────────────────
+const multer = require('multer');
+const uploadExcel = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.match(/\.(xlsx|xls)$/i)) cb(null, true);
+        else cb(new Error('Sadece Excel dosyası (.xlsx/.xls) kabul edilir.'));
+    }
+});
+
+router.post('/unite-excel-yukle', uploadExcel.single('excelDosyasi'), async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        if (!req.file) return res.status(400).json({ hata: 'Excel dosyası seçilmedi.' });
+
+        const XLSX = require('xlsx');
+        const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const satirlar = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+        // Format: A=Sınıf, B=Ders, C=Ünite (1. Ünite), D=Ünite Adı, E=Alt Konu
+        // Birleştirilmiş hücreler boş gelir — bir önceki dolu değeri devral
+        let sonSinif = '', sonDers = '', sonUnite = '', sonUniteAdi = '';
+        const uniteMap = {}; // anahtar => { sinif, ders, uniteNo, uniteAdi, konular[] }
+
+        for (let i = 1; i < satirlar.length; i++) {
+            const s = satirlar[i];
+            // Tamamen boş satırı atla
+            if (!s || s.every(h => !h)) continue;
+
+            // Birleştirilmiş hücre desteği — boşsa bir öncekini kullan
+            const sinif    = s[0] != null ? String(s[0]).trim() : sonSinif;
+            const ders     = s[1] != null ? String(s[1]).trim() : sonDers;
+            const uniteStr = s[2] != null ? String(s[2]).trim() : sonUnite;
+            const uniteAdi = s[3] != null ? String(s[3]).trim() : sonUniteAdi;
+            const konu     = s[4] != null ? String(s[4]).trim() : '';
+
+            if (!ders && !uniteStr && !uniteAdi) continue; // anlamlı veri yok
+
+            // Ünite numarasını çıkar: "1. Ünite" → 1
+            const uniteNoEslesen = uniteStr.match(/^(\d+)/);
+            const uniteNo = uniteNoEslesen ? parseInt(uniteNoEslesen[1]) : 0;
+
+            // Benzersiz anahtar
+            const anahtar = `${sinif}||${ders}||${uniteNo}||${uniteAdi || uniteStr}`;
+            if (!uniteMap[anahtar]) {
+                uniteMap[anahtar] = {
+                    sinif, ders, uniteNo,
+                    uniteAdi: uniteAdi || uniteStr,
+                    konular: []
+                };
+            }
+            if (konu) uniteMap[anahtar].konular.push(konu);
+
+            // Bir sonraki boş hücreler için sakla
+            sonSinif    = sinif;
+            sonDers     = ders;
+            sonUnite    = uniteStr;
+            sonUniteAdi = uniteAdi;
+        }
+
+        const onizleme = Object.values(uniteMap);
+        res.json({
+            ok: true,
+            onizleme,
+            toplamUnite: onizleme.length,
+            toplamKonu: onizleme.reduce((t, u) => t + u.konular.length, 0)
+        });
+
+    } catch (err) {
+        console.error('[Excel Yükleme Hatası]', err.message);
+        res.status(500).json({ hata: err.message });
+    }
+});
+
+router.post('/unite-kaydet', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { uniteler, mod } = req.body; // mod: 'ekle' veya 'sifirla'
+        if (!Array.isArray(uniteler) || uniteler.length === 0)
+            return res.status(400).json({ hata: 'Kaydedilecek ünite yok.' });
+
+        if (mod === 'sifirla') await Unite.deleteMany({});
+
+        const kayitlar = uniteler.map(u => ({
+            ders:     u.ders     || 'Belirtilmedi',
+            uniteNo:  parseInt(u.uniteNo) || 0,
+            uniteAdi: u.uniteAdi,
+            konular:  u.konular  || []
+        }));
+        await Unite.insertMany(kayitlar);
+        res.json({ ok: true, kaydedilen: kayitlar.length });
+    } catch (err) {
+        console.error('[Ünite Kayıt Hatası]', err.message);
+        res.status(500).json({ hata: err.message });
+    }
+});
+
+router.post('/unite-sil', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Unite.findByIdAndDelete(req.body.id);
+        res.redirect('/admin?mod=uniteler');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });

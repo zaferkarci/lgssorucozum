@@ -15,6 +15,7 @@
     <a href="/admin?mod=soruEkle" class="nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru Ekle</a>
     <a href="/admin?mod=pdfYukle" class="nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF'den Toplu Yükle</a>
     <a href="/admin?mod=kullanicilar" class="nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+    <a href="/admin?mod=uniteler" class="nav-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
     <a href="/admin?mod=okullar" class="nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
     <a href="/admin?mod=sifirla" class="nav-link" style="color:#ffaaaa;">🗑️ Veri Sıfırla</a>
     <a href="/" class="nav-link cikis">Çıkış Yap</a>
@@ -506,6 +507,176 @@ function escHtml(str) {
       </tbody>
     </table>
   </div>
+
+<% } else if (mod === 'uniteler') { %>
+
+<!-- ── Ünite / Konu Yönetimi ── -->
+<div class="card">
+  <h3>📚 Ünite ve Konu Yönetimi</h3>
+  <p style="color:#666; font-size:13px; margin-bottom:16px;">
+    Excel şablonunu indirin, doldurun ve yükleyin. Satır ve sütun yapısına göre otomatik okunur.
+  </p>
+
+  <!-- Şablon İndir -->
+  <a href="/unite-sablon-indir" class="btn" style="background:#1a73e8; color:white; margin-bottom:16px; display:inline-block;">
+    📥 Excel Şablonunu İndir
+  </a>
+
+  <!-- Yükleme Alanı -->
+  <div style="border:2px dashed #1a73e8; border-radius:10px; padding:30px; text-align:center; background:#f8f9ff; cursor:pointer; margin-bottom:16px;" id="excelDropZone">
+    <div style="font-size:32px; margin-bottom:6px;">📊</div>
+    <div style="color:#1a73e8; font-weight:bold; margin-bottom:4px;">Excel dosyasını buraya sürükleyin veya tıklayın</div>
+    <div style="color:#888; font-size:13px;">.xlsx veya .xls — Maks 5 MB</div>
+    <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none;">
+  </div>
+
+  <div id="excelSecilenDosya" style="display:none; padding:10px 14px; background:#e8f5e9; border-radius:8px; margin-bottom:12px;">
+    ✅ <span id="excelDosyaAd" style="font-weight:500;"></span>
+  </div>
+
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+    <label style="font-size:13px; color:#666;">Kayıt modu:</label>
+    <label style="font-size:13px; cursor:pointer;">
+      <input type="radio" name="kayitMod" value="ekle" checked> Mevcut ünitelere ekle
+    </label>
+    <label style="font-size:13px; cursor:pointer;">
+      <input type="radio" name="kayitMod" value="sifirla"> Tümünü sil, yeniden yükle
+    </label>
+  </div>
+
+  <button id="excelAnalizBtn" onclick="excelAnalizBaslat()" class="btn btn-success" style="display:none;">📊 Analiz Et ve Önizle</button>
+  <div id="excelHata" style="display:none; padding:10px; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; color:#c62828; margin-top:10px;"></div>
+</div>
+
+<!-- Önizleme -->
+<div id="excelOnizleme" style="display:none;">
+  <div class="card" style="background:#e8f5e9; border-color:#a5d6a7;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <b style="color:#2e7d32;">✅ <span id="excelToplamUnite"></span> ünite, <span id="excelToplamKonu"></span> konu bulundu</b>
+        <p style="color:#555; font-size:13px; margin-top:4px;">Kontrol edin, ardından kaydedin.</p>
+      </div>
+      <button onclick="excelKaydet()" class="btn btn-success">💾 Veritabanına Kaydet</button>
+    </div>
+  </div>
+  <div id="excelOnizlemeListesi"></div>
+</div>
+
+<!-- Mevcut Üniteler Listesi -->
+<div class="card" style="margin-top:16px;">
+  <h3>Kayıtlı Üniteler (<%= tumUniteler.length %>)</h3>
+  <% if (tumUniteler.length === 0) { %>
+    <p style="color:#888; font-size:13px;">Henüz ünite eklenmemiş.</p>
+  <% } else { %>
+    <table class="tablo">
+      <thead><tr><th>Sınıf</th><th>Ünite No</th><th>Ders</th><th>Ünite Adı</th><th>Konu Sayısı</th><th>Konular</th><th>İşlem</th></tr></thead>
+      <tbody>
+        <% tumUniteler.forEach(function(u) { %>
+          <tr>
+            <td style="text-align:center;"><%= u.sinif||"-" %></td>
+            <td style="text-align:center;"><%= u.uniteNo %></td>
+            <td><%= u.ders %></td>
+            <td><b><%= u.uniteAdi %></b></td>
+            <td style="text-align:center;"><%= u.konular.length %></td>
+            <td style="font-size:12px; color:#666;"><%= u.konular.join(', ') %></td>
+            <td style="text-align:center;">
+              <form action="/unite-sil" method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<%= u._id %>">
+                <button onclick="return confirm('Bu ünite silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<script>
+var excelOnizlemeVeri = [];
+
+// Drag & Drop
+(function() {
+  var zone  = document.getElementById('excelDropZone');
+  var input = document.getElementById('excelInput');
+  zone.addEventListener('click', function() { input.click(); });
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.style.background='#e3f2fd'; });
+  zone.addEventListener('dragleave', function() { zone.style.background='#f8f9ff'; });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.style.background='#f8f9ff';
+    if (e.dataTransfer.files[0]) excelDosyaSec(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', function() { if (input.files[0]) excelDosyaSec(input.files[0]); });
+})();
+
+function excelDosyaSec(f) {
+  document.getElementById('excelDosyaAd').textContent = f.name;
+  document.getElementById('excelSecilenDosya').style.display = 'block';
+  document.getElementById('excelAnalizBtn').style.display = 'inline-block';
+  document.getElementById('excelHata').style.display = 'none';
+  window._seciliExcel = f;
+}
+
+function excelAnalizBaslat() {
+  if (!window._seciliExcel) return;
+  var fd = new FormData();
+  fd.append('excelDosyasi', window._seciliExcel);
+  fetch('/unite-excel-yukle', {
+    method: 'POST',
+    headers: { 'Authorization': 'Basic <%- adminToken %>' },
+    body: fd
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(v) {
+    if (!v.ok) { gosterExcelHata(v.hata); return; }
+    excelOnizlemeVeri = v.onizleme;
+    document.getElementById('excelToplamUnite').textContent = v.toplamUnite;
+    document.getElementById('excelToplamKonu').textContent = v.toplamKonu;
+    var liste = document.getElementById('excelOnizlemeListesi');
+    liste.innerHTML = '';
+    v.onizleme.forEach(function(u) {
+      var div = document.createElement('div');
+      div.className = 'card';
+      div.style.cssText = 'margin-bottom:8px; border-left:4px solid #1a73e8;';
+      div.innerHTML = '<b style="color:#1a73e8;">' + u.uniteNo + '. ' + u.uniteAdi + '</b>' +
+        '<span style="color:#888; font-size:12px; margin-left:8px;">(' + u.ders + ')</span>' +
+        '<div style="margin-top:6px; font-size:13px; color:#444;">' +
+        u.konular.map(function(k,i){ return '<span style="background:#f0f2f5; border-radius:4px; padding:2px 8px; margin:2px; display:inline-block;">' + (i+1) + '. ' + k + '</span>'; }).join('') +
+        '</div>';
+      liste.appendChild(div);
+    });
+    document.getElementById('excelOnizleme').style.display = 'block';
+  })
+  ['catch'](function(e) { gosterExcelHata(e.message); });
+}
+
+function excelKaydet() {
+  if (!excelOnizlemeVeri.length) return;
+  var mod = document.querySelector('input[name="kayitMod"]:checked').value;
+  var onay = mod === 'sifirla'
+    ? 'Tüm mevcut üniteler silinip yenileri yüklenecek. Emin misiniz?'
+    : excelOnizlemeVeri.length + ' ünite eklenecek. Onaylıyor musunuz?';
+  if (!confirm(onay)) return;
+  fetch('/unite-kaydet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic <%- adminToken %>' },
+    body: JSON.stringify({ uniteler: excelOnizlemeVeri, mod: mod })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(v) {
+    if (!v.ok) { gosterExcelHata(v.hata); return; }
+    alert(v.kaydedilen + ' ünite başarıyla kaydedildi!');
+    window.location.reload();
+  })
+  ['catch'](function(e) { gosterExcelHata(e.message); });
+}
+
+function gosterExcelHata(msg) {
+  var k = document.getElementById('excelHata');
+  k.textContent = '⚠️ ' + msg;
+  k.style.display = 'block';
+}
+</script>
 
 <% } else if (mod === 'okullar') { %>
   <div class="card">
