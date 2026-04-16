@@ -842,10 +842,17 @@ function gosterExcelHata(msg) {
       _okulOnizlemeVeri = v.onizleme;
       document.getElementById('okulToplamSayi').textContent = v.toplam;
       var tbody = document.getElementById('okulOnizlemeSatirlar');
-      tbody.innerHTML = '';
-      v.onizleme.forEach(function(o){
-        tbody.innerHTML += '<tr><td>'+o.il+'</td><td>'+o.ilce+'</td><td>'+o.ad+'</td></tr>';
-      });
+      // Sadece ilk 100 satırı göster — performans için
+      var rows = '';
+      var gosterilen = Math.min(v.onizleme.length, 100);
+      for (var i = 0; i < gosterilen; i++) {
+        var o = v.onizleme[i];
+        rows += '<tr><td>'+o.il+'</td><td>'+o.ilce+'</td><td>'+o.ad+'</td></tr>';
+      }
+      if (v.onizleme.length > 100) {
+        rows += '<tr><td colspan="3" style="text-align:center; color:#888; font-style:italic;">... ve ' + (v.onizleme.length - 100) + ' okul daha</td></tr>';
+      }
+      tbody.innerHTML = rows;
       document.getElementById('okulOnizleme').style.display = 'block';
     })
     ['catch'](function(e){ document.getElementById('okulHata').textContent = '⚠️ ' + e.message; document.getElementById('okulHata').style.display='block'; });
