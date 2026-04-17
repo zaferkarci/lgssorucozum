@@ -74,13 +74,13 @@ router.get('/admin', async (req, res) => {
 // ── Soru CRUD ────────────────────────────────────────────────────────────────
 router.post('/soru-ekle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
-    await new Soru({ sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu: req.body.soruOnculu, soruOnculuResmi: req.body.soruOnculuResmi||'', soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
+    await new Soru({ sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruResmi: req.body.soruResmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
     res.redirect('/admin?mod=soruListesi');
 });
 
 router.post('/soru-guncelle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
-    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu: req.body.soruOnculu, soruOnculuResmi: req.body.soruOnculuResmi||'', soruResmi: req.body.soruResmi, soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) });
+    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruResmi: req.body.soruResmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) });
     res.redirect('/admin?mod=soruListesi');
 });
 

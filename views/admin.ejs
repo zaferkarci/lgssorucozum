@@ -423,10 +423,14 @@ function escHtml(str) {
         <option value="ikili" <%= (editSoru && editSoru.sikDizilimi==='ikili') ? 'selected' : '' %>>İkili (A-B üste, C-D altta)</option>
       </select>
       <br>
-      <label class="form-label">Öncül</label>
-      <textarea name="soruOnculu" placeholder="Öncül metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
-      <label class="form-label">Öncül Resmi</label>
-      <input name="soruOnculuResmi" placeholder="Öncül Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruOnculuResmi : '' %>" class="input">
+      <label class="form-label">Öncül 1</label>
+      <textarea name="soruOnculu1" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||editSoru.soruOnculu||'') : '' %></textarea>
+      <label class="form-label">Öncül 1 Görseli</label>
+      <input name="soruOnculu1Resmi" placeholder="Öncül 1 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu1Resmi||editSoru.soruOnculuResmi||'') : '' %>" class="input">
+      <label class="form-label">Öncül 2</label>
+      <textarea name="soruOnculu2" placeholder="Öncül 2 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu2||'') : '' %></textarea>
+      <label class="form-label">Öncül 2 Görseli</label>
+      <input name="soruOnculu2Resmi" placeholder="Öncül 2 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu2Resmi||'') : '' %>" class="input">
       <label class="form-label">Soru Görseli</label>
       <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
       <label class="form-label">Soru Metni</label>
