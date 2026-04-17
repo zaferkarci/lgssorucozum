@@ -416,6 +416,13 @@ function escHtml(str) {
         <% if(editSoru && editSoru.konu) { %><option value="<%= editSoru.konu %>" selected><%= editSoru.konu %></option><% } %>
       </select>
       <br><br>
+      Şık Dizilimi:
+      <select name="sikDizilimi" class="input-sm" style="margin-bottom:10px;">
+        <option value="dikey" <%= (!editSoru || editSoru.sikDizilimi==='dikey' || !editSoru.sikDizilimi) ? 'selected' : '' %>>Dikey (Alt Alta)</option>
+        <option value="yatay" <%= (editSoru && editSoru.sikDizilimi==='yatay') ? 'selected' : '' %>>Yatay (Yan Yana)</option>
+        <option value="ikili" <%= (editSoru && editSoru.sikDizilimi==='ikili') ? 'selected' : '' %>>İkili (A-B üste, C-D altta)</option>
+      </select>
+      <br>
       <textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
       <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
       <div class="toolbar">

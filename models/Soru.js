@@ -4,6 +4,7 @@ module.exports = mongoose.model('Soru', new mongoose.Schema({
     sinif: String, ders: String, unite: String, konu: String, soruOnculu: String,
     soruMetni: String, soruResmi: String,
     secenekler: [{ metin: String, gorsel: String }],
+    sikDizilimi: { type: String, default: 'dikey' },
     dogruCevapIndex: Number,
     cozulmeSayisi: { type: Number, default: 0 },
     dogruSayisi: { type: Number, default: 0 },

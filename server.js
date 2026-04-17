@@ -1,5 +1,5 @@
 // --- LGS HAZIRLIK PLATFORMU - VERSİYON 3.0.2 (Modüler Yapı) ---
-
+require('dotenv').config();
 const mongoose = require('mongoose');
 const express = require('express');
 const path = require('path');

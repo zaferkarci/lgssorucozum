@@ -61,39 +61,48 @@
     const zb = zorlukBilgisi(soru);
     const harfler = ['A','B','C','D'];
   %>
-    <div class="soru-kart">
-      <div class="soru-header">
+    <div class="soru-kart" style="display:flex; flex-direction:column; height:calc(100vh - 80px); overflow:hidden; max-width:800px; margin:auto; padding:12px 16px;">
+      <div class="soru-header" style="flex-shrink:0; padding:8px 12px; margin-bottom:6px;">
         <span><b><%= k.kullaniciAdi %></b> | Puan: <%= k.puan %></span>
         <div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div>
       </div>
-      <div class="soru-etiketler">
+      <div class="soru-etiketler" style="flex-shrink:0; margin-bottom:6px;">
         <span class="etiket" style="background:<%= zb.renk %>">Zorluk: <%= zb.etiket %></span>
         <% if (soru.sinif) { %><span class="etiket" style="background:#607d8b"><%= soru.sinif %>. Sınıf</span><% } %>
         <span class="etiket" style="background:#3498db">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="etiket" style="background:#16a085">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="etiket" style="background:#8e44ad">Konu: <%= soru.konu %></span><% } %>
       </div>
-      <% if (soru.soruOnculu) { %><div class="soru-onculu"><%= soru.soruOnculu %></div><% } %>
-      <% if (soru.soruResmi) { %><div style="text-align:center; margin-bottom:15px;"><img src="<%= soru.soruResmi %>" style="max-width:100%; border-radius:8px;"></div><% } %>
-      <h2 class="soru-metni"><%- soru.soruMetni %></h2>
-      <div class="secenekler">
-        <% for (let i=0; i<4; i++) { %>
-          <% if (soru.secenekler[i]) { %>
-          <form method="POST" action="/cevap" style="margin:0;">
-            <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-            <input type="hidden" name="soruId" value="<%= soru._id %>">
-            <input type="hidden" name="secilenIndex" value="<%= i %>">
-            <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
-            <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn">
-              <b><%= harfler[i] %>)</b> <%- soru.secenekler[i].metin || '' %>
-              <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
-            </button>
-          </form>
+      <div style="flex:1; overflow-y:auto; min-height:0;">
+        <% if (soru.soruOnculu) { %><div class="soru-onculu" style="margin-bottom:8px; font-size:13px;"><%= soru.soruOnculu %></div><% } %>
+        <% if (soru.soruResmi) { %><div style="text-align:center; margin-bottom:10px;"><img src="<%= soru.soruResmi %>" style="max-width:100%; max-height:200px; border-radius:8px; object-fit:contain;"></div><% } %>
+        <h2 class="soru-metni" style="font-size:17px; margin-bottom:12px;"><%- soru.soruMetni %></h2>
+        <%
+          var dizilim = soru.sikDizilimi || 'dikey';
+          var gridStyle = '';
+          if (dizilim === 'yatay') gridStyle = 'display:grid; grid-template-columns:1fr 1fr; gap:8px;';
+          else if (dizilim === 'ikili') gridStyle = 'display:grid; grid-template-columns:1fr 1fr; gap:8px;';
+          else gridStyle = 'display:grid; gap:8px;';
+        %>
+        <div class="secenekler" style="<%= gridStyle %>">
+          <% for (let i=0; i<4; i++) { %>
+            <% if (soru.secenekler[i]) { %>
+            <form method="POST" action="/cevap" style="margin:0;">
+              <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+              <input type="hidden" name="soruId" value="<%= soru._id %>">
+              <input type="hidden" name="secilenIndex" value="<%= i %>">
+              <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
+              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn" style="padding:10px 14px; font-size:13px; width:100%;">
+                <b><%= harfler[i] %>)</b> <%- soru.secenekler[i].metin || '' %>
+                <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
+              </button>
+            </form>
+            <% } %>
           <% } %>
-        <% } %>
+        </div>
+        <p style="text-align:center; color:#aaa; font-size:11px; margin-top:10px; margin-bottom:4px;">Eğitim amaçlıdır. Soruların tüm hakları MEB'e aittir.</p>
       </div>
     </div>
-    <p style="text-align:center; color:#aaa; font-size:12px; margin-top:12px;">Eğitim amaçlıdır. Soruların tüm hakları MEB'e aittir.</p>
     <script>
     var SORU_KEY = 'lgs_soru_baslangic_<%= soru._id %>';
     var simdi = Date.now();
