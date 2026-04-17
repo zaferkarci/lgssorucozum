@@ -423,8 +423,13 @@ function escHtml(str) {
         <option value="ikili" <%= (editSoru && editSoru.sikDizilimi==='ikili') ? 'selected' : '' %>>İkili (A-B üste, C-D altta)</option>
       </select>
       <br>
-      <textarea name="soruOnculu" placeholder="Öncül (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
+      <label class="form-label">Öncül</label>
+      <textarea name="soruOnculu" placeholder="Öncül metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? editSoru.soruOnculu : '' %></textarea>
+      <label class="form-label">Öncül Resmi</label>
+      <input name="soruOnculuResmi" placeholder="Öncül Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruOnculuResmi : '' %>" class="input">
+      <label class="form-label">Soru Görseli</label>
       <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
+      <label class="form-label">Soru Metni</label>
       <div class="toolbar">
         <button type="button" onclick="ekle('soruMetni','<sup></sup>',4)" class="toolbar-btn" title="Üst simge">x²</button>
         <button type="button" onclick="ekle('soruMetni','<sub></sub>',5)" class="toolbar-btn" title="Alt simge">x₂</button>
