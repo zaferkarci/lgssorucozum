@@ -132,9 +132,9 @@
           var gridCols = dizilim === 'yatay' ? '1fr 1fr 1fr 1fr' : dizilim === 'ikili' ? '1fr 1fr' : '1fr';
           var formStyle = (dizilim === 'yatay' || dizilim === 'ikili') ? 'margin:0; display:contents;' : 'margin:0;';
         %>
-        <% if (soru.soruOnculu1) { %><div class="soru-onculu" style="margin-bottom:4px; font-size:13px;"><%- soru.soruOnculu1 %></div><% } %>
+        <% if (soru.soruOnculu1) { %><div style="display:block; width:100%; margin-bottom:4px; font-size:13px;" class="soru-onculu"><%- soru.soruOnculu1 %></div><% } %>
 
-        <div class="secenekler" style="display:grid; grid-template-columns:<%= gridCols %>; gap:8px;">
+        <div class="secenekler" style="display:grid; grid-template-columns:<%= gridCols %>; gap:8px; clear:both;">
           <% for (let i=0; i<4; i++) { %>
             <% if (soru.secenekler[i]) { %>
             <% var sikIcerigi = soru.secenekler[i].metin || ''; %>
