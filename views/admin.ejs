@@ -592,9 +592,61 @@ function escHtml(str) {
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
   }
   window.addEventListener('DOMContentLoaded', function(){
-    // Düzenleme modunda hedef ünite/konu fetch tamamlanınca seçilir
     sinifDegisti(_editUnite, _editKonu);
   });
+
+  function tabloSikOlusturucu() {
+    tabloGuncelle();
+    document.getElementById('tabloModal').style.display = 'flex';
+  }
+
+  function tabloGuncelle() {
+    var sutun = parseInt(document.getElementById('tablo_sutunSayisi').value);
+    var romenler = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.'];
+    var harfler = ['A', 'B', 'C', 'D'];
+    var baslikHTML = '<label class="form-label">Sütun başlıkları</label><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">';
+    for (var s = 0; s < sutun; s++) {
+      var mevcutVal = document.getElementById('tablo_baslik_' + s) ? document.getElementById('tablo_baslik_' + s).value : romenler[s] + ' çuval';
+      baslikHTML += '<input id="tablo_baslik_' + s + '" value="' + mevcutVal + '" class="input-sm" style="width:100px;" placeholder="Başlık ' + (s+1) + '">';
+    }
+    baslikHTML += '</div>';
+    document.getElementById('tablo_sutunBasliklari').innerHTML = baslikHTML;
+    var sikHTML = '<label class="form-label" style="margin-top:12px; display:block;">Şık değerleri</label>';
+    for (var i = 0; i < 4; i++) {
+      sikHTML += '<div style="display:flex; align-items:center; gap:6px; margin-top:8px;"><b style="min-width:24px;">' + harfler[i] + ')</b>';
+      for (var s2 = 0; s2 < sutun; s2++) {
+        var mevcut = document.getElementById('tablo_val_' + i + '_' + s2) ? document.getElementById('tablo_val_' + i + '_' + s2).value : '';
+        sikHTML += '<input id="tablo_val_' + i + '_' + s2 + '" value="' + mevcut + '" placeholder="' + romenler[s2] + '" class="input-sm" style="width:70px; text-align:center;">';
+      }
+      sikHTML += '</div>';
+    }
+    document.getElementById('tablo_siklar').innerHTML = sikHTML;
+  }
+
+  function tabloHtmlUret() {
+    var sutun = parseInt(document.getElementById('tablo_sutunSayisi').value);
+    var harfler = ['A', 'B', 'C', 'D'];
+    var basliklar = [];
+    for (var s = 0; s < sutun; s++) {
+      basliklar.push(document.getElementById('tablo_baslik_' + s).value || ('Col ' + (s+1)));
+    }
+    for (var i = 0; i < 4; i++) {
+      var baslikSatir = '<tr><th style="padding:3px 8px; border-bottom:1px solid #ccc; color:#666; font-weight:500;"></th>';
+      for (var s2 = 0; s2 < sutun; s2++) {
+        baslikSatir += '<th style="padding:3px 8px; border-bottom:1px solid #ccc; color:#666; font-weight:500; text-align:center;">' + basliklar[s2] + '</th>';
+      }
+      baslikSatir += '</tr>';
+      var degerSatir = '<tr><td style="padding:4px 8px; font-weight:500;">' + harfler[i] + ')</td>';
+      for (var s3 = 0; s3 < sutun; s3++) {
+        var val = document.getElementById('tablo_val_' + i + '_' + s3).value || '-';
+        degerSatir += '<td style="padding:4px 8px; text-align:center;">' + val + '</td>';
+      }
+      degerSatir += '</tr>';
+      var html = '<table style="border-collapse:collapse; font-size:13px;">' + baslikSatir + degerSatir + '</table>';
+      document.getElementById('sikMetin' + i).value = html;
+    }
+    document.getElementById('tabloModal').style.display = 'none';
+  }
   </script>
 
 <% } else if (mod === 'kullanicilar') { %>
