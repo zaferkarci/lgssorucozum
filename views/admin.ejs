@@ -643,7 +643,8 @@ function escHtml(str) {
       baslikHTML += '<td style="padding:3px 12px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + basliklar[s2] + '</td>';
     }
     baslikHTML += '</tr></table>';
-    document.getElementById('soruOnculu1') && (document.getElementById('soruOnculu1').value = baslikHTML);
+    var oncul1El = document.getElementById('soruOnculu1Alan');
+    if (oncul1El) oncul1El.value = baslikHTML;
 
     // Her şık sadece kendi değer satırını içersin
     for (var i = 0; i < 4; i++) {
