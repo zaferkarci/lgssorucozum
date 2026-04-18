@@ -423,8 +423,11 @@ function escHtml(str) {
         <option value="ikili" <%= (editSoru && editSoru.sikDizilimi==='ikili') ? 'selected' : '' %>>İkili (A-B üste, C-D altta)</option>
       </select>
       <br>
-      <label class="form-label">Öncül 1</label>
-      <textarea name="soruOnculu1" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||editSoru.soruOnculu||'') : '' %></textarea>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label class="form-label">Öncül 1</label>
+        <button type="button" onclick="tabloSikOlusturucu()" class="toolbar-btn" style="background:#8e44ad; color:white; border-color:#8e44ad; font-size:12px; padding:4px 10px; margin-bottom:4px;">🔢 Tablo Oluştur</button>
+      </div>
+      <textarea name="soruOnculu1" id="soruOnculu1Alan" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||editSoru.soruOnculu||'') : '' %></textarea>
       <label class="form-label">Öncül 1 Görseli</label>
       <input name="soruOnculu1Resmi" placeholder="Öncül 1 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu1Resmi||editSoru.soruOnculuResmi||'') : '' %>" class="input">
       <label class="form-label">Öncül 2</label>
@@ -456,7 +459,6 @@ function escHtml(str) {
       <div class="siklar">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <p style="margin:0;">Şıklar (Doğru seçeneği işaretleyin):</p>
-          <button type="button" onclick="tabloSikOlusturucu()" class="toolbar-btn" style="background:#8e44ad; color:white; border-color:#8e44ad; font-size:12px; padding:4px 10px;">🔢 Tablo Şıkkı Oluştur</button>
         </div>
         <% for (var i=0; i<4; i++) { %>
           <div class="sik-row">
@@ -604,6 +606,8 @@ function escHtml(str) {
     var sutun = parseInt(document.getElementById('tablo_sutunSayisi').value);
     var romenler = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.'];
     var harfler = ['A', 'B', 'C', 'D'];
+
+    // Sütun başlıkları
     var baslikHTML = '<label class="form-label">Sütun başlıkları</label><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">';
     for (var s = 0; s < sutun; s++) {
       var mevcutVal = document.getElementById('tablo_baslik_' + s) ? document.getElementById('tablo_baslik_' + s).value : romenler[s] + ' çuval';
@@ -611,6 +615,8 @@ function escHtml(str) {
     }
     baslikHTML += '</div>';
     document.getElementById('tablo_sutunBasliklari').innerHTML = baslikHTML;
+
+    // Şık değerleri — her şık için sütun sayısı kadar input
     var sikHTML = '<label class="form-label" style="margin-top:12px; display:block;">Şık değerleri</label>';
     for (var i = 0; i < 4; i++) {
       sikHTML += '<div style="display:flex; align-items:center; gap:6px; margin-top:8px;"><b style="min-width:24px;">' + harfler[i] + ')</b>';
@@ -630,20 +636,24 @@ function escHtml(str) {
     for (var s = 0; s < sutun; s++) {
       basliklar.push(document.getElementById('tablo_baslik_' + s).value || ('Col ' + (s+1)));
     }
+
+    // Başlık satırı → öncül1 alanına yaz (şıklardan bağımsız)
+    var baslikHTML = '<table style="border-collapse:collapse; font-size:13px; margin-bottom:0;"><tr><td style="padding:3px 12px;"></td>';
+    for (var s2 = 0; s2 < sutun; s2++) {
+      baslikHTML += '<td style="padding:3px 12px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + basliklar[s2] + '</td>';
+    }
+    baslikHTML += '</tr></table>';
+    document.getElementById('soruOnculu1') && (document.getElementById('soruOnculu1').value = baslikHTML);
+
+    // Her şık sadece kendi değer satırını içersin
     for (var i = 0; i < 4; i++) {
-      var baslikSatir = '<tr><th style="padding:3px 8px; border-bottom:1px solid #ccc; color:#666; font-weight:500;"></th>';
-      for (var s2 = 0; s2 < sutun; s2++) {
-        baslikSatir += '<th style="padding:3px 8px; border-bottom:1px solid #ccc; color:#666; font-weight:500; text-align:center;">' + basliklar[s2] + '</th>';
-      }
-      baslikSatir += '</tr>';
-      var degerSatir = '<tr><td style="padding:4px 8px; font-weight:500;">' + harfler[i] + ')</td>';
+      var degerSatir = '<table style="border-collapse:collapse; font-size:13px;"><tr><td style="padding:4px 12px; font-weight:500;">' + harfler[i] + ')</td>';
       for (var s3 = 0; s3 < sutun; s3++) {
         var val = document.getElementById('tablo_val_' + i + '_' + s3).value || '-';
-        degerSatir += '<td style="padding:4px 8px; text-align:center;">' + val + '</td>';
+        degerSatir += '<td style="padding:4px 12px; text-align:center;">' + val + '</td>';
       }
-      degerSatir += '</tr>';
-      var html = '<table style="border-collapse:collapse; font-size:13px;">' + baslikSatir + degerSatir + '</table>';
-      document.getElementById('sikMetin' + i).value = html;
+      degerSatir += '</tr></table>';
+      document.getElementById('sikMetin' + i).value = degerSatir;
     }
     document.getElementById('tabloModal').style.display = 'none';
   }
