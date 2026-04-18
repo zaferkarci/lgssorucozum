@@ -138,6 +138,7 @@ router.post('/cevap', async (req, res) => {
         if (s && k) {
             const T_ogr = Math.max(parseInt(gecenSure) || 1, 1);
             const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
+            let kazanilanPuan = 0;
 
             if (dogruMu) {
                 const eskiCozulmeSayisi = s.cozulmeSayisi || 0;
@@ -155,7 +156,8 @@ router.post('/cevap', async (req, res) => {
                 const Z_katsayi = Math.min(1 + 4 * (1 - dogruOrani) * (1 + sigmaBasari), 5);
                 const sigmaSure = stdSapma(eskiSureleri);
                 const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
-                const kazanilanPuan = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);
+                const kazanilanPuanHesap = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);
+                kazanilanPuan = kazanilanPuanHesap;
                 k.puan += kazanilanPuan;
             }
 
@@ -183,7 +185,7 @@ router.post('/cevap', async (req, res) => {
                 k.dersPuanlari.push({ ders: dersAdi, toplamPuan: 0, soruSayisi: 0, toplamSure: 0 });
                 dersKayit = k.dersPuanlari[k.dersPuanlari.length - 1];
             }
-            if (dogruMu) dersKayit.toplamPuan += kazanilanPuan || 0;
+            if (dogruMu) dersKayit.toplamPuan += kazanilanPuan;
             dersKayit.soruSayisi += 1;
             dersKayit.toplamSure += T_ogr;
             k.markModified('dersPuanlari');
