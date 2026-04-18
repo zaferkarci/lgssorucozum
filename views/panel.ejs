@@ -20,6 +20,20 @@
 <div class="panel-main">
 
 <% if (mod === 'profil') { %>
+  <%
+    var dp = k.dersPuanlari || [];
+    var ortTop = ortToplamHesapla(k);
+    var dersRenkleri = {
+      'Matematik': '#378ADD',
+      'Türkçe': '#639922',
+      'Fen Bilimleri': '#EF9F27',
+      'T.C. İnkılâp Tarihi': '#D85A30',
+      'İngilizce': '#7F77DD',
+      'Din Kültürü': '#1D9E75'
+    };
+  %>
+
+  <!-- Kişisel Bilgiler -->
   <div class="card">
     <p class="card-title">Kişisel bilgiler</p>
     <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
@@ -33,13 +47,81 @@
     <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
   </div>
 
+  <!-- Genel Özet -->
   <div class="card">
-    <p class="card-title">Genel istatistikler</p>
-    <div class="stat-grid">
+    <p class="card-title">Genel özet</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
       <div class="stat"><div class="stat-label">Toplam puan</div><div class="stat-val"><%= k.puan %></div></div>
       <div class="stat"><div class="stat-label">Çözülen soru</div><div class="stat-val"><%= k.soruIndex %></div></div>
+      <div class="stat">
+        <div class="stat-label">Ders ort. toplamı</div>
+        <div class="stat-val" style="font-size:18px;"><%= ortTop.toFixed(4) %></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px;">
+      <div class="stat" style="text-align:center;">
+        <div class="stat-label">Türkiye sır.</div>
+        <div class="stat-val" style="font-size:18px;">#<%= siralamaVerisi.turkiye %></div>
+        <div style="font-size:11px; color:#888;">/ <%= siralamaVerisi.toplamKullanici %></div>
+      </div>
+      <div class="stat" style="text-align:center;">
+        <div class="stat-label">İl sır.</div>
+        <div class="stat-val" style="font-size:18px;">#<%= siralamaVerisi.il %></div>
+        <div style="font-size:11px; color:#888;">/ <%= siralamaVerisi.ilKullanici %></div>
+      </div>
+      <div class="stat" style="text-align:center;">
+        <div class="stat-label">İlçe sır.</div>
+        <div class="stat-val" style="font-size:18px;">#<%= siralamaVerisi.ilce %></div>
+        <div style="font-size:11px; color:#888;">/ <%= siralamaVerisi.ilceKullanici %></div>
+      </div>
+      <div class="stat" style="text-align:center;">
+        <div class="stat-label">Okul sır.</div>
+        <div class="stat-val" style="font-size:18px;">#<%= siralamaVerisi.okul %></div>
+        <div style="font-size:11px; color:#888;">/ <%= siralamaVerisi.okulKullanici %></div>
+      </div>
     </div>
   </div>
+
+  <!-- Ders Bazlı Performans -->
+  <% if (dp.length > 0) { %>
+  <div class="card">
+    <p class="card-title">Ders bazlı performans</p>
+    <% dp.forEach(function(d) {
+      var dersOrt = d.soruSayisi > 0 ? (d.toplamPuan / d.soruSayisi).toFixed(4) : '0.0000';
+      var dersOrtSure = d.soruSayisi > 0 ? Math.round(d.toplamSure / d.soruSayisi) : 0;
+      var renk = dersRenkleri[d.ders] || '#888';
+      var maxOrt = 100;
+      var barYuzde = Math.min((parseFloat(dersOrt) / maxOrt) * 100, 100).toFixed(0);
+
+      // Bu derse göre sıralama (tüm kullanıcılardan hesaplamak zor, şimdilik gösterme)
+    %>
+    <div style="border:0.5px solid #eee; border-radius:8px; padding:14px; margin-bottom:10px;">
+      <div style="font-size:15px; font-weight:500; color:#202124; margin-bottom:12px;"><%= d.ders %></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
+        <div class="stat" style="text-align:center; padding:8px;">
+          <div class="stat-label">Toplam puan</div>
+          <div style="font-size:14px; font-weight:500;"><%= d.toplamPuan %></div>
+        </div>
+        <div class="stat" style="text-align:center; padding:8px;">
+          <div class="stat-label">Çözülen soru</div>
+          <div style="font-size:14px; font-weight:500;"><%= d.soruSayisi %></div>
+        </div>
+        <div class="stat" style="text-align:center; padding:8px;">
+          <div class="stat-label">Ort. süre</div>
+          <div style="font-size:14px; font-weight:500;"><%= dersOrtSure %> sn</div>
+        </div>
+        <div class="stat" style="text-align:center; padding:8px;">
+          <div class="stat-label">Ort. puan</div>
+          <div style="font-size:14px; font-weight:500;"><%= dersOrt %></div>
+        </div>
+      </div>
+      <div style="background:#f0f2f5; border-radius:4px; height:3px; overflow:hidden;">
+        <div style="height:100%; border-radius:4px; width:<%= barYuzde %>%; background:<%= renk %>;"></div>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+  <% } %>
 
 <% } else { %>
 

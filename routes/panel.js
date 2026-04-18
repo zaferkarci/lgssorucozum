@@ -49,6 +49,15 @@ async function zorlukGuncelle(soruId) {
     }
 }
 
+// Öğrencinin ders ortalamalarının toplamını hesapla
+function ortToplamHesapla(kullanici) {
+    if (!kullanici.dersPuanlari || kullanici.dersPuanlari.length === 0) return 0;
+    return kullanici.dersPuanlari.reduce((toplam, d) => {
+        const ort = d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0;
+        return toplam + ort;
+    }, 0);
+}
+
 router.get('/panel/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
@@ -64,13 +73,38 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
         return { etiket: "Çok Zor", renk: "#c0392b" };
     };
 
+    // Profil için sıralama hesapla
+    let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1 };
+    if (mod === 'profil') {
+        const tumKullanicilar = await Kullanici.find({});
+        const kOrtTop = ortToplamHesapla(k);
+
+        const turkiyeListesi = tumKullanicilar.map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+        const ilListesi      = tumKullanicilar.filter(u => u.il === k.il).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+        const ilceListesi    = tumKullanicilar.filter(u => u.ilce === k.ilce).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+        const okulListesi    = tumKullanicilar.filter(u => u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+
+        siralamaVerisi = {
+            turkiye:        turkiyeListesi.findIndex(p => p <= kOrtTop) + 1,
+            il:             ilListesi.findIndex(p => p <= kOrtTop) + 1,
+            ilce:           ilceListesi.findIndex(p => p <= kOrtTop) + 1,
+            okul:           okulListesi.findIndex(p => p <= kOrtTop) + 1,
+            toplamKullanici: turkiyeListesi.length,
+            ilKullanici:    ilListesi.length,
+            ilceKullanici:  ilceListesi.length,
+            okulKullanici:  okulListesi.length
+        };
+    }
+
     res.render('panel', {
         k,
         mod,
         sorular,
         zorlukBilgisi,
         basla: req.query.basla,
-        encodeURIComponent
+        encodeURIComponent,
+        siralamaVerisi,
+        ortToplamHesapla
     });
 });
 
@@ -118,6 +152,20 @@ router.post('/cevap', async (req, res) => {
             k.toplamSure += T_ogr;
             k.cozumSureleri.push({ soruId: soruId, sure: T_ogr });
             k.soruIndex += 1;
+
+            // Ders bazlı istatistik güncelle
+            if (!k.dersPuanlari) k.dersPuanlari = [];
+            const dersAdi = s.ders || 'Diğer';
+            let dersKayit = k.dersPuanlari.find(d => d.ders === dersAdi);
+            if (!dersKayit) {
+                k.dersPuanlari.push({ ders: dersAdi, toplamPuan: 0, soruSayisi: 0, toplamSure: 0 });
+                dersKayit = k.dersPuanlari[k.dersPuanlari.length - 1];
+            }
+            if (dogruMu) dersKayit.toplamPuan += kazanilanPuan || 0;
+            dersKayit.soruSayisi += 1;
+            dersKayit.toplamSure += T_ogr;
+            k.markModified('dersPuanlari');
+
             await k.save();
             await zorlukGuncelle(soruId);
         }

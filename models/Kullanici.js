@@ -8,5 +8,12 @@ module.exports = mongoose.model('Kullanici', new mongoose.Schema({
     soruIndex: { type: Number, default: 0 },
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },
-    cozumSureleri: [{ soruId: String, sure: Number }]
+    cozumSureleri: [{ soruId: String, sure: Number }],
+    // Ders bazlı istatistikler
+    dersPuanlari: [{
+        ders:        String,
+        toplamPuan:  { type: Number, default: 0 },
+        soruSayisi:  { type: Number, default: 0 },
+        toplamSure:  { type: Number, default: 0 }
+    }]
 }));
