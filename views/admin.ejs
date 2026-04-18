@@ -436,7 +436,7 @@ function escHtml(str) {
         <button type="button" onclick="ekle('soruOnculu1Alan','<sup></sup>',4)" class="toolbar-btn">x²</button>
         <button type="button" onclick="ekle('soruOnculu1Alan','<sub></sub>',5)" class="toolbar-btn">x₂</button>
       </div>
-      <textarea name="soruOnculu1" id="soruOnculu1Alan" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||editSoru.soruOnculu||'') : '' %></textarea>
+      <textarea name="soruOnculu1" id="soruOnculu1Alan" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||'') : '' %></textarea>
       <label class="form-label">Öncül 1 Görseli</label>
       <input name="soruOnculu1Resmi" placeholder="Öncül 1 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu1Resmi||editSoru.soruOnculuResmi||'') : '' %>" class="input">
       <label class="form-label">Öncül 2</label>
@@ -449,7 +449,7 @@ function escHtml(str) {
         <button type="button" onclick="ekle('soruOnculu2Alan','<sup></sup>',4)" class="toolbar-btn">x²</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','<sub></sub>',5)" class="toolbar-btn">x₂</button>
       </div>
-      <textarea name="soruOnculu2" id="soruOnculu2Alan" placeholder="Öncül 2 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu2||'') : '' %></textarea>
+      <textarea name="soruOnculu2" id="soruOnculu2Alan" placeholder="Öncül 2 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu2||editSoru.soruOnculu||'') : '' %></textarea>
       <label class="form-label">Öncül 2 Görseli</label>
       <input name="soruOnculu2Resmi" placeholder="Öncül 2 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu2Resmi||'') : '' %>" class="input">
       <label class="form-label">Soru Görseli</label>
@@ -600,9 +600,11 @@ function escHtml(str) {
     var ta = document.getElementById(alanId);
     var bas = ta.selectionStart, son = ta.selectionEnd;
     var secili = ta.value.substring(bas, son);
-    var eklenen = html;
+    var eklenen;
     if (secili && imlecGeri > 0) {
       eklenen = html.slice(0, html.length - imlecGeri) + secili + html.slice(html.length - imlecGeri);
+    } else {
+      eklenen = html;
     }
     ta.value = ta.value.substring(0, bas) + eklenen + ta.value.substring(son);
     ta.focus();
