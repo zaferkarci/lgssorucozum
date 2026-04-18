@@ -167,43 +167,25 @@
           var gridCols = dizilim === 'yatay' ? '1fr 1fr 1fr 1fr' : dizilim === 'ikili' ? '1fr 1fr' : '1fr';
           var formStyle = (dizilim === 'yatay' || dizilim === 'ikili') ? 'margin:0; display:contents;' : 'margin:0;';
         %>
-        <%
-          // A şıkkı tablo HTML içeriyorsa (tablo modu)
-          var tabloModu = soru.secenekler[0] && soru.secenekler[0].metin && soru.secenekler[0].metin.indexOf('<table') !== -1 && (!soru.secenekler[1] || !soru.secenekler[1].metin);
-        %>
-        <% if (tabloModu) { %>
-          <%- soru.secenekler[0].metin %>
-          <div class="secenekler" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-top:10px;">
-            <% for (let i=0; i<4; i++) { %>
-            <form method="POST" action="/cevap" style="margin:0; display:contents;">
-              <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-              <input type="hidden" name="soruId" value="<%= soru._id %>">
-              <input type="hidden" name="secilenIndex" value="<%= i %>">
-              <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
-              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn" style="padding:10px 14px; font-size:15px; width:100%; font-weight:bold;">
-                <%= harfler[i] %>
-              </button>
-            </form>
-            <% } %>
-          </div>
-        <% } else { %>
+
         <div class="secenekler" style="display:grid; grid-template-columns:<%= gridCols %>; gap:8px;">
           <% for (let i=0; i<4; i++) { %>
             <% if (soru.secenekler[i]) { %>
+            <% var sikIcerigi = soru.secenekler[i].metin || ''; %>
+            <% var tabloMu = sikIcerigi.indexOf('<table') !== -1; %>
             <form method="POST" action="/cevap" style="<%= formStyle %>">
               <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
               <input type="hidden" name="soruId" value="<%= soru._id %>">
               <input type="hidden" name="secilenIndex" value="<%= i %>">
               <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
-              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn" style="padding:10px 14px; font-size:13px; width:100%;">
-                <b><%= harfler[i] %>)</b> <%- soru.secenekler[i].metin || '' %>
+              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn" style="padding:10px 14px; font-size:13px; width:100%; text-align:left;">
+                <% if (!tabloMu) { %><b><%= harfler[i] %>)</b> <% } %><%- sikIcerigi %>
                 <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
               </button>
             </form>
             <% } %>
           <% } %>
         </div>
-        <% } %>
         <p style="text-align:center; color:#aaa; font-size:11px; margin-top:10px; margin-bottom:4px;">Eğitim amaçlıdır. Soruların tüm hakları MEB'e aittir.</p>
       </div>
     </div>
