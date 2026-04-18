@@ -116,6 +116,32 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
             ilceKullanici:  ilceListesi.length,
             okulKullanici:  okulListesi.length
         };
+
+        // Ders bazlı sıralama
+        const dersSiralamalari = {};
+        const tumDersler = [...new Set(tumKullanicilar.flatMap(u => (u.dersPuanlari||[]).map(d => d.ders)))];
+        for (const dersAdi of tumDersler) {
+            const dersOrtFn = (u) => {
+                const d = (u.dersPuanlari||[]).find(x => x.ders === dersAdi);
+                return d && d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0;
+            };
+            const kDersOrt = dersOrtFn(k);
+            const tList = tumKullanicilar.map(dersOrtFn).sort((a,b) => b-a);
+            const iList = tumKullanicilar.filter(u => u.il === k.il).map(dersOrtFn).sort((a,b) => b-a);
+            const ilList = tumKullanicilar.filter(u => u.ilce === k.ilce).map(dersOrtFn).sort((a,b) => b-a);
+            const oList = tumKullanicilar.filter(u => u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
+            dersSiralamalari[dersAdi] = {
+                turkiye: tList.findIndex(p => p <= kDersOrt) + 1,
+                il:      iList.findIndex(p => p <= kDersOrt) + 1,
+                ilce:    ilList.findIndex(p => p <= kDersOrt) + 1,
+                okul:    oList.findIndex(p => p <= kDersOrt) + 1,
+                toplamKullanici: tList.length,
+                ilKullanici: iList.length,
+                ilceKullanici: ilList.length,
+                okulKullanici: oList.length
+            };
+        }
+        siralamaVerisi.dersSiralamalari = dersSiralamalari;
     }
 
     res.render('panel', {
