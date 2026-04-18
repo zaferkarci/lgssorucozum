@@ -73,6 +73,28 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
         return { etiket: "Çok Zor", renk: "#c0392b" };
     };
 
+    // dersPuanlari boşsa cozumSureleri + sorular'dan yeniden hesapla
+    if (!k.dersPuanlari || k.dersPuanlari.length === 0) {
+        const dersMap = {};
+        for (const cs of (k.cozumSureleri || [])) {
+            const soru = sorular.find(s => String(s._id) === String(cs.soruId));
+            if (!soru) continue;
+            const ders = soru.ders || 'Diğer';
+            if (!dersMap[ders]) dersMap[ders] = { ders, toplamPuan: 0, soruSayisi: 0, toplamSure: 0 };
+            dersMap[ders].soruSayisi += 1;
+            dersMap[ders].toplamSure += cs.sure || 0;
+        }
+        // Puan bilgisi cozumSureleri'nde yok, toplam puanı derse eşit dağıt
+        const dersListesi = Object.values(dersMap);
+        const toplamSoru = dersListesi.reduce((t, d) => t + d.soruSayisi, 0);
+        for (const d of dersListesi) {
+            d.toplamPuan = toplamSoru > 0 ? Math.round((d.soruSayisi / toplamSoru) * k.puan) : 0;
+        }
+        k.dersPuanlari = dersListesi;
+        k.markModified('dersPuanlari');
+        await k.save();
+    }
+
     // Profil için sıralama hesapla
     let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1 };
     if (mod === 'profil') {
