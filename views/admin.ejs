@@ -1179,6 +1179,7 @@ function gosterExcelHata(msg) {
             <small style="color:#888;">Z:<%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP:<%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></small>
           </span>
           <div>
+            <button type="button" onclick="soruOnizle('<%= s._id %>')" class="btn-duzenle" style="background:#9b59b6;">ÖNİZLE</button>
             <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="btn-duzenle">DÜZENLE</a>
             <form action="/soru-sil" method="POST" style="display:inline;">
               <input type="hidden" name="id" value="<%= s._id %>">
@@ -1189,6 +1190,57 @@ function gosterExcelHata(msg) {
       <% }); %>
     </div>
   </div>
+
+  <!-- Soru Önizleme Modal -->
+  <div id="soruOnizlemeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:12px; padding:20px; width:800px; max-width:95vw; max-height:90vh; overflow-y:auto; position:relative;">
+      <button onclick="document.getElementById('soruOnizlemeModal').style.display='none'" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:white; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:16px;">✕</button>
+      <h3 style="margin:0 0 16px;">🔍 Soru Önizleme</h3>
+      <div id="soruOnizlemeIcerik" style="min-height:300px;">Yükleniyor...</div>
+    </div>
+  </div>
+
+  <script>
+  function soruOnizle(id) {
+    var icerik = document.getElementById('soruOnizlemeIcerik');
+    var modal = document.getElementById('soruOnizlemeModal');
+    icerik.innerHTML = 'Yükleniyor...';
+    modal.style.display = 'flex';
+    fetch('/api/soru/' + id, { headers: { 'Authorization': 'Basic <%- adminToken %>' } })
+      .then(function(r){ return r.json(); })
+      .then(function(s){
+        var harfler = ['A','B','C','D'];
+        var html = '';
+        if (s.soruOnculu1) html += '<div style="background:#f5f5f5; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu1 + '</div>';
+        if (s.soruOnculu1Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu1Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
+        if (s.soruOnculu2) html += '<div style="background:#f5f5f5; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu2 + '</div>';
+        if (s.soruOnculu2Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu2Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
+        if (s.soruOnculu3) html += '<div style="background:#f5f5f5; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu3 + '</div>';
+        if (s.soruOnculu3Resmi) html += '<div style="text-align:center; margin-bottom:10px;"><img src="' + s.soruOnculu3Resmi + '" style="max-width:100%; max-height:250px; border-radius:8px;"></div>';
+        html += '<h3 style="font-size:17px; margin:12px 0;">' + s.soruMetni + '</h3>';
+        var dizilim = s.sikDizilimi || 'dikey';
+        var gridCols = dizilim === 'yatay' ? '1fr 1fr 1fr 1fr' : dizilim === 'ikili' ? '1fr 1fr' : '1fr';
+        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px;">';
+        for (var i = 0; i < 4; i++) {
+          if (!s.secenekler[i]) continue;
+          var sikMetin = s.secenekler[i].metin || '';
+          var tabloMu = sikMetin.indexOf('<table') !== -1;
+          var dogruMu = s.dogruCevapIndex === i;
+          var bgRenk = dogruMu ? '#d4edda' : 'white';
+          var border = dogruMu ? '2px solid #28a745' : '2px solid #ddd';
+          html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left;">';
+          if (!tabloMu) html += '<b>' + harfler[i] + ')</b> ';
+          html += sikMetin;
+          if (s.secenekler[i].gorsel) html += '<br><img src="' + s.secenekler[i].gorsel + '" style="max-width:150px; margin-top:5px;">';
+          html += '</div>';
+        }
+        html += '</div>';
+        html += '<p style="margin-top:12px; font-size:12px; color:#28a745;"><b>Doğru Cevap:</b> ' + harfler[s.dogruCevapIndex] + '</p>';
+        icerik.innerHTML = html;
+      })
+      .catch(function(e){ icerik.innerHTML = '<p style="color:red;">Hata: ' + e.message + '</p>'; });
+  }
+  </script>
 <% } %>
 
 </div>

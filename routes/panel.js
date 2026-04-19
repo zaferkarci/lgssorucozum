@@ -193,6 +193,15 @@ router.post('/cevap', async (req, res) => {
                 const kazanilanPuanHesap = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);
                 kazanilanPuan = kazanilanPuanHesap;
                 k.puan += kazanilanPuan;
+
+                // Sorunun ham puan ortalamasını güncelle
+                const oncekiHP = s.hamPuan;
+                const oncekiDogru = eskiDogruSayisi;
+                if (oncekiHP === null || oncekiHP === undefined || oncekiDogru === 0) {
+                    s.hamPuan = kazanilanPuan;
+                } else {
+                    s.hamPuan = ((oncekiHP * oncekiDogru) + kazanilanPuan) / (oncekiDogru + 1);
+                }
             }
 
             s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;

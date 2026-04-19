@@ -299,4 +299,13 @@ router.get('/api/unite-bilgi', async (req, res) => {
     }
 });
 
+router.get('/api/soru/:id', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const s = await Soru.findById(req.params.id);
+        if (!s) return res.status(404).json({ hata: 'Soru bulunamadı' });
+        res.json(s);
+    } catch (err) { res.status(500).json({ hata: err.message }); }
+});
+
 module.exports = router;
