@@ -19,6 +19,12 @@
         <option value="<%= s %>" <%= s===8?'selected':'' %>><%= s %>. Sınıf</option>
       <% }); %>
     </select>
+    <select name="sube" class="input">
+      <option value="">Şube Seçiniz (Opsiyonel)</option>
+      <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
+        <option value="<%= h %>"><%= h %> Şubesi</option>
+      <% }); %>
+    </select>
     <select name="il" id="ilSelect" onchange="ilDegisti()" required class="input">
       <option value="">İl Seçiniz...</option>
     </select>

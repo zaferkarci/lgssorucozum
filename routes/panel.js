@@ -105,16 +105,21 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
         const ilListesi      = tumKullanicilar.filter(u => u.il === k.il).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
         const ilceListesi    = tumKullanicilar.filter(u => u.ilce === k.ilce).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
         const okulListesi    = tumKullanicilar.filter(u => u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+        // Sınıf sıralaması: aynı okul + aynı sınıf + aynı şube (şube varsa)
+        const sinifFiltre = (u) => u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? u.sube === k.sube : true);
+        const sinifListesi = tumKullanicilar.filter(sinifFiltre).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
 
         siralamaVerisi = {
             turkiye:        turkiyeListesi.findIndex(p => p <= kOrtTop) + 1,
             il:             ilListesi.findIndex(p => p <= kOrtTop) + 1,
             ilce:           ilceListesi.findIndex(p => p <= kOrtTop) + 1,
             okul:           okulListesi.findIndex(p => p <= kOrtTop) + 1,
+            sinif:          sinifListesi.findIndex(p => p <= kOrtTop) + 1,
             toplamKullanici: turkiyeListesi.length,
             ilKullanici:    ilListesi.length,
             ilceKullanici:  ilceListesi.length,
-            okulKullanici:  okulListesi.length
+            okulKullanici:  okulListesi.length,
+            sinifKullanici: sinifListesi.length
         };
 
         // Ders bazlı sıralama
@@ -130,15 +135,18 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
             const iList = tumKullanicilar.filter(u => u.il === k.il).map(dersOrtFn).sort((a,b) => b-a);
             const ilList = tumKullanicilar.filter(u => u.ilce === k.ilce).map(dersOrtFn).sort((a,b) => b-a);
             const oList = tumKullanicilar.filter(u => u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
+            const sList = tumKullanicilar.filter(sinifFiltre).map(dersOrtFn).sort((a,b) => b-a);
             dersSiralamalari[dersAdi] = {
                 turkiye: tList.findIndex(p => p <= kDersOrt) + 1,
                 il:      iList.findIndex(p => p <= kDersOrt) + 1,
                 ilce:    ilList.findIndex(p => p <= kDersOrt) + 1,
                 okul:    oList.findIndex(p => p <= kDersOrt) + 1,
+                sinif:   sList.findIndex(p => p <= kDersOrt) + 1,
                 toplamKullanici: tList.length,
                 ilKullanici: iList.length,
                 ilceKullanici: ilList.length,
-                okulKullanici: oList.length
+                okulKullanici: oList.length,
+                sinifKullanici: sList.length
             };
         }
         siralamaVerisi.dersSiralamalari = dersSiralamalari;
@@ -221,6 +229,15 @@ router.post('/cevap', async (req, res) => {
         }
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// Şube güncelleme
+router.post('/profil/sube-guncelle', async (req, res) => {
+    try {
+        const { kullaniciAdi, sube } = req.body;
+        await Kullanici.findOneAndUpdate({ kullaniciAdi }, { sube: sube || '' });
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
 module.exports = router;

@@ -11,12 +11,12 @@ router.get('/kayit', (req, res) => {
 });
 
 router.post('/kayit-yap', async (req, res) => {
-    const { kullaniciAdi, sifre, sifreTekrar, sinif, il, ilce, okul } = req.body;
+    const { kullaniciAdi, sifre, sifreTekrar, sinif, sube, il, ilce, okul } = req.body;
     if (sifre !== sifreTekrar) return res.send("<script>alert('Şifreler uyuşmuyor!'); window.history.back();</script>");
     try {
         const varMi = await Kullanici.findOne({ kullaniciAdi });
         if (varMi) return res.send("<script>alert('Kullanıcı adı alınmış!'); window.history.back();</script>");
-        await new Kullanici({ kullaniciAdi, sifre, sinif, il, ilce, okul }).save();
+        await new Kullanici({ kullaniciAdi, sifre, sinif, sube: sube||'', il, ilce, okul }).save();
         res.send("<script>alert('Başarılı!'); window.location.href='/';</script>");
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });

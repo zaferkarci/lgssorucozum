@@ -5,6 +5,7 @@ module.exports = mongoose.model('Kullanici', new mongoose.Schema({
     sifre: String,
     il: String, ilce: String, okul: String,
     sinif: { type: Number, default: 8 },
+    sube: { type: String, default: '' },
     soruIndex: { type: Number, default: 0 },
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },

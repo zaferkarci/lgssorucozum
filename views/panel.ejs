@@ -44,11 +44,22 @@
           <div class="avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
           <div>
             <p style="font-size:16px; font-weight:500; margin:0;"><%= k.kullaniciAdi %></p>
-            <p style="font-size:13px; color:#666; margin:0;"><%= k.sinif %>. Sınıf öğrencisi</p>
+            <p style="font-size:13px; color:#666; margin:0;"><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %></p>
           </div>
         </div>
         <div class="info-row"><span class="info-label">Okul</span><span class="info-val"><%= k.okul %></span></div>
         <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
+        <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+          <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+          <label style="font-size:13px; color:#666;">Şube:</label>
+          <select name="sube" class="input-sm" style="flex:1;">
+            <option value="">Şube yok</option>
+            <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
+              <option value="<%= h %>" <%= k.sube===h?'selected':'' %>><%= h %> Şubesi</option>
+            <% }); %>
+          </select>
+          <button type="submit" class="btn btn-sm" style="background:#1a73e8; color:white;">Güncelle</button>
+        </form>
       </div>
 
       <div class="card">
@@ -70,6 +81,7 @@
         <div class="info-row"><span class="info-label">İl</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.il %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
         <div class="info-row"><span class="info-label">İlçe</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.ilce %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
         <div class="info-row"><span class="info-label">Okul</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.okul %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
+        <div class="info-row"><span class="info-label">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.sinif %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
       </div>
 
       <!-- Ders bazlı sıralamalar -->
@@ -83,6 +95,7 @@
         <div class="info-row"><span class="info-label">İl</span><div style="text-align:right;"><div class="info-val">#<%= sr.il||'-' %></div><% if(sr.ilKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.ilKullanici %></div><% } %></div></div>
         <div class="info-row"><span class="info-label">İlçe</span><div style="text-align:right;"><div class="info-val">#<%= sr.ilce||'-' %></div><% if(sr.ilceKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.ilceKullanici %></div><% } %></div></div>
         <div class="info-row"><span class="info-label">Okul</span><div style="text-align:right;"><div class="info-val">#<%= sr.okul||'-' %></div><% if(sr.okulKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.okulKullanici %></div><% } %></div></div>
+        <div class="info-row"><span class="info-label">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div style="text-align:right;"><div class="info-val">#<%= sr.sinif||'-' %></div><% if(sr.sinifKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.sinifKullanici %></div><% } %></div></div>
       </div>
       <% }); %>
     </div>
