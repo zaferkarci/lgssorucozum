@@ -444,8 +444,19 @@ function escHtml(str) {
       <textarea name="soruOnculu2" id="soruOnculu2Alan" placeholder="Öncül 2 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu2||editSoru.soruOnculu||'') : '' %></textarea>
       <label class="form-label">Öncül 2 Görseli</label>
       <input name="soruOnculu2Resmi" placeholder="Öncül 2 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu2Resmi||'') : '' %>" class="input">
-      <label class="form-label">Soru Görseli</label>
-      <input name="soruResmi" placeholder="Soru Görsel URL (Opsiyonel)" value="<%= editSoru ? editSoru.soruResmi : '' %>" class="input">
+      <label class="form-label">Öncül 3</label>
+      <div class="toolbar" style="margin-bottom:4px;">
+        <button type="button" onclick="ekle('soruOnculu3Alan','<b></b>',3)" class="toolbar-btn" style="font-weight:bold;">B</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<i></i>',3)" class="toolbar-btn" style="font-style:italic;">I</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<u></u>',3)" class="toolbar-btn" style="text-decoration:underline;">U</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<s></s>',3)" class="toolbar-btn" style="text-decoration:line-through;">S</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<mark></mark>',6)" class="toolbar-btn" style="background:#fff3cd;">HL</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<sup></sup>',4)" class="toolbar-btn">x²</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<sub></sub>',5)" class="toolbar-btn">x₂</button>
+      </div>
+      <textarea name="soruOnculu3" id="soruOnculu3Alan" placeholder="Öncül 3 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu3||'') : '' %></textarea>
+      <label class="form-label">Öncül 3 Görseli</label>
+      <input name="soruOnculu3Resmi" placeholder="Öncül 3 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu3Resmi||editSoru.soruResmi||'') : '' %>" class="input">
       <label class="form-label">Soru Metni</label>
       <div class="toolbar">
         <button type="button" onclick="ekle('soruMetni','<sup></sup>',4)" class="toolbar-btn" title="Üst simge">x²</button>
