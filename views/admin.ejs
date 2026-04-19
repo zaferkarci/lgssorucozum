@@ -456,7 +456,7 @@ function escHtml(str) {
       </div>
       <textarea name="soruOnculu3" id="soruOnculu3Alan" placeholder="Öncül 3 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu3||'') : '' %></textarea>
       <label class="form-label">Öncül 3 Görseli</label>
-      <input name="soruOnculu3Resmi" placeholder="Öncül 3 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu3Resmi||editSoru.soruResmi||'') : '' %>" class="input">
+      <input name="soruOnculu3Resmi" placeholder="Öncül 3 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu3Resmi||'') : '' %>" class="input">
       <label class="form-label">Soru Metni</label>
       <div class="toolbar">
         <button type="button" onclick="ekle('soruMetni','<sup></sup>',4)" class="toolbar-btn" title="Üst simge">x²</button>

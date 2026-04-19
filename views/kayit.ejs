@@ -76,7 +76,7 @@ function ilceDegisti() {
   var okulListesi = document.getElementById('okulListesi');
   okulListesi.innerHTML = '<option value="">Yükleniyor...</option>';
   if (!il || !ilce) { okulListesi.innerHTML = '<option value="">Okul Seçiniz</option>'; return; }
-  fetch('/api/okullar?il='+encodeURIComponent(il.toLocaleUpperCase('tr'))+'&ilce='+encodeURIComponent(ilce.toLocaleUpperCase('tr')))
+  fetch('/api/okullar?il='+encodeURIComponent(il)+'&ilce='+encodeURIComponent(ilce))
     .then(function(r){ return r.json(); })
     .then(function(liste) {
       liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });

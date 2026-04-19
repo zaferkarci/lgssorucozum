@@ -140,8 +140,7 @@
         <% if (soru.soruOnculu2) { %><div class="soru-onculu" style="margin-bottom:8px; font-size:13px;"><%- soru.soruOnculu2 %></div><% } %>
         <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu2Resmi %>" style="max-width:100%; max-height:180px; border-radius:8px; object-fit:contain;"></div><% } %>
         <% if (soru.soruOnculu3) { %><div class="soru-onculu" style="margin-bottom:8px; font-size:13px;"><%- soru.soruOnculu3 %></div><% } %>
-        <% var uc_resim = soru.soruOnculu3Resmi || soru.soruResmi; %>
-        <% if (uc_resim) { %><div style="text-align:center; margin-bottom:10px;"><img src="<%= uc_resim %>" style="max-width:100%; max-height:200px; border-radius:8px; object-fit:contain;"></div><% } %>
+        <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:10px;"><img src="<%= soru.soruOnculu3Resmi %>" style="max-width:100%; max-height:200px; border-radius:8px; object-fit:contain;"></div><% } %>
         <h2 class="soru-metni" style="font-size:17px; margin-bottom:12px;"><%- soru.soruMetni %></h2>
         <%
           var dizilim = soru.sikDizilimi || 'dikey';
