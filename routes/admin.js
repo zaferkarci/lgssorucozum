@@ -95,6 +95,7 @@ router.post('/soru-istatistik-sifirla', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         await Soru.updateMany({}, { $set: { cozulmeSayisi: 0, dogruSayisi: 0, ortalamaSure: 0, hamPuan: null, zorlukKatsayisi: 3, cozumSureleriTum: [], dogruCevapSureleri: [] } });
+        await CevapKaydi.deleteMany({});
         res.send('<script>alert("Soru istatistikleri sıfırlandı!"); window.location.href="/admin?mod=sifirla";</script>');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
@@ -114,8 +115,9 @@ router.post('/kullanici-sil', async (req, res) => {
 router.post('/sifirla', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        await Kullanici.updateMany({}, { $set: { soruIndex: 0, puan: 0, toplamSure: 0, cozumSureleri: [] } });
+        await Kullanici.updateMany({}, { $set: { soruIndex: 0, puan: 0, toplamSure: 0, cozumSureleri: [], dersPuanlari: [] } });
         await Soru.updateMany({}, { $set: { cozulmeSayisi: 0, dogruSayisi: 0, ortalamaSure: 0, hamPuan: null, zorlukKatsayisi: 3, cozumSureleriTum: [], dogruCevapSureleri: [] } });
+        await CevapKaydi.deleteMany({});
         res.send('<script>alert("Tüm veriler sıfırlandı!"); window.location.href="/admin?mod=soruListesi";</script>');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
