@@ -692,21 +692,25 @@ function escHtml(str) {
       basliklar.push(document.getElementById('tablo_baslik_' + s).value || ('Col ' + (s+1)));
     }
 
+    // Sabit genişlikler — başlık ve değer hücreleri aynı genişlikte olsun ki hizalansın
+    var harfGenislik = '48px';   // A) sütunu
+    var sutunGenislik = '90px';  // her veri sütunu
+
     // Başlık satırı → öncül1 alanına yaz (şıklardan bağımsız)
-    var baslikHTML = '<table style="border-collapse:collapse; font-size:13px; margin-bottom:0;"><tr><td style="padding:3px 12px;"></td>';
+    var baslikHTML = '<table style="border-collapse:collapse; font-size:13px; margin-bottom:0; table-layout:fixed;"><tr><td style="padding:3px 0; width:' + harfGenislik + ';"></td>';
     for (var s2 = 0; s2 < sutun; s2++) {
-      baslikHTML += '<td style="padding:3px 12px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + basliklar[s2] + '</td>';
+      baslikHTML += '<td style="padding:3px 0; width:' + sutunGenislik + '; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + basliklar[s2] + '</td>';
     }
     baslikHTML += '</tr></table>';
     var oncul1El = document.getElementById('soruOnculu1Alan');
     if (oncul1El) oncul1El.value = baslikHTML;
 
-    // Her şık sadece kendi değer satırını içersin
+    // Her şık sadece kendi değer satırını içersin — aynı genişliklerle
     for (var i = 0; i < 4; i++) {
-      var degerSatir = '<table style="border-collapse:collapse; font-size:13px;"><tr><td style="padding:4px 12px; font-weight:500;">' + harfler[i] + ')</td>';
+      var degerSatir = '<table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:4px 0; width:' + harfGenislik + '; font-weight:500;">' + harfler[i] + ')</td>';
       for (var s3 = 0; s3 < sutun; s3++) {
         var val = document.getElementById('tablo_val_' + i + '_' + s3).value || '-';
-        degerSatir += '<td style="padding:4px 12px; text-align:center;">' + val + '</td>';
+        degerSatir += '<td style="padding:4px 0; width:' + sutunGenislik + '; text-align:center;">' + val + '</td>';
       }
       degerSatir += '</tr></table>';
       document.getElementById('sikMetin' + i).value = degerSatir;
