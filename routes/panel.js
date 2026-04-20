@@ -121,61 +121,65 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         await k.save();
     }
 
-    // Profil için sıralama hesapla
-    let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1 };
+    // Profil için sıralama — önce cache'den dene, yoksa canlı hesapla (fallback)
+    let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, sinif: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1, sinifKullanici: 1, dersSiralamalari: {} };
     if (mod === 'profil') {
-        const tumKullanicilar = await Kullanici.find({});
-        const kOrtTop = ortToplamHesapla(k);
+        if (k.siralamaCache && k.siralamaCache.turkiye !== undefined) {
+            // Cache'den oku (hızlı)
+            siralamaVerisi = k.siralamaCache;
+        } else {
+            // Fallback: canlı hesapla (cron henüz çalışmadıysa)
+            const tumKullanicilar = await Kullanici.find({});
+            const kOrtTop = ortToplamHesapla(k);
 
-        const turkiyeListesi = tumKullanicilar.map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-        const ilListesi      = tumKullanicilar.filter(u => u.il === k.il).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-        const ilceListesi    = tumKullanicilar.filter(u => u.ilce === k.ilce).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-        const okulListesi    = tumKullanicilar.filter(u => u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-        // Sınıf sıralaması: aynı okul + aynı sınıf + aynı şube (şube varsa)
-        const sinifFiltre = (u) => u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? u.sube === k.sube : true);
-        const sinifListesi = tumKullanicilar.filter(sinifFiltre).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const turkiyeListesi = tumKullanicilar.map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const ilListesi      = tumKullanicilar.filter(u => u.il === k.il).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const ilceListesi    = tumKullanicilar.filter(u => u.ilce === k.ilce).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const okulListesi    = tumKullanicilar.filter(u => u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const sinifFiltre = (u) => u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? u.sube === k.sube : true);
+            const sinifListesi = tumKullanicilar.filter(sinifFiltre).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
 
-        siralamaVerisi = {
-            turkiye:        turkiyeListesi.findIndex(p => p <= kOrtTop) + 1,
-            il:             ilListesi.findIndex(p => p <= kOrtTop) + 1,
-            ilce:           ilceListesi.findIndex(p => p <= kOrtTop) + 1,
-            okul:           okulListesi.findIndex(p => p <= kOrtTop) + 1,
-            sinif:          sinifListesi.findIndex(p => p <= kOrtTop) + 1,
-            toplamKullanici: turkiyeListesi.length,
-            ilKullanici:    ilListesi.length,
-            ilceKullanici:  ilceListesi.length,
-            okulKullanici:  okulListesi.length,
-            sinifKullanici: sinifListesi.length
-        };
-
-        // Ders bazlı sıralama
-        const dersSiralamalari = {};
-        const tumDersler = [...new Set(tumKullanicilar.flatMap(u => (u.dersPuanlari||[]).map(d => d.ders)))];
-        for (const dersAdi of tumDersler) {
-            const dersOrtFn = (u) => {
-                const d = (u.dersPuanlari||[]).find(x => x.ders === dersAdi);
-                return d && d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0;
+            siralamaVerisi = {
+                turkiye:        turkiyeListesi.findIndex(p => p <= kOrtTop) + 1,
+                il:             ilListesi.findIndex(p => p <= kOrtTop) + 1,
+                ilce:           ilceListesi.findIndex(p => p <= kOrtTop) + 1,
+                okul:           okulListesi.findIndex(p => p <= kOrtTop) + 1,
+                sinif:          sinifListesi.findIndex(p => p <= kOrtTop) + 1,
+                toplamKullanici: turkiyeListesi.length,
+                ilKullanici:    ilListesi.length,
+                ilceKullanici:  ilceListesi.length,
+                okulKullanici:  okulListesi.length,
+                sinifKullanici: sinifListesi.length
             };
-            const kDersOrt = dersOrtFn(k);
-            const tList = tumKullanicilar.map(dersOrtFn).sort((a,b) => b-a);
-            const iList = tumKullanicilar.filter(u => u.il === k.il).map(dersOrtFn).sort((a,b) => b-a);
-            const ilList = tumKullanicilar.filter(u => u.ilce === k.ilce).map(dersOrtFn).sort((a,b) => b-a);
-            const oList = tumKullanicilar.filter(u => u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
-            const sList = tumKullanicilar.filter(sinifFiltre).map(dersOrtFn).sort((a,b) => b-a);
-            dersSiralamalari[dersAdi] = {
-                turkiye: tList.findIndex(p => p <= kDersOrt) + 1,
-                il:      iList.findIndex(p => p <= kDersOrt) + 1,
-                ilce:    ilList.findIndex(p => p <= kDersOrt) + 1,
-                okul:    oList.findIndex(p => p <= kDersOrt) + 1,
-                sinif:   sList.findIndex(p => p <= kDersOrt) + 1,
-                toplamKullanici: tList.length,
-                ilKullanici: iList.length,
-                ilceKullanici: ilList.length,
-                okulKullanici: oList.length,
-                sinifKullanici: sList.length
-            };
+
+            const dersSiralamalari = {};
+            const tumDersler = [...new Set(tumKullanicilar.flatMap(u => (u.dersPuanlari||[]).map(d => d.ders)))];
+            for (const dersAdi of tumDersler) {
+                const dersOrtFn = (u) => {
+                    const d = (u.dersPuanlari||[]).find(x => x.ders === dersAdi);
+                    return d && d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0;
+                };
+                const kDersOrt = dersOrtFn(k);
+                const tList = tumKullanicilar.map(dersOrtFn).sort((a,b) => b-a);
+                const iList = tumKullanicilar.filter(u => u.il === k.il).map(dersOrtFn).sort((a,b) => b-a);
+                const ilList = tumKullanicilar.filter(u => u.ilce === k.ilce).map(dersOrtFn).sort((a,b) => b-a);
+                const oList = tumKullanicilar.filter(u => u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
+                const sList = tumKullanicilar.filter(sinifFiltre).map(dersOrtFn).sort((a,b) => b-a);
+                dersSiralamalari[dersAdi] = {
+                    turkiye: tList.findIndex(p => p <= kDersOrt) + 1,
+                    il:      iList.findIndex(p => p <= kDersOrt) + 1,
+                    ilce:    ilList.findIndex(p => p <= kDersOrt) + 1,
+                    okul:    oList.findIndex(p => p <= kDersOrt) + 1,
+                    sinif:   sList.findIndex(p => p <= kDersOrt) + 1,
+                    toplamKullanici: tList.length,
+                    ilKullanici: iList.length,
+                    ilceKullanici: ilList.length,
+                    okulKullanici: oList.length,
+                    sinifKullanici: sList.length
+                };
+            }
+            siralamaVerisi.dersSiralamalari = dersSiralamalari;
         }
-        siralamaVerisi.dersSiralamalari = dersSiralamalari;
     }
 
     res.render('panel', {
