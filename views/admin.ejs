@@ -416,6 +416,24 @@ function escHtml(str) {
         <% if(editSoru && editSoru.konu) { %><option value="<%= editSoru.konu %>" selected><%= editSoru.konu %></option><% } %>
       </select>
       <br><br>
+      <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+        <label class="form-label" style="display:block; margin-bottom:6px;">📌 Soru Durumu</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
+            <input type="radio" name="durum" value="taslak" <%= (!editSoru || !editSoru.durum || editSoru.durum==='taslak') ? 'checked' : '' %>>
+            <span style="font-size:13px;">🟡 Taslak</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
+            <input type="radio" name="durum" value="yayinda" <%= (editSoru && editSoru.durum==='yayinda') ? 'checked' : '' %>>
+            <span style="font-size:13px;">🟢 Yayında</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
+            <input type="radio" name="durum" value="duraklat" <%= (editSoru && editSoru.durum==='duraklat') ? 'checked' : '' %>>
+            <span style="font-size:13px;">⏸️ Duraklatıldı</span>
+          </label>
+        </div>
+        <p style="font-size:11px; color:#666; margin:6px 0 0;">Taslak ve Duraklatıldı durumundaki sorular kullanıcılara gösterilmez.</p>
+      </div>
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <label class="form-label">Öncül 1</label>
       </div>
@@ -1173,9 +1191,15 @@ function gosterExcelHata(msg) {
   <div class="card">
     <h3>Tüm Sorular</h3>
     <div style="display:grid; gap:10px;">
-      <% tumSorular.forEach(function(s, i) { %>
+      <% tumSorular.forEach(function(s, i) { 
+         var dRenk = s.durum==='yayinda'?'#28a745':(s.durum==='duraklat'?'#6c757d':'#f39c12');
+         var dIkon = s.durum==='yayinda'?'🟢':(s.durum==='duraklat'?'⏸️':'🟡');
+         var dMetin = s.durum==='yayinda'?'Yayında':(s.durum==='duraklat'?'Duraklatıldı':'Taslak');
+      %>
         <div class="soru-listesi-item">
-          <span><b><%= i+1 %>.</b> [<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,50) %>...
+          <span>
+            <span style="display:inline-block; background:<%= dRenk %>; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-right:6px;"><%= dIkon %> <%= dMetin %></span>
+            <b><%= i+1 %>.</b> [<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,50) %>...
             <small style="color:#888;">Z:<%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP:<%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></small>
           </span>
           <div>

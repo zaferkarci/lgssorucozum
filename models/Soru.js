@@ -8,6 +8,7 @@ module.exports = mongoose.model('Soru', new mongoose.Schema({
     soruResmi: String, soruMetni: String,
     secenekler: [{ metin: String, gorsel: String }],
     sikDizilimi: { type: String, default: 'dikey' },
+    durum: { type: String, default: 'taslak' },
     dogruCevapIndex: Number,
     cozulmeSayisi: { type: Number, default: 0 },
     dogruSayisi: { type: Number, default: 0 },
