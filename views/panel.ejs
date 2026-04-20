@@ -105,9 +105,16 @@
 <% } else { %>
 
   <% if (!sorular.length) { %>
-    <div style="text-align:center; margin-top:50px;">
-      <h2>Soru bulunamadı.</h2>
-      <p>Lütfen admin panelinden soru ekleyiniz.</p>
+    <div style="text-align:center; margin-top:50px; padding:20px;">
+      <% if (k.soruIndex > 0) { %>
+        <h2 style="color:#27ae60;">🎉 Tebrikler!</h2>
+        <p style="font-size:16px;">Sistemdeki tüm soruları çözdünüz.</p>
+        <p style="color:#666;">Yeni soru eklenmesini bekleyiniz.</p>
+        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="btn btn-success" style="margin-top:16px;">Profilime Git</a>
+      <% } else { %>
+        <h2>Soru bulunamadı.</h2>
+        <p>Henüz yayında soru yok. Yeni soru eklenmesini bekleyiniz.</p>
+      <% } %>
     </div>
 
   <% } else if (!basla) { %>
@@ -118,7 +125,7 @@
     </div>
 
   <% } else {
-    const soru = sorular[k.soruIndex % sorular.length];
+    const soru = sorular[0];
     const zb = zorlukBilgisi(soru);
     const harfler = ['A','B','C','D'];
   %>

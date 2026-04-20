@@ -63,15 +63,18 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
     const mod = req.query.mod || 'soru';
-    // Sadece yayında olan sorular, zorluk artan (kolay→zor), aynı zorlukta rastgele
+    // Kullanıcının çözdüğü soru ID'lerini topla
+    const cozulenIds = new Set((k.cozumSureleri || []).map(cs => String(cs.soruId)));
+    // Sadece yayında olan ve kullanıcı tarafından çözülmemiş sorular, zorluk artan (kolay→zor), aynı zorlukta rastgele
     const yayindaSorular = await Soru.find({ durum: 'yayinda' });
-    yayindaSorular.sort((a, b) => {
+    const cozulmemisSorular = yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
+    cozulmemisSorular.sort((a, b) => {
         const za = a.zorlukKatsayisi || 3;
         const zb = b.zorlukKatsayisi || 3;
         if (za !== zb) return za - zb;
         return Math.random() - 0.5;
     });
-    const sorular = yayindaSorular;
+    const sorular = cozulmemisSorular;
 
     const zorlukBilgisi = (soru) => {
         const z = soru.zorlukKatsayisi || 3;
@@ -243,7 +246,8 @@ router.post('/cevap', async (req, res) => {
             k.markModified('dersPuanlari');
 
             await k.save();
-            await zorlukGuncelle(soruId);
+            // Zorluk artık anlık güncellenmiyor — günlük cron job (05:00) üzerinden hesaplanacak
+            // await zorlukGuncelle(soruId);
 
             // Cevap kaydını tut (günlük istatistik için)
             await new CevapKaydi({
