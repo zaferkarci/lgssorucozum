@@ -1187,6 +1187,15 @@ function gosterExcelHata(msg) {
     </form>
   </div>
 
+  <div class="card" style="margin-top:16px;">
+    <h3 style="color:#2980b9;">⏰ Günlük Hesaplamayı Manuel Çalıştır</h3>
+    <p>Normalde her gün 05:00'da (Türkiye saati) otomatik çalışır.</p>
+    <p>Tüm soruların zorluk katsayısını ve kullanıcıların puanlarını <b>CevapKaydi</b> verilerinden yeniden hesaplar.</p>
+    <form action="/admin/cron-tetikle" method="POST">
+      <button onclick="return confirm('Hesaplama başlatılsın mı? İşlem birkaç dakika sürebilir.')" class="btn" style="background:#2980b9; color:white;">⏰ ŞİMDİ HESAPLA</button>
+    </form>
+  </div>
+
 <% } else { %>
   <div class="card">
     <h3>Tüm Sorular</h3>

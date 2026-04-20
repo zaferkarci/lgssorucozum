@@ -1,5 +1,5 @@
 // --- LGS HAZIRLIK PLATFORMU - VERSİYON 3.0.2 (Modüler Yapı) ---
-require('dotenv').config();
+
 const mongoose = require('mongoose');
 const express = require('express');
 const path = require('path');
@@ -20,6 +20,26 @@ app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/panel'));
 app.use('/', require('./routes/admin'));
 app.use('/', require('./routes/pdfyukle'));
+
+// Günlük cron job — her gün 05:00 (Europe/Istanbul)
+const cron = require('node-cron');
+const { gunlukHesapla } = require('./cronJobs');
+cron.schedule('0 5 * * *', () => {
+    console.log('⏰ Cron tetiklendi (05:00 Istanbul)');
+    gunlukHesapla();
+}, { timezone: 'Europe/Istanbul' });
+
+// Manuel tetikleme (admin için)
+app.post('/admin/cron-tetikle', async (req, res) => {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Basic ')) return res.status(401).send('Yetkisiz');
+    const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
+    if (user !== process.env.ADMIN_USER || pass !== process.env.ADMIN_PASSWORD) return res.status(401).send('Yetkisiz');
+    try {
+        await gunlukHesapla();
+        res.send('<script>alert("Hesaplama tamamlandı!"); window.location.href="/admin";</script>');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
 
 // Ünite Excel şablonu indir
 app.get('/unite-sablon-indir', (req, res) => {
