@@ -31,8 +31,13 @@ router.post('/giris', async (req, res) => {
         if (!k) return res.send("<script>alert('Hata!'); window.history.back();</script>");
         const eslesti = await bcrypt.compare(req.body.sifre, k.sifre);
         if (!eslesti) return res.send("<script>alert('Hata!'); window.history.back();</script>");
+        req.session.kullaniciAdi = k.kullaniciAdi;
         res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi));
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+router.get('/cikis', (req, res) => {
+    req.session.destroy(() => res.redirect('/'));
 });
 
 module.exports = router;

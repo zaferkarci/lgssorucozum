@@ -16,6 +16,26 @@ const dbURI = process.env.MONGO_URI;
 
 mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
 
+// Session middleware
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'lgs-sistem-gizli-anahtar-degistir',
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({ mongoUrl: dbURI, collectionName: 'sessions' }),
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } // 7 gün
+}));
+
+// Kullanıcı oturum kontrolü middleware
+function oturumKontrol(req, res, next) {
+    if (!req.session || !req.session.kullaniciAdi) {
+        return res.redirect('/');
+    }
+    next();
+}
+app.locals.oturumKontrol = oturumKontrol;
+
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/panel'));
 app.use('/', require('./routes/admin'));

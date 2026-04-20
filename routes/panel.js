@@ -59,7 +59,21 @@ function ortToplamHesapla(kullanici) {
     }, 0);
 }
 
-router.get('/panel/:kullaniciAdi', async (req, res) => {
+// Oturum kontrol: session'daki kullanıcı URL'dekiyle eşleşmeli
+function oturumKontrol(req, res, next) {
+    if (!req.session || !req.session.kullaniciAdi) {
+        return res.redirect('/');
+    }
+    if (req.params.kullaniciAdi && req.session.kullaniciAdi !== req.params.kullaniciAdi) {
+        return res.status(403).send('Bu sayfaya erişim yetkiniz yok.');
+    }
+    if (req.body.kullaniciAdi && req.session.kullaniciAdi !== req.body.kullaniciAdi) {
+        return res.status(403).send('Bu işlem için yetkiniz yok.');
+    }
+    next();
+}
+
+router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
     const mod = req.query.mod || 'soru';
@@ -176,7 +190,7 @@ router.get('/panel/:kullaniciAdi', async (req, res) => {
     });
 });
 
-router.post('/cevap', async (req, res) => {
+router.post('/cevap', oturumKontrol, async (req, res) => {
     try {
         const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
         const s = await Soru.findById(soruId);
@@ -263,7 +277,7 @@ router.post('/cevap', async (req, res) => {
 });
 
 // Şube güncelleme
-router.post('/profil/sube-guncelle', async (req, res) => {
+router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
     try {
         const { kullaniciAdi, sube } = req.body;
         await Kullanici.findOneAndUpdate({ kullaniciAdi }, { sube: sube || '' });
