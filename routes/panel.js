@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
+const CevapKaydi = require('../models/CevapKaydi');
 
 function stdSapma(dizi) {
     if (!dizi || dizi.length < 2) return 0;
@@ -243,6 +244,15 @@ router.post('/cevap', async (req, res) => {
 
             await k.save();
             await zorlukGuncelle(soruId);
+
+            // Cevap kaydını tut (günlük istatistik için)
+            await new CevapKaydi({
+                soruId: soruId,
+                kullaniciAdi: kullaniciAdi,
+                dogruMu: dogruMu,
+                sure: T_ogr,
+                kazanilanPuan: kazanilanPuan
+            }).save();
         }
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
     } catch (err) { res.status(500).send("Hata: " + err.message); }

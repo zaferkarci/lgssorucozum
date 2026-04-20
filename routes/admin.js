@@ -4,6 +4,7 @@ const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
+const CevapKaydi = require('../models/CevapKaydi');
 const multer = require('multer');
 
 // ── Multer: Excel yüklemeleri ────────────────────────────────────────────────
@@ -103,6 +104,7 @@ router.post('/kullanici-sil', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         await Kullanici.findOneAndDelete({ kullaniciAdi: req.body.kullaniciAdi });
+        await CevapKaydi.deleteMany({ kullaniciAdi: req.body.kullaniciAdi });
         const params = new URLSearchParams({ mod: 'kullanicilar', il: req.body.il || '', ilce: req.body.ilce || '', okul: req.body.okul || '' }).toString();
         res.redirect('/admin?' + params);
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
