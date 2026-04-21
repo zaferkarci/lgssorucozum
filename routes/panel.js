@@ -77,8 +77,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
     const mod = req.query.mod || 'soru';
-    // Kullanıcının çözdüğü soru ID'lerini topla
-    const cozulenIds = new Set((k.cozumSureleri || []).map(cs => String(cs.soruId)));
+    // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
+    const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
+    const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
     // Sadece yayında olan ve kullanıcı tarafından çözülmemiş sorular, zorluk artan (kolay→zor), aynı zorlukta rastgele
     const yayindaSorular = await Soru.find({ durum: 'yayinda' });
     const cozulmemisSorular = yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
@@ -98,28 +99,6 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         if (z < 4.5) return { etiket: "Zor",       renk: "#e67e22" };
         return { etiket: "Çok Zor", renk: "#c0392b" };
     };
-
-    // dersPuanlari boşsa cozumSureleri + sorular'dan yeniden hesapla
-    if (!k.dersPuanlari || k.dersPuanlari.length === 0) {
-        const dersMap = {};
-        for (const cs of (k.cozumSureleri || [])) {
-            const soru = sorular.find(s => String(s._id) === String(cs.soruId));
-            if (!soru) continue;
-            const ders = soru.ders || 'Diğer';
-            if (!dersMap[ders]) dersMap[ders] = { ders, toplamPuan: 0, soruSayisi: 0, toplamSure: 0 };
-            dersMap[ders].soruSayisi += 1;
-            dersMap[ders].toplamSure += cs.sure || 0;
-        }
-        // Puan bilgisi cozumSureleri'nde yok, toplam puanı derse eşit dağıt
-        const dersListesi = Object.values(dersMap);
-        const toplamSoru = dersListesi.reduce((t, d) => t + d.soruSayisi, 0);
-        for (const d of dersListesi) {
-            d.toplamPuan = toplamSoru > 0 ? Math.round((d.soruSayisi / toplamSoru) * k.puan) : 0;
-        }
-        k.dersPuanlari = dersListesi;
-        k.markModified('dersPuanlari');
-        await k.save();
-    }
 
     // Profil için sıralama — önce cache'den dene, yoksa canlı hesapla (fallback)
     let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, sinif: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1, sinifKullanici: 1, dersSiralamalari: {} };
@@ -247,7 +226,6 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
             await s.save();
 
             k.toplamSure += T_ogr;
-            k.cozumSureleri.push({ soruId: soruId, sure: T_ogr });
             k.soruIndex += 1;
 
             // Ders bazlı istatistik güncelle
