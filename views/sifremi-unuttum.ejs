@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGS Hazırlık - Şifremi Unuttum</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-body">
+<div class="auth-card">
+  <h2 class="auth-title">Şifremi Unuttum</h2>
+  <p style="font-size:13px; color:#666; margin-bottom:16px; text-align:center;">Kayıtlı e-posta adresinizi girin, size şifre sıfırlama bağlantısı göndereceğiz.</p>
+  <form action="/sifremi-unuttum" method="POST">
+    <input type="email" name="email" placeholder="E-posta adresiniz" required class="input">
+    <button type="submit" class="btn btn-primary">BAĞLANTI GÖNDER</button>
+  </form>
+  <p class="auth-link"><a href="/">← Giriş ekranına dön</a></p>
+</div>
+</body>
+</html>

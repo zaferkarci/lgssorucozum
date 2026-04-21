@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGS Hazırlık - Yeni Şifre</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-body">
+<div class="auth-card">
+  <h2 class="auth-title">Yeni Şifre Belirle</h2>
+  <p style="font-size:13px; color:#666; margin-bottom:16px; text-align:center;">Merhaba <b><%= kullaniciAdi %></b>, yeni şifrenizi belirleyin.</p>
+  <form action="/sifre-yenile" method="POST">
+    <input type="hidden" name="token" value="<%= token %>">
+    <input type="password" name="yeniSifre" placeholder="Yeni şifre" required minlength="4" class="input">
+    <input type="password" name="yeniSifreTekrar" placeholder="Yeni şifre tekrar" required minlength="4" class="input">
+    <button type="submit" class="btn btn-primary">ŞİFREYİ GÜNCELLE</button>
+  </form>
+</div>
+</body>
+</html>

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const KullaniciSchema = new mongoose.Schema({
     kullaniciAdi: { type: String, unique: true, index: true },
     sifre: String,
+    email: { type: String, default: '' },
     il: String, ilce: String, okul: String,
     sinif: { type: Number, default: 8 },
     sube: { type: String, default: '' },
