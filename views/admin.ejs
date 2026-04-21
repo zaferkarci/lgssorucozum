@@ -517,7 +517,7 @@ function escHtml(str) {
         <% for (var i=0; i<4; i++) { %>
           <div class="sik-row">
             <b><%= String.fromCharCode(65+i) %>:</b>
-            <input name="metin<%= i %>" id="sikMetin<%= i %>" placeholder="Metin veya HTML" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '' %>" style="flex:2;">
+            <input name="metin<%= i %>" id="sikMetin<%= i %>" placeholder="Metin veya HTML" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '' %>" style="flex:2;" required>
             <input name="gorsel<%= i %>" placeholder="Görsel URL" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : '' %>" style="flex:1;">
             <input type="radio" name="dogruCevap" value="<%= i %>" <%= editSoru&&editSoru.dogruCevapIndex===i ? 'checked' : '' %> required>
           </div>
