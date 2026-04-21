@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-module.exports = mongoose.model('Soru', new mongoose.Schema({
+const SoruSchema = new mongoose.Schema({
     sinif: String, ders: String, unite: String, konu: String,
     soruOnculu1: String, soruOnculu1Resmi: String,
     soruOnculu2: String, soruOnculu2Resmi: String,
@@ -17,4 +17,9 @@ module.exports = mongoose.model('Soru', new mongoose.Schema({
     zorlukKatsayisi: { type: Number, default: 3 },
     cozumSureleriTum: [Number],
     dogruCevapSureleri: [Number]
-}));
+});
+
+// Index — yayında soru filtresi + zorluk sıralaması
+SoruSchema.index({ durum: 1, zorlukKatsayisi: 1 });
+
+module.exports = mongoose.model('Soru', SoruSchema);

@@ -81,7 +81,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
     // Sadece yayında olan ve kullanıcı tarafından çözülmemiş sorular, zorluk artan (kolay→zor), aynı zorlukta rastgele
-    const yayindaSorular = await Soru.find({ durum: 'yayinda' });
+    const yayindaSorular = await Soru.find({ durum: 'yayinda' }).lean();
     const cozulmemisSorular = yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
     cozulmemisSorular.sort((a, b) => {
         const za = a.zorlukKatsayisi || 3;
@@ -108,7 +108,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             siralamaVerisi = k.siralamaCache;
         } else {
             // Fallback: canlı hesapla (cron henüz çalışmadıysa)
-            const tumKullanicilar = await Kullanici.find({});
+            const tumKullanicilar = await Kullanici.find({}).lean();
             const kOrtTop = ortToplamHesapla(k);
 
             const turkiyeListesi = tumKullanicilar.map(u => ortToplamHesapla(u)).sort((a, b) => b - a);

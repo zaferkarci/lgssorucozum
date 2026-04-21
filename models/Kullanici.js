@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-module.exports = mongoose.model('Kullanici', new mongoose.Schema({
-    kullaniciAdi: { type: String, unique: true },
+const KullaniciSchema = new mongoose.Schema({
+    kullaniciAdi: { type: String, unique: true, index: true },
     sifre: String,
     il: String, ilce: String, okul: String,
     sinif: { type: Number, default: 8 },
@@ -22,4 +22,10 @@ module.exports = mongoose.model('Kullanici', new mongoose.Schema({
         default: null
     },
     siralamaCacheTarih: { type: Date, default: null }
-}));
+});
+
+// Compound indexes — sıralama filtreleri için
+KullaniciSchema.index({ il: 1, ilce: 1, okul: 1 });
+KullaniciSchema.index({ okul: 1, sinif: 1, sube: 1 });
+
+module.exports = mongoose.model('Kullanici', KullaniciSchema);

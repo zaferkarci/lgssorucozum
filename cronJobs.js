@@ -32,7 +32,7 @@ async function soruIstatistikHesapla() {
     const MINIMUM_COZUM = 50;
 
     for (const s of tumSorular) {
-        const kayitlar = await CevapKaydi.find({ soruId: s._id });
+        const kayitlar = await CevapKaydi.find({ soruId: s._id }).lean();
 
         if (kayitlar.length === 0) {
             s.cozulmeSayisi = 0;
@@ -82,14 +82,14 @@ async function kullaniciPuanHesapla() {
     const tumKullanicilar = await Kullanici.find({});
 
     for (const k of tumKullanicilar) {
-        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 });
+        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 }).lean();
 
         let toplamPuan = 0;
         let toplamSure = 0;
         const dersMap = {};
 
         for (const kayit of kayitlar) {
-            const s = await Soru.findById(kayit.soruId);
+            const s = await Soru.findById(kayit.soruId).lean();
             if (!s) continue;
 
             toplamSure += kayit.sure || 0;
@@ -136,7 +136,7 @@ async function kullaniciPuanHesapla() {
 async function hamPuanHesapla() {
     const tumSorular = await Soru.find({});
     for (const s of tumSorular) {
-        const dogruKayitlar = await CevapKaydi.find({ soruId: s._id, dogruMu: true });
+        const dogruKayitlar = await CevapKaydi.find({ soruId: s._id, dogruMu: true }).lean();
         if (dogruKayitlar.length === 0) {
             s.hamPuan = null;
         } else {
