@@ -40,7 +40,7 @@
 </div>
 <script>
 var ilIdMap = {};
-fetch('https://api.turkiyeapi.dev/v1/provinces?fields=id,name')
+fetch('https://api.turkiyeapi.dev/v1/provinces')
   .then(function(r){ return r.json(); })
   .then(function(data) {
     var ilSelect = document.getElementById('ilSelect');
@@ -60,7 +60,7 @@ function ilDegisti() {
   document.getElementById('okulListesi').innerHTML = '<option value="">Okul Seçiniz</option>';
   var ilId = ilIdMap[ilAdi];
   if (!ilId) return;
-  fetch('https://api.turkiyeapi.dev/v1/provinces/'+ilId+'?fields=districts')
+  fetch('https://api.turkiyeapi.dev/v1/provinces/'+ilId)
     .then(function(r){ return r.json(); })
     .then(function(data) {
       ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
