@@ -8,21 +8,25 @@
 </head>
 <body class="panel-body">
 
-<div class="topbar" style="background:#202124;">
-  <span class="topbar-logo">🛠️ Admin</span>
-  <div class="topbar-nav">
-    <a href="/admin?mod=soruListesi" class="nav-link <%= mod==='soruListesi'?'active':'' %>">📋 Soruları Listele</a>
-    <a href="/admin?mod=soruEkle" class="nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru Ekle</a>
-    <a href="/admin?mod=pdfYukle" class="nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF'den Toplu Yükle</a>
-    <a href="/admin?mod=kullanicilar" class="nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
-    <a href="/admin?mod=uniteler" class="nav-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
-    <a href="/admin?mod=okullar" class="nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
-    <a href="/admin?mod=sifirla" class="nav-link" style="color:#ffaaaa;">🗑️ Veri Sıfırla</a>
-    <a href="/" class="nav-link cikis">Çıkış Yap</a>
-  </div>
+<div class="admin-topbar">
+  <a href="/admin" class="admin-logo-wrap">
+    <div class="admin-logo-badge">LGS</div>
+    <div>
+      <div class="admin-logo-text">LGS Hazırlık</div>
+      <div class="admin-logo-sub">Admin Paneli</div>
+    </div>
+  </a>
+  <a href="/admin?mod=soruListesi" class="admin-nav-link <%= mod==='soruListesi'?'active':'' %>">📋 Sorular</a>
+  <a href="/admin?mod=soruEkle" class="admin-nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru</a>
+  <a href="/admin?mod=pdfYukle" class="admin-nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
+  <a href="/admin?mod=kullanicilar" class="admin-nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+  <a href="/admin?mod=uniteler" class="admin-nav-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
+  <a href="/admin?mod=okullar" class="admin-nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
+  <a href="/admin?mod=sifirla" class="admin-nav-link danger">🗑️ Sıfırla</a>
+  <div class="admin-nav-right">Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span></div>
 </div>
 
-<div class="panel-main">
+<div class="admin-main">
 
 <% if (mod === 'pdfYukle') { %>
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -1196,31 +1200,88 @@ function gosterExcelHata(msg) {
   </div>
 
 <% } else { %>
-  <div class="card">
-    <h3>Tüm Sorular</h3>
-    <div style="display:grid; gap:10px;">
-      <% tumSorular.forEach(function(s, i) { 
-         var dRenk = s.durum==='yayinda'?'#28a745':(s.durum==='duraklat'?'#6c757d':'#f39c12');
-         var dIkon = s.durum==='yayinda'?'🟢':(s.durum==='duraklat'?'⏸️':'🟡');
-         var dMetin = s.durum==='yayinda'?'Yayında':(s.durum==='duraklat'?'Duraklatıldı':'Taslak');
-      %>
-        <div class="soru-listesi-item">
-          <span>
-            <span style="display:inline-block; background:<%= dRenk %>; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-right:6px;"><%= dIkon %> <%= dMetin %></span>
-            <b><%= i+1 %>.</b> [<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,50) %>...
-            <small style="color:#888;">Z:<%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP:<%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></small>
-          </span>
+  <div class="admin-card">
+    <div class="admin-card-title">Tüm Sorular (<%= tumSorular.length %>)</div>
+
+    <%
+      var taslaklar = tumSorular.filter(function(s){ return !s.durum || s.durum === 'taslak'; });
+      var yayindalar = tumSorular.filter(function(s){ return s.durum === 'yayinda'; });
+      var duraklatilanlar = tumSorular.filter(function(s){ return s.durum === 'duraklat'; });
+    %>
+
+    <% if (taslaklar.length > 0) { %>
+    <div class="soru-grup-baslik soru-grup-taslak">🟡 Taslak — <%= taslaklar.length %> soru</div>
+    <% taslaklar.forEach(function(s, i) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <div class="admin-soru-no"><%= i+1 %></div>
           <div>
-            <button type="button" onclick="soruOnizle('<%= s._id %>')" class="btn-duzenle" style="background:#9b59b6;">ÖNİZLE</button>
-            <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="btn-duzenle">DÜZENLE</a>
-            <form action="/soru-sil" method="POST" style="display:inline;">
-              <input type="hidden" name="id" value="<%= s._id %>">
-              <button class="btn-sil">SİL</button>
-            </form>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,60) %>...</div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
           </div>
         </div>
-      <% }); %>
-    </div>
+        <div class="admin-soru-sag">
+          <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <form action="/soru-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>">
+            <button class="admin-btn admin-btn-sil">SİL</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+    <% } %>
+
+    <% if (yayindalar.length > 0) { %>
+    <div class="soru-grup-baslik soru-grup-yayinda">🟢 Yayında — <%= yayindalar.length %> soru</div>
+    <% yayindalar.forEach(function(s, i) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <div class="admin-soru-no"><%= i+1 %></div>
+          <div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,60) %>...</div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
+          </div>
+        </div>
+        <div class="admin-soru-sag">
+          <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <form action="/soru-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>">
+            <button class="admin-btn admin-btn-sil">SİL</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+    <% } %>
+
+    <% if (duraklatilanlar.length > 0) { %>
+    <div class="soru-grup-baslik soru-grup-duraklat">⏸️ Duraklatıldı — <%= duraklatilanlar.length %> soru</div>
+    <% duraklatilanlar.forEach(function(s, i) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <div class="admin-soru-no"><%= i+1 %></div>
+          <div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,60) %>...</div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
+          </div>
+        </div>
+        <div class="admin-soru-sag">
+          <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <form action="/soru-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>">
+            <button class="admin-btn admin-btn-sil">SİL</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+    <% } %>
+
+    <% if (tumSorular.length === 0) { %>
+      <p style="color:#aab4c4; text-align:center; padding:20px;">Henüz soru eklenmemiş.</p>
+    <% } %>
+
   </div>
 
   <!-- Soru Önizleme Modal -->
