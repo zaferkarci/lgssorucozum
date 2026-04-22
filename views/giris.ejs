@@ -6,16 +6,41 @@
 <title>LGS Hazırlık - Giriş</title>
 <link rel="stylesheet" href="/style.css">
 </head>
-<body class="auth-body">
-<div class="auth-card">
-  <h2 class="auth-title">LGS Hazırlık</h2>
-  <form action="/giris" method="POST">
-    <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required class="input">
-    <input type="password" name="sifre" placeholder="Şifre" required class="input">
-    <button type="submit" class="btn btn-primary">GİRİŞ YAP</button>
-  </form>
-  <p class="auth-link">Hesabınız yok mu? <a href="/kayit">Kayıt Ol</a></p>
-  <p class="auth-link" style="margin-top:8px;"><a href="/sifremi-unuttum">Şifremi unuttum</a></p>
+<body class="giris-body">
+<div class="giris-wrap">
+  <!-- Sol mavi panel -->
+  <div class="giris-sol">
+    <div class="giris-sol-icerik">
+      <div class="giris-logo-badge">LGS</div>
+      <div class="giris-sol-baslik">LGS Hazırlık Platformu</div>
+      <div class="giris-sol-alt">Akıllı puanlama sistemi ile kendi seviyende çalış, sıralamada yüksel.</div>
+    </div>
+    <div class="giris-stat giris-sol-icerik">
+      <div class="giris-stat-no"><%= kullaniciSayisi %></div>
+      <div class="giris-stat-label">Aktif öğrenci</div>
+    </div>
+  </div>
+  <!-- Sağ form -->
+  <div class="giris-sag">
+    <div class="giris-form-baslik">Tekrar hoş geldin</div>
+    <div class="giris-form-alt">Hesabınıza giriş yapın</div>
+    <form action="/giris" method="POST">
+      <div class="giris-form-grup">
+        <label class="giris-form-etiket">Kullanıcı adı</label>
+        <input name="kullaniciAdi" placeholder="kullaniciadi" required class="giris-input">
+      </div>
+      <div class="giris-form-grup">
+        <div class="giris-sifre-row">
+          <label class="giris-form-etiket">Şifre</label>
+          <a href="/sifremi-unuttum" class="giris-sifre-link">Şifremi unuttum</a>
+        </div>
+        <input type="password" name="sifre" placeholder="••••••••" required class="giris-input">
+      </div>
+      <button type="submit" class="giris-btn-yeni">Giriş Yap</button>
+    </form>
+    <div class="giris-ayrac">veya</div>
+    <div class="giris-kayit-link">Hesabın yok mu? <a href="/kayit">Kayıt Ol</a></div>
+  </div>
 </div>
 </body>
 </html>

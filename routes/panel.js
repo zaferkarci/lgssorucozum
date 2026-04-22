@@ -87,7 +87,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         const za = a.zorlukKatsayisi || 3;
         const zb = b.zorlukKatsayisi || 3;
         if (za !== zb) return za - zb;
-        return Math.random() - 0.5;
+        // Aynı zorlukta: kullanıcı adı + soru _id karması ile stabil ama kişiye özel sıralama
+        const hashA = (String(k.kullaniciAdi) + String(a._id)).split('').reduce((h,c) => (h*31 + c.charCodeAt(0)) & 0xffffffff, 0);
+        const hashB = (String(k.kullaniciAdi) + String(b._id)).split('').reduce((h,c) => (h*31 + c.charCodeAt(0)) & 0xffffffff, 0);
+        return hashA - hashB;
     });
     const sorular = cozulmemisSorular;
 

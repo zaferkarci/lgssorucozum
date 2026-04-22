@@ -8,12 +8,22 @@
 </head>
 <body class="panel-body">
 
-<div class="topbar">
-  <span class="topbar-logo">LGS Hazırlık</span>
-  <div class="topbar-nav">
-    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="nav-link <%= mod==='soru'?'active':'' %>">Soru Çöz</a>
-    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="nav-link <%= mod==='profil'?'active':'' %>">Profilim</a>
-    <a href="/cikis" class="nav-link cikis">Çıkış Yap</a>
+<div class="panel-topbar-yeni">
+  <div class="ptopbar-sol">
+    <span class="ptopbar-logo">LGS Hazırlık</span>
+    <div class="ptopbar-ayrac"></div>
+    <div class="ptopbar-kullanici">
+      <div class="ptopbar-avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
+      <%= k.kullaniciAdi %> · <%= k.puan %> puan
+    </div>
+  </div>
+  <div class="ptopbar-nav">
+    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
+    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
+    <a href="/cikis" class="ptopbar-link cikis">Çıkış Yap</a>
+    <% if (mod === 'soru' && sorular.length && basla) { %>
+    <div class="ptopbar-timer">⏱ <span id="timer">00:00</span> / 05:00</div>
+    <% } %>
   </div>
 </div>
 
@@ -38,10 +48,10 @@
 
     <!-- SOL: Kişisel bilgiler + Genel özet -->
     <div>
-      <div class="card">
-        <p class="card-title">Kişisel bilgiler</p>
+      <div class="profil-kart-yeni">
+        <p class="profil-kart-baslik-yeni">Kişisel bilgiler</p>
         <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
-          <div class="avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
+          <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
           <div>
             <p style="font-size:16px; font-weight:500; margin:0;"><%= k.kullaniciAdi %></p>
             <p style="font-size:13px; color:#666; margin:0;"><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %></p>
@@ -58,44 +68,42 @@
               <option value="<%= h %>" <%= k.sube===h?'selected':'' %>><%= h %> Şubesi</option>
             <% }); %>
           </select>
-          <button type="submit" class="btn btn-sm" style="background:#1a73e8; color:white;">Güncelle</button>
+          <button type="submit" class="btn btn-sm" style="background:#1a73e8; color:white; padding:7px 14px; font-size:12px; font-weight:600; border:none; border-radius:8px; cursor:pointer;">Güncelle</button>
         </form>
       </div>
 
-      <div class="card">
-        <p class="card-title">Genel özet</p>
+      <div class="profil-kart-yeni">
+        <p class="profil-kart-baslik-yeni">Genel özet</p>
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="stat"><div class="stat-label">Toplam puan</div><div class="stat-val"><%= k.puan %></div></div>
-          <div class="stat"><div class="stat-label">Çözülen soru</div><div class="stat-val"><%= k.soruIndex %></div></div>
-          <div class="stat"><div class="stat-label">Ders ort. toplamı</div><div class="stat-val" style="font-size:18px;"><%= ortTop.toFixed(4) %></div></div>
+          <div class="ozet-stat-yeni"><div class="ozet-stat-etiket-yeni">Toplam puan</div><div class="ozet-stat-deger-yeni"><%= k.puan %></div></div>
+          <div class="ozet-stat-yeni"><div class="ozet-stat-etiket-yeni">Çözülen soru</div><div class="ozet-stat-deger-yeni"><%= k.soruIndex %></div></div>
+          <div class="ozet-stat-yeni"><div class="ozet-stat-etiket-yeni">Ders ort.</div><div class="ozet-stat-deger-yeni" style="font-size:16px;"><%= ortTop.toFixed(2) %></div></div>
         </div>
       </div>
     </div>
 
     <!-- SAĞ: Sıralamalar -->
     <div>
-      <!-- Genel sıralama -->
-      <div class="card">
-        <p class="card-title">Genel sıralama</p>
-        <div class="info-row"><span class="info-label">Türkiye</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.turkiye %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
-        <div class="info-row"><span class="info-label">İl</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.il %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
-        <div class="info-row"><span class="info-label">İlçe</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.ilce %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
-        <div class="info-row"><span class="info-label">Okul</span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.okul %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
-        <div class="info-row"><span class="info-label">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div style="text-align:right;"><div class="info-val">#<%= siralamaVerisi.sinif %></div><div style="font-size:10px;color:#888;">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
+      <div class="profil-kart-yeni">
+        <p class="profil-kart-baslik-yeni">Genel sıralama</p>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.turkiye %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.il %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.ilce %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.okul %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.sinif %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
       </div>
 
-      <!-- Ders bazlı sıralamalar -->
       <% dp.forEach(function(d) {
         var sr = ds[d.ders] || {};
         var renk = dersRenkleri[d.ders] || '#888';
       %>
-      <div class="card">
-        <p class="card-title" style="color:<%= renk %>;"><%= d.ders %></p>
-        <div class="info-row"><span class="info-label">Türkiye</span><div style="text-align:right;"><div class="info-val">#<%= sr.turkiye||'-' %></div><% if(sr.toplamKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.toplamKullanici %></div><% } %></div></div>
-        <div class="info-row"><span class="info-label">İl</span><div style="text-align:right;"><div class="info-val">#<%= sr.il||'-' %></div><% if(sr.ilKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.ilKullanici %></div><% } %></div></div>
-        <div class="info-row"><span class="info-label">İlçe</span><div style="text-align:right;"><div class="info-val">#<%= sr.ilce||'-' %></div><% if(sr.ilceKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.ilceKullanici %></div><% } %></div></div>
-        <div class="info-row"><span class="info-label">Okul</span><div style="text-align:right;"><div class="info-val">#<%= sr.okul||'-' %></div><% if(sr.okulKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.okulKullanici %></div><% } %></div></div>
-        <div class="info-row"><span class="info-label">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div style="text-align:right;"><div class="info-val">#<%= sr.sinif||'-' %></div><% if(sr.sinifKullanici){ %><div style="font-size:10px;color:#888;">/ <%= sr.sinifKullanici %></div><% } %></div></div>
+      <div class="profil-kart-yeni">
+        <p class="profil-kart-baslik-yeni" style="color:<%= renk %>;"><%= d.ders %></p>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= sr.turkiye||'-' %></div><% if(sr.toplamKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.toplamKullanici %></div><% } %></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= sr.il||'-' %></div><% if(sr.ilKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilKullanici %></div><% } %></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= sr.ilce||'-' %></div><% if(sr.ilceKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilceKullanici %></div><% } %></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= sr.okul||'-' %></div><% if(sr.okulKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.okulKullanici %></div><% } %></div></div>
+        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= sr.sinif||'-' %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
       </div>
       <% }); %>
     </div>
@@ -129,26 +137,22 @@
     const zb = zorlukBilgisi(soru);
     const harfler = ['A','B','C','D'];
   %>
-    <div class="soru-kart" style="display:flex; flex-direction:column; height:calc(100vh - 80px); overflow:hidden; max-width:800px; margin:auto; padding:12px 16px;">
-      <div class="soru-header" style="flex-shrink:0; padding:8px 12px; margin-bottom:6px;">
-        <span><b><%= k.kullaniciAdi %></b> | Puan: <%= k.puan %></span>
-        <div style="color:red; font-weight:bold;">⏱️ <span id="timer">00:00</span> / 05:00 dk</div>
+    <div class="soru-kart-yeni">
+      <div class="soru-etiket-bar">
+        <span class="ep ep-zorluk">Zorluk: <%= zb.etiket %></span>
+        <% if (soru.sinif) { %><span class="ep ep-sinif"><%= soru.sinif %>. Sınıf</span><% } %>
+        <span class="ep ep-ders">Ders: <%= soru.ders %></span>
+        <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
+        <% if (soru.konu) { %><span class="ep ep-konu">Konu: <%= soru.konu %></span><% } %>
       </div>
-      <div class="soru-etiketler" style="flex-shrink:0; margin-bottom:6px;">
-        <span class="etiket" style="background:<%= zb.renk %>">Zorluk: <%= zb.etiket %></span>
-        <% if (soru.sinif) { %><span class="etiket" style="background:#607d8b"><%= soru.sinif %>. Sınıf</span><% } %>
-        <span class="etiket" style="background:#3498db">Ders: <%= soru.ders %></span>
-        <% if (soru.unite) { %><span class="etiket" style="background:#16a085">Ünite: <%= soru.unite %></span><% } %>
-        <% if (soru.konu) { %><span class="etiket" style="background:#8e44ad">Konu: <%= soru.konu %></span><% } %>
-      </div>
-      <div style="flex:1; overflow-y:auto; min-height:0;">
-        <% if (soru.soruOnculu1) { %><div class="soru-onculu" style="margin-bottom:8px; font-size:13px;"><%- soru.soruOnculu1 %></div><% } %>
+      <div class="soru-govde-yeni">
+        <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
         <% if (soru.soruOnculu1Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu1Resmi %>" style="max-width:100%; max-height:180px; border-radius:8px; object-fit:contain;"></div><% } %>
-        <% if (soru.soruOnculu2) { %><div class="soru-onculu" style="margin-bottom:8px; font-size:13px;"><%- soru.soruOnculu2 %></div><% } %>
+        <% if (soru.soruOnculu2) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu2 %></div><% } %>
         <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu2Resmi %>" style="max-width:100%; max-height:180px; border-radius:8px; object-fit:contain;"></div><% } %>
-        <% if (soru.soruOnculu3) { %><div class="soru-onculu" style="margin-bottom:8px; font-size:13px;"><%- soru.soruOnculu3 %></div><% } %>
+        <% if (soru.soruOnculu3) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu3 %></div><% } %>
         <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:10px;"><img src="<%= soru.soruOnculu3Resmi %>" style="max-width:100%; max-height:200px; border-radius:8px; object-fit:contain;"></div><% } %>
-        <h2 class="soru-metni" style="font-size:17px; margin-bottom:12px;"><%- soru.soruMetni %></h2>
+        <h2 class="soru-metni-yeni"><%- soru.soruMetni %></h2>
         <% if (soru.tabloBaslik && soru.tabloBaslik.length > 0) { %>
           <div style="margin-bottom:4px;">
             <table style="border-collapse:collapse; font-size:13px; table-layout:fixed;">
@@ -177,8 +181,8 @@
               <input type="hidden" name="soruId" value="<%= soru._id %>">
               <input type="hidden" name="secilenIndex" value="<%= i %>">
               <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
-              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn" style="padding:10px 14px; font-size:13px; width:100%; text-align:left;">
-                <% if (!tabloMu) { %><b><%= harfler[i] %>)</b> <% } %><%- sikIcerigi %>
+              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni">
+                <% if (!tabloMu) { %><span class="sik-harf-yeni"><%= harfler[i] %></span><% } %><%- sikIcerigi %>
                 <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
               </button>
             </form>

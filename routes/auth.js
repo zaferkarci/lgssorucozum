@@ -8,8 +8,13 @@ const { sifreSifirlamaMailiGonder } = require('../mailGonder');
 
 const SALT_ROUNDS = 10;
 
-router.get('/', (req, res) => {
-    res.render('giris');
+router.get('/', async (req, res) => {
+    try {
+        const kullaniciSayisi = await Kullanici.countDocuments({});
+        res.render('giris', { kullaniciSayisi });
+    } catch (err) {
+        res.render('giris', { kullaniciSayisi: 0 });
+    }
 });
 
 router.get('/kayit', (req, res) => {
