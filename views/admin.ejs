@@ -1095,7 +1095,7 @@ function gosterExcelHata(msg) {
   </div>
   <script>
   var adminIlIdMap = {};
-  fetch('https://turkiyeapi.dev/api/v1/provinces?fields=id,name')
+  fetch('https://api.turkiyeapi.dev/v1/provinces?fields=id,name')
     .then(function(r){ return r.json(); })
     .then(function(data) {
       var sel = document.getElementById('adminIlSelect');
@@ -1115,7 +1115,7 @@ function gosterExcelHata(msg) {
     ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
     var ilId = adminIlIdMap[ilAdi];
     if (!ilId) return;
-    fetch('https://turkiyeapi.dev/api/v1/provinces/'+ilId+'?fields=districts')
+    fetch('https://api.turkiyeapi.dev/v1/provinces/'+ilId+'?fields=districts')
       .then(function(r){ return r.json(); })
       .then(function(data) {
         ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
