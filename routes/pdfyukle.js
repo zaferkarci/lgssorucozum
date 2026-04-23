@@ -35,17 +35,20 @@ async function pdfdenSorulariCikar(pdfBase64, sinif, ders, konu) {
     if (!apiKey) throw new Error('GEMINI_API_KEY environment variable tanımlı değil.');
 
     const PROMPT = `Sen bir Türk eğitim sistemi soru analiz uzmanısın.
-Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir, OCR ile oku.
+Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir, OCR ve görsel analiz ile oku.
 
 Tüm çok şıklı soruları tespit et ve her biri için şu JSON alanlarını doldur:
-- soruOnculu: Sorudan önce gelen paragraf, şiir, tablo veya metin parçası (yoksa boş string "")
-- soruResmi: Soruda şekil/grafik/görsel varsa "[GÖRSEL VAR]" yaz, yoksa ""
-- soruMetni: Soru kökü tam metin (HTML desteklenir: <sup>, <sub>, <b>, <i> kullanabilirsin)
-- secenekler: Tam olarak 4 eleman: [{"metin":"A şıkkı metni","gorsel":""},...]
+
+- soruOnculu: Sorudan önce gelen paragraf, şiir, tablo veya metin parçası. Tablolar varsa HTML tablo formatında yaz (<table><tr><td>...</td></tr></table>). Yoksa boş string "".
+- soruResmi: Soruda şekil/grafik/görsel varsa "[GÖRSEL VAR]" yaz, yoksa "". (Not: görseli metne dönüştür ve soruMetni veya soruOnculu'ya ekle)
+- soruMetni: Soru kökü tam metin. Görseldeki sayılar, şekiller, tablolar varsa bunları metin olarak buraya dahil et. HTML desteklenir: <sup>, <sub>, <b>, <u>, <i> kullanabilirsin.
+- secenekler: Tam olarak 4 eleman. Her şıktaki metin, sayı veya tablolar dahil: [{"metin":"A şıkkı tam metni","gorsel":""},...]
 - dogruCevapIndex: Doğru cevap indexi (0=A, 1=B, 2=C, 3=D). Cevap anahtarı yoksa -1.
 
 ÖNEMLİ KURALLAR:
-- Matematiksel üst/alt simgeler için HTML kullan: x² → x<sup>2</sup>
+- Matematiksel üst/alt simgeler için HTML kullan: x² → x<sup>2</sup>, x₂ → x<sub>2</sub>
+- Görsellerdeki tablo verilerini HTML tablo olarak yaz
+- Şıklarda sadece sayı/değer varsa o değerleri metin olarak yaz (örn: "5    4")
 - Her soruyu eksiksiz çıkar, hiçbirini atlama
 - Sadece JSON array döndür, açıklama veya markdown ekleme
 
@@ -72,7 +75,7 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
         }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
         method: 'POST',
