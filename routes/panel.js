@@ -80,8 +80,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
-    // Sadece yayında olan ve kullanıcı tarafından çözülmemiş sorular, zorluk artan (kolay→zor), aynı zorlukta rastgele
-    const yayindaSorular = await Soru.find({ durum: 'yayinda' }).lean();
+    // Sadece yayında olan, öğrencinin sınıf seviyesindeki ve çözülmemiş sorular
+    const yayindaSorular = await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }).lean();
     const cozulmemisSorular = yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
     cozulmemisSorular.sort((a, b) => {
         const za = a.zorlukKatsayisi || 3;

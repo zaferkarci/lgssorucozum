@@ -21,9 +21,6 @@
     <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
     <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <a href="/cikis" class="ptopbar-link cikis">Çıkış Yap</a>
-    <% if (mod === 'soru' && sorular.length && basla) { %>
-    <div class="ptopbar-timer">⏱ <span id="timer">00:00</span> / 05:00</div>
-    <% } %>
   </div>
 </div>
 
@@ -144,6 +141,7 @@
         <span class="ep ep-ders">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="ep ep-konu">Konu: <%= soru.konu %></span><% } %>
+        <div style="margin-left:auto; background:rgba(226,75,74,0.1); border:1px solid rgba(226,75,74,0.25); border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600; color:#c0392b; white-space:nowrap;">⏱ <span id="timer">00:00</span> / 05:00</div>
       </div>
       <div class="soru-govde-yeni">
         <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
