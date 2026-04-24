@@ -1275,39 +1275,17 @@ function gosterExcelHata(msg) {
   </div>
   <% } %>
 
-  <%
-    // Zincir ağacı inşa et — düz JS string olarak, EJS recursion yok
-    var zincirMap = {};
-    kullanilanlar.forEach(function(r) {
-      if (!zincirMap[r.olusturan]) zincirMap[r.olusturan] = [];
-      if (r.kullanan) zincirMap[r.olusturan].push(r.kullanan);
-    });
-    var tumKullananlar = kullanilanlar.map(function(r){ return r.kullanan; }).filter(Boolean);
-    var kokler = Object.keys(zincirMap).filter(function(k){ return tumKullananlar.indexOf(k) === -1; });
-    if (kokler.length === 0 && Object.keys(zincirMap).length > 0) kokler = [Object.keys(zincirMap)[0]];
-
-    function zincirHtmlUret(isim, derinlik) {
-      var cocuklar = zincirMap[isim] || [];
-      var renk = isim === 'admin' ? '#e65100' : '#1a73e8';
-      var bg = isim === 'admin' ? '#fff3e0' : '#e3f2fd';
-      var pad = derinlik * 24;
-      var html = '<div style="display:flex; align-items:center; gap:6px; padding:3px 0; padding-left:' + pad + 'px;">';
-      if (derinlik > 0) html += '<span style="color:#ccc; font-size:12px;">└─</span>';
-      html += '<span style="background:' + bg + '; color:' + renk + '; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;">' + isim + '</span>';
-      if (cocuklar.length > 0) html += '<span style="font-size:10px; color:#aaa;">' + cocuklar.length + ' davet</span>';
-      html += '</div>';
-      cocuklar.forEach(function(c) { html += zincirHtmlUret(c, derinlik + 1); });
-      return html;
-    }
-
-    var zincirHtml = '';
-    kokler.forEach(function(kok) { zincirHtml += zincirHtmlUret(kok, 0); });
-  %>
-
-  <% if (zincirHtml) { %>
+  <% if (kullanilanlar.length > 0) { %>
   <div class="admin-card">
     <div class="admin-card-title">🌳 Referans Zinciri</div>
-    <div style="font-family: sans-serif; line-height:1.8;"><%- zincirHtml %></div>
+    <% kullanilanlar.forEach(function(r) { %>
+      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px;">
+        <span style="background:#fff3e0; color:#e65100; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;"><%= r.olusturan %></span>
+        <span style="color:#ccc; font-size:16px;">→</span>
+        <span style="background:#e3f2fd; color:#1a73e8; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;"><%= r.kullanan %></span>
+        <span style="font-size:11px; color:#bbb; margin-left:auto;"><%= r.kullanimTarih ? new Date(r.kullanimTarih).toLocaleDateString('tr-TR') : '' %></span>
+      </div>
+    <% }); %>
   </div>
   <% } %>
 
