@@ -71,7 +71,7 @@
   <!-- Sekme bar -->
   <div class="sekme-bar">
     <button class="sekme-btn aktif" onclick="sekmeAc('genel',this)">📊 Genel</button>
-    <button class="sekme-btn" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri <span class="sekme-yakinda">Yakında</span></button>
+    <button class="sekme-btn" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri</button>
     <button class="sekme-btn" onclick="sekmeAc('guvenlik',this)">🔒 Güvenlik</button>
   </div>
 
@@ -147,11 +147,84 @@
 
   <!-- İSTATİSTİK SEKMESİ -->
   <div id="sekme-istatistik" class="sekme-icerik">
-    <div class="yakin-wrap">
-      <div class="yakin-ikon">📈</div>
-      <div class="yakin-baslik">Ders İstatistikleri Yakında</div>
-      <div class="yakin-alt">Konu bazlı doğru/yanlış oranı, süre analizi ve daha fazlası burada olacak.</div>
-    </div>
+    <% var dersler = Object.keys(dersIstatMap); %>
+    <% if (dersler.length === 0) { %>
+      <div class="yakin-wrap">
+        <div class="yakin-ikon">📈</div>
+        <div class="yakin-baslik">Henüz istatistik yok</div>
+        <div class="yakin-alt">Soru çözdükçe ders ve konu bazlı istatistiklerin burada görünecek.</div>
+      </div>
+    <% } else { %>
+      <% dersler.forEach(function(ders) {
+        var di = dersIstatMap[ders];
+        var toplamSoru = di.toplamDogru + di.toplamYanlis;
+        var dogruOran = toplamSoru > 0 ? Math.round((di.toplamDogru / toplamSoru) * 100) : 0;
+        var renk = dogruOran >= 70 ? '#2e7d32' : dogruOran >= 40 ? '#e65100' : '#c62828';
+        var barRenk = dogruOran >= 70 ? '#43a047' : dogruOran >= 40 ? '#fb8c00' : '#e53935';
+        var konular = Object.keys(di.konular);
+      %>
+      <div class="profil-kart-yeni" style="margin-bottom:14px;">
+        <!-- Ders başlığı -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <div>
+            <p style="font-size:14px; font-weight:600; color:#202124; margin:0;"><%= ders %></p>
+            <p style="font-size:12px; color:#888; margin:2px 0 0;"><%= toplamSoru %> soru çözüldü</p>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:22px; font-weight:700; color:<%= renk %>;"><%= dogruOran %>%</div>
+            <div style="font-size:11px; color:#aaa;">doğru oranı</div>
+          </div>
+        </div>
+
+        <!-- Genel progress bar -->
+        <div style="height:6px; background:#f0f0f0; border-radius:3px; margin-bottom:16px; overflow:hidden;">
+          <div style="height:100%; width:<%= dogruOran %>%; background:<%= barRenk %>; border-radius:3px; transition:width 0.6s;"></div>
+        </div>
+
+        <!-- Özet satırı -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px;">
+          <div style="background:#e8f5e9; border-radius:8px; padding:10px 12px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#2e7d32;"><%= di.toplamDogru %></div>
+            <div style="font-size:11px; color:#66bb6a;">Doğru</div>
+          </div>
+          <div style="background:#ffebee; border-radius:8px; padding:10px 12px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#c62828;"><%= di.toplamYanlis %></div>
+            <div style="font-size:11px; color:#ef9a9a;">Yanlış</div>
+          </div>
+          <div style="background:#e3f2fd; border-radius:8px; padding:10px 12px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#1565c0;"><%= toplamSoru %></div>
+            <div style="font-size:11px; color:#90caf9;">Toplam</div>
+          </div>
+        </div>
+
+        <!-- Konu bazlı detay -->
+        <% if (konular.length > 0) { %>
+        <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#b0bcc8; margin-bottom:10px;">Konu Detayı</p>
+        <% konular.forEach(function(konu) {
+          var kd = di.konular[konu];
+          var kTop = kd.dogru + kd.yanlis;
+          var kOran = kTop > 0 ? Math.round((kd.dogru / kTop) * 100) : 0;
+          var kBarRenk = kOran >= 70 ? '#43a047' : kOran >= 40 ? '#fb8c00' : '#e53935';
+          var ortSure = kTop > 0 ? Math.round(kd.toplamSure / kTop) : 0;
+        %>
+          <div style="padding:8px 0; border-bottom:1px solid #f5f5f5;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <span style="font-size:13px; color:#333; font-weight:500;"><%= konu %></span>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:11px; color:#888;">⏱ ort. <%= ortSure %>sn</span>
+                <span style="font-size:12px; color:<%= kBarRenk %>; font-weight:600;"><%= kd.dogru %>/<%= kTop %></span>
+                <span style="font-size:12px; font-weight:600; color:<%= kBarRenk %>; min-width:36px; text-align:right;"><%= kOran %>%</span>
+              </div>
+            </div>
+            <div style="height:4px; background:#f0f0f0; border-radius:2px; overflow:hidden;">
+              <div style="height:100%; width:<%= kOran %>%; background:<%= kBarRenk %>; border-radius:2px;"></div>
+            </div>
+          </div>
+        <% }); %>
+        <% } %>
+      </div>
+      <% }); %>
+    <% } %>
   </div>
 
   <!-- GÜVENLİK SEKMESİ -->

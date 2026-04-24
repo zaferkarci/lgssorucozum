@@ -175,8 +175,31 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ olusturmaTarih: 1 }).lean();
     const baseUrl = (process.env.SITE_URL || 'https://' + req.get('host')).replace(/\/$/, '');
 
-    // Yeni soru bildirimi: daha önce en az 1 soru çözdü VE şu an çözülecek soru var
+    // Yeni soru bildirimi
     const yeniSoruSayisi = (k.soruIndex > 0 && cozulmemisSorular.length > 0) ? cozulmemisSorular.length : 0;
+
+    // Ders istatistikleri — CevapKaydi'ndan ders/konu bazlı detay
+    const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).lean();
+    const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
+    const cevapSorular = soruIdleri.length > 0
+        ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu _id').lean()
+        : [];
+    const soruBilgiMap = {};
+    cevapSorular.forEach(s => { soruBilgiMap[String(s._id)] = s; });
+
+    // Ders → Konu → {dogru, yanlis, sure}
+    const dersIstatMap = {};
+    tumCevaplar.forEach(c => {
+        const sb = soruBilgiMap[String(c.soruId)];
+        if (!sb) return;
+        const ders = sb.ders || 'Diğer';
+        const konu = sb.konu || 'Genel';
+        if (!dersIstatMap[ders]) dersIstatMap[ders] = { toplamDogru: 0, toplamYanlis: 0, konular: {} };
+        if (!dersIstatMap[ders].konular[konu]) dersIstatMap[ders].konular[konu] = { dogru: 0, yanlis: 0, toplamSure: 0 };
+        if (c.dogruMu) { dersIstatMap[ders].toplamDogru++; dersIstatMap[ders].konular[konu].dogru++; }
+        else           { dersIstatMap[ders].toplamYanlis++; dersIstatMap[ders].konular[konu].yanlis++; }
+        dersIstatMap[ders].konular[konu].toplamSure += c.sure || 0;
+    });
 
     res.render('panel', {
         k,
@@ -189,7 +212,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         ortToplamHesapla,
         referansKodlari: kullanicininKodlari,
         baseUrl,
-        yeniSoruSayisi
+        yeniSoruSayisi,
+        dersIstatMap
     });
 });
 
