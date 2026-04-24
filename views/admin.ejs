@@ -1202,7 +1202,7 @@ function gosterExcelHata(msg) {
 
 <% } else if (mod === 'referans') { %>
   <%
-    var baseUrlAdmin = process.env.SITE_URL || 'https://lgssorucozum-4.onrender.com';
+    var baseUrlAdmin = (process.env.SITE_URL || 'https://lgssorucozum-4.onrender.com').replace(/\/$/, '');
     var bekleyenler = tumReferanslar.filter(function(r){ return !r.kullanildi; });
     var kullanilanlar = tumReferanslar.filter(function(r){ return r.kullanildi; });
   %>

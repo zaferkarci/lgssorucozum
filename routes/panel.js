@@ -166,7 +166,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
 
     const ReferansKodu = require('../models/ReferansKodu');
     const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ olusturmaTarih: 1 }).lean();
-    const baseUrl = process.env.SITE_URL || 'https://' + req.get('host');
+    const baseUrl = (process.env.SITE_URL || 'https://' + req.get('host')).replace(/\/$/, '');
 
     res.render('panel', {
         k,
