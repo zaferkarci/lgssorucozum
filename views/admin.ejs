@@ -1248,7 +1248,7 @@ function gosterExcelHata(msg) {
           <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= new Date(r.olusturmaTarih).toLocaleDateString('tr-TR') %></span>
         </div>
         <div class="admin-soru-sag">
-          <button onclick="adminKopyala('<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>', this)" class="admin-btn admin-btn-duzenle">🔗 Linki Kopyala</button>
+          <button onclick="adminKopyala('<%= r.kod %>', this)" data-link="<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>" class="admin-btn admin-btn-duzenle">🔗 Linki Kopyala</button>
           <form action="/referans-sil" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= r._id %>">
             <button class="admin-btn admin-btn-sil">Sil</button>
@@ -1290,8 +1290,16 @@ function gosterExcelHata(msg) {
   <% } %>
 
   <script>
-  function adminKopyala(metin, btn) {
+  function adminKopyala(kod, btn) {
+    var metin = btn.getAttribute('data-link');
+    var key = 'kopyalandi_' + kod;
+    var oncekiZaman = localStorage.getItem(key);
+    if (oncekiZaman) {
+      var tarih = new Date(parseInt(oncekiZaman)).toLocaleString('tr-TR');
+      if (!confirm('⚠️ Bu link daha önce kopyalandı!\n\nKopyalanma zamanı: ' + tarih + '\n\nYine de kopyalamak istiyor musun?')) return;
+    }
     navigator.clipboard.writeText(metin).then(function() {
+      localStorage.setItem(key, Date.now().toString());
       var eski = btn.innerText;
       btn.innerText = '✓ Kopyalandı';
       setTimeout(function() { btn.innerText = eski; }, 2000);
