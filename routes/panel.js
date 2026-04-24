@@ -80,26 +80,32 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
-    // Sadece yayında olan, öğrencinin sınıf seviyesindeki ve çözülmemiş sorular
+    // Sadece yayında olan, öğrencinin sınıf seviyesindeki sorular
     const yayindaSorular = await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }).lean();
-    const cozulmemisSorular = yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
+
+    // Moderatör tüm soruları görür, öğrenci sadece çözülmemişleri
+    const moderator = k.rol === 'moderator';
+    const cozulmemisSorular = moderator
+        ? yayindaSorular
+        : yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
+
     cozulmemisSorular.sort((a, b) => {
-        // 1. Ünite sırası
         const uniteA = a.unite || '';
         const uniteB = b.unite || '';
         const uniteCmp = uniteA.localeCompare(uniteB, 'tr', { numeric: true });
         if (uniteCmp !== 0) return uniteCmp;
-        // 2. Konu sırası
         const konuA = a.konu || '';
         const konuB = b.konu || '';
         const konuCmp = konuA.localeCompare(konuB, 'tr', { numeric: true });
         if (konuCmp !== 0) return konuCmp;
-        // 3. Zorluk (çok kolay → çok zor)
         const za = a.zorlukKatsayisi || 3;
         const zb = b.zorlukKatsayisi || 3;
         return za - zb;
     });
-    const sorular = cozulmemisSorular;
+
+    // Moderatör için navigasyon indexi
+    const modIdx = moderator ? Math.max(0, Math.min(parseInt(req.query.idx) || 0, cozulmemisSorular.length - 1)) : 0;
+    const sorular = moderator ? cozulmemisSorular.slice(modIdx, modIdx + 1) : cozulmemisSorular;
 
     const zorlukBilgisi = (soru) => {
         const z = soru.zorlukKatsayisi || 3;
@@ -213,7 +219,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         referansKodlari: kullanicininKodlari,
         baseUrl,
         yeniSoruSayisi,
-        dersIstatMap
+        dersIstatMap,
+        moderator,
+        modIdx,
+        toplamSoru: cozulmemisSorular.length
     });
 });
 

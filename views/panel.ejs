@@ -317,7 +317,7 @@
         <span class="ep ep-ders">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="ep ep-konu">Konu: <%= soru.konu %></span><% } %>
-        <div style="margin-left:auto; background:rgba(226,75,74,0.1); border:1px solid rgba(226,75,74,0.25); border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600; color:#c0392b; white-space:nowrap;">⏱ <span id="timer">00:00</span> / 05:00</div>
+        <div style="margin-left:auto; background:rgba(226,75,74,0.1); border:1px solid rgba(226,75,74,0.25); border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600; color:#c0392b; white-space:nowrap;<% if(moderator){ %>display:none;<% } %>">⏱ <span id="timer">00:00</span> / 05:00</div>
       </div>
       <div class="soru-govde-yeni">
         <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
@@ -350,6 +350,15 @@
             <% if (soru.secenekler[i]) { %>
             <% var sikIcerigi = soru.secenekler[i].metin || ''; %>
             <% var tabloMu = sikIcerigi.indexOf('<table') !== -1; %>
+            <% var dogruMu = soru.dogruCevapIndex === i; %>
+            <% if (moderator) { %>
+              <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default;">
+                <% if (!tabloMu) { %><span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span><% } %>
+                <%- sikIcerigi %>
+                <% if (dogruMu) { %><span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
+                <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
+              </div>
+            <% } else { %>
             <form method="POST" action="/cevap" style="<%= formStyle %>">
               <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
               <input type="hidden" name="soruId" value="<%= soru._id %>">
@@ -361,8 +370,29 @@
               </button>
             </form>
             <% } %>
+            <% } %>
           <% } %>
         </div>
+
+        <% if (moderator) { %>
+        <!-- Moderatör navigasyon çubuğu -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid #f0f0f0;">
+          <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&idx=<%= Math.max(0, modIdx-1) %>"
+             class="secenek-btn-yeni"
+             style="width:auto; padding:8px 20px; text-decoration:none; justify-content:center; background:<%= modIdx === 0 ? '#f5f5f5' : 'white' %>; color:<%= modIdx === 0 ? '#ccc' : '#1a73e8' %>; pointer-events:<%= modIdx === 0 ? 'none' : 'auto' %>;">
+            ← Önceki
+          </a>
+          <span style="font-size:13px; color:#888; font-weight:500;">
+            <b style="color:#1a73e8;"><%= modIdx + 1 %></b> / <%= toplamSoru %> soru
+          </span>
+          <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&idx=<%= Math.min(toplamSoru-1, modIdx+1) %>"
+             class="secenek-btn-yeni"
+             style="width:auto; padding:8px 20px; text-decoration:none; justify-content:center; background:<%= modIdx === toplamSoru-1 ? '#f5f5f5' : 'white' %>; color:<%= modIdx === toplamSoru-1 ? '#ccc' : '#1a73e8' %>; pointer-events:<%= modIdx === toplamSoru-1 ? 'none' : 'auto' %>;">
+            Sonraki →
+          </a>
+        </div>
+        <% } %>
+
         <p style="text-align:center; color:#aaa; font-size:11px; margin-top:10px; margin-bottom:4px;">Eğitim amaçlıdır. Soruların tüm hakları MEB'e aittir.</p>
       </div>
     </div>

@@ -357,4 +357,17 @@ router.post('/referans-toplu-sil', async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
+router.post('/kullanici-rol', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { kullaniciAdi, rol, il, ilce, okul } = req.body;
+        await Kullanici.updateOne({ kullaniciAdi }, { rol: rol || 'ogrenci' });
+        const params = new URLSearchParams({ mod: 'kullanicilar' });
+        if (il) params.set('il', il);
+        if (ilce) params.set('ilce', ilce);
+        if (okul) params.set('okul', okul);
+        res.redirect('/admin?' + params.toString());
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
 module.exports = router;
