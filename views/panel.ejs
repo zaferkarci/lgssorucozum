@@ -220,6 +220,13 @@
 
   <% } else if (!basla) { %>
     <div style="text-align:center; margin-top:100px;">
+      <% if (yeniSoruSayisi > 0) { %>
+      <div style="display:inline-flex; align-items:center; gap:10px; background:#e8f5e9; border:1.5px solid #a5d6a7; border-radius:12px; padding:12px 24px; margin-bottom:24px; font-size:14px; color:#2e7d32; font-weight:500;">
+        <span style="font-size:20px;">🎉</span>
+        <span>Sana özel <b><%= yeniSoruSayisi %> yeni soru</b> eklendi!</span>
+      </div>
+      <br>
+      <% } %>
       <h1 style="color:#1a73e8;">Hazır mısın?</h1>
       <p>Sıradaki soruyu çözmek için butona tıkla.</p>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true" class="btn btn-success btn-lg">SORU ÇÖZMEYE BAŞLA</a>

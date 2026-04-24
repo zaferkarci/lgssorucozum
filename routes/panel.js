@@ -84,13 +84,20 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const yayindaSorular = await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }).lean();
     const cozulmemisSorular = yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
     cozulmemisSorular.sort((a, b) => {
+        // 1. Ünite sırası
+        const uniteA = a.unite || '';
+        const uniteB = b.unite || '';
+        const uniteCmp = uniteA.localeCompare(uniteB, 'tr', { numeric: true });
+        if (uniteCmp !== 0) return uniteCmp;
+        // 2. Konu sırası
+        const konuA = a.konu || '';
+        const konuB = b.konu || '';
+        const konuCmp = konuA.localeCompare(konuB, 'tr', { numeric: true });
+        if (konuCmp !== 0) return konuCmp;
+        // 3. Zorluk (çok kolay → çok zor)
         const za = a.zorlukKatsayisi || 3;
         const zb = b.zorlukKatsayisi || 3;
-        if (za !== zb) return za - zb;
-        // Aynı zorlukta: kullanıcı adı + soru _id karması ile stabil ama kişiye özel sıralama
-        const hashA = (String(k.kullaniciAdi) + String(a._id)).split('').reduce((h,c) => (h*31 + c.charCodeAt(0)) & 0xffffffff, 0);
-        const hashB = (String(k.kullaniciAdi) + String(b._id)).split('').reduce((h,c) => (h*31 + c.charCodeAt(0)) & 0xffffffff, 0);
-        return hashA - hashB;
+        return za - zb;
     });
     const sorular = cozulmemisSorular;
 
@@ -168,6 +175,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ olusturmaTarih: 1 }).lean();
     const baseUrl = (process.env.SITE_URL || 'https://' + req.get('host')).replace(/\/$/, '');
 
+    // Yeni soru bildirimi: daha önce en az 1 soru çözdü VE şu an çözülecek soru var
+    const yeniSoruSayisi = (k.soruIndex > 0 && cozulmemisSorular.length > 0) ? cozulmemisSorular.length : 0;
+
     res.render('panel', {
         k,
         mod,
@@ -178,7 +188,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         siralamaVerisi,
         ortToplamHesapla,
         referansKodlari: kullanicininKodlari,
-        baseUrl
+        baseUrl,
+        yeniSoruSayisi
     });
 });
 
@@ -274,6 +285,26 @@ router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
         await Kullanici.findOneAndUpdate({ kullaniciAdi }, { sube: sube || '' });
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+router.post('/profil/sifre-degistir', oturumKontrol, async (req, res) => {
+    const { kullaniciAdi, eskiSifre, yeniSifre, yeniSifreTekrar } = req.body;
+    const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil';
+    try {
+        if (yeniSifre !== yeniSifreTekrar)
+            return res.send("<script>alert('Yeni şifreler uyuşmuyor!'); window.location.href='" + geri + "';</script>");
+        if (!yeniSifre || yeniSifre.length < 4)
+            return res.send("<script>alert('Yeni şifre en az 4 karakter olmalı.'); window.location.href='" + geri + "';</script>");
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send("Kullanıcı bulunamadı.");
+        const bcrypt = require('bcrypt');
+        const eslesti = await bcrypt.compare(eskiSifre, k.sifre);
+        if (!eslesti)
+            return res.send("<script>alert('Eski şifre yanlış!'); window.location.href='" + geri + "';</script>");
+        k.sifre = await bcrypt.hash(yeniSifre, 10);
+        await k.save();
+        res.send("<script>alert('Şifreniz başarıyla değiştirildi.'); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
 module.exports = router;
