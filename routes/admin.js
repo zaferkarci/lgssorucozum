@@ -5,6 +5,8 @@ const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
 const CevapKaydi = require('../models/CevapKaydi');
+const ReferansKodu = require('../models/ReferansKodu');
+const { referansKoduUret } = require('./auth');
 const multer = require('multer');
 
 // ── Multer: Excel yüklemeleri ────────────────────────────────────────────────
@@ -62,13 +64,15 @@ router.get('/admin', async (req, res) => {
     const adminToken = req.headers.authorization
         ? req.headers.authorization.replace('Basic ', '')
         : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
+    const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
     res.render('admin', {
         mod, editSoru, tumSorular, dersler,
         tumKullanicilar, filtreliKullanicilar,
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
         tumOkullar, adminToken,
-        tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 })
+        tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
+        tumReferanslar
     });
 });
 
@@ -325,6 +329,32 @@ router.get('/api/soru/:id', async (req, res) => {
         if (!s) return res.status(404).json({ hata: 'Soru bulunamadı' });
         res.json(s);
     } catch (err) { res.status(500).json({ hata: err.message }); }
+});
+
+// ── Referans Kodu Yönetimi ───────────────────────────────────────────────────
+router.post('/referans-uret', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const adet = Math.min(parseInt(req.body.adet) || 1, 500);
+        await referansKoduUret('admin', adet);
+        res.redirect('/admin?mod=referans');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+router.post('/referans-sil', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await ReferansKodu.deleteOne({ _id: req.body.id, kullanildi: false });
+        res.redirect('/admin?mod=referans');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+router.post('/referans-toplu-sil', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await ReferansKodu.deleteMany({ kullanildi: false });
+        res.redirect('/admin?mod=referans');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
 module.exports = router;
