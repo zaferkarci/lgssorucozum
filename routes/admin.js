@@ -48,7 +48,7 @@ router.get('/admin', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     const editSoru = req.query.duzenle ? await Soru.findById(req.query.duzenle) : null;
     const tumSorular = await Soru.find();
-    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif il ilce okul');
+    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif il ilce okul rol');
     const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
     const mod = req.query.mod || (req.query.duzenle ? 'soruEkle' : 'soruListesi');
     const filIl = req.query.il || '';

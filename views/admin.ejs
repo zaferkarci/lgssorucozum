@@ -1276,41 +1276,38 @@ function gosterExcelHata(msg) {
   <% } %>
 
   <%
-    // Zincir ağacı inşa et
+    // Zincir ağacı inşa et — düz JS string olarak, EJS recursion yok
     var zincirMap = {};
     kullanilanlar.forEach(function(r) {
       if (!zincirMap[r.olusturan]) zincirMap[r.olusturan] = [];
-      if (r.kullanan) zincirMap[r.olusturan].push({ isim: r.kullanan, tarih: r.kullanimTarih });
+      if (r.kullanan) zincirMap[r.olusturan].push(r.kullanan);
     });
-    // Kök düğümleri bul (hiçbir kodla kaydolmamış, yani olusturan ama kullanan değil)
     var tumKullananlar = kullanilanlar.map(function(r){ return r.kullanan; }).filter(Boolean);
     var kokler = Object.keys(zincirMap).filter(function(k){ return tumKullananlar.indexOf(k) === -1; });
     if (kokler.length === 0 && Object.keys(zincirMap).length > 0) kokler = [Object.keys(zincirMap)[0]];
+
+    function zincirHtmlUret(isim, derinlik) {
+      var cocuklar = zincirMap[isim] || [];
+      var renk = isim === 'admin' ? '#e65100' : '#1a73e8';
+      var bg = isim === 'admin' ? '#fff3e0' : '#e3f2fd';
+      var pad = derinlik * 24;
+      var html = '<div style="display:flex; align-items:center; gap:6px; padding:3px 0; padding-left:' + pad + 'px;">';
+      if (derinlik > 0) html += '<span style="color:#ccc; font-size:12px;">└─</span>';
+      html += '<span style="background:' + bg + '; color:' + renk + '; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;">' + isim + '</span>';
+      if (cocuklar.length > 0) html += '<span style="font-size:10px; color:#aaa;">' + cocuklar.length + ' davet</span>';
+      html += '</div>';
+      cocuklar.forEach(function(c) { html += zincirHtmlUret(c, derinlik + 1); });
+      return html;
+    }
+
+    var zincirHtml = '';
+    kokler.forEach(function(kok) { zincirHtml += zincirHtmlUret(kok, 0); });
   %>
 
-  <% if (Object.keys(zincirMap).length > 0) { %>
+  <% if (zincirHtml) { %>
   <div class="admin-card">
     <div class="admin-card-title">🌳 Referans Zinciri</div>
-    <div id="zincirAgaci" style="font-family: monospace; font-size:13px; line-height:2;">
-      <% function zincirCiz(isim, derinlik, sonMu) {
-        var prefix = '';
-        for (var d = 0; d < derinlik; d++) {
-          prefix += d === derinlik - 1 ? (sonMu ? '└─ ' : '├─ ') : '│&nbsp;&nbsp;';
-        }
-        var cocuklar = zincirMap[isim] || [];
-        var renk = isim === 'admin' ? '#e65100' : '#1a73e8';
-      %>
-        <div style="display:flex; align-items:center; gap:6px; padding:2px 0;">
-          <span style="white-space:pre; color:#ccc;"><%- prefix %></span>
-          <span style="background:<%= isim==='admin'?'#fff3e0':'#e3f2fd' %>; color:<%= renk %>; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; font-family:sans-serif;"><%= isim %></span>
-          <% if (cocuklar.length > 0) { %><span style="font-size:10px; color:#aaa; font-family:sans-serif;"><%= cocuklar.length %> davet</span><% } %>
-        </div>
-        <% cocuklar.forEach(function(c, ci) { %>
-          <% zincirCiz(c.isim, derinlik + 1, ci === cocuklar.length - 1); %>
-        <% }); %>
-      <% } %>
-      <% kokler.forEach(function(kok) { zincirCiz(kok, 0, true); }); %>
-    </div>
+    <div style="font-family: sans-serif; line-height:1.8;"><%- zincirHtml %></div>
   </div>
   <% } %>
 
