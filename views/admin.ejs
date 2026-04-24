@@ -20,6 +20,7 @@
   <a href="/admin?mod=soruEkle" class="admin-nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru</a>
   <a href="/admin?mod=pdfYukle" class="admin-nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
   <a href="/admin?mod=kullanicilar" class="admin-nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+  <a href="/admin?mod=referans" class="admin-nav-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
   <a href="/admin?mod=uniteler" class="admin-nav-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
   <a href="/admin?mod=okullar" class="admin-nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
   <a href="/admin?mod=sifirla" class="admin-nav-link danger">🗑️ Sıfırla</a>
@@ -1198,6 +1199,117 @@ function gosterExcelHata(msg) {
       <button onclick="return confirm('Hesaplama başlatılsın mı? İşlem birkaç dakika sürebilir.')" class="btn" style="background:#2980b9; color:white;">⏰ ŞİMDİ HESAPLA</button>
     </form>
   </div>
+
+<% } else if (mod === 'referans') { %>
+  <%
+    var baseUrlAdmin = process.env.SITE_URL || 'https://lgssorucozum-4.onrender.com';
+    var bekleyenler = tumReferanslar.filter(function(r){ return !r.kullanildi; });
+    var kullanilanlar = tumReferanslar.filter(function(r){ return r.kullanildi; });
+  %>
+
+  <div class="admin-card">
+    <div class="admin-card-title">
+      Referans Kodu Üret
+      <span style="font-size:12px; color:#888;">Toplam: <%= tumReferanslar.length %> | Bekleyen: <%= bekleyenler.length %> | Kullanılan: <%= kullanilanlar.length %></span>
+    </div>
+    <form action="/referans-uret" method="POST" style="display:flex; gap:10px; align-items:center;">
+      <input type="number" name="adet" value="10" min="1" max="500" style="width:90px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
+      <button class="ekle-btn">Kod Üret</button>
+      <span style="font-size:12px; color:#888;">adet (max 500)</span>
+    </form>
+    <% if (bekleyenler.length > 0) { %>
+    <form action="/referans-toplu-sil" method="POST" style="margin-top:10px;">
+      <button onclick="return confirm('Tüm bekleyen kodlar silinsin mi?')" style="background:#fbeaea; color:#a32d2d; border:1px solid #f5c6c6; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;">🗑 Tüm Bekleyenleri Sil (<%= bekleyenler.length %>)</button>
+    </form>
+    <% } %>
+  </div>
+
+  <% if (bekleyenler.length > 0) { %>
+  <div class="admin-card">
+    <div class="admin-card-title">🟡 Bekleyen Kodlar — <%= bekleyenler.length %></div>
+    <% bekleyenler.forEach(function(r) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <code style="font-size:13px; letter-spacing:2px; color:#1a73e8; font-weight:600;"><%= r.kod %></code>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;">Oluşturan: <b><%= r.olusturan %></b></span>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= new Date(r.olusturmaTarih).toLocaleDateString('tr-TR') %></span>
+        </div>
+        <div class="admin-soru-sag">
+          <button onclick="adminKopyala('<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>', this)" class="admin-btn admin-btn-duzenle">🔗 Linki Kopyala</button>
+          <form action="/referans-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= r._id %>">
+            <button class="admin-btn admin-btn-sil">Sil</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+  <% } %>
+
+  <% if (kullanilanlar.length > 0) { %>
+  <div class="admin-card">
+    <div class="admin-card-title">✅ Kullanılan Kodlar — <%= kullanilanlar.length %></div>
+    <% kullanilanlar.forEach(function(r) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <code style="font-size:13px; letter-spacing:2px; color:#aaa; font-weight:600;"><%= r.kod %></code>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;">Oluşturan: <b><%= r.olusturan %></b></span>
+          <span style="font-size:11px; color:#639922; margin-left:8px;">→ <b><%= r.kullanan %></b></span>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= r.kullanimTarih ? new Date(r.kullanimTarih).toLocaleDateString('tr-TR') : '' %></span>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+  <% } %>
+
+  <%
+    // Zincir ağacı inşa et
+    var zincirMap = {};
+    kullanilanlar.forEach(function(r) {
+      if (!zincirMap[r.olusturan]) zincirMap[r.olusturan] = [];
+      if (r.kullanan) zincirMap[r.olusturan].push({ isim: r.kullanan, tarih: r.kullanimTarih });
+    });
+    // Kök düğümleri bul (hiçbir kodla kaydolmamış, yani olusturan ama kullanan değil)
+    var tumKullananlar = kullanilanlar.map(function(r){ return r.kullanan; }).filter(Boolean);
+    var kokler = Object.keys(zincirMap).filter(function(k){ return tumKullananlar.indexOf(k) === -1; });
+    if (kokler.length === 0 && Object.keys(zincirMap).length > 0) kokler = [Object.keys(zincirMap)[0]];
+  %>
+
+  <% if (Object.keys(zincirMap).length > 0) { %>
+  <div class="admin-card">
+    <div class="admin-card-title">🌳 Referans Zinciri</div>
+    <div id="zincirAgaci" style="font-family: monospace; font-size:13px; line-height:2;">
+      <% function zincirCiz(isim, derinlik, sonMu) {
+        var prefix = '';
+        for (var d = 0; d < derinlik; d++) {
+          prefix += d === derinlik - 1 ? (sonMu ? '└─ ' : '├─ ') : '│&nbsp;&nbsp;';
+        }
+        var cocuklar = zincirMap[isim] || [];
+        var renk = isim === 'admin' ? '#e65100' : '#1a73e8';
+      %>
+        <div style="display:flex; align-items:center; gap:6px; padding:2px 0;">
+          <span style="white-space:pre; color:#ccc;"><%- prefix %></span>
+          <span style="background:<%= isim==='admin'?'#fff3e0':'#e3f2fd' %>; color:<%= renk %>; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; font-family:sans-serif;"><%= isim %></span>
+          <% if (cocuklar.length > 0) { %><span style="font-size:10px; color:#aaa; font-family:sans-serif;"><%= cocuklar.length %> davet</span><% } %>
+        </div>
+        <% cocuklar.forEach(function(c, ci) { %>
+          <% zincirCiz(c.isim, derinlik + 1, ci === cocuklar.length - 1); %>
+        <% }); %>
+      <% } %>
+      <% kokler.forEach(function(kok) { zincirCiz(kok, 0, true); }); %>
+    </div>
+  </div>
+  <% } %>
+
+  <script>
+  function adminKopyala(metin, btn) {
+    navigator.clipboard.writeText(metin).then(function() {
+      var eski = btn.innerText;
+      btn.innerText = '✓ Kopyalandı';
+      setTimeout(function() { btn.innerText = eski; }, 2000);
+    });
+  }
+  </script>
 
 <% } else { %>
   <div class="admin-card">
