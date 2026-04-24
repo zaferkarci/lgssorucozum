@@ -752,14 +752,14 @@ function escHtml(str) {
             <td><%= k.okul||'-' %></td>
             <td style="text-align:center;"><%= k.soruIndex %></td>
             <td style="text-align:center; font-weight:bold; color:#1a73e8;"><%= k.puan %></td>
-            <td style="text-align:center;">
+            <td style="text-align:center; display:flex; gap:4px; flex-wrap:wrap; justify-content:center;">
+              <a href="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(k.kullaniciAdi) %>" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">📊 Detay</a>
               <form action="/kullanici-rol" method="POST" style="display:inline;">
                 <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-                <input type="hidden" name="rol" value="<%= k.rol === 'moderator' ? 'ogrenci' : 'moderator' %>">
                 <input type="hidden" name="il" value="<%= filIl %>">
                 <input type="hidden" name="ilce" value="<%= filIlce %>">
                 <input type="hidden" name="okul" value="<%= filOkul %>">
-                <button class="admin-btn <%= k.rol === 'moderator' ? 'admin-btn-onizle' : 'admin-btn-duzenle' %>" style="font-size:10px; padding:3px 8px;">
+                <button class="admin-btn <%= k.rol === 'moderator' ? 'admin-btn-sil' : 'admin-btn-duzenle' %>" style="font-size:10px; padding:3px 8px;">
                   <%= k.rol === 'moderator' ? '🔓 Mod Al' : '🔑 Mod Ver' %>
                 </button>
               </form>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kullanıcı Detay — <%= k.kullaniciAdi %></title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
+.detay-wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+.detay-baslik { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+.detay-back { color:#1a73e8; text-decoration:none; font-size:13px; }
+.detay-grid { display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start; }
+.d-kart { background:white; border-radius:12px; border:1px solid #e8edf2; padding:18px 20px; margin-bottom:14px; }
+.d-kart-baslik { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#b0bcc8; margin-bottom:14px; }
+.d-satir { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #f5f5f5; font-size:13px; }
+.d-satir:last-child { border:none; }
+.d-etiket { color:#888; }
+.d-deger { font-weight:500; color:#333; }
+.form-alan { margin-bottom:12px; }
+.form-alan label { font-size:11px; font-weight:600; color:#8896b0; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px; }
+.form-alan input, .form-alan select { width:100%; padding:9px 12px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; color:#202124; background:#fafbfc; outline:none; }
+.form-alan input:focus, .form-alan select:focus { border-color:#1a73e8; }
+.guncelle-btn { background:#1a73e8; color:white; border:none; border-radius:8px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; width:100%; }
+.badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-dogru { background:#e8f5e9; color:#2e7d32; }
+.badge-yanlis { background:#ffebee; color:#c62828; }
+.istat-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px; }
+.istat-item { background:#f8f9fa; border-radius:9px; padding:11px 12px; text-align:center; }
+.istat-no { font-size:20px; font-weight:600; color:#202124; }
+.istat-label { font-size:11px; color:#999; margin-top:2px; }
+.cevap-tablo { width:100%; border-collapse:collapse; font-size:12px; }
+.cevap-tablo th { background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2; }
+.cevap-tablo td { padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; }
+.cevap-tablo tr:hover td { background:#fafbff; }
+.prog-bar-wrap { height:5px; background:#f0f0f0; border-radius:3px; margin-top:6px; }
+.prog-bar { height:100%; border-radius:3px; }
+.topbar-admin { background:white; border-bottom:1px solid #e8edf2; padding:0 24px; height:52px; display:flex; align-items:center; gap:16px; }
+.topbar-admin a { color:#1a73e8; text-decoration:none; font-size:13px; }
+.topbar-admin-baslik { font-size:14px; font-weight:600; color:#1a2236; }
+</style>
+</head>
+<body>
+
+<div class="topbar-admin">
+  <a href="/admin?mod=kullanicilar">← Kullanıcı Listesi</a>
+  <span style="color:#e0e0e0;">|</span>
+  <span class="topbar-admin-baslik"><%= k.kullaniciAdi %> — Detay</span>
+  <% if (k.rol === 'moderator') { %><span style="background:#e8f0fe;color:#1a73e8;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">MOD</span><% } %>
+</div>
+
+<div class="detay-wrap">
+  <div class="detay-grid">
+
+    <!-- SOL: Bilgiler + Güncelleme -->
+    <div>
+      <!-- Kişisel bilgiler -->
+      <div class="d-kart">
+        <p class="d-kart-baslik">Kişisel Bilgiler</p>
+        <div class="d-satir"><span class="d-etiket">Kullanıcı adı</span><span class="d-deger"><%= k.kullaniciAdi %></span></div>
+        <div class="d-satir"><span class="d-etiket">E-posta</span><span class="d-deger"><%= k.email||'-' %></span></div>
+        <div class="d-satir"><span class="d-etiket">Sınıf / Şube</span><span class="d-deger"><%= k.sinif %>. Sınıf<%= k.sube ? ' / '+k.sube+' Şubesi' : '' %></span></div>
+        <div class="d-satir"><span class="d-etiket">İl / İlçe</span><span class="d-deger"><%= k.il||'-' %> / <%= k.ilce||'-' %></span></div>
+        <div class="d-satir"><span class="d-etiket">Okul</span><span class="d-deger"><%= k.okul||'-' %></span></div>
+        <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : 'Öğrenci' %></span></div>
+      </div>
+
+      <!-- Güncelleme formu -->
+      <div class="d-kart">
+        <p class="d-kart-baslik">Bilgileri Güncelle</p>
+        <form action="/kullanici-guncelle" method="POST">
+          <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+          <div class="form-alan">
+            <label>Sınıf</label>
+            <select name="sinif">
+              <% [5,6,7,8].forEach(function(s) { %>
+                <option value="<%= s %>" <%= k.sinif==s?'selected':'' %>><%= s %>. Sınıf</option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-alan">
+            <label>Şube</label>
+            <select name="sube">
+              <option value="">Şube yok</option>
+              <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
+                <option value="<%= h %>" <%= k.sube===h?'selected':'' %>><%= h %> Şubesi</option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-alan">
+            <label>İl</label>
+            <select name="il" id="det-il" onchange="detIlDegis(this.value)">
+              <option value="">Seçin</option>
+              <% iller.forEach(function(il) { %>
+                <option value="<%= il %>" <%= k.il===il?'selected':'' %>><%= il %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-alan">
+            <label>İlçe</label>
+            <select name="ilce" id="det-ilce" onchange="detIlceDegis(this.value)">
+              <option value="<%= k.ilce||'' %>"><%= k.ilce||'Seçin' %></option>
+            </select>
+          </div>
+          <div class="form-alan">
+            <label>Okul</label>
+            <select name="okul" id="det-okul">
+              <option value="<%= k.okul||'' %>"><%= k.okul||'Seçin' %></option>
+            </select>
+          </div>
+          <button type="submit" class="guncelle-btn">Kaydet</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- SAĞ: İstatistikler -->
+    <div>
+      <%
+        var toplamDogru = tumCevaplar.filter(function(c){ return c.dogruMu; }).length;
+        var toplamYanlis = tumCevaplar.filter(function(c){ return !c.dogruMu; }).length;
+        var toplamSoru = tumCevaplar.length;
+        var dogruOran = toplamSoru > 0 ? Math.round((toplamDogru/toplamSoru)*100) : 0;
+        var toplamSure = tumCevaplar.reduce(function(t,c){ return t+(c.sure||0); }, 0);
+        var ortSure = toplamSoru > 0 ? Math.round(toplamSure/toplamSoru) : 0;
+      %>
+
+      <!-- Genel özet -->
+      <div class="d-kart">
+        <p class="d-kart-baslik">Genel İstatistikler</p>
+        <div class="istat-grid">
+          <div class="istat-item"><div class="istat-no"><%= k.puan %></div><div class="istat-label">Toplam puan</div></div>
+          <div class="istat-item"><div class="istat-no"><%= toplamSoru %></div><div class="istat-label">Çözülen soru</div></div>
+          <div class="istat-item"><div class="istat-no" style="color:<%= dogruOran>=70?'#2e7d32':dogruOran>=40?'#e65100':'#c62828' %>"><%= dogruOran %>%</div><div class="istat-label">Doğru oranı</div></div>
+          <div class="istat-item"><div class="istat-no" style="color:#2e7d32;"><%= toplamDogru %></div><div class="istat-label">Doğru</div></div>
+          <div class="istat-item"><div class="istat-no" style="color:#c62828;"><%= toplamYanlis %></div><div class="istat-label">Yanlış</div></div>
+          <div class="istat-item"><div class="istat-no"><%= ortSure %>sn</div><div class="istat-label">Ort. süre</div></div>
+        </div>
+        <div class="prog-bar-wrap">
+          <div class="prog-bar" style="width:<%= dogruOran %>%; background:<%= dogruOran>=70?'#43a047':dogruOran>=40?'#fb8c00':'#e53935' %>;"></div>
+        </div>
+      </div>
+
+      <!-- Ders bazlı özet -->
+      <%
+        var dersMap = {};
+        tumCevaplar.forEach(function(c) {
+          var sb = soruMap[String(c.soruId)];
+          if (!sb) return;
+          var d = sb.ders||'Diğer';
+          if (!dersMap[d]) dersMap[d] = { dogru:0, yanlis:0 };
+          if (c.dogruMu) dersMap[d].dogru++; else dersMap[d].yanlis++;
+        });
+      %>
+      <% if (Object.keys(dersMap).length > 0) { %>
+      <div class="d-kart">
+        <p class="d-kart-baslik">Ders Bazlı Özet</p>
+        <% Object.keys(dersMap).forEach(function(ders) {
+          var dd = dersMap[ders];
+          var dt = dd.dogru + dd.yanlis;
+          var dr = dt > 0 ? Math.round((dd.dogru/dt)*100) : 0;
+          var dc = dr>=70?'#43a047':dr>=40?'#fb8c00':'#e53935';
+        %>
+          <div class="d-satir" style="align-items:center; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; width:100%;">
+              <span class="d-etiket"><%= ders %></span>
+              <span style="font-size:12px; color:#666;"><%= dd.dogru %>/<%= dt %> — <b style="color:<%= dc %>"><%= dr %>%</b></span>
+            </div>
+            <div class="prog-bar-wrap" style="width:100%;">
+              <div class="prog-bar" style="width:<%= dr %>%; background:<%= dc %>;"></div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+      <% } %>
+
+      <!-- Son cevaplar -->
+      <div class="d-kart">
+        <p class="d-kart-baslik">Son Çözülen Sorular (<%= Math.min(tumCevaplar.length, 50) %>)</p>
+        <div style="overflow-x:auto;">
+          <table class="cevap-tablo">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Ders</th>
+                <th>Konu</th>
+                <th>Süre</th>
+                <th>Puan</th>
+                <th>Sonuç</th>
+                <th>Tarih</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% tumCevaplar.slice(0, 50).forEach(function(c, i) {
+                var sb = soruMap[String(c.soruId)] || {};
+              %>
+              <tr>
+                <td style="color:#aaa;"><%= i+1 %></td>
+                <td><%= sb.ders||'-' %></td>
+                <td style="max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= sb.konu||'-' %></td>
+                <td><%= c.sure||0 %>sn</td>
+                <td style="color:#1a73e8; font-weight:600;"><%= (c.kazanilanPuan||0).toFixed ? (c.kazanilanPuan||0).toFixed(1) : (c.kazanilanPuan||0) %></td>
+                <td><span class="badge <%= c.dogruMu ? 'badge-dogru' : 'badge-yanlis' %>"><%= c.dogruMu ? '✓ Doğru' : '✗ Yanlış' %></span></td>
+                <td style="color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR') : '-' %></td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+var tumOkullar = <%- JSON.stringify(typeof tumOkullar !== 'undefined' ? tumOkullar.map(function(o){ return {il:o.il,ilce:o.ilce,ad:o.ad}; }) : []) %>;
+var mevcutIl = '<%= k.il||'' %>';
+var mevcutIlce = '<%= k.ilce||'' %>';
+var mevcutOkul = '<%= k.okul||'' %>';
+
+function detIlDegis(il) {
+    var ilceSel = document.getElementById('det-ilce');
+    var ilceler = [...new Set(tumOkullar.filter(function(o){ return o.il===il; }).map(function(o){ return o.ilce; }))].sort();
+    ilceSel.innerHTML = '<option value="">Seçin</option>';
+    ilceler.forEach(function(i){ ilceSel.innerHTML += '<option value="'+i+'">'+i+'</option>'; });
+    document.getElementById('det-okul').innerHTML = '<option value="">Seçin</option>';
+}
+
+function detIlceDegis(ilce) {
+    var il = document.getElementById('det-il').value;
+    var okulSel = document.getElementById('det-okul');
+    var okullar = tumOkullar.filter(function(o){ return o.il===il && o.ilce===ilce; }).map(function(o){ return o.ad; }).sort();
+    okulSel.innerHTML = '<option value="">Seçin</option>';
+    okullar.forEach(function(o){ okulSel.innerHTML += '<option value="'+o+'">'+o+'</option>'; });
+}
+
+// Sayfa yüklenince mevcut il/ilçe/okul seçili gelsin
+window.addEventListener('DOMContentLoaded', function() {
+    if (mevcutIl) {
+        document.getElementById('det-il').value = mevcutIl;
+        detIlDegis(mevcutIl);
+        setTimeout(function() {
+            if (mevcutIlce) {
+                document.getElementById('det-ilce').value = mevcutIlce;
+                detIlceDegis(mevcutIlce);
+                setTimeout(function() {
+                    if (mevcutOkul) document.getElementById('det-okul').value = mevcutOkul;
+                }, 50);
+            }
+        }, 50);
+    }
+});
+</script>
+</body>
+</html>

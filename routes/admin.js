@@ -362,13 +362,43 @@ router.post('/referans-toplu-sil', async (req, res) => {
 router.post('/kullanici-rol', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const { kullaniciAdi, rol, il, ilce, okul } = req.body;
-        await Kullanici.updateOne({ kullaniciAdi }, { rol: rol || 'ogrenci' });
+        const { kullaniciAdi, il, ilce, okul } = req.body;
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send('Kullanıcı bulunamadı');
+        const yeniRol = (k.rol === 'moderator') ? 'ogrenci' : 'moderator';
+        await Kullanici.updateOne({ kullaniciAdi }, { rol: yeniRol });
         const params = new URLSearchParams({ mod: 'kullanicilar' });
         if (il) params.set('il', il);
         if (ilce) params.set('ilce', ilce);
         if (okul) params.set('okul', okul);
         res.redirect('/admin?' + params.toString());
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+router.get('/kullanici-detay', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const k = await Kullanici.findOne({ kullaniciAdi: req.query.kullaniciAdi });
+        if (!k) return res.status(404).send('Kullanıcı bulunamadı');
+        const CevapKaydi = require('../models/CevapKaydi');
+        const Soru = require('../models/Soru');
+        const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: -1 }).lean();
+        const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
+        const sorular = soruIdleri.length > 0 ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu soruMetni _id').lean() : [];
+        const soruMap = {};
+        sorular.forEach(s => { soruMap[String(s._id)] = s; });
+        const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
+        const iller = [...new Set(tumOkullar.map(o => o.il).filter(Boolean))].sort();
+        res.render('admin-kullanici-detay', { k, tumCevaplar, soruMap, tumOkullar, iller, adminToken: req.headers.authorization ? req.headers.authorization.replace('Basic ', '') : '' });
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+router.post('/kullanici-guncelle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { kullaniciAdi, il, ilce, okul, sinif, sube } = req.body;
+        await Kullanici.updateOne({ kullaniciAdi }, { il, ilce, okul, sinif: parseInt(sinif)||8, sube: sube||'' });
+        res.redirect('/kullanici-detay?kullaniciAdi=' + encodeURIComponent(kullaniciAdi));
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
