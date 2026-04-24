@@ -525,3 +525,79 @@ body { font-family: sans-serif; background: #f0f2f5; }
 .siralama-kapsam-yeni { color: #666; }
 .siralama-no-yeni { font-size: 16px; font-weight: 600; color: #1a73e8; text-align: right; }
 .siralama-toplam-yeni { font-size: 11px; color: #bbb; text-align: right; }
+
+/* ─── PROFİL SEKME SİSTEMİ ─── */
+.profil-banner {
+  background: white; border-radius: 14px;
+  padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.profil-banner-sol { display: flex; align-items: center; gap: 14px; }
+.profil-banner-isim { font-size: 15px; font-weight: 600; color: #202124; }
+.profil-banner-alt { font-size: 12px; color: #888; margin-top: 2px; }
+.profil-banner-sag { display: flex; gap: 24px; }
+.profil-banner-stat { text-align: center; }
+.profil-banner-no { font-size: 20px; font-weight: 600; color: #202124; }
+.profil-banner-label { font-size: 11px; color: #999; margin-top: 1px; }
+.profil-banner-sep { width: 1px; background: #f0f0f0; }
+
+.sekme-bar {
+  background: white; border-radius: 12px;
+  padding: 4px; margin-bottom: 14px;
+  display: flex; gap: 2px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.sekme-btn {
+  flex: 1; padding: 9px 14px;
+  border: none; border-radius: 9px;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; color: #888; background: transparent;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.sekme-btn:hover { background: #f5f5f5; color: #444; }
+.sekme-btn.aktif { background: #e8f0fe; color: #1a73e8; font-weight: 600; }
+.sekme-yakinda { font-size: 9px; background: #e8f0fe; color: #1a73e8; padding: 1px 6px; border-radius: 10px; font-weight: 600; }
+.sekme-icerik { display: none; }
+.sekme-icerik.aktif { display: block; }
+
+.yakin-wrap { background: white; border-radius: 14px; padding: 48px 24px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.yakin-ikon { font-size: 40px; margin-bottom: 14px; }
+.yakin-baslik { font-size: 16px; font-weight: 600; color: #202124; margin-bottom: 8px; }
+.yakin-alt { font-size: 13px; color: #999; }
+
+/* Şifre formu */
+.sifre-kart-profil { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05); max-width: 440px; }
+.sifre-profil-header { padding: 16px 22px; border-bottom: 1px solid #f4f4f4; display: flex; align-items: center; justify-content: space-between; }
+.sifre-profil-baslik { font-size: 13px; font-weight: 600; color: #202124; }
+.sifre-profil-alt { font-size: 11px; color: #aaa; margin-top: 2px; }
+.sifre-profil-body { padding: 20px 22px; }
+.sf-field { margin-bottom: 14px; }
+.sf-label { font-size: 11px; font-weight: 600; color: #8896b0; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+.sf-wrap { position: relative; }
+.sf-input {
+  width: 100%; padding: 10px 40px 10px 14px;
+  border: 1.5px solid #eaecf0; border-radius: 9px;
+  font-size: 13px; color: #202124; outline: none;
+  background: #fafbfc; transition: border-color 0.2s, background 0.2s;
+}
+.sf-input:focus { border-color: #1a73e8; background: white; }
+.sf-input.ok  { border-color: #34a853; background: #f6fef7; }
+.sf-input.err { border-color: #ea4335; background: #fff8f7; }
+.sf-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #c0c8d4; padding: 0; display: flex; align-items: center; }
+.sf-guc-bars { display: flex; gap: 3px; margin-top: 6px; }
+.sf-guc-bar { height: 3px; flex: 1; border-radius: 2px; background: #eaecf0; transition: background 0.3s; }
+.sf-guc-bar.z { background: #ea4335; }
+.sf-guc-bar.o { background: #fbbc04; }
+.sf-guc-bar.g { background: #34a853; }
+.sf-guc-text { font-size: 11px; margin-top: 4px; }
+.sf-guc-text.z { color: #ea4335; }
+.sf-guc-text.o { color: #f9a825; }
+.sf-guc-text.g { color: #34a853; }
+.sf-hint { font-size: 11px; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+.sf-hint.ok  { color: #34a853; }
+.sf-hint.err { color: #ea4335; }
+.sf-divider { border: none; border-top: 1px solid #f4f4f4; margin: 14px 0; }
+.sf-btn { width: 100%; padding: 11px; background: #1a73e8; color: white; border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(26,115,232,0.25); }

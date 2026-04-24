@@ -41,88 +41,166 @@
     var ds = (siralamaVerisi && siralamaVerisi.dersSiralamalari) ? siralamaVerisi.dersSiralamalari : {};
   %>
 
-  <div style="display:grid; grid-template-columns:1fr 260px; gap:14px; align-items:start;">
+  <!-- Profil banner -->
+  <div class="profil-banner">
+    <div class="profil-banner-sol">
+      <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
+      <div>
+        <div class="profil-banner-isim"><%= k.kullaniciAdi %></div>
+        <div class="profil-banner-alt"><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <%= k.okul %> · <%= k.il %> / <%= k.ilce %></div>
+      </div>
+    </div>
+    <div class="profil-banner-sag">
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no"><%= k.puan %></div>
+        <div class="profil-banner-label">Toplam puan</div>
+      </div>
+      <div class="profil-banner-sep"></div>
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no"><%= k.soruIndex %></div>
+        <div class="profil-banner-label">Çözülen soru</div>
+      </div>
+      <div class="profil-banner-sep"></div>
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no">#<%= siralamaVerisi.okul %></div>
+        <div class="profil-banner-label">Okul sırası</div>
+      </div>
+    </div>
+  </div>
 
-    <!-- SOL: Kişisel bilgiler + Genel özet -->
-    <div>
-      <div class="profil-kart-yeni">
-        <p class="profil-kart-baslik-yeni">Kişisel bilgiler</p>
-        <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
-          <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
-          <div>
-            <p style="font-size:16px; font-weight:500; margin:0;"><%= k.kullaniciAdi %></p>
-            <p style="font-size:13px; color:#666; margin:0;"><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %></p>
-          </div>
+  <!-- Sekme bar -->
+  <div class="sekme-bar">
+    <button class="sekme-btn aktif" onclick="sekmeAc('genel',this)">📊 Genel</button>
+    <button class="sekme-btn" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri <span class="sekme-yakinda">Yakında</span></button>
+    <button class="sekme-btn" onclick="sekmeAc('guvenlik',this)">🔒 Güvenlik</button>
+  </div>
+
+  <!-- GENEL SEKMESİ -->
+  <div id="sekme-genel" class="sekme-icerik aktif">
+    <div style="display:grid; grid-template-columns:1fr 260px; gap:14px; align-items:start;">
+
+      <div>
+        <!-- Kişisel bilgiler -->
+        <div class="profil-kart-yeni">
+          <p class="profil-kart-baslik-yeni">Kişisel bilgiler</p>
+          <div class="info-row"><span class="info-label">Okul</span><span class="info-val"><%= k.okul %></span></div>
+          <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
+          <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+            <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+            <label style="font-size:13px; color:#666;">Şube:</label>
+            <select name="sube" class="input-sm" style="flex:1;">
+              <option value="">Şube yok</option>
+              <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
+                <option value="<%= h %>" <%= k.sube===h?'selected':'' %>><%= h %> Şubesi</option>
+              <% }); %>
+            </select>
+            <button type="submit" style="background:#1a73e8; color:white; padding:7px 14px; font-size:12px; font-weight:600; border:none; border-radius:8px; cursor:pointer;">Güncelle</button>
+          </form>
         </div>
-        <div class="info-row"><span class="info-label">Okul</span><span class="info-val"><%= k.okul %></span></div>
-        <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
-        <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+
+        <!-- Davet linkleri -->
+        <div class="profil-kart-yeni">
+          <p class="profil-kart-baslik-yeni">Davet linklerin</p>
+          <p style="font-size:12px; color:#888; margin-bottom:12px;">Bu linklerle arkadaşlarını davet edebilirsin. Her link tek kullanımlık.</p>
+          <% (referansKodlari||[]).forEach(function(r) { %>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #e8edf2;">
+              <code style="flex:1; font-size:12px; color:<%= r.kullanildi ? '#aaa' : '#1a73e8' %>; letter-spacing:1px;"><%= baseUrl %>/kayit?ref=<%= r.kod %></code>
+              <% if (r.kullanildi) { %>
+                <span style="font-size:11px; color:#639922; font-weight:500; white-space:nowrap;">✅ Kullanıldı</span>
+              <% } else { %>
+                <button onclick="kopyala('<%= baseUrl %>/kayit?ref=<%= r.kod %>', this)" style="background:#1a73e8; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; white-space:nowrap;">Kopyala</button>
+              <% } %>
+            </div>
+          <% }); %>
+          <% if (!referansKodlari || referansKodlari.length === 0) { %>
+            <p style="font-size:13px; color:#aaa;">Henüz referans kodun yok.</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Sağ: Sıralamalar -->
+      <div>
+        <div class="profil-kart-yeni">
+          <p class="profil-kart-baslik-yeni">Genel sıralama</p>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.turkiye %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.il %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.ilce %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.okul %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.sinif %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
+        </div>
+        <% dp.forEach(function(d) {
+          var sr = ds[d.ders] || {};
+          var renk = dersRenkleri[d.ders] || '#888';
+        %>
+        <div class="profil-kart-yeni">
+          <p class="profil-kart-baslik-yeni" style="color:<%= renk %>;"><%= d.ders %></p>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= sr.turkiye||'-' %></div><% if(sr.toplamKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.toplamKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= sr.il||'-' %></div><% if(sr.ilKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= sr.ilce||'-' %></div><% if(sr.ilceKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilceKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= sr.okul||'-' %></div><% if(sr.okulKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.okulKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= sr.sinif||'-' %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
+        </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+
+  <!-- İSTATİSTİK SEKMESİ -->
+  <div id="sekme-istatistik" class="sekme-icerik">
+    <div class="yakin-wrap">
+      <div class="yakin-ikon">📈</div>
+      <div class="yakin-baslik">Ders İstatistikleri Yakında</div>
+      <div class="yakin-alt">Konu bazlı doğru/yanlış oranı, süre analizi ve daha fazlası burada olacak.</div>
+    </div>
+  </div>
+
+  <!-- GÜVENLİK SEKMESİ -->
+  <div id="sekme-guvenlik" class="sekme-icerik">
+    <div class="sifre-kart-profil">
+      <div class="sifre-profil-header">
+        <div>
+          <div class="sifre-profil-baslik">Şifre Değiştir</div>
+          <div class="sifre-profil-alt">Hesabınızı güvende tutmak için güçlü bir şifre seçin</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0bcc8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <div class="sifre-profil-body">
+        <form method="POST" action="/profil/sifre-degistir">
           <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-          <label style="font-size:13px; color:#666;">Şube:</label>
-          <select name="sube" class="input-sm" style="flex:1;">
-            <option value="">Şube yok</option>
-            <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
-              <option value="<%= h %>" <%= k.sube===h?'selected':'' %>><%= h %> Şubesi</option>
-            <% }); %>
-          </select>
-          <button type="submit" class="btn btn-sm" style="background:#1a73e8; color:white; padding:7px 14px; font-size:12px; font-weight:600; border:none; border-radius:8px; cursor:pointer;">Güncelle</button>
+
+          <div class="sf-field">
+            <label class="sf-label">Mevcut şifre</label>
+            <div class="sf-wrap">
+              <input type="password" name="eskiSifre" required class="sf-input" placeholder="••••••••" id="sf-eski">
+              <button type="button" class="sf-eye" onclick="sfToggle('sf-eski',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+          </div>
+
+          <hr class="sf-divider">
+
+          <div class="sf-field">
+            <label class="sf-label">Yeni şifre</label>
+            <div class="sf-wrap">
+              <input type="password" name="yeniSifre" required minlength="4" class="sf-input" placeholder="••••••••" id="sf-yeni" oninput="sfGuc(this.value);sfEsles();">
+              <button type="button" class="sf-eye" onclick="sfToggle('sf-yeni',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+            <div class="sf-guc-bars"><div class="sf-guc-bar" id="sfb1"></div><div class="sf-guc-bar" id="sfb2"></div><div class="sf-guc-bar" id="sfb3"></div><div class="sf-guc-bar" id="sfb4"></div></div>
+            <div class="sf-guc-text" id="sfgt"></div>
+          </div>
+
+          <div class="sf-field">
+            <label class="sf-label">Yeni şifre tekrar</label>
+            <div class="sf-wrap">
+              <input type="password" name="yeniSifreTekrar" required minlength="4" class="sf-input" placeholder="••••••••" id="sf-tekrar" oninput="sfEsles();">
+              <button type="button" class="sf-eye" onclick="sfToggle('sf-tekrar',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+            <div class="sf-hint" id="sf-hint"></div>
+          </div>
+
+          <button type="submit" class="sf-btn">Şifreyi Güncelle</button>
         </form>
       </div>
-
-      <div class="profil-kart-yeni">
-        <p class="profil-kart-baslik-yeni">Genel özet</p>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-          <div class="ozet-stat-yeni"><div class="ozet-stat-etiket-yeni">Toplam puan</div><div class="ozet-stat-deger-yeni"><%= k.puan %></div></div>
-          <div class="ozet-stat-yeni"><div class="ozet-stat-etiket-yeni">Çözülen soru</div><div class="ozet-stat-deger-yeni"><%= k.soruIndex %></div></div>
-          <div class="ozet-stat-yeni"><div class="ozet-stat-etiket-yeni">Ders ort.</div><div class="ozet-stat-deger-yeni" style="font-size:16px;"><%= ortTop.toFixed(2) %></div></div>
-        </div>
-      </div>
-
-      <div class="profil-kart-yeni">
-        <p class="profil-kart-baslik-yeni">Davet linklerin</p>
-        <p style="font-size:12px; color:#888; margin-bottom:12px;">Bu linklerle arkadaşlarını davet edebilirsin. Her link tek kullanımlık.</p>
-        <% (referansKodlari||[]).forEach(function(r) { %>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #e8edf2;">
-            <code style="flex:1; font-size:12px; color:<%= r.kullanildi ? '#aaa' : '#1a73e8' %>; letter-spacing:1px;"><%= baseUrl %>/kayit?ref=<%= r.kod %></code>
-            <% if (r.kullanildi) { %>
-              <span style="font-size:11px; color:#639922; font-weight:500; white-space:nowrap;">✅ Kullanıldı</span>
-            <% } else { %>
-              <button onclick="kopyala('<%= baseUrl %>/kayit?ref=<%= r.kod %>', this)" style="background:#1a73e8; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; white-space:nowrap;">Kopyala</button>
-            <% } %>
-          </div>
-        <% }); %>
-        <% if (!referansKodlari || referansKodlari.length === 0) { %>
-          <p style="font-size:13px; color:#aaa;">Henüz referans kodun yok.</p>
-        <% } %>
-      </div>
     </div>
-
-    <!-- SAĞ: Sıralamalar -->
-    <div>
-      <div class="profil-kart-yeni">
-        <p class="profil-kart-baslik-yeni">Genel sıralama</p>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.turkiye %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.il %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.ilce %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.okul %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.sinif %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
-      </div>
-
-      <% dp.forEach(function(d) {
-        var sr = ds[d.ders] || {};
-        var renk = dersRenkleri[d.ders] || '#888';
-      %>
-      <div class="profil-kart-yeni">
-        <p class="profil-kart-baslik-yeni" style="color:<%= renk %>;"><%= d.ders %></p>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= sr.turkiye||'-' %></div><% if(sr.toplamKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.toplamKullanici %></div><% } %></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= sr.il||'-' %></div><% if(sr.ilKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilKullanici %></div><% } %></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= sr.ilce||'-' %></div><% if(sr.ilceKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilceKullanici %></div><% } %></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= sr.okul||'-' %></div><% if(sr.okulKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.okulKullanici %></div><% } %></div></div>
-        <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= sr.sinif||'-' %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
-      </div>
-      <% }); %>
-    </div>
-
   </div>
 
 <% } else { %>
@@ -244,6 +322,49 @@ function kopyala(metin, btn) {
         btn.style.background = '#639922';
         setTimeout(function() { btn.innerText = eski; btn.style.background = '#1a73e8'; }, 2000);
     });
+}
+function sekmeAc(id, btn) {
+    document.querySelectorAll('.sekme-icerik').forEach(function(el){ el.classList.remove('aktif'); });
+    document.querySelectorAll('.sekme-btn').forEach(function(b){ b.classList.remove('aktif'); });
+    document.getElementById('sekme-' + id).classList.add('aktif');
+    btn.classList.add('aktif');
+}
+function sfToggle(id, btn) {
+    var inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.querySelector('svg').style.stroke = inp.type === 'text' ? '#1a73e8' : 'currentColor';
+}
+function sfGuc(v) {
+    var bs = ['sfb1','sfb2','sfb3','sfb4'].map(function(x){ return document.getElementById(x); });
+    var gt = document.getElementById('sfgt');
+    if (!bs[0] || !gt) return;
+    bs.forEach(function(b){ b.className='sf-guc-bar'; });
+    if (!v) { gt.textContent=''; return; }
+    var s = 0;
+    if (v.length >= 6) s++;
+    if (v.length >= 10) s++;
+    if (/[A-Z]/.test(v) && /[0-9]/.test(v)) s++;
+    if (/[^A-Za-z0-9]/.test(v)) s++;
+    var cl = s<=1?'z':s<=2?'o':'g';
+    var lb = {z:'Zayıf',o:'Orta',g:'Güçlü'};
+    for (var i=0; i<s; i++) bs[i].classList.add(cl);
+    gt.textContent = lb[cl]; gt.className = 'sf-guc-text ' + cl;
+}
+function sfEsles() {
+    var y = document.getElementById('sf-yeni');
+    var t = document.getElementById('sf-tekrar');
+    var h = document.getElementById('sf-hint');
+    if (!y || !t || !h) return;
+    if (!t.value) { t.className='sf-input'; h.innerHTML=''; return; }
+    if (y.value === t.value) {
+        t.className='sf-input ok';
+        h.className='sf-hint ok';
+        h.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Şifreler uyuşuyor';
+    } else {
+        t.className='sf-input err';
+        h.className='sf-hint err';
+        h.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Şifreler uyuşmuyor';
+    }
 }
 </script>
 
