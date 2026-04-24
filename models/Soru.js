@@ -9,6 +9,7 @@ const SoruSchema = new mongoose.Schema({
     secenekler: [{ metin: String, gorsel: String }],
     sikDizilimi: { type: String, default: 'dikey' },
     durum: { type: String, default: 'taslak' },
+    yayinTarih: { type: Date, default: null },
     tabloBaslik: [String],
     dogruCevapIndex: Number,
     cozulmeSayisi: { type: Number, default: 0 },

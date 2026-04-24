@@ -1304,8 +1304,15 @@ function gosterExcelHata(msg) {
     <div class="admin-card-title">Tüm Sorular (<%= tumSorular.length %>)</div>
 
     <%
-      var taslaklar = tumSorular.filter(function(s){ return !s.durum || s.durum === 'taslak'; });
-      var yayindalar = tumSorular.filter(function(s){ return s.durum === 'yayinda'; });
+      // Taslak: ilk ekleneni üste (_id artan), Yayında: son yayınlananı üste (yayinTarih azalan)
+      var taslaklar = tumSorular.filter(function(s){ return !s.durum || s.durum === 'taslak'; })
+        .sort(function(a,b){ return a._id.toString().localeCompare(b._id.toString()); });
+      var yayindalar = tumSorular.filter(function(s){ return s.durum === 'yayinda'; })
+        .sort(function(a,b){
+          var ta = b.yayinTarih ? new Date(b.yayinTarih) : new Date(0);
+          var tb = a.yayinTarih ? new Date(a.yayinTarih) : new Date(0);
+          return ta - tb;
+        });
       var duraklatilanlar = tumSorular.filter(function(s){ return s.durum === 'duraklat'; });
     %>
 
