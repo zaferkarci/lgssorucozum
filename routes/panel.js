@@ -188,7 +188,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).lean();
     const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
     const cevapSorular = soruIdleri.length > 0
-        ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu _id').lean()
+        ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu soruMetni soruOnculu1 soruOnculu1Resmi soruOnculu2 soruOnculu2Resmi soruOnculu3 soruOnculu3Resmi soruResmi secenekler dogruCevapIndex tabloBaslik sikDizilimi _id').lean()
         : [];
     const soruBilgiMap = {};
     cevapSorular.forEach(s => { soruBilgiMap[String(s._id)] = s; });

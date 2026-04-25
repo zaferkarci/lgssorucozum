@@ -276,6 +276,7 @@
                 <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Puan</th>
                 <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Sonuç</th>
                 <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Tarih</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;"></th>
               </tr>
             </thead>
             <tbody>
@@ -294,12 +295,117 @@
                   </span>
                 </td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR') : '-' %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5;">
+                  <% if (!c.dogruMu && sb.soruMetni) { %>
+                    <button onclick="soruGoster('<%= String(c.soruId) %>')"
+                      style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">
+                      Soruyu Gör
+                    </button>
+                  <% } %>
+                </td>
               </tr>
               <% }); %>
             </tbody>
           </table>
         </div>
       </div>
+
+      <!-- Soru Gör Modalı -->
+      <div id="soruGorModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:16px; max-width:680px; width:100%; max-height:90vh; overflow-y:auto; position:relative;">
+          <div style="padding:16px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; border-radius:16px 16px 0 0;">
+            <span style="font-size:14px; font-weight:600; color:#202124;">Soru İnceleme</span>
+            <button onclick="soruKapat()" style="background:#f5f5f5; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;">✕</button>
+          </div>
+          <div id="soruGorIcerik" style="padding:20px 24px;"></div>
+        </div>
+      </div>
+
+      <!-- Soru verisi JS'e gömülüyor -->
+      <script>
+      var soruVerileri = {};
+      <% tumC.forEach(function(c) {
+        if (!c.dogruMu) {
+          var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]);
+          if (sb && sb.soruMetni) { %>
+      soruVerileri['<%= String(c.soruId) %>'] = <%- JSON.stringify({
+        soruMetni: sb.soruMetni,
+        soruOnculu1: sb.soruOnculu1||'',
+        soruOnculu1Resmi: sb.soruOnculu1Resmi||'',
+        soruOnculu2: sb.soruOnculu2||'',
+        soruOnculu2Resmi: sb.soruOnculu2Resmi||'',
+        soruOnculu3: sb.soruOnculu3||'',
+        soruOnculu3Resmi: sb.soruOnculu3Resmi||'',
+        soruResmi: sb.soruResmi||'',
+        secenekler: sb.secenekler||[],
+        dogruCevapIndex: sb.dogruCevapIndex,
+        tabloBaslik: sb.tabloBaslik||[],
+        sikDizilimi: sb.sikDizilimi||'dikey',
+        ders: sb.ders||'',
+        konu: sb.konu||''
+      }) %>;
+      <% } } }); %>
+
+      var harfler = ['A','B','C','D'];
+
+      function soruGoster(id) {
+        var s = soruVerileri[id];
+        if (!s) return;
+        var html = '';
+
+        // Etiketler
+        html += '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">';
+        if (s.ders) html += '<span style="background:#e3f2fd; color:#1565c0; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.ders + '</span>';
+        if (s.konu) html += '<span style="background:#f3e5f5; color:#6a1b9a; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.konu + '</span>';
+        html += '</div>';
+
+        // Öncüller
+        if (s.soruOnculu1) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:12px;">' + s.soruOnculu1 + '</div>';
+        if (s.soruOnculu1Resmi === '[GÖRSEL VAR]') html += '<div style="background:#fff3e0; border-radius:8px; padding:10px 14px; font-size:12px; color:#e65100; margin-bottom:8px;">📷 Bu sorunun görseli bulunmaktadır.</div>';
+        if (s.soruOnculu2) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:12px;">' + s.soruOnculu2 + '</div>';
+        if (s.soruOnculu3) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:12px;">' + s.soruOnculu3 + '</div>';
+
+        // Soru metni
+        html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:16px;">' + s.soruMetni + '</div>';
+
+        // Tablo başlığı
+        if (s.tabloBaslik && s.tabloBaslik.length > 0) {
+          html += '<div style="margin-bottom:4px;"><table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:3px 0; width:48px;"></td>';
+          s.tabloBaslik.forEach(function(b) {
+            html += '<td style="padding:3px 0; width:90px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + b + '</td>';
+          });
+          html += '</tr></table></div>';
+        }
+
+        // Şıklar
+        var gridCols = s.sikDizilimi === 'yatay' ? 'repeat(4,1fr)' : s.sikDizilimi === 'ikili' ? 'repeat(2,1fr)' : '1fr';
+        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:16px;">';
+        (s.secenekler || []).forEach(function(sik, i) {
+          var dogru = i === s.dogruCevapIndex;
+          var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
+          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : 'white') + ';">';
+          if (!tabloMu) html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : '#f0f2f5') + '; color:' + (dogru ? 'white' : '#666') + '; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
+          html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + ';">' + (sik.metin||'') + '</span>';
+          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru Cevap</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+
+        document.getElementById('soruGorIcerik').innerHTML = html;
+        var modal = document.getElementById('soruGorModal');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function soruKapat() {
+        document.getElementById('soruGorModal').style.display = 'none';
+        document.body.style.overflow = '';
+      }
+
+      document.getElementById('soruGorModal').addEventListener('click', function(e) {
+        if (e.target === this) soruKapat();
+      });
+      </script>
 
     <% } %>
   </div>
