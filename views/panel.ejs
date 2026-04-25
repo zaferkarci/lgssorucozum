@@ -348,6 +348,19 @@
 
       var harfler = ['A','B','C','D'];
 
+      function gorselHtml(url) {
+        if (!url) return '';
+        if (url === '[GÖRSEL VAR]') return '<div style="background:#fff3e0; border-radius:8px; padding:10px 14px; font-size:12px; color:#e65100; margin-bottom:8px;">📷 Görsel mevcut ancak yüklenemedi.</div>';
+        return '<div style="text-align:center; margin-bottom:8px;"><img src="' + url + '" style="max-width:100%; max-height:220px; border-radius:8px; object-fit:contain;"></div>';
+      }
+
+      function oncul(metin, resim) {
+        var html = '';
+        if (metin) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;">' + metin + '</div>';
+        if (resim) html += gorselHtml(resim);
+        return html;
+      }
+
       function soruGoster(id) {
         var s = soruVerileri[id];
         if (!s) return;
@@ -359,14 +372,16 @@
         if (s.konu) html += '<span style="background:#f3e5f5; color:#6a1b9a; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.konu + '</span>';
         html += '</div>';
 
-        // Öncüller
-        if (s.soruOnculu1) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:12px;">' + s.soruOnculu1 + '</div>';
-        if (s.soruOnculu1Resmi === '[GÖRSEL VAR]') html += '<div style="background:#fff3e0; border-radius:8px; padding:10px 14px; font-size:12px; color:#e65100; margin-bottom:8px;">📷 Bu sorunun görseli bulunmaktadır.</div>';
-        if (s.soruOnculu2) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:12px;">' + s.soruOnculu2 + '</div>';
-        if (s.soruOnculu3) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:12px;">' + s.soruOnculu3 + '</div>';
+        // Öncüller — metin + görsel çifti olarak
+        html += oncul(s.soruOnculu1, s.soruOnculu1Resmi);
+        html += oncul(s.soruOnculu2, s.soruOnculu2Resmi);
+        html += oncul(s.soruOnculu3, s.soruOnculu3Resmi);
 
         // Soru metni
-        html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:16px;">' + s.soruMetni + '</div>';
+        html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:12px;">' + s.soruMetni + '</div>';
+
+        // Soru görseli
+        if (s.soruResmi) html += gorselHtml(s.soruResmi);
 
         // Tablo başlığı
         if (s.tabloBaslik && s.tabloBaslik.length > 0) {
@@ -379,17 +394,22 @@
 
         // Şıklar
         var gridCols = s.sikDizilimi === 'yatay' ? 'repeat(4,1fr)' : s.sikDizilimi === 'ikili' ? 'repeat(2,1fr)' : '1fr';
-        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:16px;">';
+        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
         (s.secenekler || []).forEach(function(sik, i) {
           var dogru = i === s.dogruCevapIndex;
           var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
-          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : 'white') + ';">';
-          if (!tabloMu) html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : '#f0f2f5') + '; color:' + (dogru ? 'white' : '#666') + '; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
-          html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + ';">' + (sik.metin||'') + '</span>';
-          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru Cevap</span>';
+          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : 'white') + '; cursor:default;">';
+          if (!tabloMu) html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : '#f0f2f5') + '; color:' + (dogru ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
+          html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + '; flex:1;">' + (sik.metin||'') + '</span>';
+          if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; margin-left:8px;">';
+          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
           html += '</div>';
         });
         html += '</div>';
+
+        // Doğru cevap özet satırı
+        var dogCevap = s.secenekler && s.secenekler[s.dogruCevapIndex];
+        html += '<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; font-size:13px; color:#2e7d32; font-weight:500;">✓ Doğru cevap: <b>' + harfler[s.dogruCevapIndex] + '</b> şıkkı</div>';
 
         document.getElementById('soruGorIcerik').innerHTML = html;
         var modal = document.getElementById('soruGorModal');
