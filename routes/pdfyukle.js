@@ -35,27 +35,33 @@ async function pdfdenSorulariCikar(pdfBase64, sinif, ders, konu) {
     if (!apiKey) throw new Error('GEMINI_API_KEY environment variable tanımlı değil.');
 
     const PROMPT = `Sen bir Türk eğitim sistemi soru analiz uzmanısın.
-Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir, OCR ve görsel analiz ile oku.
+Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir — tüm metin ve görselleri OCR ile oku, hiçbirini atlama.
 
 Tüm çok şıklı soruları tespit et ve her biri için şu JSON alanlarını doldur:
 
-- soruOnculu1: Sorudan önce gelen BİRİNCİ metin bloğu (paragraf, şiir, tablo vb.). Yoksa "".
-- soruOnculu1Resmi: Birinci öncülün hemen yanındaki veya altındaki görsel/şekil/grafik varsa "[GÖRSEL VAR]" yaz, yoksa "".
-- soruOnculu2: İKİNCİ metin bloğu (varsa). Yoksa "".
-- soruOnculu2Resmi: İkinci öncülün görseli varsa "[GÖRSEL VAR]", yoksa "".
-- soruOnculu3: ÜÇÜNCÜ metin bloğu (varsa). Yoksa "".
-- soruOnculu3Resmi: Üçüncü öncülün görseli varsa "[GÖRSEL VAR]", yoksa "".
-- soruResmi: Soru kökünün hemen yanındaki özel görsel/şekil varsa "[GÖRSEL VAR]", yoksa "".
+- soruOnculu1: Sorudan önce gelen BİRİNCİ içerik bloğu. Metin, paragraf, şiir — olduğu gibi yaz. Görsel/şekil/tablo içeriyorsa içeriğini metin veya HTML tabloya dönüştür. Yoksa "".
+- soruOnculu1Resmi: Birinci öncülde metne dönüştürülemeyen saf görsel (fotoğraf, çizim, grafik) varsa "[GÖRSEL VAR]", yoksa "".
+- soruOnculu2: İKİNCİ içerik bloğu (varsa). Yoksa "".
+- soruOnculu2Resmi: İkinci öncülde saf görsel varsa "[GÖRSEL VAR]", yoksa "".
+- soruOnculu3: ÜÇÜNCÜ içerik bloğu (varsa). Yoksa "".
+- soruOnculu3Resmi: Üçüncü öncülde saf görsel varsa "[GÖRSEL VAR]", yoksa "".
+- soruResmi: Soru kökünde metne dönüştürülemeyen saf görsel varsa "[GÖRSEL VAR]", yoksa "".
 - soruMetni: Soru kökü tam metin. HTML desteklenir: <sup>, <sub>, <b>, <u>, <i>.
-- secenekler: Tam olarak 4 eleman: [{"metin":"A şıkkı tam metni","gorsel":""},...]
+- secenekler: Tam olarak 4 eleman. Şıklardaki metin, sayı, tablo dahil: [{"metin":"A şıkkı","gorsel":""},...]
 - dogruCevapIndex: Doğru cevap indexi (0=A,1=B,2=C,3=D). Cevap anahtarı yoksa -1.
 
-ÖNCÜL AYIRMA KURALLARI:
-- Bir soruda birden fazla metin/tablo/paragraf bloğu varsa bunları ayrı öncüllere koy (soruOnculu1, soruOnculu2, soruOnculu3)
-- Her metnin hemen yanındaki veya altındaki görsel o öncülün görseli sayılır
-- Tablolar varsa HTML formatında yaz: <table style="border-collapse:collapse"><tr><td style="border:1px solid #999;padding:4px">...</td></tr></table>
-- Matematiksel ifadeler: x² → x<sup>2</sup>, x₂ → x<sub>2</sub>
-- Şıklarda sadece sayısal değer varsa olduğu gibi yaz
+GÖRSEL OKUMA KURALLARI:
+- Tablo görseli → HTML tabloya çevir: <table style="border-collapse:collapse"><tr><td style="border:1px solid #999;padding:4px">...</td></tr></table>
+- Sayı/metin içeren şekil → içindeki verileri metin olarak yaz
+- Koordinat düzlemi, geometrik şekil gibi saf çizimler → "[GÖRSEL VAR]" yaz (bunlar metne çevrilemez)
+- Matematiksel ifadeler: x² → x<sup>2</sup>, x₂ → x<sub>2</sub>, kesirler için de HTML kullan
+- Şıklarda tablo varsa her şık için ayrı HTML tablo yaz
+
+ÖNCÜL AYIRMA:
+- Birden fazla metin/tablo/paragraf bloğu varsa ayrı öncüllere koy
+- Her öncülün yanındaki görsel o öncülün Resmi alanına aittir
+
+GENEL:
 - Her soruyu eksiksiz çıkar, hiçbirini atlama
 - Sadece JSON array döndür, açıklama veya markdown ekleme
 
@@ -78,7 +84,7 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
         }],
         generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 8192
+            maxOutputTokens: 65536
         }
     };
 
@@ -99,11 +105,78 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
     const metin = veri?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!metin) throw new Error('Gemini boş yanıt döndürdü.');
 
-    const temiz = metin.replace(/```json|```/g, '').trim();
+    // Markdown kod bloklarını temizle
+    let temiz = metin.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+    // [ ile son ] arasını al
     const bas = temiz.indexOf('[');
     const son = temiz.lastIndexOf(']');
-    if (bas === -1 || son === -1) throw new Error('Gemini geçerli JSON döndürmedi: ' + temiz.slice(0, 300));
-    return JSON.parse(temiz.slice(bas, son + 1));
+    if (bas === -1) throw new Error('Gemini JSON array döndürmedi: ' + temiz.slice(0, 300));
+
+    // son ] yoksa (yanıt kesilmiş) → son tam objeye kadar kırp
+    if (son === -1 || son < bas) {
+        temiz = temizlenmisBul(temiz.slice(bas));
+    } else {
+        temiz = temiz.slice(bas, son + 1);
+    }
+
+    // JSON string içindeki gerçek satır/tab karakterlerini escape et
+    temiz = jsonStringIciniOnar(temiz);
+
+    try {
+        return JSON.parse(temiz);
+    } catch (e1) {
+        // Son çare: tüm kontrolsüz satır sonlarını kaldır
+        try {
+            return JSON.parse(temiz.replace(/[\r\n\t]/g, ' '));
+        } catch (e2) {
+            // Yarım kalan array'i onar — son tam objeyi bul
+            try {
+                const onarilmis = sonTamObjeyeKadar(temiz);
+                return JSON.parse(onarilmis);
+            } catch (e3) {
+                throw new Error('JSON parse hatası: ' + e1.message + '\nİlk 500 karakter: ' + temiz.slice(0, 500));
+            }
+        }
+    }
+}
+
+// JSON string değerleri içindeki literal newline/tab'ları escape et
+function jsonStringIciniOnar(str) {
+    let sonuc = '';
+    let string = false;
+    let kacis  = false;
+    for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        if (kacis) {
+            sonuc += c;
+            kacis = false;
+            continue;
+        }
+        if (c === '\\') { kacis = true; sonuc += c; continue; }
+        if (c === '"')  { string = !string; sonuc += c; continue; }
+        if (string) {
+            if      (c === '\n') { sonuc += '\\n'; continue; }
+            else if (c === '\r') { sonuc += '\\r'; continue; }
+            else if (c === '\t') { sonuc += '\\t'; continue; }
+        }
+        sonuc += c;
+    }
+    return sonuc;
+}
+
+// Yanıt kesilmişse son tam } olan yere kadar al, array kapat
+function sonTamObjeyeKadar(str) {
+    const son = str.lastIndexOf('}');
+    if (son === -1) return '[]';
+    return str.slice(0, son + 1) + ']';
+}
+
+// Temiz array başlangıcını bul
+function temizlenmisBul(str) {
+    const son = str.lastIndexOf('}');
+    if (son === -1) return '[]';
+    return str.slice(0, son + 1) + ']';
 }
 
 // POST: PDF yükle ve analiz et
