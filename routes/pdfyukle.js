@@ -35,38 +35,63 @@ async function pdfdenSorulariCikar(pdfBase64, sinif, ders, konu) {
     if (!apiKey) throw new Error('GEMINI_API_KEY environment variable tanımlı değil.');
 
     const PROMPT = `Sen bir Türk eğitim sistemi soru analiz uzmanısın.
-Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir — tüm metin ve görselleri OCR ile oku, hiçbirini atlama.
+Bu PDF bir MEB sınavından alınmış Türkçe sorular içeriyor. Taranmış görüntü olabilir — tüm metin ve görselleri OCR ile oku.
 
-Tüm çok şıklı soruları tespit et ve her biri için şu JSON alanlarını doldur:
+Her soru genellikle şu yapıdadır:
+1. Soru öncesinde bir veya birkaç metin/tablo/paragraf bloğu (BUNLAR ÖNCÜL)
+2. Soru kökü — "Buna göre...", "Hangisi...", "Kaçtır?" gibi cümleler (BU SORU METNİ)
+3. A, B, C, D şıkları
 
-- soruOnculu1: Sorudan önce gelen BİRİNCİ içerik bloğu. Metin, paragraf, şiir — olduğu gibi yaz. Görsel/şekil/tablo içeriyorsa içeriğini metin veya HTML tabloya dönüştür. Yoksa "".
-- soruOnculu1Resmi: Birinci öncülde metne dönüştürülemeyen saf görsel (fotoğraf, çizim, grafik) varsa "[GÖRSEL VAR]", yoksa "".
-- soruOnculu2: İKİNCİ içerik bloğu (varsa). Yoksa "".
-- soruOnculu2Resmi: İkinci öncülde saf görsel varsa "[GÖRSEL VAR]", yoksa "".
-- soruOnculu3: ÜÇÜNCÜ içerik bloğu (varsa). Yoksa "".
-- soruOnculu3Resmi: Üçüncü öncülde saf görsel varsa "[GÖRSEL VAR]", yoksa "".
-- soruResmi: Soru kökünde metne dönüştürülemeyen saf görsel varsa "[GÖRSEL VAR]", yoksa "".
-- soruMetni: Soru kökü tam metin. HTML desteklenir: <sup>, <sub>, <b>, <u>, <i>.
-- secenekler: Tam olarak 4 eleman. Şıklardaki metin, sayı, tablo dahil: [{"metin":"A şıkkı","gorsel":""},...]
-- dogruCevapIndex: Doğru cevap indexi (0=A,1=B,2=C,3=D). Cevap anahtarı yoksa -1.
+ÖNCÜLLER ÇOK ÖNEMLİ — soru metnine dahil etme, ayrı alanlara yaz:
+- soruOnculu1: Soru öncesindeki BİRİNCİ metin/tablo/paragraf bloğu
+- soruOnculu2: Varsa İKİNCİ blok
+- soruOnculu3: Varsa ÜÇÜNCÜ blok
+- soruMetni: SADECE soru kökü cümlesi (öncüller buraya gelmesin!)
 
-GÖRSEL OKUMA KURALLARI:
+ÖRNEK:
+Soru sayfasında şu var:
+"Ahmet'in 3 kalemi ve 5 silgisi vardır. Kalemi silgisinden 4 fazla olan kaç tanedir?
+A) 1  B) 2  C) 3  D) 4"
+
+Doğru çıktı:
+soruOnculu1: "Ahmet'in 3 kalemi ve 5 silgisi vardır."
+soruMetni: "Kalemi silgisinden 4 fazla olan kaç tanedir?"
+
+YANLIŞ çıktı (yapma!):
+soruOnculu1: ""
+soruMetni: "Ahmet'in 3 kalemi ve 5 silgisi vardır. Kalemi silgisinden 4 fazla olan kaç tanedir?"
+
+MATEMATİKSEL SEMBOLLER:
+- Karekök: √9 → <span style="text-decoration:overline">9</span> değil, √9 olarak yaz ya da &#8730;9
+- Üs: x² → x<sup>2</sup>
+- Alt simge: x₂ → x<sub>2</sub>
+- Kesir: 3/4 → <sup>3</sup>/<sub>4</sub>
+- Pi: π olarak bırak
+- Mutlak değer: |x| olarak bırak
+
+GÖRSEL KURALLARI:
 - Tablo görseli → HTML tabloya çevir: <table style="border-collapse:collapse"><tr><td style="border:1px solid #999;padding:4px">...</td></tr></table>
-- Sayı/metin içeren şekil → içindeki verileri metin olarak yaz
-- Koordinat düzlemi, geometrik şekil gibi saf çizimler → "[GÖRSEL VAR]" yaz (bunlar metne çevrilemez)
-- Matematiksel ifadeler: x² → x<sup>2</sup>, x₂ → x<sub>2</sub>, kesirler için de HTML kullan
-- Şıklarda tablo varsa her şık için ayrı HTML tablo yaz
+- Koordinat düzlemi, geometrik çizim → soruOnculu1Resmi veya soruResmi alanına "[GÖRSEL VAR]" yaz
+- Sayı/metin içeren şekil → içeriğini metin olarak yaz
 
-ÖNCÜL AYIRMA:
-- Birden fazla metin/tablo/paragraf bloğu varsa ayrı öncüllere koy
-- Her öncülün yanındaki görsel o öncülün Resmi alanına aittir
+JSON ALANLARI:
+- soruOnculu1: string (soru öncesi 1. içerik, zorunlu varsa doldur)
+- soruOnculu1Resmi: "[GÖRSEL VAR]" veya ""
+- soruOnculu2: string (varsa 2. içerik)
+- soruOnculu2Resmi: "[GÖRSEL VAR]" veya ""
+- soruOnculu3: string (varsa 3. içerik)
+- soruOnculu3Resmi: "[GÖRSEL VAR]" veya ""
+- soruResmi: "[GÖRSEL VAR]" veya ""
+- soruMetni: string (SADECE soru kökü)
+- secenekler: [{"metin":"...","gorsel":""},{"metin":"...","gorsel":""},{"metin":"...","gorsel":""},{"metin":"...","gorsel":""}]
+- dogruCevapIndex: 0,1,2 veya 3 (cevap anahtarı yoksa -1)
 
 GENEL:
-- Her soruyu eksiksiz çıkar, hiçbirini atlama
-- Sadece JSON array döndür, açıklama veya markdown ekleme
+- Her soruyu eksiksiz çıkar
+- Sadece JSON array döndür, başına/sonuna açıklama ekleme, markdown kullanma
 
 FORMAT:
-[{"soruOnculu1":"","soruOnculu1Resmi":"","soruOnculu2":"","soruOnculu2Resmi":"","soruOnculu3":"","soruOnculu3Resmi":"","soruResmi":"","soruMetni":"soru metni","secenekler":[{"metin":"A şıkkı","gorsel":""},{"metin":"B şıkkı","gorsel":""},{"metin":"C şıkkı","gorsel":""},{"metin":"D şıkkı","gorsel":""}],"dogruCevapIndex":0}]
+[{"soruOnculu1":"","soruOnculu1Resmi":"","soruOnculu2":"","soruOnculu2Resmi":"","soruOnculu3":"","soruOnculu3Resmi":"","soruResmi":"","soruMetni":"","secenekler":[{"metin":"","gorsel":""},{"metin":"","gorsel":""},{"metin":"","gorsel":""},{"metin":"","gorsel":""}],"dogruCevapIndex":-1}]
 
 Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
 
