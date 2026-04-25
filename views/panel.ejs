@@ -349,8 +349,7 @@
       var harfler = ['A','B','C','D'];
 
       function gorselHtml(url) {
-        if (!url) return '';
-        if (url === '[GÖRSEL VAR]') return '<div style="background:#fff3e0; border-radius:8px; padding:10px 14px; font-size:12px; color:#e65100; margin-bottom:8px;">📷 Görsel mevcut ancak yüklenemedi.</div>';
+        if (!url || url === '[GÖRSEL VAR]') return '';
         return '<div style="text-align:center; margin-bottom:8px;"><img src="' + url + '" style="max-width:100%; max-height:220px; border-radius:8px; object-fit:contain;"></div>';
       }
 
