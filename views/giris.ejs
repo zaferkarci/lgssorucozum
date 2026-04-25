@@ -4,9 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LGS Hazırlık - Giriş</title>
-<link rel="stylesheet" href="/style.css">
+<style>
+/* Sayfa yüklenmeden önce görünür loading overlay */
+#yukleniyor-overlay {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  background: #f0f2f5;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; flex-direction: column; gap: 16px;
+  transition: opacity 0.4s;
+}
+#yukleniyor-overlay .yl-logo {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #1557b0, #1a73e8);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: white; letter-spacing: 1px;
+}
+#yukleniyor-overlay .yl-baslik { font-size: 18px; font-weight: 600; color: #202124; font-family: system-ui, sans-serif; }
+#yukleniyor-overlay .yl-alt { font-size: 13px; color: #888; font-family: system-ui, sans-serif; }
+#yukleniyor-overlay .yl-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #e8edf2; border-top-color: #1a73e8;
+  border-radius: 50%;
+  animation: ylspin 0.8s linear infinite;
+}
+@keyframes ylspin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body class="giris-body">
+
+<!-- Sayfa yüklenene kadar görünen ekran -->
+<div id="yukleniyor-overlay">
+  <div class="yl-logo">LGS</div>
+  <div class="yl-baslik">LGS Hazırlık Platformu</div>
+  <div class="yl-spinner"></div>
+  <div class="yl-alt">Hoş geldiniz, lütfen bekleyiniz...</div>
+</div>
+
+<link rel="stylesheet" href="/style.css">
+<script>
+  // CSS yüklenince overlay'i kaldır
+  window.addEventListener('load', function() {
+    var o = document.getElementById('yukleniyor-overlay');
+    if (o) { o.style.opacity = '0'; setTimeout(function(){ o.style.display='none'; }, 400); }
+  });
+</script>
 <div class="giris-wrap">
   <!-- Sol mavi panel -->
   <div class="giris-sol">
