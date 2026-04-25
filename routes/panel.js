@@ -220,6 +220,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         baseUrl,
         yeniSoruSayisi,
         dersIstatMap,
+        tumCevaplar,
+        soruBilgiMap,
         moderator,
         modIdx,
         toplamSoru: cozulmemisSorular.length

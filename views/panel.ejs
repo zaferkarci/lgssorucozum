@@ -147,83 +147,160 @@
 
   <!-- İSTATİSTİK SEKMESİ -->
   <div id="sekme-istatistik" class="sekme-icerik">
-    <% var dersler = Object.keys(dersIstatMap); %>
-    <% if (dersler.length === 0) { %>
+    <%
+      var tumC = tumCevaplar || [];
+      var genelDogru  = tumC.filter(function(c){ return c.dogruMu; }).length;
+      var genelYanlis = tumC.filter(function(c){ return !c.dogruMu; }).length;
+      var genelToplam = tumC.length;
+      var genelOran   = genelToplam > 0 ? Math.round((genelDogru / genelToplam) * 100) : 0;
+      var genelSure   = genelToplam > 0 ? Math.round(tumC.reduce(function(t,c){ return t+(c.sure||0); },0) / genelToplam) : 0;
+      var genelBarRenk = genelOran >= 70 ? '#43a047' : genelOran >= 40 ? '#fb8c00' : '#e53935';
+      var genelRenk    = genelOran >= 70 ? '#2e7d32' : genelOran >= 40 ? '#e65100' : '#c62828';
+      var dersler = Object.keys(dersIstatMap);
+    %>
+
+    <% if (genelToplam === 0) { %>
       <div class="yakin-wrap">
         <div class="yakin-ikon">📈</div>
         <div class="yakin-baslik">Henüz istatistik yok</div>
         <div class="yakin-alt">Soru çözdükçe ders ve konu bazlı istatistiklerin burada görünecek.</div>
       </div>
     <% } else { %>
+
+      <!-- Genel özet -->
+      <div class="profil-kart-yeni" style="margin-bottom:14px;">
+        <p class="profil-kart-baslik-yeni">Genel İstatistikler</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= k.puan %></div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Toplam puan</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#202124;"><%= genelToplam %></div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Çözülen soru</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:<%= genelRenk %>;"><%= genelOran %>%</div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Doğru oranı</div>
+          </div>
+          <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#2e7d32;"><%= genelDogru %></div>
+            <div style="font-size:11px; color:#66bb6a; margin-top:3px;">Doğru</div>
+          </div>
+          <div style="background:#ffebee; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#c62828;"><%= genelYanlis %></div>
+            <div style="font-size:11px; color:#ef9a9a; margin-top:3px;">Yanlış</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#202124;"><%= genelSure %>sn</div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Ort. süre</div>
+          </div>
+        </div>
+        <div style="height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:<%= genelOran %>%; background:<%= genelBarRenk %>; border-radius:3px;"></div>
+        </div>
+      </div>
+
+      <!-- Ders bazlı kartlar -->
       <% dersler.forEach(function(ders) {
         var di = dersIstatMap[ders];
         var toplamSoru = di.toplamDogru + di.toplamYanlis;
-        var dogruOran = toplamSoru > 0 ? Math.round((di.toplamDogru / toplamSoru) * 100) : 0;
-        var renk = dogruOran >= 70 ? '#2e7d32' : dogruOran >= 40 ? '#e65100' : '#c62828';
+        var dogruOran  = toplamSoru > 0 ? Math.round((di.toplamDogru / toplamSoru) * 100) : 0;
+        var renk    = dogruOran >= 70 ? '#2e7d32' : dogruOran >= 40 ? '#e65100' : '#c62828';
         var barRenk = dogruOran >= 70 ? '#43a047' : dogruOran >= 40 ? '#fb8c00' : '#e53935';
         var konular = Object.keys(di.konular);
+        var dersOrtSure = toplamSoru > 0 ? Math.round(konular.reduce(function(t,k){ return t+di.konular[k].toplamSure; },0) / toplamSoru) : 0;
       %>
       <div class="profil-kart-yeni" style="margin-bottom:14px;">
-        <!-- Ders başlığı -->
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
           <div>
             <p style="font-size:14px; font-weight:600; color:#202124; margin:0;"><%= ders %></p>
             <p style="font-size:12px; color:#888; margin:2px 0 0;"><%= toplamSoru %> soru çözüldü</p>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:22px; font-weight:700; color:<%= renk %>;"><%= dogruOran %>%</div>
-            <div style="font-size:11px; color:#aaa;">doğru oranı</div>
-          </div>
+          <div style="font-size:20px; font-weight:700; color:<%= renk %>;"><%= dogruOran %>%</div>
         </div>
-
-        <!-- Genel progress bar -->
-        <div style="height:6px; background:#f0f0f0; border-radius:3px; margin-bottom:16px; overflow:hidden;">
-          <div style="height:100%; width:<%= dogruOran %>%; background:<%= barRenk %>; border-radius:3px; transition:width 0.6s;"></div>
+        <div style="height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; margin-bottom:14px;">
+          <div style="height:100%; width:<%= dogruOran %>%; background:<%= barRenk %>; border-radius:3px;"></div>
         </div>
-
-        <!-- Özet satırı -->
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:16px;">
-          <div style="background:#e8f5e9; border-radius:8px; padding:10px 12px; text-align:center;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;">
+          <div style="background:#e8f5e9; border-radius:8px; padding:10px; text-align:center;">
             <div style="font-size:18px; font-weight:600; color:#2e7d32;"><%= di.toplamDogru %></div>
             <div style="font-size:11px; color:#66bb6a;">Doğru</div>
           </div>
-          <div style="background:#ffebee; border-radius:8px; padding:10px 12px; text-align:center;">
+          <div style="background:#ffebee; border-radius:8px; padding:10px; text-align:center;">
             <div style="font-size:18px; font-weight:600; color:#c62828;"><%= di.toplamYanlis %></div>
             <div style="font-size:11px; color:#ef9a9a;">Yanlış</div>
           </div>
-          <div style="background:#e3f2fd; border-radius:8px; padding:10px 12px; text-align:center;">
-            <div style="font-size:18px; font-weight:600; color:#1565c0;"><%= toplamSoru %></div>
-            <div style="font-size:11px; color:#90caf9;">Toplam</div>
+          <div style="background:#f8f9fa; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#202124;"><%= dersOrtSure %>sn</div>
+            <div style="font-size:11px; color:#999;">Ort. süre</div>
           </div>
         </div>
-
-        <!-- Konu bazlı detay -->
         <% if (konular.length > 0) { %>
         <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#b0bcc8; margin-bottom:10px;">Konu Detayı</p>
         <% konular.forEach(function(konu) {
           var kd = di.konular[konu];
-          var kTop = kd.dogru + kd.yanlis;
+          var kTop  = kd.dogru + kd.yanlis;
           var kOran = kTop > 0 ? Math.round((kd.dogru / kTop) * 100) : 0;
-          var kBarRenk = kOran >= 70 ? '#43a047' : kOran >= 40 ? '#fb8c00' : '#e53935';
-          var ortSure = kTop > 0 ? Math.round(kd.toplamSure / kTop) : 0;
+          var kRenk = kOran >= 70 ? '#43a047' : kOran >= 40 ? '#fb8c00' : '#e53935';
+          var kSure = kTop > 0 ? Math.round(kd.toplamSure / kTop) : 0;
         %>
-          <div style="padding:8px 0; border-bottom:1px solid #f5f5f5;">
+          <div style="padding:10px 0; border-bottom:1px solid #f5f5f5;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
               <span style="font-size:13px; color:#333; font-weight:500;"><%= konu %></span>
               <div style="display:flex; align-items:center; gap:12px;">
-                <span style="font-size:11px; color:#888;">⏱ ort. <%= ortSure %>sn</span>
-                <span style="font-size:12px; color:<%= kBarRenk %>; font-weight:600;"><%= kd.dogru %>/<%= kTop %></span>
-                <span style="font-size:12px; font-weight:600; color:<%= kBarRenk %>; min-width:36px; text-align:right;"><%= kOran %>%</span>
+                <span style="font-size:11px; color:#aaa;">⏱ ort. <%= kSure %>sn</span>
+                <span style="font-size:12px; font-weight:600; color:<%= kRenk %>;"><%= kd.dogru %>/<%= kTop %> — <%= kOran %>%</span>
               </div>
             </div>
             <div style="height:4px; background:#f0f0f0; border-radius:2px; overflow:hidden;">
-              <div style="height:100%; width:<%= kOran %>%; background:<%= kBarRenk %>; border-radius:2px;"></div>
+              <div style="height:100%; width:<%= kOran %>%; background:<%= kRenk %>; border-radius:2px;"></div>
             </div>
           </div>
         <% }); %>
         <% } %>
       </div>
       <% }); %>
+
+      <!-- Son çözülen sorular -->
+      <div class="profil-kart-yeni">
+        <p class="profil-kart-baslik-yeni">Son Çözülen Sorular (<%= Math.min(tumC.length, 50) %>)</p>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">#</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Ders</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Konu</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Süre</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Puan</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Sonuç</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Tarih</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% tumC.slice(0, 50).forEach(function(c, i) {
+                var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]) || {};
+              %>
+              <tr>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= i+1 %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= sb.ders||'-' %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= sb.konu||'-' %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= c.sure||0 %>sn</td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#1a73e8; font-weight:600;"><%= (c.kazanilanPuan||0).toFixed ? Number(c.kazanilanPuan||0).toFixed(1) : (c.kazanilanPuan||0) %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5;">
+                  <span style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:<%= c.dogruMu ? '#e8f5e9' : '#ffebee' %>; color:<%= c.dogruMu ? '#2e7d32' : '#c62828' %>;">
+                    <%= c.dogruMu ? '✓ Doğru' : '✗ Yanlış' %>
+                  </span>
+                </td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR') : '-' %></td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     <% } %>
   </div>
 
