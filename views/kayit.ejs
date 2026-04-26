@@ -5,40 +5,152 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LGS Hazırlık - Kayıt</title>
 <link rel="stylesheet" href="/style.css">
+<style>
+.kayit-wrap {
+  display: flex; gap: 0;
+  width: 900px; max-width: 100%;
+  border-radius: 20px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+}
+.kayit-sol {
+  background: linear-gradient(160deg, #1557b0 0%, #1a73e8 60%, #2196f3 100%);
+  width: 340px; flex-shrink: 0;
+  padding: 36px 32px; color: white;
+  display: flex; flex-direction: column; gap: 24px;
+  position: relative; overflow: hidden;
+}
+.kayit-sol::before {
+  content: ''; position: absolute;
+  width: 260px; height: 260px;
+  background: rgba(255,255,255,0.06); border-radius: 50%;
+  top: -80px; right: -80px;
+}
+.kayit-sol::after {
+  content: ''; position: absolute;
+  width: 180px; height: 180px;
+  background: rgba(255,255,255,0.04); border-radius: 50%;
+  bottom: -60px; left: -50px;
+}
+.kayit-sol-ic { position: relative; z-index: 1; }
+.kayit-logo {
+  width: 50px; height: 50px;
+  background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; margin-bottom: 14px;
+}
+.kayit-sol-baslik { font-size: 20px; font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
+.kayit-sol-alt { font-size: 12px; opacity: 0.8; line-height: 1.6; margin-bottom: 20px; }
+.k-ozellik {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.k-ozellik:last-of-type { border: none; padding-bottom: 0; }
+.k-ikon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: rgba(255,255,255,0.15); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.k-baslik { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.k-acik { font-size: 11px; opacity: 0.75; line-height: 1.5; }
+.puan-kutu {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px; padding: 13px 15px;
+}
+.puan-kutu-baslik { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.puan-kutu-metin { font-size: 11px; line-height: 1.6; opacity: 0.9; }
+.puan-kutu-metin b { color: #ffd54f; }
+.kayit-sag {
+  background: white; flex: 1;
+  padding: 36px 32px; overflow-y: auto;
+}
+.kayit-form-baslik { font-size: 18px; font-weight: 700; color: #202124; margin-bottom: 4px; }
+.kayit-form-alt { font-size: 13px; color: #888; margin-bottom: 20px; }
+.k-label {
+  font-size: 11px; font-weight: 600; color: #8896b0;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  display: block; margin-bottom: 4px; margin-top: 8px;
+}
+.k-label:first-of-type { margin-top: 0; }
+</style>
 </head>
-<body class="auth-body">
-<div class="auth-card" style="width:450px;">
-  <h2 class="auth-title">Yeni Kayıt</h2>
-  <form action="/kayit-yap" method="POST" id="kayitForm">
-    <input name="refKod" placeholder="Referans Kodu (zorunlu)" required class="input" value="<%= refKod %>" style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;">
-    <input name="kullaniciAdi" placeholder="Kullanıcı Adı" required class="input">
-    <input type="email" name="email" placeholder="E-posta adresi (şifre sıfırlama için)" required class="input">
-    <input type="password" name="sifre" placeholder="Şifre" required class="input">
-    <input type="password" name="sifreTekrar" placeholder="Şifre Tekrar" required class="input">
-    <select name="sinif" required class="input">
-      <option value="">Sınıf Seçiniz</option>
-      <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
-        <option value="<%= s %>" <%= s===8?'selected':'' %>><%= s %>. Sınıf</option>
-      <% }); %>
-    </select>
-    <select name="sube" class="input">
-      <option value="">Şube Seçiniz (Opsiyonel)</option>
-      <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
-        <option value="<%= h %>"><%= h %> Şubesi</option>
-      <% }); %>
-    </select>
-    <select name="il" id="ilSelect" onchange="ilDegisti()" required class="input">
-      <option value="">İl Seçiniz...</option>
-    </select>
-    <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required class="input">
-      <option value="">İlçe Seçiniz</option>
-    </select>
-    <select name="okul" id="okulListesi" class="input" required>
-      <option value="">Okul Seçiniz</option>
-    </select>
-    <button type="submit" class="btn btn-success">KAYDI TAMAMLA</button>
-  </form>
+<body class="giris-body">
+
+<div class="kayit-wrap">
+  <!-- Sol: Tanıtım -->
+  <div class="kayit-sol">
+    <div class="kayit-sol-ic">
+      <div class="kayit-logo">LGS</div>
+      <div class="kayit-sol-baslik">LGS Hazırlık Platformu'na Hoş Geldin</div>
+      <div class="kayit-sol-alt">Sınava hazırlanmanın en akıllı yolu. Her gün birkaç soru çöz, farkı zamanla göreceksin.</div>
+      <div class="k-ozellik">
+        <div class="k-ikon">📈</div>
+        <div><div class="k-baslik">Sıralamalarda Yüksel</div><div class="k-acik">Türkiye, il, ilçe, okul ve sınıf bazında sıralamanda yerini gör.</div></div>
+      </div>
+      <div class="k-ozellik">
+        <div class="k-ikon">🎯</div>
+        <div><div class="k-baslik">Sana Özel Sorular</div><div class="k-acik">Sorular zorluk sırasına göre gelir. Önce temeli sağlamlaştır, sonra zor sorulara geç.</div></div>
+      </div>
+      <div class="k-ozellik">
+        <div class="k-ikon">📊</div>
+        <div><div class="k-baslik">Eksiklerini Gör</div><div class="k-acik">Hangi konuda güçlü olduğunu anlık istatistiklerle takip et.</div></div>
+      </div>
+    </div>
+    <div class="kayit-sol-ic">
+      <div class="puan-kutu">
+        <div class="puan-kutu-baslik">💡 Akıllı Puanlama</div>
+        <div class="puan-kutu-metin">Erken çözdüğün sorulardan başta az puan alabilirsin — soru zorlaştıkça <b>geçmişteki puanın otomatik güncellenir.</b> Erken başlayanlar kazanır.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sağ: Form -->
+  <div class="kayit-sag">
+    <div class="kayit-form-baslik">Hesap Oluştur</div>
+    <div class="kayit-form-alt">Katılmak için referans kodu gereklidir.</div>
+    <form action="/kayit-yap" method="POST" id="kayitForm">
+      <label class="k-label">Referans Kodu</label>
+      <input name="refKod" placeholder="Referans Kodu (zorunlu)" required class="input" value="<%= refKod %>" style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;">
+      <label class="k-label">Kullanıcı Adı</label>
+      <input name="kullaniciAdi" placeholder="kullaniciadi" required class="input">
+      <label class="k-label">E-posta</label>
+      <input type="email" name="email" placeholder="ornek@mail.com" required class="input">
+      <label class="k-label">Şifre</label>
+      <input type="password" name="sifre" placeholder="••••••••" required class="input">
+      <label class="k-label">Şifre Tekrar</label>
+      <input type="password" name="sifreTekrar" placeholder="••••••••" required class="input">
+      <label class="k-label">Sınıf</label>
+      <select name="sinif" required class="input">
+        <option value="">Sınıf Seçiniz</option>
+        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
+          <option value="<%= s %>" <%= s===8?'selected':'' %>><%= s %>. Sınıf</option>
+        <% }); %>
+      </select>
+      <label class="k-label">Şube (Opsiyonel)</label>
+      <select name="sube" class="input">
+        <option value="">Şube Seçiniz</option>
+        <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
+          <option value="<%= h %>"><%= h %> Şubesi</option>
+        <% }); %>
+      </select>
+      <label class="k-label">İl</label>
+      <select name="il" id="ilSelect" onchange="ilDegisti()" required class="input">
+        <option value="">İl Seçiniz...</option>
+      </select>
+      <label class="k-label">İlçe</label>
+      <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required class="input">
+        <option value="">İlçe Seçiniz</option>
+      </select>
+      <label class="k-label">Okul</label>
+      <select name="okul" id="okulListesi" class="input" required>
+        <option value="">Okul Seçiniz</option>
+      </select>
+      <button type="submit" class="giris-btn-yeni" style="margin-top:16px;">Kaydı Tamamla</button>
+    </form>
+    <p style="text-align:center; font-size:13px; color:#888; margin-top:14px;">Zaten hesabın var mı? <a href="/" style="color:#1a73e8; font-weight:500; text-decoration:none;">Giriş Yap</a></p>
+  </div>
 </div>
+
 <script>
 var ilIdMap = {};
 fetch('https://api.turkiyeapi.dev/v1/provinces')
