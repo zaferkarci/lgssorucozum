@@ -494,63 +494,165 @@ function escHtml(str) {
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <label class="form-label">Öncül 1</label>
       </div>
-<div class="toolbar" style="margin-bottom:4px;">
-        <button type="button" onclick="ekle('soruOnculu1Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;">B</button>
-        <button type="button" onclick="ekle('soruOnculu1Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;">I</button>
-        <button type="button" onclick="ekle('soruOnculu1Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;">U</button>
-        <button type="button" onclick="ekle('soruOnculu1Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;">S</button>
-        <button type="button" onclick="ekle('soruOnculu1Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;">HL</button>
-        <button type="button" onclick="ekle('soruOnculu1Alan','<sup></sup>',6)" class="toolbar-btn">x²</button>
-        <button type="button" onclick="ekle('soruOnculu1Alan','<sub></sub>',6)" class="toolbar-btn">x₂</button>
+<div class="toolbar" style="margin-bottom:4px; display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','±',0)" class="toolbar-btn" title="Artı/Eksi">±</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','×',0)" class="toolbar-btn" title="Çarpı">×</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','÷',0)" class="toolbar-btn" title="Bölü">÷</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≤',0)" class="toolbar-btn" title="Küçük eşit">≤</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≥',0)" class="toolbar-btn" title="Büyük eşit">≥</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≠',0)" class="toolbar-btn" title="Eşit değil">≠</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≈',0)" class="toolbar-btn" title="Yaklaşık">≈</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∞',0)" class="toolbar-btn" title="Sonsuz">∞</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','°',0)" class="toolbar-btn" title="Derece">°</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∠',0)" class="toolbar-btn" title="Açı">∠</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','△',0)" class="toolbar-btn" title="Üçgen">△</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∉',0)" class="toolbar-btn" title="Eleman değil">∉</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','⊂',0)" class="toolbar-btn" title="Alt küme">⊂</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∪',0)" class="toolbar-btn" title="Birleşim">∪</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∩',0)" class="toolbar-btn" title="Kesişim">∩</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;" title="Kalın">B</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;" title="İtalik">I</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;" title="Altı çizili">U</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;" title="Üstü çizili">S</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;" title="Vurgula">HL</button>
       </div>
       <textarea name="soruOnculu1" id="soruOnculu1Alan" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||'') : '' %></textarea>
       <label class="form-label">Öncül 1 Görseli</label>
       <input name="soruOnculu1Resmi" placeholder="Öncül 1 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu1Resmi||editSoru.soruOnculuResmi||'') : '' %>" class="input">
       <label class="form-label">Öncül 2</label>
-      <div class="toolbar" style="margin-bottom:4px;">
+      <div class="toolbar" style="margin-bottom:4px; display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','±',0)" class="toolbar-btn">±</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','×',0)" class="toolbar-btn">×</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','÷',0)" class="toolbar-btn">÷</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≤',0)" class="toolbar-btn">≤</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≥',0)" class="toolbar-btn">≥</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≠',0)" class="toolbar-btn">≠</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≈',0)" class="toolbar-btn">≈</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∞',0)" class="toolbar-btn">∞</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','°',0)" class="toolbar-btn">°</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∠',0)" class="toolbar-btn">∠</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','△',0)" class="toolbar-btn">△</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','⊥',0)" class="toolbar-btn">⊥</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∥',0)" class="toolbar-btn">∥</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∈',0)" class="toolbar-btn">∈</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∉',0)" class="toolbar-btn">∉</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','⊂',0)" class="toolbar-btn">⊂</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∪',0)" class="toolbar-btn">∪</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∩',0)" class="toolbar-btn">∩</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
         <button type="button" onclick="ekle('soruOnculu2Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;">B</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;">I</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;">U</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;">S</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;">HL</button>
-        <button type="button" onclick="ekle('soruOnculu2Alan','<sup></sup>',6)" class="toolbar-btn">x²</button>
-        <button type="button" onclick="ekle('soruOnculu2Alan','<sub></sub>',6)" class="toolbar-btn">x₂</button>
       </div>
       <textarea name="soruOnculu2" id="soruOnculu2Alan" placeholder="Öncül 2 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu2||editSoru.soruOnculu||'') : '' %></textarea>
       <label class="form-label">Öncül 2 Görseli</label>
       <input name="soruOnculu2Resmi" placeholder="Öncül 2 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu2Resmi||'') : '' %>" class="input">
       <label class="form-label">Öncül 3</label>
-      <div class="toolbar" style="margin-bottom:4px;">
-        <button type="button" onclick="ekle('soruOnculu3Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;">B</button>
-        <button type="button" onclick="ekle('soruOnculu3Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;">I</button>
-        <button type="button" onclick="ekle('soruOnculu3Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;">U</button>
-        <button type="button" onclick="ekle('soruOnculu3Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;">S</button>
-        <button type="button" onclick="ekle('soruOnculu3Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;">HL</button>
-        <button type="button" onclick="ekle('soruOnculu3Alan','<sup></sup>',6)" class="toolbar-btn">x²</button>
-        <button type="button" onclick="ekle('soruOnculu3Alan','<sub></sub>',6)" class="toolbar-btn">x₂</button>
+<div class="toolbar" style="margin-bottom:4px; display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','±',0)" class="toolbar-btn" title="Artı/Eksi">±</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','×',0)" class="toolbar-btn" title="Çarpı">×</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','÷',0)" class="toolbar-btn" title="Bölü">÷</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≤',0)" class="toolbar-btn" title="Küçük eşit">≤</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≥',0)" class="toolbar-btn" title="Büyük eşit">≥</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≠',0)" class="toolbar-btn" title="Eşit değil">≠</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≈',0)" class="toolbar-btn" title="Yaklaşık">≈</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∞',0)" class="toolbar-btn" title="Sonsuz">∞</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','°',0)" class="toolbar-btn" title="Derece">°</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∠',0)" class="toolbar-btn" title="Açı">∠</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','△',0)" class="toolbar-btn" title="Üçgen">△</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∉',0)" class="toolbar-btn" title="Eleman değil">∉</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','⊂',0)" class="toolbar-btn" title="Alt küme">⊂</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∪',0)" class="toolbar-btn" title="Birleşim">∪</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∩',0)" class="toolbar-btn" title="Kesişim">∩</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;" title="Kalın">B</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;" title="İtalik">I</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;" title="Altı çizili">U</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;" title="Üstü çizili">S</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;" title="Vurgula">HL</button>
       </div>
       <textarea name="soruOnculu3" id="soruOnculu3Alan" placeholder="Öncül 3 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu3||'') : '' %></textarea>
       <label class="form-label">Öncül 3 Görseli</label>
       <input name="soruOnculu3Resmi" placeholder="Öncül 3 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu3Resmi||'') : '' %>" class="input">
       <label class="form-label">Soru Metni</label>
-      <div class="toolbar">
+      <div class="toolbar" style="display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
         <button type="button" onclick="ekle('soruMetni','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
         <button type="button" onclick="ekle('soruMetni','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
-        <button type="button" onclick="ekle('soruMetni','√',0)" class="toolbar-btn">√</button>
-        <button type="button" onclick="ekle('soruMetni','π',0)" class="toolbar-btn">π</button>
-        <button type="button" onclick="ekle('soruMetni','±',0)" class="toolbar-btn">±</button>
-        <button type="button" onclick="ekle('soruMetni','×',0)" class="toolbar-btn">×</button>
-        <button type="button" onclick="ekle('soruMetni','÷',0)" class="toolbar-btn">÷</button>
-        <button type="button" onclick="ekle('soruMetni','≤',0)" class="toolbar-btn">≤</button>
-        <button type="button" onclick="ekle('soruMetni','≥',0)" class="toolbar-btn">≥</button>
-        <button type="button" onclick="ekle('soruMetni','≠',0)" class="toolbar-btn">≠</button>
-        <button type="button" onclick="ekle('soruMetni','∞',0)" class="toolbar-btn">∞</button>
-        <button type="button" onclick="ekle('soruMetni','°',0)" class="toolbar-btn">°</button>
-        <button type="button" onclick="ekle('soruMetni','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;">B</button>
-        <button type="button" onclick="ekle('soruMetni','<i></i>',4)" class="toolbar-btn" style="font-style:italic;">I</button>
-        <button type="button" onclick="ekle('soruMetni','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;">U</button>
-        <button type="button" onclick="ekle('soruMetni','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;">S</button>
-        <button type="button" onclick="ekle('soruMetni','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;">HL</button>
+        <button type="button" onclick="ekle('soruMetni','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruMetni','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruMetni','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruMetni','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruMetni','±',0)" class="toolbar-btn" title="Artı/Eksi">±</button>
+        <button type="button" onclick="ekle('soruMetni','×',0)" class="toolbar-btn" title="Çarpı">×</button>
+        <button type="button" onclick="ekle('soruMetni','÷',0)" class="toolbar-btn" title="Bölü">÷</button>
+        <button type="button" onclick="ekle('soruMetni','≤',0)" class="toolbar-btn" title="Küçük eşit">≤</button>
+        <button type="button" onclick="ekle('soruMetni','≥',0)" class="toolbar-btn" title="Büyük eşit">≥</button>
+        <button type="button" onclick="ekle('soruMetni','≠',0)" class="toolbar-btn" title="Eşit değil">≠</button>
+        <button type="button" onclick="ekle('soruMetni','≈',0)" class="toolbar-btn" title="Yaklaşık">≈</button>
+        <button type="button" onclick="ekle('soruMetni','∞',0)" class="toolbar-btn" title="Sonsuz">∞</button>
+        <button type="button" onclick="ekle('soruMetni','°',0)" class="toolbar-btn" title="Derece">°</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruMetni','∠',0)" class="toolbar-btn" title="Açı">∠</button>
+        <button type="button" onclick="ekle('soruMetni','△',0)" class="toolbar-btn" title="Üçgen">△</button>
+        <button type="button" onclick="ekle('soruMetni','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
+        <button type="button" onclick="ekle('soruMetni','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruMetni','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
+        <button type="button" onclick="ekle('soruMetni','∉',0)" class="toolbar-btn" title="Eleman değil">∉</button>
+        <button type="button" onclick="ekle('soruMetni','⊂',0)" class="toolbar-btn" title="Alt küme">⊂</button>
+        <button type="button" onclick="ekle('soruMetni','∪',0)" class="toolbar-btn" title="Birleşim">∪</button>
+        <button type="button" onclick="ekle('soruMetni','∩',0)" class="toolbar-btn" title="Kesişim">∩</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruMetni','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;" title="Kalın">B</button>
+        <button type="button" onclick="ekle('soruMetni','<i></i>',4)" class="toolbar-btn" style="font-style:italic;" title="İtalik">I</button>
+        <button type="button" onclick="ekle('soruMetni','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;" title="Altı çizili">U</button>
+        <button type="button" onclick="ekle('soruMetni','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;" title="Üstü çizili">S</button>
+        <button type="button" onclick="ekle('soruMetni','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;" title="Vurgula">HL</button>
         <button type="button" onclick="onizlemeGoster()" class="toolbar-btn" style="background:#1a73e8; color:white; border-color:#1a73e8; margin-left:auto;">Önizle</button>
       </div>
       <textarea name="soruMetni" id="soruMetni" placeholder="Soru Metni (HTML desteklenir)" class="input" style="height:80px;" required><%= editSoru ? editSoru.soruMetni : '' %></textarea>
