@@ -62,13 +62,14 @@ soruOnculu1: ""
 soruMetni: "Ahmet'in 3 kalemi ve 5 silgisi vardır. Kalemi silgisinden 4 fazla olan kaç tanedir?"
 
 MATEMATİKSEL SEMBOLLER — KaTeX kullanıyoruz, LaTeX formatında yaz, $ işaretleri arasına al:
-- Karekök: √9 → $\sqrt{9}$, √(a+b) → $\sqrt{a+b}$
+- Karekök: √9 → $\sqrt{9}$ (ÖNEMLİ: \sqrt yazarken ters slash \ mutlaka olmalı!)
 - Üs: x² → $x^{2}$, 3⁴ → $3^{4}$
 - Alt simge: x₂ → $x_{2}$
 - Kesir: 3/4 → $\frac{3}{4}$
 - Pi: π → $\pi$
 - Mutlak değer: |x| → $|x|$
 - Karmaşık: √48 + √75 → $\sqrt{48} + \sqrt{75}$
+- JSON içinde ters slash \ için \\ yaz: $\\sqrt{9}$
 - ÖNEMLI: Sadece matematiksel ifadeleri $ içine al, düz metin $ içine alma
 
 GÖRSEL KURALLARI:
@@ -150,14 +151,15 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
     // JSON string içindeki gerçek satır/tab karakterlerini escape et
     temiz = jsonStringIciniOnar(temiz);
 
+    // Gemini'nin yaygın hataları: eksik backslash, kontrol karakterleri
+    temiz = geminiHatalariniOnar(temiz);
+
     try {
         return JSON.parse(temiz);
     } catch (e1) {
-        // Son çare: tüm kontrolsüz satır sonlarını kaldır
         try {
             return JSON.parse(temiz.replace(/[\r\n\t]/g, ' '));
         } catch (e2) {
-            // Yarım kalan array'i onar — son tam objeyi bul
             try {
                 const onarilmis = sonTamObjeyeKadar(temiz);
                 return JSON.parse(onarilmis);
@@ -166,6 +168,18 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
             }
         }
     }
+}
+
+// Gemini'nin sık yaptığı hataları düzelt
+function geminiHatalariniOnar(str) {
+    // 1. Kontrol karakterlerini temizle (0x00-0x1F arası, \n \r \t hariç)
+    str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    // 2. $sqrt{ → $\sqrt{ (eksik backslash)
+    str = str.replace(/\$sqrt\{/g, '$\\\\sqrt{');
+    str = str.replace(/\$frac\{/g, '$\\\\frac{');
+    str = str.replace(/\$sqrt\[/g, '$\\\\sqrt[');
+    // 3. JSON string içinde kaçırılmamış tırnak (basit durum)
+    return str;
 }
 
 // JSON string değerleri içindeki literal newline/tab'ları escape et
