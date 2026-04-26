@@ -41,6 +41,9 @@ app.use('/', require('./routes/panel'));
 app.use('/', require('./routes/admin'));
 app.use('/', require('./routes/pdfyukle'));
 
+// Health check — loading.html bu endpoint'i izler
+app.get('/health', (req, res) => res.json({ durum: 'hazir' }));
+
 // Günlük cron job — her gün 05:00 (Europe/Istanbul)
 const cron = require('node-cron');
 const { gunlukHesapla } = require('./cronJobs');

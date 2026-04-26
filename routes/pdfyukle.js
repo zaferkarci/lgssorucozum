@@ -61,13 +61,15 @@ YANLIŞ çıktı (yapma!):
 soruOnculu1: ""
 soruMetni: "Ahmet'in 3 kalemi ve 5 silgisi vardır. Kalemi silgisinden 4 fazla olan kaç tanedir?"
 
-MATEMATİKSEL SEMBOLLER:
-- Karekök: √9 → <span style="text-decoration:overline">9</span> değil, √9 olarak yaz ya da &#8730;9
-- Üs: x² → x<sup>2</sup>
-- Alt simge: x₂ → x<sub>2</sub>
-- Kesir: 3/4 → <sup>3</sup>/<sub>4</sub>
-- Pi: π olarak bırak
-- Mutlak değer: |x| olarak bırak
+MATEMATİKSEL SEMBOLLER — KaTeX kullanıyoruz, LaTeX formatında yaz, $ işaretleri arasına al:
+- Karekök: √9 → $\sqrt{9}$, √(a+b) → $\sqrt{a+b}$
+- Üs: x² → $x^{2}$, 3⁴ → $3^{4}$
+- Alt simge: x₂ → $x_{2}$
+- Kesir: 3/4 → $\frac{3}{4}$
+- Pi: π → $\pi$
+- Mutlak değer: |x| → $|x|$
+- Karmaşık: √48 + √75 → $\sqrt{48} + \sqrt{75}$
+- ÖNEMLI: Sadece matematiksel ifadeleri $ içine al, düz metin $ içine alma
 
 GÖRSEL KURALLARI:
 - Tablo görseli → HTML tabloya çevir: <table style="border-collapse:collapse"><tr><td style="border:1px solid #999;padding:4px">...</td></tr></table>

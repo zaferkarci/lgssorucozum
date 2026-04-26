@@ -601,3 +601,11 @@ body { font-family: sans-serif; background: #f0f2f5; }
 .sf-hint.err { color: #ea4335; }
 .sf-divider { border: none; border-top: 1px solid #f4f4f4; margin: 14px 0; }
 .sf-btn { width: 100%; padding: 11px; background: #1a73e8; color: white; border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(26,115,232,0.25); }
+
+/* Karekök sembolü boyut düzeltmesi */
+.soru-oncul-yeni, .soru-metni-yeni, .secenek-btn-yeni {
+  font-size: inherit;
+}
+.soru-oncul-yeni *, .soru-metni-yeni *, .secenek-btn-yeni * {
+  font-family: inherit;
+}

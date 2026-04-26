@@ -5,13 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LGS Hazırlık - Admin</title>
 <link rel="stylesheet" href="/style.css">
+<style>
+.sqrt{display:inline-flex;align-items:center;}
+.sqrt-sembol{font-size:1.15em;line-height:1;margin-right:1px;}
+.sqrt-icerik{border-top:1.5px solid currentColor;padding:0 2px;display:inline-block;}
+.math-sup{vertical-align:super;font-size:.75em;}
+.math-sub{vertical-align:sub;font-size:.75em;}
+.math-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;line-height:1.2;}
+.math-frac-ust{border-bottom:1px solid currentColor;padding:0 2px;}
+.math-frac-alt{padding:0 2px;}
+</style>
 <script>
+window.MathJaxReady = false;
 MathJax = {
-  tex: { inlineMath: [['$','$'], ['\\(','\\)']] },
-  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+  tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+  options: { skipHtmlTags: ['script','style','textarea','pre'] },
+  startup: {
+    ready() { MathJax.startup.defaultReady(); window.MathJaxReady = true; }
+  }
 };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<script>
+function mathRenderSonra(el) {
+  if (!el) return;
+  if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([el]).catch(function(){});
+  } else if (window.MathJax && MathJax.typesetPromise) {
+    setTimeout(function(){ MathJax.typesetPromise([el]).catch(function(){}); }, 500);
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([document.body]).catch(function(){});
+  }
+});
+</script>
 </head>
 <body class="panel-body">
 
