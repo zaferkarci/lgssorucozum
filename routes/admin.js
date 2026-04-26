@@ -47,13 +47,24 @@ function adminKontrol(req, res) {
 router.get('/admin', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     const editSoru = req.query.duzenle ? await Soru.findById(req.query.duzenle) : null;
-    const tumSorular = await Soru.find();
-    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif il ilce okul rol');
+    // Soru filtreleri
+    const filSinif  = req.query.filSinif  || '';
+    const filDers   = req.query.filDers   || '';
+    const filUnite  = req.query.filUnite  || '';
+    const filKonu   = req.query.filKonu   || '';
+    const soruFiltre = {};
+    if (filSinif)  soruFiltre.sinif  = filSinif;
+    if (filDers)   soruFiltre.ders   = filDers;
+    if (filUnite)  soruFiltre.unite  = filUnite;
+    if (filKonu)   soruFiltre.konu   = filKonu;
+    const tumSorular = await Soru.find(soruFiltre).sort({ soruNo: 1 });
     const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
     const mod = req.query.mod || (req.query.duzenle ? 'soruEkle' : 'soruListesi');
+    // Kullanıcı filtreleri
     const filIl = req.query.il || '';
     const filIlce = req.query.ilce || '';
     const filOkul = req.query.okul || '';
+    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif il ilce okul rol');
     const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
     const filtreliKullanicilar = tumKullanicilar.filter(k =>
         (!filIl || k.il === filIl) && (!filIlce || k.ilce === filIlce) && (!filOkul || k.okul === filOkul)
@@ -65,11 +76,18 @@ router.get('/admin', async (req, res) => {
         ? req.headers.authorization.replace('Basic ', '')
         : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
     const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
+    // Filtre seçenekleri için mevcut değerler
+    const tumSoruSiniflar = [...new Set((await Soru.find({}, 'sinif').lean()).map(s => s.sinif).filter(Boolean))].sort();
+    const tumSoruDersler  = [...new Set((await Soru.find(filSinif ? {sinif:filSinif} : {}, 'ders').lean()).map(s => s.ders).filter(Boolean))].sort();
+    const tumSoruUniteler = [...new Set((await Soru.find({...(filSinif&&{sinif:filSinif}), ...(filDers&&{ders:filDers})}, 'unite').lean()).map(s => s.unite).filter(Boolean))].sort();
+    const tumSoruKonular  = [...new Set((await Soru.find({...(filSinif&&{sinif:filSinif}), ...(filDers&&{ders:filDers}), ...(filUnite&&{unite:filUnite})}, 'konu').lean()).map(s => s.konu).filter(Boolean))].sort();
     res.render('admin', {
         mod, editSoru, tumSorular, dersler,
         tumKullanicilar, filtreliKullanicilar,
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
+        filSinif, filDers, filUnite, filKonu,
+        tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
         tumReferanslar
@@ -91,7 +109,10 @@ router.post('/soru-ekle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     var hata = soruDogrula(req.body);
     if (hata) return res.send("<script>alert('" + hata + "'); window.history.back();</script>");
-    await new Soru({ sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
+    // soruNo: max + 1
+    const maxSoru = await Soru.findOne().sort({ soruNo: -1 }).select('soruNo').lean();
+    const yeniNo = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+    await new Soru({ soruNo: yeniNo, sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
     res.redirect('/admin?mod=soruListesi');
 });
 
@@ -333,7 +354,23 @@ router.get('/api/soru/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ hata: err.message }); }
 });
 
-// ── Referans Kodu Yönetimi ───────────────────────────────────────────────────
+// TEK SEFERLİK MIGRATION — çalıştırınca soruNo atar, sonra bu route'u sil
+router.get('/admin/migrate-soru-no', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const sorular = await Soru.find({ soruNo: { $exists: false } }).sort({ _id: 1 });
+        if (sorular.length === 0) return res.send('✅ Tüm sorularda soruNo zaten var.');
+        const maxSoru = await Soru.findOne({ soruNo: { $exists: true } }).sort({ soruNo: -1 }).select('soruNo');
+        let no = maxSoru ? maxSoru.soruNo + 1 : 1;
+        const log = [];
+        for (const s of sorular) {
+            await Soru.updateOne({ _id: s._id }, { soruNo: no });
+            log.push(`#${no} → ${s.sinif}. Sınıf / ${s.ders} / ${s.konu || '-'}`);
+            no++;
+        }
+        res.send('<pre>✅ Tamamlandı!\n\n' + log.join('\n') + '</pre>');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
 router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
