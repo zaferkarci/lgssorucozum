@@ -354,23 +354,6 @@ router.get('/api/soru/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ hata: err.message }); }
 });
 
-// TEK SEFERLİK MIGRATION — çalıştırınca soruNo atar, sonra bu route'u sil
-router.get('/admin/migrate-soru-no', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
-    try {
-        const sorular = await Soru.find({ soruNo: { $exists: false } }).sort({ _id: 1 });
-        if (sorular.length === 0) return res.send('✅ Tüm sorularda soruNo zaten var.');
-        const maxSoru = await Soru.findOne({ soruNo: { $exists: true } }).sort({ soruNo: -1 }).select('soruNo');
-        let no = maxSoru ? maxSoru.soruNo + 1 : 1;
-        const log = [];
-        for (const s of sorular) {
-            await Soru.updateOne({ _id: s._id }, { soruNo: no });
-            log.push(`#${no} → ${s.sinif}. Sınıf / ${s.ders} / ${s.konu || '-'}`);
-            no++;
-        }
-        res.send('<pre>✅ Tamamlandı!\n\n' + log.join('\n') + '</pre>');
-    } catch (err) { res.status(500).send('Hata: ' + err.message); }
-});
 router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
