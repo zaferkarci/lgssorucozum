@@ -354,19 +354,21 @@ router.get('/api/soru/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ hata: err.message }); }
 });
 
-// TEK SEFERLİK MIGRATION v3 — çalıştır sonra sil
+// TEK SEFERLİK MIGRATION v4 — çalıştır sonra sil
 router.get('/admin/migrate-soru-no', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        // Önce tüm soruNo'ları temizle (unique index çakışmasını önlemek için)
-        await Soru.updateMany({}, { $unset: { soruNo: 1 } });
-        // _id sırasına göre yeniden numaralandır
         const sorular = await Soru.find().sort({ _id: 1 }).select('_id sinif ders konu durum').lean();
+        // Mongoose'u bypass et, native driver kullan
+        const db = Soru.collection;
+        // Önce hepsini temizle
+        await db.updateMany({}, { $unset: { soruNo: '' } });
+        // Sonra tek tek ata
         const log = [];
         for (let i = 0; i < sorular.length; i++) {
             const no = i + 1;
-            const result = await Soru.updateOne({ _id: sorular[i]._id }, { $set: { soruNo: no } });
-            log.push(`#${no} → ${sorular[i].sinif}. Sınıf / ${sorular[i].ders} / ${sorular[i].konu||'-'} [${sorular[i].durum||'taslak'}] — modified: ${result.modifiedCount}`);
+            await db.updateOne({ _id: sorular[i]._id }, { $set: { soruNo: no } });
+            log.push(`#${no} → ${sorular[i].sinif}. Sınıf / ${sorular[i].ders} / ${sorular[i].konu||'-'}`);
         }
         res.send('<pre>✅ ' + sorular.length + ' soru numaralandı.\n\n' + log.join('\n') + '</pre>');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
