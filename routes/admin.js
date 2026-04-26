@@ -57,7 +57,7 @@ router.get('/admin', async (req, res) => {
     if (filDers)   soruFiltre.ders   = filDers;
     if (filUnite)  soruFiltre.unite  = filUnite;
     if (filKonu)   soruFiltre.konu   = filKonu;
-    const tumSorular = await Soru.find(soruFiltre).sort({ soruNo: 1 }).lean();
+    const tumSorular = await Soru.collection.find(soruFiltre).sort({ soruNo: 1 }).toArray();
     const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
     const mod = req.query.mod || (req.query.duzenle ? 'soruEkle' : 'soruListesi');
     // Kullanıcı filtreleri
@@ -355,32 +355,6 @@ router.get('/api/soru/:id', async (req, res) => {
 });
 
 // TEK SEFERLİK MIGRATION v4 — çalıştır sonra sil
-router.get('/admin/migrate-soru-no', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
-    try {
-        const sorular = await Soru.find().sort({ _id: 1 }).select('_id sinif ders konu durum').lean();
-        const db = Soru.collection;
-        await db.updateMany({}, { $unset: { soruNo: '' } });
-        const log = [];
-        for (let i = 0; i < sorular.length; i++) {
-            const no = i + 1;
-            await db.updateOne({ _id: sorular[i]._id }, { $set: { soruNo: no } });
-            log.push(`#${no} → ${sorular[i].sinif}. Sınıf / ${sorular[i].ders} / ${sorular[i].konu||'-'}`);
-        }
-        res.send('<pre>✅ ' + sorular.length + ' soru numaralandı.\n\n' + log.join('\n') + '</pre>');
-    } catch (err) { res.status(500).send('Hata: ' + err.message); }
-});
-
-// Doğrulama
-router.get('/admin/kontrol-soru-no', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
-    try {
-        const ornekler = await Soru.collection.find({}).limit(5).toArray();
-        const sonuc = ornekler.map(s => `soruNo: ${s.soruNo} | ders: ${s.ders} | _id: ${s._id}`);
-        res.send('<pre>' + sonuc.join('\n') + '</pre>');
-    } catch (err) { res.status(500).send('Hata: ' + err.message); }
-});
-
 router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
