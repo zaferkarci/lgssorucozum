@@ -1539,7 +1539,7 @@ function gosterExcelHata(msg) {
     <% taslaklar.forEach(function(s, i) { %>
       <div class="admin-soru-item">
         <div class="admin-soru-sol">
-          <div class="admin-soru-no" title="Soru No">#<%= s.soruNo || '—' %></div>
+          <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
           <div>
             <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
@@ -1562,7 +1562,7 @@ function gosterExcelHata(msg) {
     <% yayindalar.forEach(function(s, i) { %>
       <div class="admin-soru-item">
         <div class="admin-soru-sol">
-          <div class="admin-soru-no" title="Soru No">#<%= s.soruNo || '—' %></div>
+          <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
           <div>
             <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
@@ -1585,7 +1585,7 @@ function gosterExcelHata(msg) {
     <% duraklatilanlar.forEach(function(s, i) { %>
       <div class="admin-soru-item">
         <div class="admin-soru-sol">
-          <div class="admin-soru-no" title="Soru No">#<%= s.soruNo || '—' %></div>
+          <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
           <div>
             <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>

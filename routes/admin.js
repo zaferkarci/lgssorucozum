@@ -354,6 +354,22 @@ router.get('/api/soru/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ hata: err.message }); }
 });
 
+// TEK SEFERLİK MIGRATION v2 — çalıştır sonra sil
+router.get('/admin/migrate-soru-no', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const sorular = await Soru.find().sort({ _id: 1 }).lean();
+        let no = 1;
+        const log = [];
+        for (const s of sorular) {
+            await Soru.updateOne({ _id: s._id }, { $set: { soruNo: no } });
+            log.push(`#${no} → ${s.sinif}. Sınıf / ${s.ders} / ${s.konu||'-'} [${s.durum||'taslak'}]`);
+            no++;
+        }
+        res.send('<pre>✅ ' + sorular.length + ' soru numaralandı.\n\n' + log.join('\n') + '</pre>');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
 router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
