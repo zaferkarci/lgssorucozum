@@ -1467,12 +1467,62 @@ function gosterExcelHata(msg) {
   }
   </script>
 
-<% } else { %>
+<% } else if (mod === 'soruListesi') { %>
   <div class="admin-card">
-    <div class="admin-card-title">Tüm Sorular (<%= tumSorular.length %>)</div>
+    <div class="admin-card-title">
+      Soru Filtrele
+    </div>
+    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+      <input type="hidden" name="mod" value="soruListesi">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Sınıf</label>
+        <select name="filSinif" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:90px;">
+          <option value="">Tümü</option>
+          <% tumSoruSiniflar.forEach(function(s) { %>
+            <option value="<%= s %>" <%= filSinif==s?'selected':'' %>><%= s %>. Sınıf</option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ders</label>
+        <select name="filDers" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruDersler.forEach(function(d) { %>
+            <option value="<%= d %>" <%= filDers==d?'selected':'' %>><%= d %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ünite</label>
+        <select name="filUnite" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruUniteler.forEach(function(u) { %>
+            <option value="<%= u %>" <%= filUnite==u?'selected':'' %>><%= u %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Konu</label>
+        <select name="filKonu" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:160px;">
+          <option value="">Tümü</option>
+          <% tumSoruKonular.forEach(function(k) { %>
+            <option value="<%= k %>" <%= filKonu==k?'selected':'' %>><%= k %></option>
+          <% }); %>
+        </select>
+      </div>
+      <% if (filSinif || filDers || filUnite || filKonu) { %>
+        <a href="/admin?mod=soruListesi" style="padding:7px 14px; background:#ffebee; color:#c62828; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; align-self:flex-end;">✕ Filtreyi Temizle</a>
+      <% } %>
+      <div style="margin-left:auto; align-self:flex-end; font-size:13px; color:#888;">
+        <b style="color:#1a73e8;"><%= tumSorular.length %></b> soru listeleniyor
+      </div>
+    </form>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-title">Sorular</div>
 
     <%
-      // Taslak: ilk ekleneni üste (_id artan), Yayında: son yayınlananı üste (yayinTarih azalan)
       var taslaklar = tumSorular.filter(function(s){ return !s.durum || s.durum === 'taslak'; })
         .sort(function(a,b){ return a._id.toString().localeCompare(b._id.toString()); });
       var yayindalar = tumSorular.filter(function(s){ return s.durum === 'yayinda'; })
@@ -1489,9 +1539,9 @@ function gosterExcelHata(msg) {
     <% taslaklar.forEach(function(s, i) { %>
       <div class="admin-soru-item">
         <div class="admin-soru-sol">
-          <div class="admin-soru-no"><%= i+1 %></div>
+          <div class="admin-soru-no" title="Soru No">#<%= s.soruNo || '—' %></div>
           <div>
-            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,60) %>...</div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
           </div>
         </div>
@@ -1512,9 +1562,9 @@ function gosterExcelHata(msg) {
     <% yayindalar.forEach(function(s, i) { %>
       <div class="admin-soru-item">
         <div class="admin-soru-sol">
-          <div class="admin-soru-no"><%= i+1 %></div>
+          <div class="admin-soru-no" title="Soru No">#<%= s.soruNo || '—' %></div>
           <div>
-            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,60) %>...</div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
           </div>
         </div>
@@ -1535,9 +1585,9 @@ function gosterExcelHata(msg) {
     <% duraklatilanlar.forEach(function(s, i) { %>
       <div class="admin-soru-item">
         <div class="admin-soru-sol">
-          <div class="admin-soru-no"><%= i+1 %></div>
+          <div class="admin-soru-no" title="Soru No">#<%= s.soruNo || '—' %></div>
           <div>
-            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %>] <%= s.soruMetni.substring(0,60) %>...</div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
           </div>
         </div>
@@ -1554,7 +1604,7 @@ function gosterExcelHata(msg) {
     <% } %>
 
     <% if (tumSorular.length === 0) { %>
-      <p style="color:#aab4c4; text-align:center; padding:20px;">Henüz soru eklenmemiş.</p>
+      <p style="color:#aab4c4; text-align:center; padding:20px;">Filtreyle eşleşen soru bulunamadı.</p>
     <% } %>
 
   </div>
