@@ -5,71 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LGS Hazırlık - Panel</title>
 <link rel="stylesheet" href="/style.css">
-<style>
-/* Karekök CSS render */
-.sqrt { display: inline-flex; align-items: center; }
-.sqrt-sembol { font-size: 1.15em; line-height: 1; margin-right: 1px; }
-.sqrt-icerik { border-top: 1.5px solid currentColor; padding: 0 2px; display: inline-block; }
-/* Üs/alt simge */
-.math-sup { vertical-align: super; font-size: 0.75em; }
-.math-sub { vertical-align: sub; font-size: 0.75em; }
-/* Kesir */
-.math-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; font-size: 0.85em; line-height: 1.2; }
-.math-frac-ust { border-bottom: 1px solid currentColor; padding: 0 2px; }
-.math-frac-alt { padding: 0 2px; }
-</style>
 <script>
-// Sayfa yüklenince matematiksel ifadeleri dönüştür
-document.addEventListener('DOMContentLoaded', function() {
-  mathRender(document.body);
-});
-
-function mathRender(el) {
-  if (!el) return;
-  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-  var nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(function(node) {
-    if (!node.textContent.match(/\$[^$]+\$/)) return;
-    var parent = node.parentNode;
-    if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') return;
-    var html = node.textContent
-      .replace(/\$([^$]+)\$/g, function(_, latex) { return latexToHtml(latex); });
-    if (html !== node.textContent) {
-      var span = document.createElement('span');
-      span.innerHTML = html;
-      parent.replaceChild(span, node);
-    }
-  });
-}
-
-function latexToHtml(latex) {
-  var s = latex.trim();
-  // Karekök: \sqrt{...} veya \sqrt ...
-  s = s.replace(/\\sqrt\{([^}]+)\}/g, '<span class="sqrt"><span class="sqrt-sembol">√</span><span class="sqrt-icerik">$1</span></span>');
-  s = s.replace(/\\sqrt\s+(\S+)/g, '<span class="sqrt"><span class="sqrt-sembol">√</span><span class="sqrt-icerik">$1</span></span>');
-  // Üs: x^{2} veya x^2
-  s = s.replace(/\^{([^}]+)}/g, '<span class="math-sup">$1</span>');
-  s = s.replace(/\^(\S)/g, '<span class="math-sup">$1</span>');
-  // Alt simge
-  s = s.replace(/_{([^}]+)}/g, '<span class="math-sub">$1</span>');
-  s = s.replace(/_(\S)/g, '<span class="math-sub">$1</span>');
-  // Kesir: \frac{a}{b}
-  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<span class="math-frac"><span class="math-frac-ust">$1</span><span class="math-frac-alt">$2</span></span>');
-  // Pi, özel semboller
-  s = s.replace(/\\pi/g, 'π');
-  s = s.replace(/\\cdot/g, '·');
-  s = s.replace(/\\times/g, '×');
-  s = s.replace(/\\div/g, '÷');
-  s = s.replace(/\\pm/g, '±');
-  s = s.replace(/\\leq/g, '≤');
-  s = s.replace(/\\geq/g, '≥');
-  s = s.replace(/\\neq/g, '≠');
-  // Geriye kalan \ komutlarını temizle
-  s = s.replace(/\\[a-zA-Z]+/g, '');
-  return s;
-}
+MathJax = {
+  tex: { inlineMath: [['$','$'], ['\\(','\\)']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+};
 </script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body class="panel-body">
 
@@ -482,7 +424,7 @@ function latexToHtml(latex) {
         html += '<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; font-size:13px; color:#2e7d32; font-weight:500;">✓ Doğru cevap: <b>' + harfler[s.dogruCevapIndex] + '</b> şıkkı</div>';
 
         document.getElementById('soruGorIcerik').innerHTML = html;
-        mathRender(document.getElementById('soruGorIcerik'));
+        if (window.MathJax) MathJax.typesetPromise([document.getElementById('soruGorIcerik')]);
         var modal = document.getElementById('soruGorModal');
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';

@@ -5,58 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LGS Hazırlık - Admin</title>
 <link rel="stylesheet" href="/style.css">
-<style>
-.sqrt { display: inline-flex; align-items: center; }
-.sqrt-sembol { font-size: 1.15em; line-height: 1; margin-right: 1px; }
-.sqrt-icerik { border-top: 1.5px solid currentColor; padding: 0 2px; display: inline-block; }
-.math-sup { vertical-align: super; font-size: 0.75em; }
-.math-sub { vertical-align: sub; font-size: 0.75em; }
-.math-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; font-size: 0.85em; line-height: 1.2; }
-.math-frac-ust { border-bottom: 1px solid currentColor; padding: 0 2px; }
-.math-frac-alt { padding: 0 2px; }
-</style>
 <script>
-document.addEventListener('DOMContentLoaded', function() { mathRender(document.body); });
-
-function mathRender(el) {
-  if (!el) return;
-  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-  var nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(function(node) {
-    if (!node.textContent.match(/\$[^$]+\$/)) return;
-    var parent = node.parentNode;
-    if (!parent || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') return;
-    var html = node.textContent.replace(/\$([^$]+)\$/g, function(_, latex) { return latexToHtml(latex); });
-    if (html !== node.textContent) {
-      var span = document.createElement('span');
-      span.innerHTML = html;
-      parent.replaceChild(span, node);
-    }
-  });
-}
-
-function latexToHtml(latex) {
-  var s = latex.trim();
-  s = s.replace(/\\sqrt\{([^}]+)\}/g, '<span class="sqrt"><span class="sqrt-sembol">√</span><span class="sqrt-icerik">$1</span></span>');
-  s = s.replace(/\\sqrt\s+(\S+)/g, '<span class="sqrt"><span class="sqrt-sembol">√</span><span class="sqrt-icerik">$1</span></span>');
-  s = s.replace(/\^{([^}]+)}/g, '<span class="math-sup">$1</span>');
-  s = s.replace(/\^(\S)/g, '<span class="math-sup">$1</span>');
-  s = s.replace(/_{([^}]+)}/g, '<span class="math-sub">$1</span>');
-  s = s.replace(/_(\S)/g, '<span class="math-sub">$1</span>');
-  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<span class="math-frac"><span class="math-frac-ust">$1</span><span class="math-frac-alt">$2</span></span>');
-  s = s.replace(/\\pi/g, 'π');
-  s = s.replace(/\\cdot/g, '·');
-  s = s.replace(/\\times/g, '×');
-  s = s.replace(/\\div/g, '÷');
-  s = s.replace(/\\pm/g, '±');
-  s = s.replace(/\\leq/g, '≤');
-  s = s.replace(/\\geq/g, '≥');
-  s = s.replace(/\\neq/g, '≠');
-  s = s.replace(/\\[a-zA-Z]+/g, '');
-  return s;
-}
+MathJax = {
+  tex: { inlineMath: [['$','$'], ['\\(','\\)']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+};
 </script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body class="panel-body">
 
@@ -674,8 +629,30 @@ function escHtml(str) {
           <p style="margin:0;">Şıklar (Doğru seçeneği işaretleyin):</p>
         </div>
         <% for (var i=0; i<4; i++) { %>
-          <div class="sik-row">
-            <b><%= String.fromCharCode(65+i) %>:</b>
+          <div class="sik-row" style="flex-wrap:wrap; gap:4px;">
+            <div style="width:100%; display:flex; flex-wrap:wrap; gap:2px; align-items:center; background:#f8f9fa; border-radius:6px; padding:3px 6px; margin-bottom:2px;">
+              <span style="font-size:10px; color:#aaa; margin-right:2px;">MAT:</span>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','<sup></sup>',6)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Üst simge">x²</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','<sub></sub>',6)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Alt simge">x₂</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\sqrt{}$',8)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Karekök">√</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\sqrt[3]{}$',11)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Küpkök">∛</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\frac{}{}$',8)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Kesir">a/b</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\pi$',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Pi">π</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','±',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">±</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','×',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">×</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','÷',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">÷</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','≤',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">≤</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','≥',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">≥</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','≠',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">≠</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','°',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">°</button>
+              <span style="display:inline-block;width:1px;height:16px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∠',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Açı">∠</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','△',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Üçgen">△</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∈',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Eleman">∈</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∪',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Birleşim">∪</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∩',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Kesişim">∩</button>
+            </div>
+            <b style="align-self:center;"><%= String.fromCharCode(65+i) %>:</b>
             <input name="metin<%= i %>" id="sikMetin<%= i %>" placeholder="Metin veya HTML" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '' %>" style="flex:2;" required>
             <input name="gorsel<%= i %>" placeholder="Görsel URL" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : '' %>" style="flex:1;">
             <input type="radio" name="dogruCevap" value="<%= i %>" <%= editSoru&&editSoru.dogruCevapIndex===i ? 'checked' : '' %> required>
@@ -1606,7 +1583,7 @@ function gosterExcelHata(msg) {
         html += '</div>';
         html += '<p style="margin-top:12px; font-size:12px; color:#28a745;"><b>Doğru Cevap:</b> ' + harfler[s.dogruCevapIndex] + '</p>';
         icerik.innerHTML = html;
-        mathRender(icerik);
+        if (window.MathJax) MathJax.typesetPromise([icerik]);
       })
       .catch(function(e){ icerik.innerHTML = '<p style="color:red;">Hata: ' + e.message + '</p>'; });
   }
