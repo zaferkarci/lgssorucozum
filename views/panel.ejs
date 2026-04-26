@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LGS Hazırlık - Panel</title>
 <link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left:'$$', right:'$$', display: true},
+      {left:'$',  right:'$',  display: false}
+    ],
+    throwOnError: false
+  });"></script>
 </head>
 <body class="panel-body">
 
@@ -353,9 +363,15 @@
         return '<div style="text-align:center; margin-bottom:8px;"><img src="' + url + '" style="max-width:100%; max-height:220px; border-radius:8px; object-fit:contain;"></div>';
       }
 
+      function htmlDuzelt(metin) {
+        if (!metin) return '';
+        // HTML entity karekök → direkt sembol
+        return metin.replace(/&#8730;/g, '√').replace(/&radic;/g, '√');
+      }
+
       function oncul(metin, resim) {
         var html = '';
-        if (metin) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;">' + metin + '</div>';
+        if (metin) html += '<div style="background:#f8f9fa; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;">' + htmlDuzelt(metin) + '</div>';
         if (resim) html += gorselHtml(resim);
         return html;
       }
@@ -411,6 +427,13 @@
         html += '<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; font-size:13px; color:#2e7d32; font-weight:500;">✓ Doğru cevap: <b>' + harfler[s.dogruCevapIndex] + '</b> şıkkı</div>';
 
         document.getElementById('soruGorIcerik').innerHTML = html;
+        // KaTeX render
+        if (typeof renderMathInElement !== 'undefined') {
+          renderMathInElement(document.getElementById('soruGorIcerik'), {
+            delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],
+            throwOnError: false
+          });
+        }
         var modal = document.getElementById('soruGorModal');
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
