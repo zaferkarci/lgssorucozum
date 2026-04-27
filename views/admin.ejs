@@ -321,7 +321,7 @@ function onizlemeOlustur(sorular) {
       '</div>' +
 
       // Öncül
-      (s.soruOnculu ? '<div style="background:#f1f3f4; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px;">' +
+      (s.soruOnculu ? '<div style="background:transparent; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px;">' +
         '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Öncül</b>' +
         '<textarea data-soru="'+i+'" data-alan="soruOnculu" onchange="soruAlanGuncelle(this)" rows="2" style="width:100%; border:none; background:transparent; font-size:13px; resize:vertical; margin-top:4px;">' + escHtml(s.soruOnculu) + '</textarea>' +
       '</div>' : '') +
@@ -935,6 +935,34 @@ function escHtml(str) {
         <% }); %>
       </tbody>
     </table>
+  </div>
+
+  <!-- Yasaklı İsimler -->
+  <div class="admin-card" style="margin-top:16px;">
+    <div class="admin-card-title">
+      🚫 Yasaklı İsimler
+      <span style="font-size:12px; color:#888; font-weight:400;">— Tek başına kullanılamayacak kullanıcı adları</span>
+    </div>
+    <form action="/yasakli-ekle" method="POST" style="display:flex; gap:8px; margin-bottom:14px;">
+      <input type="text" name="kelime" placeholder="Yasaklanacak kelime..." required
+        style="flex:1; padding:8px 12px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; outline:none;">
+      <button class="ekle-btn" style="padding:8px 16px;">+ Ekle</button>
+    </form>
+    <% if (yasakliKelimeler && yasakliKelimeler.length > 0) { %>
+    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+      <% yasakliKelimeler.forEach(function(y) { %>
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#ffebee; border:1px solid #ffcdd2; border-radius:20px; padding:4px 12px; font-size:13px; color:#c62828; font-weight:500;">
+          <%= y.kelime %>
+          <form action="/yasakli-sil" method="POST" style="display:inline; margin:0;">
+            <input type="hidden" name="id" value="<%= y._id %>">
+            <button type="submit" style="background:none; border:none; cursor:pointer; color:#c62828; font-size:14px; line-height:1; padding:0; margin:0;" title="Kaldır">×</button>
+          </form>
+        </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+      <p style="font-size:13px; color:#aaa;">Henüz yasaklı kelime eklenmemiş.</p>
+    <% } %>
   </div>
 
 <% } else if (mod === 'uniteler') { %>
@@ -1630,11 +1658,11 @@ function gosterExcelHata(msg) {
       .then(function(s){
         var harfler = ['A','B','C','D'];
         var html = '';
-        if (s.soruOnculu1) html += '<div style="background:#f5f5f5; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu1 + '</div>';
+        if (s.soruOnculu1) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu1 + '</div>';
         if (s.soruOnculu1Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu1Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
-        if (s.soruOnculu2) html += '<div style="background:#f5f5f5; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu2 + '</div>';
+        if (s.soruOnculu2) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu2 + '</div>';
         if (s.soruOnculu2Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu2Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
-        if (s.soruOnculu3) html += '<div style="background:#f5f5f5; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu3 + '</div>';
+        if (s.soruOnculu3) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu3 + '</div>';
         if (s.soruOnculu3Resmi) html += '<div style="text-align:center; margin-bottom:10px;"><img src="' + s.soruOnculu3Resmi + '" style="max-width:100%; max-height:250px; border-radius:8px;"></div>';
         html += '<h3 style="font-size:17px; margin:12px 0;">' + s.soruMetni + '</h3>';
         if (s.tabloBaslik && s.tabloBaslik.length > 0) {
