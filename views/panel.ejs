@@ -713,14 +713,18 @@ function kopyala(metin, btn) {
         var satir = btn.closest('.davet-link-satir');
         if (satir) {
             var kod = satir.getAttribute('data-kod');
-            // Sunucuya bildir, sonra UI'da rozet/sıra güncelle
+            // 1) UI'yi anında güncelle (sunucu cevabını beklemeden)
+            davetLinkRozetVeSirala(satir);
+            // 2) Sunucuya kalıcılık için bildir (best-effort)
             fetch('/referans-kopyalandi', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'kod=' + encodeURIComponent(kod)
-            }).then(function(r){ return r.json(); }).then(function(data){
-                if (data && data.ok) davetLinkRozetVeSirala(satir);
-            }).catch(function(){});
+            }).then(function(r){
+                if (!r.ok) console.warn('referans-kopyalandi sunucu hatası:', r.status);
+            }).catch(function(e){
+                console.warn('referans-kopyalandi bildirimi başarısız:', e);
+            });
         } else {
             // Davet linki dışı kullanım için geçici geri bildirim
             var eski = btn.innerText;
@@ -728,6 +732,8 @@ function kopyala(metin, btn) {
             btn.style.background = '#639922';
             setTimeout(function() { btn.innerText = eski; btn.style.background = '#1a73e8'; }, 2000);
         }
+    }).catch(function(e){
+        console.warn('Pano (clipboard) yazma hatası:', e);
     });
 }
 function davetLinkRozetVeSirala(satir) {
