@@ -111,8 +111,21 @@
     <form action="/kayit-yap" method="POST" id="kayitForm">
       <label class="k-label">Referans Kodu</label>
       <input name="refKod" placeholder="Referans Kodu (zorunlu)" required class="input" value="<%= refKod %>" style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;">
+      <label class="k-label">Ad ve Soyad</label>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:0;">
+        <input type="text" id="adInput" placeholder="Adınız" class="input" style="margin-bottom:0;" oninput="oneriHazirla()">
+        <input type="text" id="soyadInput" placeholder="Soyadınız" class="input" style="margin-bottom:0;" oninput="oneriHazirla()">
+      </div>
+      <div id="oneriAlan" style="display:none; margin-bottom:10px; margin-top:6px;">
+        <div style="font-size:11px; color:#8896b0; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Önerilen Kullanıcı Adları</div>
+        <div id="oneriButonlar" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+      </div>
       <label class="k-label">Kullanıcı Adı</label>
-      <input name="kullaniciAdi" placeholder="kullaniciadi" required class="input">
+      <div style="position:relative;">
+        <input name="kullaniciAdi" id="kullaniciAdiInput" placeholder="kullaniciadi (min. 4 karakter)" required class="input" style="margin-bottom:4px; padding-right:120px;" oninput="kullaniciAdiKontrolEt(this.value)">
+        <span id="adKontrolMsg" style="position:absolute; right:12px; top:50%; transform:translateY(-60%); font-size:11px; font-weight:600;"></span>
+      </div>
+      <div id="adKontrolAlt" style="font-size:11px; margin-bottom:8px; min-height:16px;"></div>
       <label class="k-label">E-posta</label>
       <input type="email" name="email" placeholder="ornek@mail.com" required class="input">
       <label class="k-label">Şifre</label>
@@ -152,6 +165,60 @@
 </div>
 
 <script>
+// Kullanıcı adı öneri ve kontrol
+var oneriTimeout = null;
+var kontrolTimeout = null;
+
+function oneriHazirla() {
+  clearTimeout(oneriTimeout);
+  oneriTimeout = setTimeout(function() {
+    var ad = document.getElementById('adInput').value.trim();
+    var soyad = document.getElementById('soyadInput').value.trim();
+    if (!ad && !soyad) { document.getElementById('oneriAlan').style.display='none'; return; }
+    fetch('/api/kullaniciadi-oner?ad='+encodeURIComponent(ad)+'&soyad='+encodeURIComponent(soyad))
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        var alan = document.getElementById('oneriAlan');
+        var butonlar = document.getElementById('oneriButonlar');
+        if (!data.oneriler || data.oneriler.length === 0) { alan.style.display='none'; return; }
+        butonlar.innerHTML = '';
+        data.oneriler.forEach(function(o) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = o;
+          btn.style.cssText = 'background:#e8f0fe; color:#1a73e8; border:1px solid #c5d8fb; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:600; cursor:pointer;';
+          btn.onclick = function() {
+            document.getElementById('kullaniciAdiInput').value = o;
+            kullaniciAdiKontrolEt(o);
+          };
+          butonlar.appendChild(btn);
+        });
+        alan.style.display = 'block';
+      });
+  }, 500);
+}
+
+function kullaniciAdiKontrolEt(ad) {
+  clearTimeout(kontrolTimeout);
+  var msg = document.getElementById('adKontrolMsg');
+  var alt = document.getElementById('adKontrolAlt');
+  if (!ad || ad.length < 2) { msg.textContent=''; alt.textContent=''; return; }
+  msg.textContent = '...'; msg.style.color = '#888';
+  kontrolTimeout = setTimeout(function() {
+    fetch('/api/kullaniciadi-kontrol?ad='+encodeURIComponent(ad))
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data.gecerli) {
+          msg.textContent = '✓'; msg.style.color = '#2e7d32';
+          alt.textContent = data.mesaj; alt.style.color = '#2e7d32';
+        } else {
+          msg.textContent = '✗'; msg.style.color = '#c62828';
+          alt.textContent = data.mesaj; alt.style.color = '#c62828';
+        }
+      });
+  }, 400);
+}
+
 var ilIdMap = {};
 fetch('https://api.turkiyeapi.dev/v1/provinces')
   .then(function(r){ return r.json(); })

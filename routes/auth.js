@@ -9,6 +9,92 @@ const { sifreSifirlamaMailiGonder } = require('../mailGonder');
 
 const SALT_ROUNDS = 10;
 
+// Türkçe karakter dönüşümü
+function turkceTemizle(str) {
+    return str.toLowerCase()
+        .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s')
+        .replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c')
+        .replace(/İ/g,'i').replace(/Ğ/g,'g').replace(/Ü/g,'u')
+        .replace(/Ş/g,'s').replace(/Ö/g,'o').replace(/Ç/g,'c')
+        .replace(/[^a-z0-9_.]/g,'');
+}
+
+// Yasaklı kelime listesi
+const YASAK_KELIMELER = [
+    // Sistem
+    'admin','root','test','user','sistem','moderator','mod',
+    'null','undefined','superuser','support','help',
+    // Türkçe küfürler
+    'sik','sik','orospu','orsp','got','piç','pic',
+    'bok','amk','mk','bok','oç','oc','beyinsiz',
+    'gerizekal','salak','aptal','mal','embesil',
+    'kahpe','kaltak','s1k','s1ks','b0k','g0t'
+];
+
+function kullaniciAdiKontrol(ad) {
+    if (!ad || ad.length < 4) return 'Kullanıcı adı en az 4 karakter olmalı.';
+    if (ad.length > 20) return 'Kullanıcı adı en fazla 20 karakter olmalı.';
+    if (!/^[a-zA-ZğüşıöçĞÜŞİÖÇ0-9_.]+$/.test(ad))
+        return 'Sadece harf, rakam, _ ve . kullanılabilir.';
+    if (/^[0-9]+$/.test(ad))
+        return 'Kullanıcı adı sadece rakamdan oluşamaz.';
+    if (/^[_.]+$/.test(ad))
+        return 'Geçersiz kullanıcı adı.';
+    const kucuk = turkceTemizle(ad);
+    for (const k of YASAK_KELIMELER) {
+        if (kucuk.includes(k)) return 'Bu kullanıcı adı kullanılamaz.';
+    }
+    return null;
+}
+
+// Kullanıcı adı öneri üret
+function oneriUret(ad, soyad) {
+    const a = turkceTemizle(ad).slice(0, 12);
+    const s = turkceTemizle(soyad).slice(0, 12);
+    if (!a && !s) return [];
+    const rnd = () => Math.floor(Math.random() * 90 + 10);
+    const oneriler = [];
+    if (a && s) {
+        oneriler.push(a + s);
+        oneriler.push(a + '.' + s);
+        oneriler.push(a + s + rnd());
+        oneriler.push(a[0] + s + rnd());
+        oneriler.push(a + '_' + s[0] + rnd());
+    } else {
+        const tek = a || s;
+        oneriler.push(tek + rnd());
+        oneriler.push(tek + '.' + rnd());
+        oneriler.push(tek + '_' + rnd());
+    }
+    // Küfür filtresi uygula, min 4 karakter
+    return oneriler.filter(o => o.length >= 4 && o.length <= 20 && !kullaniciAdiKontrol(o));
+}
+
+// API: kullanıcı adı kontrol
+router.get('/api/kullaniciadi-kontrol', async (req, res) => {
+    const ad = (req.query.ad || '').trim();
+    const hata = kullaniciAdiKontrol(ad);
+    if (hata) return res.json({ gecerli: false, mesaj: hata });
+    const varMi = await Kullanici.findOne({ kullaniciAdi: ad }).lean();
+    if (varMi) return res.json({ gecerli: false, mesaj: 'Bu kullanıcı adı alınmış.' });
+    return res.json({ gecerli: true, mesaj: 'Kullanılabilir ✓' });
+});
+
+// API: kullanıcı adı öner
+router.get('/api/kullaniciadi-oner', async (req, res) => {
+    const ad = (req.query.ad || '').trim();
+    const soyad = (req.query.soyad || '').trim();
+    const oneriler = oneriUret(ad, soyad);
+    // Alınmış olanları filtrele
+    const musait = [];
+    for (const o of oneriler) {
+        const varMi = await Kullanici.findOne({ kullaniciAdi: o }).lean();
+        if (!varMi) musait.push(o);
+        if (musait.length >= 3) break;
+    }
+    res.json({ oneriler: musait });
+});
+
 // Benzersiz 10 karakterlik referans kodu üret
 async function referansKoduUret(olusturan, adet) {
     const kodlar = [];
@@ -46,6 +132,10 @@ router.post('/kayit-yap', async (req, res) => {
         // Referans kodu doğrula
         const ref = await ReferansKodu.findOne({ kod: refKod.trim().toUpperCase(), kullanildi: false });
         if (!ref) return res.send("<script>alert('Geçersiz veya kullanılmış referans kodu!'); window.history.back();</script>");
+
+        // Kullanıcı adı format ve küfür kontrolü
+        const adHata = kullaniciAdiKontrol(kullaniciAdi);
+        if (adHata) return res.send("<script>alert('" + adHata + "'); window.history.back();</script>");
 
         // Kullanıcı adı tekrar kontrolü
         const varMi = await Kullanici.findOne({ kullaniciAdi });
