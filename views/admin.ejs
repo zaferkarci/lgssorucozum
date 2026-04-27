@@ -937,34 +937,6 @@ function escHtml(str) {
     </table>
   </div>
 
-  <!-- Yasaklı İsimler -->
-  <div class="admin-card" style="margin-top:16px;">
-    <div class="admin-card-title">
-      🚫 Yasaklı İsimler
-      <span style="font-size:12px; color:#888; font-weight:400;">— Tek başına kullanılamayacak kullanıcı adları</span>
-    </div>
-    <form action="/yasakli-ekle" method="POST" style="display:flex; gap:8px; margin-bottom:14px;">
-      <input type="text" name="kelime" placeholder="Yasaklanacak kelime..." required
-        style="flex:1; padding:8px 12px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; outline:none;">
-      <button class="ekle-btn" style="padding:8px 16px;">+ Ekle</button>
-    </form>
-    <% if (yasakliKelimeler && yasakliKelimeler.length > 0) { %>
-    <div style="display:flex; flex-wrap:wrap; gap:6px;">
-      <% yasakliKelimeler.forEach(function(y) { %>
-        <div style="display:inline-flex; align-items:center; gap:6px; background:#ffebee; border:1px solid #ffcdd2; border-radius:20px; padding:4px 12px; font-size:13px; color:#c62828; font-weight:500;">
-          <%= y.kelime %>
-          <form action="/yasakli-sil" method="POST" style="display:inline; margin:0;">
-            <input type="hidden" name="id" value="<%= y._id %>">
-            <button type="submit" style="background:none; border:none; cursor:pointer; color:#c62828; font-size:14px; line-height:1; padding:0; margin:0;" title="Kaldır">×</button>
-          </form>
-        </div>
-      <% }); %>
-    </div>
-    <% } else { %>
-      <p style="font-size:13px; color:#aaa;">Henüz yasaklı kelime eklenmemiş.</p>
-    <% } %>
-  </div>
-
 <% } else if (mod === 'uniteler') { %>
 
 <!-- ── Ünite / Konu Yönetimi ── -->

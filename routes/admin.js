@@ -6,7 +6,6 @@ const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
-const YasakliKelime = require('../models/YasakliKelime');
 const { referansKoduUret } = require('./auth');
 const multer = require('multer');
 
@@ -77,7 +76,6 @@ router.get('/admin', async (req, res) => {
         ? req.headers.authorization.replace('Basic ', '')
         : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
     const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
-    const yasakliKelimeler = mod === 'kullanicilar' ? await YasakliKelime.find().sort({ ekleyenTarih: -1 }).lean() : [];
     // Filtre seçenekleri için mevcut değerler
     const tumSoruSiniflar = [...new Set((await Soru.find({}, 'sinif').lean()).map(s => s.sinif).filter(Boolean))].sort();
     const tumSoruDersler  = [...new Set((await Soru.find(filSinif ? {sinif:filSinif} : {}, 'ders').lean()).map(s => s.ders).filter(Boolean))].sort();
@@ -92,7 +90,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler
+        tumReferanslar
     });
 });
 
@@ -422,23 +420,6 @@ router.post('/kullanici-guncelle', async (req, res) => {
         const { kullaniciAdi, il, ilce, okul, sinif, sube } = req.body;
         await Kullanici.updateOne({ kullaniciAdi }, { il, ilce, okul, sinif: parseInt(sinif)||8, sube: sube||'' });
         res.redirect('/kullanici-detay?kullaniciAdi=' + encodeURIComponent(kullaniciAdi));
-    } catch (err) { res.status(500).send("Hata: " + err.message); }
-});
-
-router.post('/yasakli-ekle', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
-    try {
-        const kelime = (req.body.kelime || '').trim().toLowerCase();
-        if (kelime) await YasakliKelime.updateOne({ kelime }, { kelime }, { upsert: true });
-        res.redirect('/admin?mod=kullanicilar');
-    } catch (err) { res.status(500).send("Hata: " + err.message); }
-});
-
-router.post('/yasakli-sil', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
-    try {
-        await YasakliKelime.deleteOne({ _id: req.body.id });
-        res.redirect('/admin?mod=kullanicilar');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
