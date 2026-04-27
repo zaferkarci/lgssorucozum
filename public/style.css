@@ -609,3 +609,20 @@ body { font-family: sans-serif; background: #f0f2f5; }
 .soru-oncul-yeni *, .soru-metni-yeni *, .secenek-btn-yeni * {
   font-family: inherit;
 }
+
+/* SORU ÇÖZÜM EKRANI - KOPYALAMA KORUMASI */
+.soru-kart-yeni, .soru-kart-yeni * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.soru-kart-yeni img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}
