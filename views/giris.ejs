@@ -29,6 +29,30 @@
   animation: ylspin 0.8s linear infinite;
 }
 @keyframes ylspin { to { transform: rotate(360deg); } }
+
+/* Sol panel bilgilendirme kartları (kayıt sayfasıyla aynı) */
+.k-ozellik {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+  position: relative; z-index: 1;
+}
+.k-ozellik:last-of-type { border: none; padding-bottom: 0; }
+.k-ikon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: rgba(255,255,255,0.15); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.k-baslik { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.k-acik { font-size: 11px; opacity: 0.75; line-height: 1.5; }
+.puan-kutu {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px; padding: 13px 15px;
+  position: relative; z-index: 1;
+}
+.puan-kutu-baslik { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.puan-kutu-metin { font-size: 11px; line-height: 1.6; opacity: 0.9; }
+.puan-kutu-metin b { color: #ffd54f; }
 </style>
 </head>
 <body class="giris-body">
@@ -56,10 +80,24 @@
       <div class="giris-logo-badge">LGS</div>
       <div class="giris-sol-baslik">LGS Hazırlık Platformu</div>
       <div class="giris-sol-alt">Akıllı puanlama sistemi ile kendi seviyende çalış, sıralamada yüksel.</div>
+      <div class="k-ozellik">
+        <div class="k-ikon">📈</div>
+        <div><div class="k-baslik">Sıralamalarda Yüksel</div><div class="k-acik">Türkiye, il, ilçe, okul ve sınıf bazında sıralamanda yerini gör.</div></div>
+      </div>
+      <div class="k-ozellik">
+        <div class="k-ikon">🎯</div>
+        <div><div class="k-baslik">Sana Özel Sorular</div><div class="k-acik">Sorular zorluk sırasına göre gelir. Önce temeli sağlamlaştır, sonra zor sorulara geç.</div></div>
+      </div>
+      <div class="k-ozellik">
+        <div class="k-ikon">📊</div>
+        <div><div class="k-baslik">Eksiklerini Gör</div><div class="k-acik">Hangi konuda güçlü olduğunu anlık istatistiklerle takip et.</div></div>
+      </div>
     </div>
-    <div class="giris-stat giris-sol-icerik">
-      <div class="giris-stat-no"><%= kullaniciSayisi %></div>
-      <div class="giris-stat-label">Aktif öğrenci</div>
+    <div class="giris-sol-icerik">
+      <div class="puan-kutu">
+        <div class="puan-kutu-baslik">💡 Akıllı Puanlama</div>
+        <div class="puan-kutu-metin">Erken çözdüğün sorulardan başta az puan alabilirsin — soru zorlaştıkça <b>geçmişteki puanın otomatik güncellenir.</b> Erken başlayanlar kazanır.</div>
+      </div>
     </div>
   </div>
   <!-- Sağ form -->
