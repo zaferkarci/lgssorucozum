@@ -75,6 +75,13 @@ router.get('/api/kullaniciadi-kontrol', async (req, res) => {
     const ad = (req.query.ad || '').trim();
     const hata = kullaniciAdiKontrol(ad);
     if (hata) return res.json({ gecerli: false, mesaj: hata });
+    // DB yasaklı kelime kontrolü (model yoksa atla)
+    let yasak = null;
+    try {
+        const YasakliKelime = require('../models/YasakliKelime');
+        yasak = await YasakliKelime.findOne({ kelime: ad.toLowerCase() }).lean();
+    } catch (e) { /* model dosyası yok, kontrolü atla */ }
+    if (yasak) return res.json({ gecerli: false, mesaj: 'Bu kullanıcı adı kullanılamaz.' });
     const varMi = await Kullanici.findOne({ kullaniciAdi: ad }).lean();
     if (varMi) return res.json({ gecerli: false, mesaj: 'Bu kullanıcı adı alınmış.' });
     return res.json({ gecerli: true, mesaj: 'Kullanılabilir ✓' });
@@ -114,9 +121,9 @@ async function referansKoduUret(olusturan, adet) {
 router.get('/', async (req, res) => {
     try {
         const kullaniciSayisi = await Kullanici.countDocuments({});
-        res.render('giris', { kullaniciSayisi });
+        res.render('giris', { kullaniciSayisi, kayitBasarili: req.query.kayit === 'basarili' });
     } catch (err) {
-        res.render('giris', { kullaniciSayisi: 0 });
+        res.render('giris', { kullaniciSayisi: 0, kayitBasarili: false });
     }
 });
 
@@ -137,6 +144,19 @@ router.post('/kayit-yap', async (req, res) => {
         const adHata = kullaniciAdiKontrol(kullaniciAdi);
         if (adHata) return res.send("<script>alert('" + adHata + "'); window.history.back();</script>");
 
+        // DB'deki yasaklı kelime kontrolü (model yoksa atla)
+        let yasaklilar = [];
+        try {
+            const YasakliKelime = require('../models/YasakliKelime');
+            yasaklilar = await YasakliKelime.find({}, 'kelime').lean();
+        } catch (e) { /* model dosyası yok, kontrolü atla */ }
+        const kucukAd = kullaniciAdi.toLowerCase();
+        for (const y of yasaklilar) {
+            if (kucukAd === y.kelime) {
+                return res.send("<script>alert('Bu kullanıcı adı kullanılamaz.'); window.history.back();</script>");
+            }
+        }
+
         // Kullanıcı adı tekrar kontrolü
         const varMi = await Kullanici.findOne({ kullaniciAdi });
         if (varMi) return res.send("<script>alert('Kullanıcı adı alınmış!'); window.history.back();</script>");
@@ -154,7 +174,7 @@ router.post('/kayit-yap', async (req, res) => {
         // Yeni kullanıcıya 2 adet referans kodu üret
         await referansKoduUret(kullaniciAdi, 2);
 
-        res.send("<script>alert('Kayıt başarılı!'); window.location.href='/';</script>");
+        res.redirect('/?kayit=basarili');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 

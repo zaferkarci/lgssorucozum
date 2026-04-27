@@ -6,7 +6,12 @@ const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
-const YasakliKelime = require('../models/YasakliKelime');
+let YasakliKelime = null;
+try {
+    YasakliKelime = require('../models/YasakliKelime');
+} catch (e) {
+    console.warn('[admin] models/YasakliKelime.js bulunamadı; yasaklı kelime özelliği devre dışı.');
+}
 const { referansKoduUret } = require('./auth');
 const multer = require('multer');
 
@@ -78,7 +83,7 @@ router.get('/admin', async (req, res) => {
         ? req.headers.authorization.replace('Basic ', '')
         : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
     const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
-    const yasakliKelimeler = mod === 'kullanicilar' ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
+    const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
     // Filtre seçenekleri için mevcut değerler
     const tumSoruSiniflar = [...new Set((await Soru.find({}, 'sinif').lean()).map(s => s.sinif).filter(Boolean))].sort();
     const tumSoruDersler  = [...new Set((await Soru.find(filSinif ? {sinif:filSinif} : {}, 'ders').lean()).map(s => s.ders).filter(Boolean))].sort();
@@ -436,6 +441,7 @@ router.post('/kullanici-guncelle', async (req, res) => {
 
 router.post('/yasakli-ekle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
+    if (!YasakliKelime) return res.redirect('/admin?mod=kullanicilar');
     try {
         const kelime = (req.body.kelime || '').trim().toLowerCase();
         if (kelime) await YasakliKelime.updateOne({ kelime }, { kelime }, { upsert: true });
@@ -445,6 +451,7 @@ router.post('/yasakli-ekle', async (req, res) => {
 
 router.post('/yasakli-sil', async (req, res) => {
     if (!adminKontrol(req, res)) return;
+    if (!YasakliKelime) return res.redirect('/admin?mod=kullanicilar');
     try {
         await YasakliKelime.deleteOne({ _id: req.body.id });
         res.redirect('/admin?mod=kullanicilar');
