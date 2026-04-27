@@ -1451,7 +1451,8 @@ function gosterExcelHata(msg) {
 
   <script>
   function adminKopyala(kod, btn) {
-    var metin = btn.getAttribute('data-link');
+    var link = btn.getAttribute('data-link');
+    var metin = '"Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra yüklenecek."\n' + link;
     var key = 'kopyalandi_' + kod;
     var oncekiZaman = localStorage.getItem(key);
     if (oncekiZaman) {

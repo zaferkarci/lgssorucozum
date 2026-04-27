@@ -708,7 +708,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 function kopyala(metin, btn) {
-    navigator.clipboard.writeText(metin).then(function() {
+    var tamMetin = '"Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra yüklenecek."\n' + metin;
+    navigator.clipboard.writeText(tamMetin).then(function() {
         var eski = btn.innerText;
         btn.innerText = '✓ Kopyalandı';
         btn.style.background = '#639922';
