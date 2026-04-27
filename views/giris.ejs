@@ -64,8 +64,17 @@
   </div>
   <!-- Sağ form -->
   <div class="giris-sag">
+    <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:10px 14px; margin-bottom:18px; display:flex; align-items:flex-start; gap:8px;">
+      <span style="font-size:16px; flex-shrink:0;">ℹ️</span>
+      <span style="font-size:12px; color:#795548; line-height:1.6;">Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra hızlıca yüklenecektir.</span>
+    </div>
     <div class="giris-form-baslik">Tekrar hoş geldin</div>
     <div class="giris-form-alt">Hesabınıza giriş yapın</div>
+    <% if (kayitBasarili) { %>
+    <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:#2e7d32; font-weight:500; display:flex; align-items:center; gap:8px;">
+      <span>✅</span> Kayıt başarılı! Kullanıcı adınız ve şifrenizle giriş yapabilirsiniz.
+    </div>
+    <% } %>
     <form action="/giris" method="POST">
       <div class="giris-form-grup">
         <label class="giris-form-etiket">Kullanıcı adı</label>
