@@ -178,8 +178,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <% (referansKodlari||[]).forEach(function(r) { if (r.kullanildi) return; %>
             <div class="davet-link-satir" data-kod="<%= r.kod %>" style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #e8edf2;">
               <code style="flex:1; font-size:12px; color:#1a73e8; letter-spacing:1px;"><%= baseUrl %>/kayit?ref=<%= r.kod %></code>
-              <button class="kopyala-btn" onclick="kopyala('<%= baseUrl %>/kayit?ref=<%= r.kod %>', this)" style="background:#1a73e8; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; white-space:nowrap;">Kopyala</button>
-              <span class="kopyalandi-rozet" style="display:none; font-size:11px; color:#639922; font-weight:500; white-space:nowrap;">✓ Kopyalandı</span>
+              <button class="kopyala-btn" onclick="kopyala('<%= baseUrl %>/kayit?ref=<%= r.kod %>', this)" style="background:#1a73e8; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; white-space:nowrap; <%= r.kopyalandi ? 'display:none;' : '' %>">Kopyala</button>
+              <span class="kopyalandi-rozet" style="<%= r.kopyalandi ? '' : 'display:none;' %> font-size:11px; color:#639922; font-weight:500; white-space:nowrap;">✓ Kopyalandı</span>
             </div>
           <% }); %>
           </div>
@@ -713,8 +713,14 @@ function kopyala(metin, btn) {
         var satir = btn.closest('.davet-link-satir');
         if (satir) {
             var kod = satir.getAttribute('data-kod');
-            davetLinkKopyalandiKaydet(kod);
-            davetLinkRozetVeSirala(satir);
+            // Sunucuya bildir, sonra UI'da rozet/sıra güncelle
+            fetch('/referans-kopyalandi', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'kod=' + encodeURIComponent(kod)
+            }).then(function(r){ return r.json(); }).then(function(data){
+                if (data && data.ok) davetLinkRozetVeSirala(satir);
+            }).catch(function(){});
         } else {
             // Davet linki dışı kullanım için geçici geri bildirim
             var eski = btn.innerText;
@@ -724,15 +730,6 @@ function kopyala(metin, btn) {
         }
     });
 }
-function davetLinkKopyalandiKaydet(kod) {
-    try {
-        var liste = JSON.parse(localStorage.getItem('kopyalanan_davet_kodlari') || '[]');
-        if (liste.indexOf(kod) === -1) {
-            liste.push(kod);
-            localStorage.setItem('kopyalanan_davet_kodlari', JSON.stringify(liste));
-        }
-    } catch (e) {}
-}
 function davetLinkRozetVeSirala(satir) {
     var btn = satir.querySelector('.kopyala-btn');
     var rozet = satir.querySelector('.kopyalandi-rozet');
@@ -741,20 +738,6 @@ function davetLinkRozetVeSirala(satir) {
     var konteyner = document.getElementById('davet-link-listesi');
     if (konteyner) konteyner.appendChild(satir);
 }
-function davetLinkBaslangicSirala() {
-    try {
-        var liste = JSON.parse(localStorage.getItem('kopyalanan_davet_kodlari') || '[]');
-        if (!liste.length) return;
-        var konteyner = document.getElementById('davet-link-listesi');
-        if (!konteyner) return;
-        konteyner.querySelectorAll('.davet-link-satir').forEach(function(el) {
-            if (liste.indexOf(el.getAttribute('data-kod')) !== -1) {
-                davetLinkRozetVeSirala(el);
-            }
-        });
-    } catch (e) {}
-}
-window.addEventListener('DOMContentLoaded', davetLinkBaslangicSirala);
 function sekmeAc(id, btn) {
     document.querySelectorAll('.sekme-icerik').forEach(function(el){ el.classList.remove('aktif'); });
     document.querySelectorAll('.sekme-btn').forEach(function(b){ b.classList.remove('aktif'); });

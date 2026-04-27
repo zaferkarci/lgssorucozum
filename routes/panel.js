@@ -3,6 +3,7 @@ const router = express.Router();
 const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const CevapKaydi = require('../models/CevapKaydi');
+const ReferansKodu = require('../models/ReferansKodu');
 
 function stdSapma(dizi) {
     if (!dizi || dizi.length < 2) return 0;
@@ -177,8 +178,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    const ReferansKodu = require('../models/ReferansKodu');
-    const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ olusturmaTarih: 1 }).lean();
+    const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ kopyalandi: 1, olusturmaTarih: 1 }).lean();
     const baseUrl = (process.env.SITE_URL || 'https://' + req.get('host')).replace(/\/$/, '');
 
     // Yeni soru bildirimi
@@ -340,6 +340,24 @@ router.post('/profil/sifre-degistir', oturumKontrol, async (req, res) => {
         await k.save();
         res.send("<script>alert('Şifreniz başarıyla değiştirildi.'); window.location.href='" + geri + "';</script>");
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// Davet linki kopyalandı bildirimi (sadece kodun sahibi işaretleyebilir)
+router.post('/referans-kopyalandi', async (req, res) => {
+    if (!req.session || !req.session.kullaniciAdi) return res.status(401).json({ ok: false });
+    try {
+        const kod = (req.body.kod || '').trim();
+        if (!kod) return res.status(400).json({ ok: false });
+        const ref = await ReferansKodu.findOne({ kod, olusturan: req.session.kullaniciAdi });
+        if (!ref) return res.status(404).json({ ok: false });
+        if (!ref.kopyalandi) {
+            ref.kopyalandi = true;
+            await ref.save();
+        }
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ ok: false, hata: err.message });
+    }
 });
 
 module.exports = router;

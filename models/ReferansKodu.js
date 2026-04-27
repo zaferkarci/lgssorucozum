@@ -5,6 +5,7 @@ const ReferansKoduSchema = new mongoose.Schema({
     olusturan:      { type: String, index: true }, // kullaniciAdi veya "admin"
     kullanildi:     { type: Boolean, default: false },
     kullanan:       { type: String, default: null },
+    kopyalandi:     { type: Boolean, default: false },
     olusturmaTarih: { type: Date, default: Date.now },
     kullanimTarih:  { type: Date, default: null }
 });
