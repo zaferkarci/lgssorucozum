@@ -82,7 +82,7 @@ async function kullaniciPuanHesapla() {
     const tumKullanicilar = await Kullanici.find({});
 
     for (const k of tumKullanicilar) {
-        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 }).lean();
+        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 });
 
         let toplamPuan = 0;
         let toplamSure = 0;
@@ -120,6 +120,16 @@ async function kullaniciPuanHesapla() {
 
                 toplamPuan += kazanilanPuan;
                 dersMap[dersAdi].toplamPuan += kazanilanPuan;
+
+                // CevapKaydi'na yeni puanı yaz (istatistik tablosunun toplamla eşleşmesi için)
+                if (kayit.kazanilanPuan !== kazanilanPuan) {
+                    kayit.kazanilanPuan = kazanilanPuan;
+                    await kayit.save();
+                }
+            } else if (kayit.kazanilanPuan && kayit.kazanilanPuan !== 0) {
+                // Yanlış cevaplarda puan 0 olmalı (eski hatalı kayıtları temizle)
+                kayit.kazanilanPuan = 0;
+                await kayit.save();
             }
         }
 
