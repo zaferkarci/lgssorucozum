@@ -396,6 +396,36 @@ router.post('/referans-toplu-sil', async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
+// Admin: referans linki kopyalandı bildirimi (kalıcı işaretle)
+router.post('/admin-referans-kopyalandi', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    console.log('[admin-referans-kopyalandi] istek:', { kod: req.body && req.body.kod });
+    try {
+        const kod = (req.body.kod || '').trim();
+        if (!kod) return res.status(400).json({ ok: false, hata: 'kod_bos' });
+        const ref = await ReferansKodu.findOne({ kod });
+        if (!ref) {
+            console.warn('[admin-referans-kopyalandi] kod bulunamadı:', kod);
+            return res.status(404).json({ ok: false, hata: 'kod_bulunamadi' });
+        }
+        if (!ref.kopyalandi) {
+            ref.kopyalandi = true;
+            ref.kopyalanmaTarih = new Date();
+            await ref.save();
+            console.log('[admin-referans-kopyalandi] kalıcı işaretlendi:', kod);
+        } else {
+            // Zaten işaretliyse de tarihi güncelle (admin'in son kopyalama zamanı)
+            ref.kopyalanmaTarih = new Date();
+            await ref.save();
+            console.log('[admin-referans-kopyalandi] tarih güncellendi:', kod);
+        }
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('[admin-referans-kopyalandi] hata:', err && err.stack || err);
+        res.status(500).json({ ok: false, hata: err.message });
+    }
+});
+
 router.post('/kullanici-rol', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {

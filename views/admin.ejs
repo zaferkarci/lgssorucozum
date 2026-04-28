@@ -1405,6 +1405,12 @@ function gosterExcelHata(msg) {
   <%
     var baseUrlAdmin = (process.env.SITE_URL || 'https://lgssorucozum-4.onrender.com').replace(/\/$/, '');
     var bekleyenler = tumReferanslar.filter(function(r){ return !r.kullanildi; });
+    bekleyenler.sort(function(a, b) {
+      var ak = a.kopyalandi ? 1 : 0;
+      var bk = b.kopyalandi ? 1 : 0;
+      if (ak !== bk) return ak - bk; // önce kopyalanmamışlar
+      return new Date(a.olusturmaTarih) - new Date(b.olusturmaTarih);
+    });
     var kullanilanlar = tumReferanslar.filter(function(r){ return r.kullanildi; });
   %>
 
@@ -1429,14 +1435,19 @@ function gosterExcelHata(msg) {
   <div class="admin-card">
     <div class="admin-card-title">🟡 Bekleyen Kodlar — <%= bekleyenler.length %></div>
     <% bekleyenler.forEach(function(r) { %>
-      <div class="admin-soru-item">
+      <div class="admin-soru-item admin-referans-satir" data-kod="<%= r.kod %>">
         <div class="admin-soru-sol">
-          <code style="font-size:13px; letter-spacing:2px; color:#1a73e8; font-weight:600;"><%= r.kod %></code>
+          <code style="font-size:13px; letter-spacing:2px; color:<%= r.kopyalandi ? '#aaa' : '#1a73e8' %>; font-weight:600;"><%= r.kod %></code>
           <span style="font-size:11px; color:#aaa; margin-left:8px;">Oluşturan: <b><%= r.olusturan %></b></span>
           <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= new Date(r.olusturmaTarih).toLocaleDateString('tr-TR') %></span>
+          <% if (r.kopyalandi) { %>
+            <span class="admin-kopyalandi-rozet" style="font-size:11px; color:#639922; font-weight:500; margin-left:8px;">✓ Kopyalandı<%= r.kopyalanmaTarih ? ' (' + new Date(r.kopyalanmaTarih).toLocaleDateString('tr-TR') + ')' : '' %></span>
+          <% } else { %>
+            <span class="admin-kopyalandi-rozet" style="display:none; font-size:11px; color:#639922; font-weight:500; margin-left:8px;">✓ Kopyalandı</span>
+          <% } %>
         </div>
         <div class="admin-soru-sag">
-          <button onclick="adminKopyala('<%= r.kod %>', this)" data-link="<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>" class="admin-btn admin-btn-duzenle">🔗 Linki Kopyala</button>
+          <button onclick="adminKopyala('<%= r.kod %>', this)" data-link="<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>" class="admin-btn admin-btn-duzenle"><%= r.kopyalandi ? '🔁 Tekrar Kopyala' : '🔗 Linki Kopyala' %></button>
           <form action="/referans-sil" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= r._id %>">
             <button class="admin-btn admin-btn-sil">Sil</button>
@@ -1481,17 +1492,39 @@ function gosterExcelHata(msg) {
   function adminKopyala(kod, btn) {
     var link = btn.getAttribute('data-link');
     var metin = '"Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra yüklenecek."\n' + link;
-    var key = 'kopyalandi_' + kod;
-    var oncekiZaman = localStorage.getItem(key);
-    if (oncekiZaman) {
-      var tarih = new Date(parseInt(oncekiZaman)).toLocaleString('tr-TR');
-      if (!confirm('⚠️ Bu link daha önce kopyalandı!\n\nKopyalanma zamanı: ' + tarih + '\n\nYine de kopyalamak istiyor musun?')) return;
-    }
     navigator.clipboard.writeText(metin).then(function() {
-      localStorage.setItem(key, Date.now().toString());
-      var eski = btn.innerText;
-      btn.innerText = '✓ Kopyalandı';
-      setTimeout(function() { btn.innerText = eski; }, 2000);
+      // 1) Sunucuya bildir (kalıcı işaretle)
+      fetch('/admin-referans-kopyalandi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': 'Basic <%= adminToken %>' },
+        body: 'kod=' + encodeURIComponent(kod)
+      }).then(function(r){
+        if (!r.ok) console.warn('admin-referans-kopyalandi sunucu hatası:', r.status);
+      }).catch(function(e){
+        console.warn('admin-referans-kopyalandi bildirimi başarısız:', e);
+      });
+      // 2) UI güncelle: rozeti aç, kodu griye çevir, butonu "Tekrar Kopyala" yap, satırı en alta gönder
+      var satir = btn.closest('.admin-referans-satir');
+      if (satir) {
+        var kodEl = satir.querySelector('code');
+        if (kodEl) kodEl.style.color = '#aaa';
+        var rozet = satir.querySelector('.admin-kopyalandi-rozet');
+        if (rozet) {
+          rozet.style.display = 'inline';
+          var bugun = new Date().toLocaleDateString('tr-TR');
+          rozet.innerText = '✓ Kopyalandı (' + bugun + ')';
+        }
+        btn.innerText = '🔁 Tekrar Kopyala';
+        // Satırı bekleyen kodlar listesinin en altına gönder
+        var konteyner = satir.parentElement;
+        if (konteyner) konteyner.appendChild(satir);
+      } else {
+        var eski = btn.innerText;
+        btn.innerText = '✓ Kopyalandı';
+        setTimeout(function() { btn.innerText = eski; }, 2000);
+      }
+    }).catch(function(e){
+      console.warn('Pano (clipboard) yazma hatası:', e);
     });
   }
   </script>
