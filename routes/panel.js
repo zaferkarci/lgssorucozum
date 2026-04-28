@@ -344,18 +344,33 @@ router.post('/profil/sifre-degistir', oturumKontrol, async (req, res) => {
 
 // Davet linki kopyalandı bildirimi (sadece kodun sahibi işaretleyebilir)
 router.post('/referans-kopyalandi', async (req, res) => {
-    if (!req.session || !req.session.kullaniciAdi) return res.status(401).json({ ok: false });
+    console.log('[referans-kopyalandi] istek geldi:', { kod: req.body && req.body.kod, kullanici: req.session && req.session.kullaniciAdi });
+    if (!req.session || !req.session.kullaniciAdi) {
+        console.warn('[referans-kopyalandi] oturum yok → 401');
+        return res.status(401).json({ ok: false, hata: 'oturum_yok' });
+    }
     try {
         const kod = (req.body.kod || '').trim();
-        if (!kod) return res.status(400).json({ ok: false });
+        if (!kod) {
+            console.warn('[referans-kopyalandi] kod boş → 400');
+            return res.status(400).json({ ok: false, hata: 'kod_bos' });
+        }
         const ref = await ReferansKodu.findOne({ kod, olusturan: req.session.kullaniciAdi });
-        if (!ref) return res.status(404).json({ ok: false });
+        if (!ref) {
+            console.warn('[referans-kopyalandi] kod bulunamadı → 404 |', kod, '|', req.session.kullaniciAdi);
+            return res.status(404).json({ ok: false, hata: 'kod_bulunamadi' });
+        }
         if (!ref.kopyalandi) {
             ref.kopyalandi = true;
+            ref.kopyalanmaTarih = new Date();
             await ref.save();
+            console.log('[referans-kopyalandi] kalıcı işaretlendi:', kod);
+        } else {
+            console.log('[referans-kopyalandi] zaten işaretliydi:', kod);
         }
         res.json({ ok: true });
     } catch (err) {
+        console.error('[referans-kopyalandi] hata:', err && err.stack || err);
         res.status(500).json({ ok: false, hata: err.message });
     }
 });

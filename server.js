@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.0.10 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.0.12 (Modüler Yapı) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -47,10 +47,38 @@ app.get('/health', (req, res) => res.json({ durum: 'hazir' }));
 // Günlük cron job — her gün 05:00 (Europe/Istanbul)
 const cron = require('node-cron');
 const { gunlukHesapla } = require('./cronJobs');
-cron.schedule('0 5 * * *', () => {
-    console.log('⏰ Cron tetiklendi (05:00 Istanbul)');
-    gunlukHesapla();
+cron.schedule('0 5 * * *', async () => {
+    console.log('⏰ Cron tetiklendi (05:00 Istanbul):', new Date().toISOString());
+    try {
+        await gunlukHesapla();
+    } catch (err) {
+        console.error('❌ Cron çalıştırma hatası:', err && err.stack || err);
+    }
 }, { timezone: 'Europe/Istanbul' });
+
+// Sunucu açıldıktan sonra: son hesaplama 24 saatten eskiyse otomatik tetikle
+// (Render uyandırma / restart durumunda 05:00 kaçırıldıysa kurtarma)
+const Kullanici = require('./models/Kullanici');
+async function basladiktanSonraKontrol() {
+    try {
+        const sonHesap = await Kullanici.findOne({ siralamaCacheTarih: { $ne: null } })
+            .sort({ siralamaCacheTarih: -1 })
+            .select('siralamaCacheTarih')
+            .lean();
+        const simdi = new Date();
+        const sonTarih = sonHesap && sonHesap.siralamaCacheTarih;
+        const yas = sonTarih ? (simdi - new Date(sonTarih)) / 1000 / 60 / 60 : Infinity; // saat
+        console.log('📅 Son hesaplama:', sonTarih ? new Date(sonTarih).toISOString() : 'hiç', '|', yas === Infinity ? 'ilk' : yas.toFixed(1) + ' saat önce');
+        if (yas > 24) {
+            console.log('⚠️ Son hesaplama 24 saatten eski — şimdi tetikleniyor');
+            try { await gunlukHesapla(); } catch (e) { console.error('❌ Başlangıç hesaplama hatası:', e && e.stack || e); }
+        }
+    } catch (err) {
+        console.error('❌ Başlangıç kontrol hatası:', err && err.message || err);
+    }
+}
+// 30 sn gecikmeyle çalıştır — sunucu tamamen ayağa kalksın
+setTimeout(basladiktanSonraKontrol, 30 * 1000);
 
 // Manuel tetikleme (admin için)
 app.post('/admin/cron-tetikle', async (req, res) => {
