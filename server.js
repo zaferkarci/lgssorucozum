@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.0.16 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.0.17 (Modüler Yapı) ---
 
 const mongoose = require('mongoose');
 const express = require('express');

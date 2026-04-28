@@ -1531,8 +1531,11 @@ function gosterExcelHata(msg) {
 
 <% } else if (mod === 'soruListesi') { %>
   <div class="admin-card">
-    <div class="admin-card-title">
-      Soru Filtrele
+    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <span>Soru Filtrele</span>
+      <form action="/soru-no-onar" method="POST" style="margin:0;" onsubmit="return confirm('Numarasız sorulara _id sırasıyla soruNo atanacak. Devam edilsin mi?');">
+        <button type="submit" style="background:#fff3cd; color:#856404; border:1px solid #ffe082; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">🔧 Numarasız soruları onar</button>
+      </form>
     </div>
     <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
       <input type="hidden" name="mod" value="soruListesi">

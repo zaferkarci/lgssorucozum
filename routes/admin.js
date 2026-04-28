@@ -136,9 +136,15 @@ router.post('/soru-guncelle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     var hata = soruDogrula(req.body);
     if (hata) return res.send("<script>alert('" + hata + "'); window.history.back();</script>");
-    var yayinTarihGuncelle = {};
-    if (req.body.durum === 'yayinda') yayinTarihGuncelle.yayinTarih = new Date();
-    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap), ...yayinTarihGuncelle });
+    var ekGuncelleme = {};
+    if (req.body.durum === 'yayinda') ekGuncelleme.yayinTarih = new Date();
+    // Numarasız soruya numara ata (özellikle PDF'den gelen taslakta soruNo yoksa)
+    const mevcut = await Soru.findById(req.body.id).select('soruNo').lean();
+    if (!mevcut || !mevcut.soruNo) {
+        const maxSoru = await Soru.findOne({ soruNo: { $exists: true, $ne: null } }).sort({ soruNo: -1 }).select('soruNo').lean();
+        ekGuncelleme.soruNo = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+    }
+    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap), ...ekGuncelleme });
     res.redirect('/admin?mod=soruListesi');
 });
 
@@ -423,6 +429,28 @@ router.post('/admin-referans-kopyalandi', async (req, res) => {
     } catch (err) {
         console.error('[admin-referans-kopyalandi] hata:', err && err.stack || err);
         res.status(500).json({ ok: false, hata: err.message });
+    }
+});
+
+// Numarasız soruları onar — _id sırasıyla soruNo atar
+router.post('/soru-no-onar', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const numarasiz = await Soru.find({ $or: [{ soruNo: { $exists: false } }, { soruNo: null }] }).sort({ _id: 1 }).select('_id');
+        if (numarasiz.length === 0) {
+            return res.send('<script>alert("Numarasız soru yok, hepsi düzgün."); window.location.href="/admin?mod=soruListesi";</script>');
+        }
+        const maxSoru = await Soru.findOne({ soruNo: { $exists: true, $ne: null } }).sort({ soruNo: -1 }).select('soruNo').lean();
+        let baslangic = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+        for (const s of numarasiz) {
+            await Soru.updateOne({ _id: s._id }, { soruNo: baslangic });
+            baslangic++;
+        }
+        console.log('[soru-no-onar] %d soruya numara atandı', numarasiz.length);
+        res.send('<script>alert("' + numarasiz.length + ' soruya numara atandı."); window.location.href="/admin?mod=soruListesi";</script>');
+    } catch (err) {
+        console.error('[soru-no-onar] hata:', err && err.stack || err);
+        res.status(500).send("Hata: " + err.message);
     }
 });
 

@@ -268,6 +268,10 @@ router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req,
                              })),
             dogruCevapIndex: parseInt(s.dogruCevapIndex) >= 0 ? parseInt(s.dogruCevapIndex) : 0
         }));
+        // soruNo ata: max + 1, max + 2, ...
+        const maxSoru = await Soru.findOne().sort({ soruNo: -1 }).select('soruNo').lean();
+        let baslangic = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+        kayitlar.forEach((k, i) => { k.soruNo = baslangic + i; });
         await Soru.insertMany(kayitlar);
         res.json({ ok: true, kaydedilen: kayitlar.length });
     } catch (err) {
