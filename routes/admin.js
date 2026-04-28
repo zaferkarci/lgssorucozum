@@ -436,18 +436,30 @@ router.post('/admin-referans-kopyalandi', async (req, res) => {
 router.post('/soru-no-onar', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const numarasiz = await Soru.find({ $or: [{ soruNo: { $exists: false } }, { soruNo: null }] }).sort({ _id: 1 }).select('_id');
+        const numarasiz = await Soru.find({ $or: [{ soruNo: { $exists: false } }, { soruNo: null }] }).sort({ _id: 1 }).select('_id soruNo durum sinif ders');
+        console.log('[soru-no-onar] numarasız bulunan:', numarasiz.length);
         if (numarasiz.length === 0) {
             return res.send('<script>alert("Numarasız soru yok, hepsi düzgün."); window.location.href="/admin?mod=soruListesi";</script>');
         }
         const maxSoru = await Soru.findOne({ soruNo: { $exists: true, $ne: null } }).sort({ soruNo: -1 }).select('soruNo').lean();
         let baslangic = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+        console.log('[soru-no-onar] başlangıç numarası:', baslangic, '| mevcut max:', maxSoru ? maxSoru.soruNo : 'yok');
+        let basariliSayi = 0, hataliSayi = 0;
         for (const s of numarasiz) {
-            await Soru.updateOne({ _id: s._id }, { soruNo: baslangic });
-            baslangic++;
+            try {
+                const sonuc = await Soru.collection.updateOne({ _id: s._id }, { $set: { soruNo: baslangic } });
+                console.log('  →', s._id.toString(), '| #'+baslangic, '| matched:', sonuc.matchedCount, '| modified:', sonuc.modifiedCount, '|', s.sinif, s.ders, s.durum);
+                if (sonuc.modifiedCount > 0) basariliSayi++;
+                else hataliSayi++;
+                baslangic++;
+            } catch (e) {
+                console.error('  ❌', s._id.toString(), '| hata:', e.message);
+                hataliSayi++;
+            }
         }
-        console.log('[soru-no-onar] %d soruya numara atandı', numarasiz.length);
-        res.send('<script>alert("' + numarasiz.length + ' soruya numara atandı."); window.location.href="/admin?mod=soruListesi";</script>');
+        console.log('[soru-no-onar] tamamlandı | başarılı:', basariliSayi, '| başarısız:', hataliSayi);
+        const mesaj = basariliSayi + ' soruya numara atandı.' + (hataliSayi > 0 ? ' (' + hataliSayi + ' başarısız - log\\u0027a bak)' : '');
+        res.send('<script>alert("' + mesaj + '"); window.location.href="/admin?mod=soruListesi";</script>');
     } catch (err) {
         console.error('[soru-no-onar] hata:', err && err.stack || err);
         res.status(500).send("Hata: " + err.message);
