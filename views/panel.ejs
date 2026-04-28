@@ -273,6 +273,56 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
+      <!-- Tüm konular — başarı yüzdesine göre (zayıftan güçlüye) -->
+      <%
+        var tumKonular = [];
+        dersler.forEach(function(ders) {
+          var di = dersIstatMap[ders];
+          Object.keys(di.konular).forEach(function(konu) {
+            var kd = di.konular[konu];
+            var top = kd.dogru + kd.yanlis;
+            if (top > 0) {
+              tumKonular.push({
+                ders: ders,
+                konu: konu,
+                dogru: kd.dogru,
+                top: top,
+                oran: Math.round((kd.dogru / top) * 100)
+              });
+            }
+          });
+        });
+        tumKonular.sort(function(a, b) {
+          if (a.oran !== b.oran) return a.oran - b.oran;
+          return b.top - a.top; // aynı oranda daha çok soru çözülen önce
+        });
+      %>
+      <% if (tumKonular.length > 0) { %>
+      <div class="profil-kart-yeni" style="margin-bottom:14px;">
+        <p class="profil-kart-baslik-yeni">Konu Bazlı Başarı — Zayıftan Güçlüye</p>
+        <p style="font-size:12px; color:#888; margin-bottom:12px;">Önce çalışılması gereken konular en üstte. Toplam <%= tumKonular.length %> konu listede.</p>
+        <% tumKonular.forEach(function(t, idx) {
+          var renk = t.oran >= 70 ? '#43a047' : t.oran >= 40 ? '#fb8c00' : '#e53935';
+        %>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5;">
+            <span style="font-size:11px; color:#bbb; min-width:24px; text-align:right;"><%= idx + 1 %>.</span>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+                <span style="font-size:13px; color:#333; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><%= t.konu %></span>
+                <span style="font-size:12px; font-weight:600; color:<%= renk %>; white-space:nowrap; margin-left:8px;"><%= t.oran %>%</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div style="flex:1; height:4px; background:#f0f0f0; border-radius:2px; overflow:hidden;">
+                  <div style="height:100%; width:<%= t.oran %>%; background:<%= renk %>; border-radius:2px;"></div>
+                </div>
+                <span style="font-size:10px; color:#999; white-space:nowrap;"><%= t.ders %> · <%= t.dogru %>/<%= t.top %></span>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+      <% } %>
+
       <!-- Ders bazlı kartlar -->
       <% dersler.forEach(function(ders) {
         var di = dersIstatMap[ders];
@@ -310,7 +360,15 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <% if (konular.length > 0) { %>
         <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#b0bcc8; margin-bottom:10px;">Konu Detayı</p>
-        <% konular.forEach(function(konu) {
+        <% var konularSirali = konular.slice().sort(function(a, b) {
+          var ka = di.konular[a], kb = di.konular[b];
+          var taop = ka.dogru + ka.yanlis, tbop = kb.dogru + kb.yanlis;
+          var oa = taop > 0 ? (ka.dogru / taop) : 1;
+          var ob = tbop > 0 ? (kb.dogru / tbop) : 1;
+          if (oa !== ob) return oa - ob;
+          return tbop - taop;
+        }); %>
+        <% konularSirali.forEach(function(konu) {
           var kd = di.konular[konu];
           var kTop  = kd.dogru + kd.yanlis;
           var kOran = kTop > 0 ? Math.round((kd.dogru / kTop) * 100) : 0;
