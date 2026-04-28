@@ -1719,7 +1719,8 @@ function gosterExcelHata(msg) {
           var bgRenk = dogruMu ? '#d4edda' : 'white';
           var border = dogruMu ? '2px solid #28a745' : '2px solid #ddd';
           html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left;">';
-          if (!tabloMu) html += '<b>' + harfler[i] + ')</b> ';
+          if (tabloMu) html += '<b style="display:block; margin-bottom:6px;">' + harfler[i] + ')</b>';
+          else html += '<b>' + harfler[i] + ')</b> ';
           html += sikMetin;
           if (s.secenekler[i].gorsel) html += '<br><img src="' + s.secenekler[i].gorsel + '" style="max-width:150px; margin-top:5px;">';
           html += '</div>';
