@@ -174,12 +174,51 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
 function geminiHatalariniOnar(str) {
     // 1. Kontrol karakterlerini temizle (0x00-0x1F arası, \n \r \t hariç)
     str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    // 2. $sqrt{ → $\sqrt{ (eksik backslash)
+    // 2. JSON string içinde \f, \b gibi LaTeX komutları yanlışlıkla form-feed/backspace olarak yorumlanmasın
+    //    (\frac, \beta, \forall, \binom, \boxed... için kritik)
+    str = jsonIcindeBackslashKoru(str);
+    // 3. $sqrt{ → $\sqrt{ (eksik backslash, Gemini bazen yutuyor)
     str = str.replace(/\$sqrt\{/g, '$\\\\sqrt{');
     str = str.replace(/\$frac\{/g, '$\\\\frac{');
     str = str.replace(/\$sqrt\[/g, '$\\\\sqrt[');
-    // 3. JSON string içinde kaçırılmamış tırnak (basit durum)
     return str;
+}
+
+// JSON string'leri içindeki LaTeX backslash'larını koruma altına al.
+// Sadece çift tırnak içindeyken çalışır. \" , \\ , \/ , \n , \r , \t , \uXXXX
+// dışındaki tüm \X dizilerini \\X yapar (ör. \frac → \\frac, \beta → \\beta).
+function jsonIcindeBackslashKoru(str) {
+    let sonuc = '';
+    let string = false;
+    let i = 0;
+    while (i < str.length) {
+        const c = str[i];
+        if (c === '"' && (i === 0 || str[i-1] !== '\\' || (i >= 2 && str[i-2] === '\\'))) {
+            string = !string;
+            sonuc += c;
+            i++;
+            continue;
+        }
+        if (string && c === '\\' && i + 1 < str.length) {
+            const next = str[i+1];
+            // JSON'un anladığı escape sequence'leri: " \ / b f n r t u
+            // LaTeX komutları (a-zA-Z) için ekstra backslash ekle
+            if (/[a-eg-mo-qs-zA-Z]/.test(next)) { // f, n, r, t, b, u dışındakileri yakala
+                sonuc += '\\\\';
+                i++;
+                continue;
+            }
+            // \f \b sonrasında harf geliyorsa (LaTeX komutu), \\f \\b yap
+            if ((next === 'f' || next === 'b') && i + 2 < str.length && /[a-zA-Z]/.test(str[i+2])) {
+                sonuc += '\\\\';
+                i++;
+                continue;
+            }
+        }
+        sonuc += c;
+        i++;
+    }
+    return sonuc;
 }
 
 // JSON string değerleri içindeki literal newline/tab'ları escape et

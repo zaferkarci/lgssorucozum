@@ -1531,11 +1531,16 @@ function gosterExcelHata(msg) {
 
 <% } else if (mod === 'soruListesi') { %>
   <div class="admin-card">
-    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
       <span>Soru Filtrele</span>
-      <form action="/soru-no-onar" method="POST" style="margin:0;" onsubmit="return confirm('Numarasız sorulara _id sırasıyla soruNo atanacak. Devam edilsin mi?');">
-        <button type="submit" style="background:#fff3cd; color:#856404; border:1px solid #ffe082; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">🔧 Numarasız soruları onar</button>
-      </form>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <form action="/soru-no-onar" method="POST" style="margin:0;" onsubmit="return confirm('Numarasız sorulara _id sırasıyla soruNo atanacak. Devam edilsin mi?');">
+          <button type="submit" style="background:#fff3cd; color:#856404; border:1px solid #ffe082; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">🔧 Numarasız soruları onar</button>
+        </form>
+        <form action="/soru-latex-onar" method="POST" style="margin:0;" onsubmit="return confirm('Tüm sorularda kayıp LaTeX backslash\\'ları aranacak ve onarılacak ($rac→\\frac, $qrt→\\sqrt vb). Devam edilsin mi?');">
+          <button type="submit" style="background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">🔬 LaTeX onarımı</button>
+        </form>
+      </div>
     </div>
     <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
       <input type="hidden" name="mod" value="soruListesi">
@@ -1728,9 +1733,26 @@ function gosterExcelHata(msg) {
         html += '</div>';
         html += '<p style="margin-top:12px; font-size:12px; color:#28a745;"><b>Doğru Cevap:</b> ' + harfler[s.dogruCevapIndex] + '</p>';
         icerik.innerHTML = html;
-        if (window.MathJax) MathJax.typesetPromise([icerik]);
+        adminMathRender(icerik);
       })
       .catch(function(e){ icerik.innerHTML = '<p style="color:red;">Hata: ' + e.message + '</p>'; });
+  }
+  function adminMathRender(el) {
+    if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
+      MathJax.typesetPromise([el]).catch(function(err){ console.warn('MathJax render hatası:', err); });
+    } else if (window.MathJax && MathJax.typesetPromise) {
+      // CDN yüklendi ama startup henüz tamamlanmadı
+      setTimeout(function(){ MathJax.typesetPromise([el]).catch(function(){}); }, 700);
+    } else {
+      // CDN hiç yüklenmedi — 2 sn daha bekle, gelmezse pas geç
+      setTimeout(function(){
+        if (window.MathJax && MathJax.typesetPromise) {
+          MathJax.typesetPromise([el]).catch(function(){});
+        } else {
+          console.warn('MathJax CDN yüklenmedi, formüller ham görünüyor.');
+        }
+      }, 2000);
+    }
   }
   </script>
 <% } %>

@@ -433,8 +433,7 @@ router.post('/admin-referans-kopyalandi', async (req, res) => {
 });
 
 // Numarasız soruları onar — _id sırasıyla soruNo atar
-router.post('/soru-no-onar', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
+router.post('/soru-no-onar', async (req, res) => {    if (!adminKontrol(req, res)) return;
     try {
         const numarasiz = await Soru.find({ $or: [{ soruNo: { $exists: false } }, { soruNo: null }] }).sort({ _id: 1 }).select('_id soruNo durum sinif ders');
         console.log('[soru-no-onar] numarasız bulunan:', numarasiz.length);
@@ -462,6 +461,55 @@ router.post('/soru-no-onar', async (req, res) => {
         res.send('<script>alert("' + mesaj + '"); window.location.href="/admin?mod=soruListesi";</script>');
     } catch (err) {
         console.error('[soru-no-onar] hata:', err && err.stack || err);
+        res.status(500).send("Hata: " + err.message);
+    }
+});
+
+// LaTeX backslash onarımı: $rac{ → $\frac{, $qrt{ → $\sqrt{ vb.
+// PDF yükleme sırasında JSON parse'ın yutmuş olduğu \f \b \v karakterlerini geri getirir
+router.post('/soru-latex-onar', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const sorular = await Soru.find({});
+        const onarKomut = function(metin) {
+            if (!metin || typeof metin !== 'string') return { metin: metin, degisti: false };
+            let yeni = metin;
+            // $ ... $ blokları içinde kayıp backslash'ları geri ekle
+            // \frac yutulmuş: rac{...}{...}  →  \frac{...}{...}
+            yeni = yeni.replace(/\$([^$]*)\$/g, function(blok, ic) {
+                let d = ic
+                    .replace(/(^|[^a-zA-Z\\])rac\{/g, '$1\\frac{')
+                    .replace(/(^|[^a-zA-Z\\])qrt\{/g, '$1\\sqrt{')
+                    .replace(/(^|[^a-zA-Z\\])qrt\[/g, '$1\\sqrt[')
+                    .replace(/(^|[^a-zA-Z\\])inom\{/g, '$1\\binom{')
+                    .replace(/(^|[^a-zA-Z\\])oxed\{/g, '$1\\boxed{')
+                    .replace(/(^|[^a-zA-Z\\])eta\b/g, '$1\\beta')
+                    .replace(/(^|[^a-zA-Z\\])orall\b/g, '$1\\forall');
+                return '$' + d + '$';
+            });
+            return { metin: yeni, degisti: yeni !== metin };
+        };
+        let degisen = 0, taranan = 0;
+        for (const s of sorular) {
+            taranan++;
+            let degistiBu = false;
+            ['soruMetni','soruOnculu1','soruOnculu2','soruOnculu3'].forEach(function(alan) {
+                const r = onarKomut(s[alan]);
+                if (r.degisti) { s[alan] = r.metin; degistiBu = true; }
+            });
+            if (Array.isArray(s.secenekler)) {
+                s.secenekler.forEach(function(sik) {
+                    const r = onarKomut(sik.metin);
+                    if (r.degisti) { sik.metin = r.metin; degistiBu = true; }
+                });
+                if (degistiBu) s.markModified('secenekler');
+            }
+            if (degistiBu) { await s.save(); degisen++; }
+        }
+        console.log('[soru-latex-onar] taranan: %d | onarılan: %d', taranan, degisen);
+        res.send('<script>alert("' + degisen + ' soruda LaTeX onarıldı (toplam ' + taranan + ' tarandı)."); window.location.href="/admin?mod=soruListesi";</script>');
+    } catch (err) {
+        console.error('[soru-latex-onar] hata:', err && err.stack || err);
         res.status(500).send("Hata: " + err.message);
     }
 });
