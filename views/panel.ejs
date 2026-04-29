@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div class="profil-banner-sep"></div>
       <div class="profil-banner-stat">
-        <div class="profil-banner-no">#<%= siralamaVerisi.okul %></div>
+        <div class="profil-banner-no"><%= siralamaVerisi.okul > 0 ? '#'+siralamaVerisi.okul : '—' %></div>
         <div class="profil-banner-label">Okul sırası</div>
       </div>
     </div>
@@ -205,11 +205,18 @@ document.addEventListener('DOMContentLoaded', function() {
       <div>
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Genel sıralama</p>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.turkiye %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.il %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.ilce %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.okul %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= siralamaVerisi.sinif %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
+          <% if (siralamaVerisi.nitelikli === false) { %>
+            <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#795548; line-height:1.5;">
+              ℹ️ Sıralamada yer alabilmek için <b>en az <%= siralamaVerisi.minSoru || 10 %> soru</b> çözmelisin.
+              <span style="color:#1565c0; font-weight:600;">(Şu ana kadar: <%= siralamaVerisi.kullaniciSoruSayisi || 0 %>)</span>
+            </div>
+          <% } %>
+          <% function srFmt(no) { return no > 0 ? '#'+no : '—'; } %>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.turkiye) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.il) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.ilce) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.okul) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.sinif) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
         </div>
         <% dp.forEach(function(d) {
           var sr = ds[d.ders] || {};
@@ -217,11 +224,17 @@ document.addEventListener('DOMContentLoaded', function() {
         %>
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni" style="color:<%= renk %>;"><%= d.ders %></p>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni">#<%= sr.turkiye||'-' %></div><% if(sr.toplamKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.toplamKullanici %></div><% } %></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni">#<%= sr.il||'-' %></div><% if(sr.ilKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilKullanici %></div><% } %></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni">#<%= sr.ilce||'-' %></div><% if(sr.ilceKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilceKullanici %></div><% } %></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni">#<%= sr.okul||'-' %></div><% if(sr.okulKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.okulKullanici %></div><% } %></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni">#<%= sr.sinif||'-' %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
+          <% if (sr.nitelikli === false) { %>
+            <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#795548; line-height:1.5;">
+              ℹ️ Sıralamada yer alabilmek için bu dersten <b>en az 10 soru</b> çözmelisin.
+              <span style="color:#1565c0; font-weight:600;">(Şu ana kadar: <%= sr.kullaniciSoruSayisi || 0 %>)</span>
+            </div>
+          <% } %>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni"><%= srFmt(sr.turkiye) %></div><% if(sr.toplamKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.toplamKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni"><%= srFmt(sr.il) %></div><% if(sr.ilKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni"><%= srFmt(sr.ilce) %></div><% if(sr.ilceKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.ilceKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni"><%= srFmt(sr.okul) %></div><% if(sr.okulKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.okulKullanici %></div><% } %></div></div>
+          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(sr.sinif) %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
         </div>
         <% }); %>
       </div>

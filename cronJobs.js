@@ -160,18 +160,25 @@ async function hamPuanHesapla() {
 // --- Adım 4: Sıralama cache'ini hesapla ve her kullanıcıya yaz ---
 async function siralamaCacheHesapla() {
     const tumKullanicilar = await Kullanici.find({});
+    const MIN_SORU = 10;
 
     // ortToplam = ders ortalamalarının toplamı
     function ortToplam(u) {
         const dp = u.dersPuanlari || [];
         return dp.reduce((acc, d) => acc + (d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0), 0);
     }
+    function toplamSoru(u) {
+        return (u.dersPuanlari || []).reduce((t,d) => t + (d.soruSayisi||0), 0);
+    }
 
-    // Her kullanıcı için ortalamaları önden hesapla (O(n))
+    // Her kullanıcı için ortalamaları + nitelik bilgisi önden hesapla (O(n))
     const uMap = tumKullanicilar.map(u => ({
         u,
         ortTop: ortToplam(u),
-        dersOrt: {}
+        toplamSoru: toplamSoru(u),
+        nitelikli: toplamSoru(u) >= MIN_SORU,
+        dersOrt: {},
+        dersSoruSayisi: {}
     }));
 
     // Ders bazlı ortalamaları da önden hesapla
@@ -180,55 +187,71 @@ async function siralamaCacheHesapla() {
         for (const dersAdi of tumDersler) {
             const d = (obj.u.dersPuanlari||[]).find(x => x.ders === dersAdi);
             obj.dersOrt[dersAdi] = (d && d.soruSayisi > 0) ? d.toplamPuan / d.soruSayisi : 0;
+            obj.dersSoruSayisi[dersAdi] = d ? (d.soruSayisi||0) : 0;
         }
     }
 
-    // Sıralama listelerini bir kez hazırla
-    const turkiyeListesi = [...uMap].sort((a, b) => b.ortTop - a.ortTop);
+    // Genel sıralama listesi — sadece nitelikli (>=10 soru) olanlar
+    const turkiyeListesi = uMap.filter(x => x.nitelikli).sort((a, b) => b.ortTop - a.ortTop);
     const dersTurkiyeListeleri = {};
     for (const dersAdi of tumDersler) {
-        dersTurkiyeListeleri[dersAdi] = [...uMap].sort((a, b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+        // Ders sıralaması — o dersten >=10 soru çözmüş olanlar
+        dersTurkiyeListeleri[dersAdi] = uMap.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU)
+                                           .sort((a, b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
     }
 
     // Her kullanıcıya kendi sırasını yaz
     for (const obj of uMap) {
         const u = obj.u;
-        const ayniIl   = uMap.filter(x => x.u.il === u.il);
-        const ayniIlce = uMap.filter(x => x.u.ilce === u.ilce);
-        const ayniOkul = uMap.filter(x => x.u.okul === u.okul);
+        const ayniIl    = uMap.filter(x => x.u.il   === u.il);
+        const ayniIlce  = uMap.filter(x => x.u.ilce === u.ilce);
+        const ayniOkul  = uMap.filter(x => x.u.okul === u.okul);
         const ayniSinif = uMap.filter(x => x.u.okul === u.okul && Number(x.u.sinif) === Number(u.sinif) && (u.sube ? x.u.sube === u.sube : true));
 
+        // Genel sıralama listeleri (nitelikli filtreli)
+        const ilNitelikli    = ayniIl.filter(x => x.nitelikli);
+        const ilceNitelikli  = ayniIlce.filter(x => x.nitelikli);
+        const okulNitelikli  = ayniOkul.filter(x => x.nitelikli);
+        const sinifNitelikli = ayniSinif.filter(x => x.nitelikli);
+
         const genel = {
-            turkiye: turkiyeListesi.findIndex(x => String(x.u._id) === String(u._id)) + 1,
-            il:      [...ayniIl].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1,
-            ilce:    [...ayniIlce].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1,
-            okul:    [...ayniOkul].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1,
-            sinif:   [...ayniSinif].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1,
+            turkiye: obj.nitelikli ? turkiyeListesi.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            il:      obj.nitelikli ? [...ilNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            ilce:    obj.nitelikli ? [...ilceNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            okul:    obj.nitelikli ? [...okulNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            sinif:   obj.nitelikli ? [...sinifNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             toplamKullanici: turkiyeListesi.length,
-            ilKullanici:    ayniIl.length,
-            ilceKullanici:  ayniIlce.length,
-            okulKullanici:  ayniOkul.length,
-            sinifKullanici: ayniSinif.length
+            ilKullanici:     ilNitelikli.length,
+            ilceKullanici:   ilceNitelikli.length,
+            okulKullanici:   okulNitelikli.length,
+            sinifKullanici:  sinifNitelikli.length,
+            nitelikli:       obj.nitelikli,
+            kullaniciSoruSayisi: obj.toplamSoru,
+            minSoru:         MIN_SORU
         };
 
         const dersSiralamalari = {};
         for (const dersAdi of tumDersler) {
-            const dersList = dersTurkiyeListeleri[dersAdi];
-            const dersIlList = [...ayniIl].sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
-            const dersIlceList = [...ayniIlce].sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
-            const dersOkulList = [...ayniOkul].sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
-            const dersSinifList = [...ayniSinif].sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const kDersNitelikli = obj.dersSoruSayisi[dersAdi] >= MIN_SORU;
+            const dersList     = dersTurkiyeListeleri[dersAdi];
+            const dersIlList    = ayniIl.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersIlceList  = ayniIlce.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersOkulList  = ayniOkul.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersSinifList = ayniSinif.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+
             dersSiralamalari[dersAdi] = {
-                turkiye: dersList.findIndex(x => String(x.u._id) === String(u._id)) + 1,
-                il:      dersIlList.findIndex(x => String(x.u._id) === String(u._id)) + 1,
-                ilce:    dersIlceList.findIndex(x => String(x.u._id) === String(u._id)) + 1,
-                okul:    dersOkulList.findIndex(x => String(x.u._id) === String(u._id)) + 1,
-                sinif:   dersSinifList.findIndex(x => String(x.u._id) === String(u._id)) + 1,
+                turkiye: kDersNitelikli ? dersList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                il:      kDersNitelikli ? dersIlList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                ilce:    kDersNitelikli ? dersIlceList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                okul:    kDersNitelikli ? dersOkulList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                sinif:   kDersNitelikli ? dersSinifList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
                 toplamKullanici: dersList.length,
-                ilKullanici: dersIlList.length,
-                ilceKullanici: dersIlceList.length,
-                okulKullanici: dersOkulList.length,
-                sinifKullanici: dersSinifList.length
+                ilKullanici:     dersIlList.length,
+                ilceKullanici:   dersIlceList.length,
+                okulKullanici:   dersOkulList.length,
+                sinifKullanici:  dersSinifList.length,
+                nitelikli:       kDersNitelikli,
+                kullaniciSoruSayisi: obj.dersSoruSayisi[dersAdi]
             };
         }
 
