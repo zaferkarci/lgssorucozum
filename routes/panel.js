@@ -60,8 +60,21 @@ function ortToplamHesapla(kullanici) {
     }, 0);
 }
 
-// Oturum kontrol: session'daki kullanıcı URL'dekiyle eşleşmeli
+// Oturum kontrol: session'daki kullanıcı URL'dekiyle eşleşmeli.
+// İstisna: Basic Auth ile admin yetkisi varsa (admin başka kullanıcının profilini incelemek için)
 function oturumKontrol(req, res, next) {
+    // Admin bypass: Basic Auth header'ı varsa ve admin credentials doğruysa, geçişe izin ver
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Basic ')) {
+        try {
+            const cred = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
+            const [u, p] = cred.split(':');
+            if (u === (process.env.ADMIN_USER || 'admin') && p === (process.env.ADMIN_PASSWORD || '1234')) {
+                req.adminGorunum = true;
+                return next();
+            }
+        } catch (e) { /* yoksay */ }
+    }
     if (!req.session || !req.session.kullaniciAdi) {
         return res.redirect('/');
     }
@@ -117,14 +130,23 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         return { etiket: "Çok Zor", renk: "#c0392b" };
     };
 
-    // Profil için sıralama — önce cache'den dene, yoksa canlı hesapla (fallback)
+    // Profil için sıralama — önce cache'den dene, yoksa veya kullanıcının son aktivitesi cache'ten yeniyse canlı hesapla
     let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, sinif: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1, sinifKullanici: 1, dersSiralamalari: {} };
     if (mod === 'profil') {
-        if (k.siralamaCache && k.siralamaCache.turkiye !== undefined) {
+        // Kullanıcının cache'ten sonra yeni cevap verip vermediğini kontrol et
+        const cacheTarih = k.siralamaCacheTarih ? new Date(k.siralamaCacheTarih) : null;
+        let cacheGuncelMi = false;
+        if (k.siralamaCache && k.siralamaCache.turkiye !== undefined && cacheTarih) {
+            const sonCevap = await CevapKaydi.findOne({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: -1 }).lean();
+            if (!sonCevap || new Date(sonCevap.tarih) <= cacheTarih) {
+                cacheGuncelMi = true;
+            }
+        }
+        if (cacheGuncelMi) {
             // Cache'den oku (hızlı)
             siralamaVerisi = k.siralamaCache;
         } else {
-            // Fallback: canlı hesapla (cron henüz çalışmadıysa)
+            // Fallback: canlı hesapla (cron henüz çalışmadıysa veya kullanıcı yeni cevap verdiyse)
             const tumKullanicilar = await Kullanici.find({}).lean();
             const kOrtTop = ortToplamHesapla(k);
 
@@ -224,7 +246,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         soruBilgiMap,
         moderator,
         modIdx,
-        toplamSoru: cozulmemisSorular.length
+        toplamSoru: cozulmemisSorular.length,
+        adminGorunum: req.adminGorunum || false
     });
 });
 

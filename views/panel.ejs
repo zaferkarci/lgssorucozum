@@ -92,7 +92,12 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="ptopbar-nav">
     <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
     <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
-    <a href="/cikis" class="ptopbar-link cikis">Çıkış Yap</a>
+    <% if (adminGorunum) { %>
+      <span class="ptopbar-link" style="background:#fff3cd; color:#856404; font-weight:600; cursor:default;">👁️ ADMİN GÖRÜNÜMÜ</span>
+      <a href="/admin?mod=kullanicilar" class="ptopbar-link cikis">← Admin Panele Dön</a>
+    <% } else { %>
+      <a href="/cikis" class="ptopbar-link cikis">Çıkış Yap</a>
+    <% } %>
   </div>
 </div>
 
@@ -144,7 +149,9 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="sekme-bar">
     <button class="sekme-btn aktif" onclick="sekmeAc('genel',this)">📊 Genel</button>
     <button class="sekme-btn" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri</button>
+    <% if (!adminGorunum) { %>
     <button class="sekme-btn" onclick="sekmeAc('guvenlik',this)">🔒 Güvenlik</button>
+    <% } %>
   </div>
 
   <!-- GENEL SEKMESİ -->
@@ -157,6 +164,9 @@ document.addEventListener('DOMContentLoaded', function() {
           <p class="profil-kart-baslik-yeni">Kişisel bilgiler</p>
           <div class="info-row"><span class="info-label">Okul</span><span class="info-val"><%= k.okul %></span></div>
           <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
+          <% if (adminGorunum) { %>
+            <div class="info-row"><span class="info-label">Sınıf / Şube</span><span class="info-val"><%= k.sinif %><%= k.sube ? '/' + k.sube : '' %></span></div>
+          <% } else { %>
           <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
             <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
             <label style="font-size:13px; color:#666;">Şube:</label>
@@ -168,6 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </select>
             <button type="submit" style="background:#1a73e8; color:white; padding:7px 14px; font-size:12px; font-weight:600; border:none; border-radius:8px; cursor:pointer;">Güncelle</button>
           </form>
+          <% } %>
         </div>
 
         <!-- Davet linkleri -->
@@ -568,6 +579,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <!-- GÜVENLİK SEKMESİ -->
+  <% if (!adminGorunum) { %>
   <div id="sekme-guvenlik" class="sekme-icerik">
     <div class="sifre-kart-profil">
       <div class="sifre-profil-header">
@@ -615,6 +627,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
   </div>
+  <% } %>
 
 <% } else { %>
 
