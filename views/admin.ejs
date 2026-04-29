@@ -1694,13 +1694,13 @@ function gosterExcelHata(msg) {
       .then(function(s){
         var harfler = ['A','B','C','D'];
         var html = '';
-        if (s.soruOnculu1) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu1 + '</div>';
+        if (s.soruOnculu1) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu1 + '</div>';
         if (s.soruOnculu1Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu1Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
-        if (s.soruOnculu2) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu2 + '</div>';
+        if (s.soruOnculu2) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu2 + '</div>';
         if (s.soruOnculu2Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu2Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
-        if (s.soruOnculu3) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px;">' + s.soruOnculu3 + '</div>';
+        if (s.soruOnculu3) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu3 + '</div>';
         if (s.soruOnculu3Resmi) html += '<div style="text-align:center; margin-bottom:10px;"><img src="' + s.soruOnculu3Resmi + '" style="max-width:100%; max-height:250px; border-radius:8px;"></div>';
-        html += '<h3 style="font-size:17px; margin:12px 0;">' + s.soruMetni + '</h3>';
+        html += '<h3 style="font-size:17px; margin:12px 0; white-space:pre-wrap;">' + s.soruMetni + '</h3>';
         if (s.tabloBaslik && s.tabloBaslik.length > 0) {
           html += '<div style="margin-bottom:4px;"><table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:3px 0; width:48px;"></td>';
           for (var tb = 0; tb < s.tabloBaslik.length; tb++) {
