@@ -61,9 +61,17 @@ function ortToplamHesapla(kullanici) {
 }
 
 // Oturum kontrol: session'daki kullanıcı URL'dekiyle eşleşmeli.
-// İstisna: Basic Auth ile admin yetkisi varsa (admin başka kullanıcının profilini incelemek için)
+// İstisna: Basic Auth ile admin yetkisi varsa, başka bir kullanıcının profilini incelemesine izin ver.
 function oturumKontrol(req, res, next) {
-    // Admin bypass: Basic Auth header'ı varsa ve admin credentials doğruysa, geçişe izin ver
+    const sessionKullanici = req.session && req.session.kullaniciAdi;
+    const urlKullanici = req.params.kullaniciAdi;
+
+    // Normal akış: session sahibi kendi sayfasını görüyorsa direk geçir (admin token olsa bile)
+    if (sessionKullanici && urlKullanici && sessionKullanici === urlKullanici) {
+        return next();
+    }
+
+    // Admin bypass: session yok veya session sahibi başka biri AMA admin token doğru
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Basic ')) {
         try {
@@ -75,13 +83,14 @@ function oturumKontrol(req, res, next) {
             }
         } catch (e) { /* yoksay */ }
     }
-    if (!req.session || !req.session.kullaniciAdi) {
+
+    if (!sessionKullanici) {
         return res.redirect('/');
     }
-    if (req.params.kullaniciAdi && req.session.kullaniciAdi !== req.params.kullaniciAdi) {
+    if (urlKullanici && sessionKullanici !== urlKullanici) {
         return res.status(403).send('Bu sayfaya erişim yetkiniz yok.');
     }
-    if (req.body.kullaniciAdi && req.session.kullaniciAdi !== req.body.kullaniciAdi) {
+    if (req.body.kullaniciAdi && sessionKullanici !== req.body.kullaniciAdi) {
         return res.status(403).send('Bu işlem için yetkiniz yok.');
     }
     next();
