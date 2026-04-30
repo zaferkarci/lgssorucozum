@@ -519,10 +519,18 @@ router.post('/soru-latex-onar', async (req, res) => {
 router.post('/kullanici-rol', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const { kullaniciAdi, il, ilce, okul } = req.body;
+        const { kullaniciAdi, il, ilce, okul, yeniRol: yeniRolForm } = req.body;
         const k = await Kullanici.findOne({ kullaniciAdi });
         if (!k) return res.status(404).send('Kullanıcı bulunamadı');
-        const yeniRol = (k.rol === 'moderator') ? 'ogrenci' : 'moderator';
+        // Form'dan gelen geçerli bir rol varsa onu kullan; yoksa eski toggle davranışı
+        const gecerliRoller = ['ogrenci', 'ogretmen', 'moderator'];
+        let yeniRol;
+        if (gecerliRoller.indexOf(yeniRolForm) !== -1) {
+            yeniRol = yeniRolForm;
+        } else {
+            // Geriye dönük: form'da yeniRol yoksa moderator toggle (eski Mod Al/Ver davranışı)
+            yeniRol = (k.rol === 'moderator') ? 'ogrenci' : 'moderator';
+        }
         await Kullanici.updateOne({ kullaniciAdi }, { rol: yeniRol });
         const params = new URLSearchParams({ mod: 'kullanicilar' });
         if (il) params.set('il', il);
@@ -557,6 +565,23 @@ router.post('/kullanici-guncelle', async (req, res) => {
         await Kullanici.updateOne({ kullaniciAdi }, { il, ilce, okul, sinif: parseInt(sinif)||8, sube: sube||'' });
         res.redirect('/kullanici-detay?kullaniciAdi=' + encodeURIComponent(kullaniciAdi));
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// Kullanıcının rolünü değiştir (ogrenci ↔ ogretmen)
+router.post('/kullanici-rol-degistir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { kullaniciAdi, yeniRol } = req.body;
+        const gecerliRoller = ['ogrenci', 'ogretmen', 'moderator'];
+        if (!gecerliRoller.includes(yeniRol)) return res.status(400).send('Geçersiz rol.');
+        const sonuc = await Kullanici.updateOne({ kullaniciAdi }, { rol: yeniRol });
+        if (sonuc.matchedCount === 0) return res.status(404).send('Kullanıcı bulunamadı.');
+        const geri = req.body.geri || '/admin?mod=kullanicilar';
+        res.redirect(geri);
+    } catch (err) {
+        console.error('[kullanici-rol-degistir] hata:', err.message);
+        res.status(500).send("Hata: " + err.message);
+    }
 });
 
 router.post('/yasakli-ekle', async (req, res) => {

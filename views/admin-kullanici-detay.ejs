@@ -68,6 +68,21 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : (k.rol === 'ogretmen' ? '👩‍🏫 Öğretmen' : 'Öğrenci') %></span></div>
       </div>
 
+      <!-- Rol değiştirme -->
+      <div class="d-kart">
+        <p class="d-kart-baslik">Rolü Değiştir</p>
+        <form action="/kullanici-rol-degistir" method="POST" onsubmit="return confirm('Bu kullanıcının rolünü değiştirmek istediğinden emin misin?');" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+          <input type="hidden" name="geri" value="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(k.kullaniciAdi) %>">
+          <select name="yeniRol" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1;">
+            <option value="ogrenci"  <%= k.rol === 'ogrenci'  ? 'selected' : '' %>>👨‍🎓 Öğrenci</option>
+            <option value="ogretmen" <%= k.rol === 'ogretmen' ? 'selected' : '' %>>👩‍🏫 Öğretmen</option>
+            <option value="moderator" <%= k.rol === 'moderator' ? 'selected' : '' %>>🛡️ Moderatör</option>
+          </select>
+          <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Rolü Güncelle</button>
+        </form>
+        <p style="font-size:11px; color:#888; margin-top:8px;">Not: Öğretmen rolü → soru çözemez, sıralamada yer almaz, sadece davet ettiklerini görür.</p>
+
       <!-- Güncelleme formu -->
       <div class="d-kart">
         <p class="d-kart-baslik">Bilgileri Güncelle</p>
