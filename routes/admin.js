@@ -114,8 +114,9 @@ router.get('/admin', async (req, res) => {
 function soruDogrula(body) {
     if (!body.soruMetni || !body.soruMetni.trim()) return 'Soru metni boş olamaz.';
     for (var i = 0; i < 4; i++) {
-        var m = body['metin' + i];
-        if (!m || !m.trim()) return (String.fromCharCode(65+i) + ' şıkkı boş olamaz.');
+        var m = (body['metin' + i] || '').trim();
+        var g = (body['gorsel' + i] || '').trim();
+        if (!m && !g) return (String.fromCharCode(65+i) + ' şıkkı boş olamaz. Metin veya görsel girin.');
     }
     if (body.dogruCevap === undefined || body.dogruCevap === '' || isNaN(parseInt(body.dogruCevap))) return 'Doğru cevap belirtilmeli.';
     return null;

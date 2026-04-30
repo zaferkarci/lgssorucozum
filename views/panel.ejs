@@ -559,8 +559,9 @@ document.addEventListener('DOMContentLoaded', function() {
           var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
           html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : 'white') + '; cursor:default;">';
           html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : '#f0f2f5') + '; color:' + (dogru ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
-          html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + '; flex:1;">' + (sik.metin||'') + '</span>';
-          if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; margin-left:8px;">';
+          var sikMetin = (sik.metin||'').trim();
+          if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + '; flex:1;">' + sikMetin + '</span>';
+          if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; ' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '">';
           if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
           html += '</div>';
         });
@@ -720,9 +721,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <% if (moderator) { %>
               <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default;">
                 <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
-                <%- sikIcerigi %>
+                <% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
                 <% if (dogruMu) { %><span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
-                <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
+                <% if (soru.secenekler[i].gorsel) { %><%= sikIcerigi.trim() ? '<br>' : '' %><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; <%= sikIcerigi.trim() ? 'margin-top:5px;' : '' %>"><% } %>
               </div>
             <% } else { %>
             <form method="POST" action="/cevap" style="<%= formStyle %>">
@@ -731,8 +732,8 @@ document.addEventListener('DOMContentLoaded', function() {
               <input type="hidden" name="secilenIndex" value="<%= i %>">
               <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
               <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni">
-                <span class="sik-harf-yeni"><%= harfler[i] %></span><%- sikIcerigi %>
-                <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
+                <span class="sik-harf-yeni"><%= harfler[i] %></span><% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
+                <% if (soru.secenekler[i].gorsel) { %><%= sikIcerigi.trim() ? '<br>' : '' %><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; <%= sikIcerigi.trim() ? 'margin-top:5px;' : '' %>"><% } %>
               </button>
             </form>
             <% } %>
