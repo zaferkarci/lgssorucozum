@@ -1502,8 +1502,12 @@ function gosterExcelHata(msg) {
       Referans Kodu Üret
       <span style="font-size:12px; color:#888;">Toplam: <%= tumReferanslar.length %> | Bekleyen: <%= bekleyenler.length %> | Kullanılan: <%= kullanilanlar.length %></span>
     </div>
-    <form action="/referans-uret" method="POST" style="display:flex; gap:10px; align-items:center;">
+    <form action="/referans-uret" method="POST" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <input type="number" name="adet" value="10" min="1" max="500" style="width:90px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
+      <select name="tip" style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; background:white;">
+        <option value="ogrenci">👨‍🎓 Öğrenci linki</option>
+        <option value="ogretmen">👩‍🏫 Öğretmen linki</option>
+      </select>
       <button class="ekle-btn">Kod Üret</button>
       <span style="font-size:12px; color:#888;">adet (max 500)</span>
     </form>
@@ -1521,6 +1525,11 @@ function gosterExcelHata(msg) {
       <div class="admin-soru-item admin-referans-satir" data-kod="<%= r.kod %>">
         <div class="admin-soru-sol">
           <code style="font-size:13px; letter-spacing:2px; color:<%= r.kopyalandi ? '#aaa' : '#1a73e8' %>; font-weight:600;"><%= r.kod %></code>
+          <% if (r.tip === 'ogretmen') { %>
+            <span style="font-size:10px; background:#e1bee7; color:#6a1b9a; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👩‍🏫 ÖĞRETMEN</span>
+          <% } else { %>
+            <span style="font-size:10px; background:#e3f2fd; color:#1565c0; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👨‍🎓 ÖĞRENCİ</span>
+          <% } %>
           <span style="font-size:11px; color:#aaa; margin-left:8px;">Oluşturan: <b><%= r.olusturan %></b></span>
           <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= new Date(r.olusturmaTarih).toLocaleDateString('tr-TR') %></span>
           <% if (r.kopyalandi) { %>

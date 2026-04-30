@@ -4,7 +4,7 @@ const KullaniciSchema = new mongoose.Schema({
     kullaniciAdi: { type: String, unique: true, index: true },
     sifre: String,
     email: { type: String, default: '' },
-    rol: { type: String, default: 'ogrenci' }, // 'ogrenci' | 'moderator'
+    rol: { type: String, default: 'ogrenci' }, // 'ogrenci' | 'ogretmen' | 'moderator'
     il: String, ilce: String, okul: String,
     sinif: { type: Number, default: 8 },
     sube: { type: String, default: '' },

@@ -382,7 +382,8 @@ router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         const adet = Math.min(parseInt(req.body.adet) || 1, 500);
-        await referansKoduUret('admin', adet);
+        const tip = (req.body.tip === 'ogretmen') ? 'ogretmen' : 'ogrenci';
+        await referansKoduUret('admin', adet, tip);
         res.redirect('/admin?mod=referans');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });

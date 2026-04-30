@@ -103,15 +103,16 @@ router.get('/api/kullaniciadi-oner', async (req, res) => {
 });
 
 // Benzersiz 10 karakterlik referans kodu üret
-async function referansKoduUret(olusturan, adet) {
+async function referansKoduUret(olusturan, adet, tip) {
     const kodlar = [];
+    const kodTip = (tip === 'ogretmen') ? 'ogretmen' : 'ogrenci';
     let deneme = 0;
     while (kodlar.length < adet && deneme < adet * 10) {
         deneme++;
         const kod = crypto.randomBytes(6).toString('hex').toUpperCase().slice(0, 10);
         const varMi = await ReferansKodu.findOne({ kod });
         if (!varMi) {
-            await new ReferansKodu({ kod, olusturan }).save();
+            await new ReferansKodu({ kod, olusturan, tip: kodTip }).save();
             kodlar.push(kod);
         }
     }
@@ -127,8 +128,16 @@ router.get('/', async (req, res) => {
     }
 });
 
-router.get('/kayit', (req, res) => {
-    res.render('kayit', { refKod: req.query.ref || '' });
+router.get('/kayit', async (req, res) => {
+    const refKod = (req.query.ref || '').trim();
+    let refTip = 'ogrenci';
+    if (refKod) {
+        try {
+            const ref = await ReferansKodu.findOne({ kod: refKod }).lean();
+            if (ref && ref.tip === 'ogretmen') refTip = 'ogretmen';
+        } catch (e) { /* yoksay, default ogrenci */ }
+    }
+    res.render('kayit', { refKod, refTip });
 });
 
 router.post('/kayit-yap', async (req, res) => {
@@ -139,6 +148,9 @@ router.post('/kayit-yap', async (req, res) => {
         // Referans kodu doğrula
         const ref = await ReferansKodu.findOne({ kod: refKod.trim().toUpperCase(), kullanildi: false });
         if (!ref) return res.send("<script>alert('Geçersiz veya kullanılmış referans kodu!'); window.history.back();</script>");
+
+        // Rol referans kodundan belirleniyor (kullanıcı manipüle edemesin)
+        const rol = (ref.tip === 'ogretmen') ? 'ogretmen' : 'ogrenci';
 
         // Kullanıcı adı format ve küfür kontrolü
         const adHata = kullaniciAdiKontrol(kullaniciAdi);
@@ -161,9 +173,21 @@ router.post('/kayit-yap', async (req, res) => {
         const varMi = await Kullanici.findOne({ kullaniciAdi });
         if (varMi) return res.send("<script>alert('Kullanıcı adı alınmış!'); window.history.back();</script>");
 
-        // Kullanıcıyı kaydet
-        const hash = await bcrypt.hash(sifre, SALT_ROUNDS);
-        await new Kullanici({ kullaniciAdi, email: email||'', sifre: hash, sinif, sube: sube||'', il, ilce, okul }).save();
+        // Öğretmen ise sınıf/şube boş; öğrenci ise normal
+        const yeniKullaniciData = {
+            kullaniciAdi,
+            email: email || '',
+            sifre: await bcrypt.hash(sifre, SALT_ROUNDS),
+            il, ilce, okul,
+            rol
+        };
+        if (rol === 'ogrenci') {
+            yeniKullaniciData.sinif = sinif;
+            yeniKullaniciData.sube = sube || '';
+        }
+        // Öğretmen için: sinif default 8 olarak kalır şemada (geriye dönük uyumluluk),
+        // ama view'larda rol kontrolü ile gizlenir
+        await new Kullanici(yeniKullaniciData).save();
 
         // Referans kodunu kullanıldı olarak işaretle
         ref.kullanildi = true;
@@ -171,8 +195,8 @@ router.post('/kayit-yap', async (req, res) => {
         ref.kullanimTarih = new Date();
         await ref.save();
 
-        // Yeni kullanıcıya 2 adet referans kodu üret
-        await referansKoduUret(kullaniciAdi, 2);
+        // Yeni kullanıcıya 2 adet referans kodu üret (Bölüm 2'de öğretmen için 2+2 olacak)
+        await referansKoduUret(kullaniciAdi, 2, 'ogrenci');
 
         res.redirect('/?kayit=basarili');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
