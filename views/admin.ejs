@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
       <div>
         <label class="form-label">Sınıf</label><br>
-        <select id="pdf_sinif" class="input-sm">
+        <select id="pdf_sinif" class="input-sm" onchange="pdfUniteleriYukle()">
           <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
             <option value="<%= s %>" <%= s==8?'selected':'' %>><%= s %>. Sınıf</option>
           <% }); %>
@@ -90,15 +90,25 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div>
         <label class="form-label">Ders</label><br>
-        <select id="pdf_ders" class="input-sm">
+        <select id="pdf_ders" class="input-sm" onchange="pdfUniteleriYukle()">
           <% ["Matematik","Türkçe","Fen Bilimleri","T.C. İnkılâp Tarihi","İngilizce","Din Kültürü"].forEach(function(d) { %>
             <option value="<%= d %>"><%= d %></option>
           <% }); %>
         </select>
       </div>
       <div>
+        <label class="form-label">Ünite (opsiyonel)</label><br>
+        <select id="pdf_unite" class="input-sm" onchange="pdfKonulariYukle()" style="min-width:200px;">
+          <option value="">— Ünite seç —</option>
+        </select>
+      </div>
+      <div>
         <label class="form-label">Konu (opsiyonel)</label><br>
-        <input id="pdf_konu" class="input-sm" placeholder="ör: Kesirler" style="min-width:160px;">
+        <select id="pdf_konu_select" class="input-sm" onchange="pdfKonuSecildi()" style="min-width:160px;">
+          <option value="">— Konu seç —</option>
+          <option value="__yeni__">+ Yeni konu yaz…</option>
+        </select>
+        <input id="pdf_konu" class="input-sm" placeholder="ör: Kesirler" style="min-width:160px; display:none; margin-top:6px;">
       </div>
     </div>
 
@@ -171,6 +181,74 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 // ── Değişkenler ────────────────────────────────────────────────────────────
 var analizSonucu = [];
+var _pdfUniteler = []; // Sınıf+Ders'e göre yüklenmiş ünite listesi
+
+// ── Ünite & Konu listeleri yükle (sınıf/ders değişince) ──────────────────
+function pdfUniteleriYukle() {
+  var sinif = document.getElementById('pdf_sinif').value;
+  var ders = document.getElementById('pdf_ders').value;
+  var uniteSelect = document.getElementById('pdf_unite');
+  var konuSelect = document.getElementById('pdf_konu_select');
+  uniteSelect.innerHTML = '<option value="">— Ünite seç —</option>';
+  konuSelect.innerHTML = '<option value="">— Konu seç —</option><option value="__yeni__">+ Yeni konu yaz…</option>';
+  document.getElementById('pdf_konu').style.display = 'none';
+  document.getElementById('pdf_konu').value = '';
+  fetch('/api/unite-bilgi?sinif=' + encodeURIComponent(sinif))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) return;
+      _pdfUniteler = (d.uniteler || []).filter(function(u){ return u.ders === ders; });
+      _pdfUniteler.forEach(function(u){
+        var opt = document.createElement('option');
+        opt.value = u.uniteAdi || (u.uniteNo + '. Ünite');
+        opt.textContent = (u.uniteNo ? u.uniteNo + '. ' : '') + (u.uniteAdi || '');
+        uniteSelect.appendChild(opt);
+      });
+      // Tüm konuları topla (ünite seçilmemişse hepsi gözüksün)
+      pdfKonulariYukle();
+    })
+    .catch(function(){});
+}
+function pdfKonulariYukle() {
+  var konuSelect = document.getElementById('pdf_konu_select');
+  var seciliUnite = document.getElementById('pdf_unite').value;
+  var konular = [];
+  if (seciliUnite) {
+    var u = _pdfUniteler.find(function(x){ return (x.uniteAdi || (x.uniteNo + '. Ünite')) === seciliUnite; });
+    konular = (u && u.konular) ? u.konular.slice() : [];
+  } else {
+    // Hiç ünite seçilmediyse tüm derste tanımlı konuları göster
+    _pdfUniteler.forEach(function(u){ (u.konular||[]).forEach(function(k){ if (konular.indexOf(k) === -1) konular.push(k); }); });
+  }
+  konuSelect.innerHTML = '<option value="">— Konu seç —</option>';
+  konular.sort().forEach(function(k){
+    var opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k;
+    konuSelect.appendChild(opt);
+  });
+  var yeniOpt = document.createElement('option');
+  yeniOpt.value = '__yeni__';
+  yeniOpt.textContent = '+ Yeni konu yaz…';
+  konuSelect.appendChild(yeniOpt);
+  document.getElementById('pdf_konu').style.display = 'none';
+  document.getElementById('pdf_konu').value = '';
+}
+function pdfKonuSecildi() {
+  var sec = document.getElementById('pdf_konu_select').value;
+  var inp = document.getElementById('pdf_konu');
+  if (sec === '__yeni__') {
+    inp.style.display = '';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = sec;
+  }
+}
+// Sayfa açıldığında ilk listeleri yükle
+document.addEventListener('DOMContentLoaded', function(){
+  if (document.getElementById('pdf_unite')) pdfUniteleriYukle();
+});
 
 // ── Drag & Drop ───────────────────────────────────────────────────────────
 (function() {
@@ -243,7 +321,11 @@ function pdfAnalizBaslat() {
   formData.append('pdfDosyasi', window._seciliPdf);
   formData.append('sinif', document.getElementById('pdf_sinif').value);
   formData.append('ders', document.getElementById('pdf_ders').value);
-  formData.append('konu', document.getElementById('pdf_konu').value);
+  // Ünite ve konu: select varsa onlar, "Yeni konu yaz" seçildiyse text input
+  var seciliKonu = document.getElementById('pdf_konu_select').value;
+  var konuDeger = (seciliKonu === '__yeni__') ? document.getElementById('pdf_konu').value : (seciliKonu || '');
+  formData.append('konu', konuDeger);
+  formData.append('unite', document.getElementById('pdf_unite').value || '');
 
   fetch('/pdf-analiz', {
     method: 'POST',

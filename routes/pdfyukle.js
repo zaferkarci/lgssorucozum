@@ -264,14 +264,15 @@ router.post('/pdf-analiz', upload.single('pdfDosyasi'), async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         if (!req.file) return res.status(400).json({ hata: 'PDF seçilmedi.' });
-        const { sinif, ders, konu } = req.body;
+        const { sinif, ders, konu, unite } = req.body;
         const pdfBase64 = req.file.buffer.toString('base64');
         const sorular = await pdfdenSorulariCikar(pdfBase64, sinif, ders, konu);
         const zenginSorular = sorular.map((s, i) => ({
             ...s,
             sinif: sinif || '8',
             ders:  ders  || 'Matematik',
-            konu:  konu  || '',
+            konu:  (s.konu || konu || ''),
+            unite: (s.unite || unite || ''),
             _gecici_id: i
         }));
         res.json({ ok: true, sorular: zenginSorular, toplamSoru: zenginSorular.length });
