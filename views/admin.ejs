@@ -987,8 +987,9 @@ function escHtml(str) {
             <td>
               <%= k.kullaniciAdi %>
               <% if (k.rol === 'moderator') { %><span style="background:#e8f0fe; color:#1a73e8; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">MOD</span><% } %>
+              <% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">👩‍🏫 ÖĞRETMEN</span><% } %>
             </td>
-            <td style="text-align:center;"><%= k.sinif %></td>
+            <td style="text-align:center;"><% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">ÖĞR</span><% } else { %><%= k.sinif %><% } %></td>
             <td><%= k.il||'-' %></td>
             <td><%= k.ilce||'-' %></td>
             <td><%= k.okul||'-' %></td>
