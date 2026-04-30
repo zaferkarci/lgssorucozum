@@ -47,6 +47,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
   <span style="color:#e0e0e0;">|</span>
   <span class="topbar-admin-baslik"><%= k.kullaniciAdi %> — Detay</span>
   <% if (k.rol === 'moderator') { %><span style="background:#e8f0fe;color:#1a73e8;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">MOD</span><% } %>
+  <% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5;color:#6a1b9a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">👩‍🏫 ÖĞRETMEN</span><% } %>
 </div>
 
 <div class="detay-wrap">
@@ -59,10 +60,12 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <p class="d-kart-baslik">Kişisel Bilgiler</p>
         <div class="d-satir"><span class="d-etiket">Kullanıcı adı</span><span class="d-deger"><%= k.kullaniciAdi %></span></div>
         <div class="d-satir"><span class="d-etiket">E-posta</span><span class="d-deger"><%= k.email||'-' %></span></div>
+        <% if (k.rol !== 'ogretmen') { %>
         <div class="d-satir"><span class="d-etiket">Sınıf / Şube</span><span class="d-deger"><%= k.sinif %>. Sınıf<%= k.sube ? ' / '+k.sube+' Şubesi' : '' %></span></div>
+        <% } %>
         <div class="d-satir"><span class="d-etiket">İl / İlçe</span><span class="d-deger"><%= k.il||'-' %> / <%= k.ilce||'-' %></span></div>
-        <div class="d-satir"><span class="d-etiket">Okul</span><span class="d-deger"><%= k.okul||'-' %></span></div>
-        <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : 'Öğrenci' %></span></div>
+        <div class="d-satir"><span class="d-etiket"><%= k.rol === 'ogretmen' ? 'Görev yaptığı okul' : 'Okul' %></span><span class="d-deger"><%= k.okul||'-' %></span></div>
+        <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : (k.rol === 'ogretmen' ? '👩‍🏫 Öğretmen' : 'Öğrenci') %></span></div>
       </div>
 
       <!-- Güncelleme formu -->
@@ -70,6 +73,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <p class="d-kart-baslik">Bilgileri Güncelle</p>
         <form action="/kullanici-guncelle" method="POST">
           <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+          <% if (k.rol !== 'ogretmen') { %>
           <div class="form-alan">
             <label>Sınıf</label>
             <select name="sinif">
@@ -87,6 +91,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
               <% }); %>
             </select>
           </div>
+          <% } %>
           <div class="form-alan">
             <label>İl</label>
             <select name="il" id="det-il" onchange="detIlDegis(this.value)">
@@ -103,7 +108,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
             </select>
           </div>
           <div class="form-alan">
-            <label>Okul</label>
+            <label><%= k.rol === 'ogretmen' ? 'Görev yaptığı okul' : 'Okul' %></label>
             <select name="okul" id="det-okul">
               <option value="<%= k.okul||'' %>"><%= k.okul||'Seçin' %></option>
             </select>
