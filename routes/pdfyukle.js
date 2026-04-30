@@ -154,6 +154,10 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
     // Gemini'nin yaygın hataları: eksik backslash, kontrol karakterleri
     temiz = geminiHatalariniOnar(temiz);
 
+    // Son güvenlik: JSON'a göre geçersiz \X escape'lerini düzelt
+    // JSON valid escapes: \" \\ \/ \b \f \n \r \t \uXXXX
+    temiz = gecersizEscapeDuzelt(temiz);
+
     try {
         return JSON.parse(temiz);
     } catch (e1) {
@@ -164,10 +168,62 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
                 const onarilmis = sonTamObjeyeKadar(temiz);
                 return JSON.parse(onarilmis);
             } catch (e3) {
-                throw new Error('JSON parse hatası: ' + e1.message + '\nİlk 500 karakter: ' + temiz.slice(0, 500));
+                // Hata pozisyonunu bul ve bağlamı göster
+                const pozisyonMatch = e1.message.match(/position (\d+)/);
+                let baglam = '';
+                if (pozisyonMatch) {
+                    const poz = parseInt(pozisyonMatch[1]);
+                    const baslangic = Math.max(0, poz - 80);
+                    const bitis = Math.min(temiz.length, poz + 80);
+                    baglam = '\nHata bağlamı (poz ' + poz + ' civarı): ...' + temiz.slice(baslangic, bitis) + '...';
+                    console.error('[PDF JSON parse] hata bağlamı:', baglam);
+                }
+                throw new Error('JSON parse hatası: ' + e1.message + baglam + '\nİlk 500 karakter: ' + temiz.slice(0, 500));
             }
         }
     }
+}
+
+// JSON string'leri içinde geçersiz \X escape sekanslarını düzeltir.
+// Ör: \V (LaTeX değil, geçersiz JSON), \x, \z, \! gibi.
+// Sadece string içindeyken çalışır. \" \\ \/ \b \f \n \r \t \uXXXX olanları olduğu gibi bırakır.
+function gecersizEscapeDuzelt(str) {
+    let sonuc = '';
+    let string = false;
+    let i = 0;
+    while (i < str.length) {
+        const c = str[i];
+        // String başlangıcı/bitişi: kaçırılmamış "
+        if (c === '"' && (i === 0 || str[i-1] !== '\\' || (i >= 2 && str[i-2] === '\\'))) {
+            string = !string;
+            sonuc += c;
+            i++;
+            continue;
+        }
+        if (string && c === '\\' && i + 1 < str.length) {
+            const next = str[i+1];
+            // Geçerli JSON escape mi?
+            if (next === '"' || next === '\\' || next === '/' || next === 'b' || next === 'f' ||
+                next === 'n' || next === 'r' || next === 't') {
+                sonuc += c + next;
+                i += 2;
+                continue;
+            }
+            // \uXXXX
+            if (next === 'u' && i + 5 < str.length && /[0-9a-fA-F]{4}/.test(str.slice(i+2, i+6))) {
+                sonuc += str.slice(i, i+6);
+                i += 6;
+                continue;
+            }
+            // Geçersiz: backslash'ı duplikate et (LaTeX komutu olarak korunmuş olur)
+            sonuc += '\\\\' + next;
+            i += 2;
+            continue;
+        }
+        sonuc += c;
+        i++;
+    }
+    return sonuc;
 }
 
 // Gemini'nin sık yaptığı hataları düzelt
