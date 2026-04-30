@@ -1729,9 +1729,9 @@ function gosterExcelHata(msg) {
           var border = dogruMu ? '2px solid #28a745' : '2px solid #ddd';
           var sadeceGorsel = !sikMetin && sikGorsel;
           if (sadeceGorsel) {
-            html += '<div style="padding:0; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left; position:relative; overflow:hidden;">';
-            html += '<b style="position:absolute; top:6px; left:8px; z-index:2; background:rgba(255,255,255,0.85); padding:2px 6px; border-radius:4px; font-size:13px;">' + harfler[i] + ')</b>';
-            html += '<img src="' + sikGorsel + '" style="max-width:100%; display:block;">';
+            html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left; display:flex; flex-direction:column; align-items:flex-start;">';
+            html += '<b style="font-size:14px; margin-bottom:8px;">' + harfler[i] + ')</b>';
+            html += '<img src="' + sikGorsel + '" style="max-width:100%; align-self:center;">';
             html += '</div>';
           } else {
             html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left;">';
