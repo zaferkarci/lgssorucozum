@@ -720,18 +720,20 @@ document.addEventListener('DOMContentLoaded', function() {
             <% var dogruMu = soru.dogruCevapIndex === i; %>
             <% if (moderator) { %>
               <% var sadeceGorsel = !sikIcerigi.trim() && soru.secenekler[i].gorsel; %>
-              <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default; <%= sadeceGorsel ? 'position:relative;' : '' %>">
-                <% if (sadeceGorsel) { %>
-                  <span class="sik-harf-yeni" style="position:absolute; top:8px; left:8px; z-index:2; <%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
-                  <img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; display:block;">
-                  <% if (dogruMu) { %><span style="position:absolute; top:8px; right:8px; font-size:11px; color:white; background:#43a047; padding:3px 8px; border-radius:8px; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
-                <% } else { %>
+              <% if (sadeceGorsel) { %>
+                <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default; flex-direction:column; align-items:flex-start;">
+                  <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
+                  <img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; margin-top:8px; align-self:center;">
+                  <% if (dogruMu) { %><span style="margin-top:6px; font-size:11px; color:#43a047; font-weight:600;">✓ Doğru</span><% } %>
+                </div>
+              <% } else { %>
+                <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default;">
                   <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
                   <% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
                   <% if (dogruMu) { %><span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
                   <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
-                <% } %>
-              </div>
+                </div>
+              <% } %>
             <% } else { %>
             <form method="POST" action="/cevap" style="<%= formStyle %>">
               <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
@@ -739,15 +741,17 @@ document.addEventListener('DOMContentLoaded', function() {
               <input type="hidden" name="secilenIndex" value="<%= i %>">
               <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
               <% var sadeceGorselB = !sikIcerigi.trim() && soru.secenekler[i].gorsel; %>
-              <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni" style="<%= sadeceGorselB ? 'position:relative;' : '' %>">
-                <% if (sadeceGorselB) { %>
-                  <span class="sik-harf-yeni" style="position:absolute; top:8px; left:8px; z-index:2;"><%= harfler[i] %></span>
-                  <img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; display:block;">
-                <% } else { %>
+              <% if (sadeceGorselB) { %>
+                <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni" style="flex-direction:column; align-items:flex-start;">
+                  <span class="sik-harf-yeni"><%= harfler[i] %></span>
+                  <img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; margin-top:8px; align-self:center;">
+                </button>
+              <% } else { %>
+                <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni">
                   <span class="sik-harf-yeni"><%= harfler[i] %></span><% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
                   <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
-                <% } %>
-              </button>
+                </button>
+              <% } %>
             </form>
             <% } %>
             <% } %>
