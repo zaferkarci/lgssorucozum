@@ -93,9 +93,11 @@ document.addEventListener('DOMContentLoaded', function() {
     <% if (k.rol === 'ogretmen') { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Örnek Soru</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" class="ptopbar-link <%= mod==='davetEdilenler'?'aktif':'' %>">Davet Ettiklerim</a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>">Takip</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } %>
     <% if (adminGorunum) { %>
@@ -671,6 +673,173 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
   <% } %>
 
+<% } else if (mod === 'takip') { %>
+
+  <!-- Takip Sekmesi (Öğretmen ve Öğrenci için ayrı görünüm) -->
+  <% if (k.rol === 'ogretmen') { %>
+    <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto 16px auto;">
+      <p class="profil-kart-baslik-yeni">🔍 Öğrenci Ara ve Takip İsteği Gönder</p>
+      <p style="font-size:13px; color:#888; margin-bottom:14px;">İl, ilçe, okul veya kullanıcı adı ile öğrenci ara. İstek gönderdiğin öğrenciler kabul edince takip edebileceksin.</p>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px;">
+        <input id="ara-il" type="text" placeholder="İl (örn: Aydın)" class="input" style="margin:0;">
+        <input id="ara-ilce" type="text" placeholder="İlçe (örn: Nazilli)" class="input" style="margin:0;">
+        <input id="ara-okul" type="text" placeholder="Okul adı (kısmi)" class="input" style="margin:0;">
+        <input id="ara-q" type="text" placeholder="Kullanıcı adı (kısmi)" class="input" style="margin:0;">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button onclick="takipAra()" style="background:#1a73e8; color:white; padding:10px 22px; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px;">Ara</button>
+        <button onclick="takipAramaTemizle()" style="background:#f0f0f0; color:#333; padding:10px 18px; border:none; border-radius:8px; font-weight:500; cursor:pointer; font-size:14px;">Temizle</button>
+      </div>
+    </div>
+    <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto;" id="takipSonucKart">
+      <div id="takipSonucIcerik" style="color:#888; font-size:13px;">İlk arama için yukarıdaki filtreleri kullan.</div>
+    </div>
+  <% } else { %>
+    <!-- Öğrenci: bekleyen istekler + kabul edilmiş takipçi öğretmenler listesi -->
+    <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto 16px auto;">
+      <p class="profil-kart-baslik-yeni">📨 Bekleyen Takip İstekleri</p>
+      <p style="font-size:13px; color:#888; margin-bottom:14px;">Aşağıdaki öğretmenler seni takip etmek istiyor. Kabul edersen istatistiklerini görebilirler.</p>
+      <div id="bekleyenIstekListesi" style="font-size:13px; color:#888;">Yükleniyor…</div>
+    </div>
+    <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto;">
+      <p class="profil-kart-baslik-yeni">✅ Beni Takip Eden Öğretmenler</p>
+      <div id="aktifTakipciler" style="font-size:13px; color:#888;">Yükleniyor…</div>
+    </div>
+  <% } %>
+
+  <script>
+  // ── ÖĞRETMEN: Arama ve istek gönderme ──
+  async function takipAra() {
+    const il   = document.getElementById('ara-il').value.trim();
+    const ilce = document.getElementById('ara-ilce').value.trim();
+    const okul = document.getElementById('ara-okul').value.trim();
+    const q    = document.getElementById('ara-q').value.trim();
+    if (!il && !ilce && !okul && !q) {
+      document.getElementById('takipSonucIcerik').innerHTML = '<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 12px; color:#795548;">⚠ En az bir filtre kriteri girin.</div>';
+      return;
+    }
+    document.getElementById('takipSonucIcerik').innerHTML = 'Aranıyor…';
+    try {
+      const params = new URLSearchParams({ il, ilce, okul, q });
+      const r = await fetch('/api/takip/ara?' + params.toString());
+      const d = await r.json();
+      if (!d.ok) {
+        document.getElementById('takipSonucIcerik').innerHTML = '<div style="color:#c0392b;">Hata: ' + (d.hata||'bilinmeyen') + '</div>';
+        return;
+      }
+      if (!d.sonuclar || d.sonuclar.length === 0) {
+        document.getElementById('takipSonucIcerik').innerHTML = '<div style="color:#888;">Bu kriterlerle eşleşen öğrenci bulunamadı.</div>';
+        return;
+      }
+      let html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Kullanıcı</th><th style="padding:10px; text-align:left;">Sınıf</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:left;">İl/İlçe</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
+      d.sonuclar.forEach(function(o) {
+        const sinifGoster = (o.sinif || '') + (o.sube ? '/' + o.sube : '');
+        let butonHtml = '';
+        if (o.iliskiDurum === 'kabul')      butonHtml = '<span style="color:#43a047; font-weight:600;">✓ Takip ediliyor</span>';
+        else if (o.iliskiDurum === 'beklemede') butonHtml = '<span style="color:#f57c00; font-weight:600;">⏳ İstek bekliyor</span>';
+        else if (o.iliskiDurum === 'red')   butonHtml = '<button onclick="istekGonder(\'' + o.kullaniciAdi.replace(/'/g, "\\'") + '\', this)" style="background:#fff3cd; color:#856404; padding:6px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Tekrar İstek Gönder</button>';
+        else                                  butonHtml = '<button onclick="istekGonder(\'' + o.kullaniciAdi.replace(/'/g, "\\'") + '\', this)" style="background:#1a73e8; color:white; padding:6px 14px; border:none; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">+ İstek Gönder</button>';
+        html += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">' + o.kullaniciAdi + '</td><td style="padding:10px;">' + sinifGoster + '</td><td style="padding:10px;">' + (o.okul||'-') + '</td><td style="padding:10px;">' + (o.il||'-') + ' / ' + (o.ilce||'-') + '</td><td style="padding:10px; text-align:right;">' + butonHtml + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      html += '<p style="font-size:11px; color:#aaa; margin-top:10px;">Toplam ' + d.sonuclar.length + ' sonuç (en fazla 50)</p>';
+      document.getElementById('takipSonucIcerik').innerHTML = html;
+    } catch (e) {
+      document.getElementById('takipSonucIcerik').innerHTML = '<div style="color:#c0392b;">Bağlantı hatası: ' + e.message + '</div>';
+    }
+  }
+  function takipAramaTemizle() {
+    ['ara-il','ara-ilce','ara-okul','ara-q'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('takipSonucIcerik').innerHTML = '<span style="color:#888;">Filtreleri girip Ara butonuna bas.</span>';
+  }
+  async function istekGonder(ogrenciAdi, btn) {
+    btn.disabled = true; btn.innerText = 'Gönderiliyor…';
+    try {
+      const r = await fetch('/takip/istek-gonder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'ogrenciAdi=' + encodeURIComponent(ogrenciAdi)
+      });
+      const d = await r.json();
+      if (d.ok) {
+        btn.outerHTML = '<span style="color:#f57c00; font-weight:600;">⏳ İstek bekliyor</span>';
+      } else {
+        btn.disabled = false; btn.innerText = '+ İstek Gönder';
+        alert(d.hata || 'Hata oluştu');
+      }
+    } catch (e) {
+      btn.disabled = false; btn.innerText = '+ İstek Gönder';
+      alert('Bağlantı hatası');
+    }
+  }
+
+  // ── ÖĞRENCİ: Bekleyen istekleri yükle, kabul/red ──
+  async function bekleyenIstekleriYukle() {
+    const liste = document.getElementById('bekleyenIstekListesi');
+    if (!liste) return;
+    try {
+      const r = await fetch('/api/takip/ara?okul=__hicbiri_dummy_query__');
+      // Yukarıdaki API arama yapar, ama biz aslında sadece "bana gelen istekler"i istiyoruz.
+      // Bunun için /api/takip/istekler endpoint'i lazım — şimdilik bekleyen sayıyı /api/takip/bekleyen-istekler veriyor
+      // Tam liste için backend'e ek endpoint eklendi: /api/takip/gelenler
+      const r2 = await fetch('/api/takip/gelenler');
+      const d2 = await r2.json();
+      if (!d2.ok) { liste.innerHTML = '<span style="color:#c0392b;">Hata: ' + (d2.hata||'bilinmeyen') + '</span>'; return; }
+      if (d2.istekler.length === 0) { liste.innerHTML = '<span style="color:#888;">Bekleyen istek yok.</span>'; return; }
+      let html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Öğretmen</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:left;">İl/İlçe</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
+      d2.istekler.forEach(function(o) {
+        html += '<tr id="istek-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👩‍🏫 ' + o.ogretmenAdi + '</td><td style="padding:10px;">' + (o.ogretmenOkul||'-') + '</td><td style="padding:10px;">' + (o.ogretmenIl||'-') + ' / ' + (o.ogretmenIlce||'-') + '</td><td style="padding:10px; text-align:right;"><button onclick="yanitla(\'' + o._id + '\', \'kabul\')" style="background:#43a047; color:white; padding:5px 12px; border:none; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; margin-right:4px;">✓ Kabul</button><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#e24b4a; color:white; padding:5px 12px; border:none; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">✕ Red</button></td></tr>';
+      });
+      html += '</tbody></table>';
+      liste.innerHTML = html;
+    } catch (e) {
+      liste.innerHTML = '<span style="color:#c0392b;">Bağlantı hatası</span>';
+    }
+  }
+  async function aktifTakipcileriYukle() {
+    const liste = document.getElementById('aktifTakipciler');
+    if (!liste) return;
+    try {
+      const r = await fetch('/api/takip/kabul-edilenler');
+      const d = await r.json();
+      if (!d.ok) { liste.innerHTML = '<span style="color:#c0392b;">Hata</span>'; return; }
+      if (d.takipciler.length === 0) { liste.innerHTML = '<span style="color:#888;">Henüz seni takip eden öğretmen yok.</span>'; return; }
+      let html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Öğretmen</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:left;">İl/İlçe</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
+      d.takipciler.forEach(function(o) {
+        html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👩‍🏫 ' + o.ogretmenAdi + '</td><td style="padding:10px;">' + (o.ogretmenOkul||'-') + '</td><td style="padding:10px;">' + (o.ogretmenIl||'-') + ' / ' + (o.ogretmenIlce||'-') + '</td><td style="padding:10px; text-align:right;"><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Takipten Çıkar</button></td></tr>';
+      });
+      html += '</tbody></table>';
+      liste.innerHTML = html;
+    } catch (e) {
+      liste.innerHTML = '<span style="color:#c0392b;">Bağlantı hatası</span>';
+    }
+  }
+  async function yanitla(iliskiId, yanit) {
+    try {
+      const r = await fetch('/takip/yanitla', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'iliskiId=' + encodeURIComponent(iliskiId) + '&yanit=' + encodeURIComponent(yanit)
+      });
+      const d = await r.json();
+      if (d.ok) {
+        // Listeleri yeniden yükle
+        bekleyenIstekleriYukle();
+        aktifTakipcileriYukle();
+      } else {
+        alert(d.hata || 'Hata');
+      }
+    } catch (e) { alert('Bağlantı hatası'); }
+  }
+
+  // Sayfa yüklendiğinde öğrenci için bekleyen istekleri ve kabul edilmişleri yükle
+  if (document.getElementById('bekleyenIstekListesi')) {
+    bekleyenIstekleriYukle();
+    aktifTakipcileriYukle();
+  }
+  </script>
+
 <% } else if (mod === 'davetEdilenler') { %>
 
   <!-- Öğretmen: Davet Ettiklerim -->
@@ -1010,6 +1179,21 @@ function davetLinkBaslangicSirala() {
     } catch (e) {}
 }
 window.addEventListener('DOMContentLoaded', davetLinkBaslangicSirala);
+
+// Öğrenci için: üst menüdeki Takip linkinde bekleyen istek sayısını göster
+window.addEventListener('DOMContentLoaded', function() {
+    var badge = document.getElementById('bekleyenBadge');
+    if (!badge) return;
+    fetch('/api/takip/bekleyen-istekler')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+            if (d.ok && d.sayi > 0) {
+                badge.innerText = d.sayi;
+                badge.style.display = '';
+            }
+        })
+        .catch(function(){});
+});
 function sekmeAc(id, btn) {
     document.querySelectorAll('.sekme-icerik').forEach(function(el){ el.classList.remove('aktif'); });
     document.querySelectorAll('.sekme-btn').forEach(function(b){ b.classList.remove('aktif'); });

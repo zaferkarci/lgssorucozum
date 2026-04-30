@@ -1,4 +1,4 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.5 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.6 (Modüler Yapı) ---
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -40,6 +40,7 @@ app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/panel'));
 app.use('/', require('./routes/admin'));
 app.use('/', require('./routes/pdfyukle'));
+app.use('/', require('./routes/takip'));
 
 // Health check — loading.html bu endpoint'i izler
 app.get('/health', (req, res) => res.json({ durum: 'hazir' }));
