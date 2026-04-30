@@ -103,12 +103,16 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
+    const ogretmen = k.rol === 'ogretmen';
     // Sadece yayında olan, öğrencinin sınıf seviyesindeki sorular
-    const yayindaSorular = await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }).lean();
+    // Öğretmen için: tüm yayında sorular (sınıf filtresi yok)
+    const yayindaSorular = ogretmen
+        ? await Soru.find({ durum: 'yayinda' }).lean()
+        : await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }).lean();
 
     // Moderatör tüm soruları görür, öğrenci sadece çözülmemişleri
     const moderator = k.rol === 'moderator';
-    const cozulmemisSorular = moderator
+    const cozulmemisSorular = (moderator || ogretmen)
         ? yayindaSorular
         : yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
 
@@ -128,7 +132,20 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
 
     // Moderatör için navigasyon indexi
     const modIdx = moderator ? Math.max(0, Math.min(parseInt(req.query.idx) || 0, cozulmemisSorular.length - 1)) : 0;
-    const sorular = moderator ? cozulmemisSorular.slice(modIdx, modIdx + 1) : cozulmemisSorular;
+    let sorular;
+    if (moderator) {
+        sorular = cozulmemisSorular.slice(modIdx, modIdx + 1);
+    } else if (ogretmen) {
+        // Öğretmene rastgele 1 örnek soru göster (moderator modunda — cevap butonu yok, doğru cevap işaretli)
+        if (cozulmemisSorular.length > 0) {
+            const rastgele = Math.floor(Math.random() * cozulmemisSorular.length);
+            sorular = [cozulmemisSorular[rastgele]];
+        } else {
+            sorular = [];
+        }
+    } else {
+        sorular = cozulmemisSorular;
+    }
 
     const zorlukBilgisi = (soru) => {
         const z = soru.zorlukKatsayisi || 3;
@@ -140,12 +157,14 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     };
 
     // Profil için sıralama — önce cache'den dene, yoksa veya kullanıcının son aktivitesi cache'ten yeniyse canlı hesapla
-    let siralamaVerisi = { turkiye: 1, il: 1, ilce: 1, okul: 1, sinif: 1, toplamKullanici: 1, ilKullanici: 1, ilceKullanici: 1, okulKullanici: 1, sinifKullanici: 1, dersSiralamalari: {} };
+    let siralamaVerisi = { turkiye: 0, il: 0, ilce: 0, okul: 0, sinif: 0, toplamKullanici: 0, ilKullanici: 0, ilceKullanici: 0, okulKullanici: 0, sinifKullanici: 0, dersSiralamalari: {}, nitelikli: false, kullaniciSoruSayisi: 0, minSoru: 10 };
     if (mod === 'profil') {
         // Kullanıcının cache'ten sonra yeni cevap verip vermediğini kontrol et
         const cacheTarih = k.siralamaCacheTarih ? new Date(k.siralamaCacheTarih) : null;
         let cacheGuncelMi = false;
-        if (k.siralamaCache && k.siralamaCache.turkiye !== undefined && cacheTarih) {
+        // Cache 'nitelikli' alanı içermiyorsa eski formattır (v4.0.23 öncesi) — yok say
+        const cacheYeniFormat = k.siralamaCache && k.siralamaCache.nitelikli !== undefined;
+        if (cacheYeniFormat && k.siralamaCache.turkiye !== undefined && cacheTarih) {
             const sonCevap = await CevapKaydi.findOne({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: -1 }).lean();
             if (!sonCevap || new Date(sonCevap.tarih) <= cacheTarih) {
                 cacheGuncelMi = true;
@@ -260,6 +279,21 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         dersIstatMap[ders].konular[konu].toplamSure += c.sure || 0;
     });
 
+    // Öğretmen — davet ettiği öğrencilerin listesi (mod=davetEdilenler için)
+    let davetEdilenler = [];
+    if (ogretmen) {
+        try {
+            const benimKodlarim = await ReferansKodu.find({ olusturan: k.kullaniciAdi, kullanildi: true }).lean();
+            const kullananAdlari = benimKodlarim.map(r => r.kullanan).filter(Boolean);
+            if (kullananAdlari.length > 0) {
+                davetEdilenler = await Kullanici.find(
+                    { kullaniciAdi: { $in: kullananAdlari } },
+                    'kullaniciAdi puan soruIndex sinif sube il ilce okul rol'
+                ).lean();
+            }
+        } catch (e) { console.warn('davetEdilenler yüklenemedi:', e.message); }
+    }
+
     res.render('panel', {
         k,
         mod,
@@ -276,6 +310,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         tumCevaplar,
         soruBilgiMap,
         moderator,
+        ogretmen,
+        davetEdilenler,
         modIdx,
         toplamSoru: cozulmemisSorular.length,
         adminGorunum: req.adminGorunum || false
@@ -287,6 +323,10 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
         const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
         const s = await Soru.findById(soruId);
         const k = await Kullanici.findOne({ kullaniciAdi });
+        // Öğretmen rolündeki kullanıcılar soru çözmesin
+        if (k && k.rol === 'ogretmen') {
+            return res.status(403).send("<script>alert('Öğretmen hesabı soru çözemez.'); window.history.back();</script>");
+        }
         if (s && k) {
             const T_ogr = Math.max(parseInt(gecenSure) || 1, 1);
             const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;

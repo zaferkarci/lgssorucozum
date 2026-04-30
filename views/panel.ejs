@@ -86,12 +86,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="ptopbar-ayrac"></div>
     <div class="ptopbar-kullanici">
       <div class="ptopbar-avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
-      <%= k.kullaniciAdi %> · <%= k.puan %> puan
+      <%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> · 👩‍🏫 Öğretmen<% } else { %> · <%= k.puan %> puan<% } %>
     </div>
   </div>
   <div class="ptopbar-nav">
-    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
-    <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
+    <% if (k.rol === 'ogretmen') { %>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Örnek Soru</a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" class="ptopbar-link <%= mod==='davetEdilenler'?'aktif':'' %>">Davet Ettiklerim</a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
+    <% } else { %>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
+    <% } %>
     <% if (adminGorunum) { %>
       <span class="ptopbar-link" style="background:#fff3cd; color:#856404; font-weight:600; cursor:default;">👁️ ADMİN GÖRÜNÜMÜ</span>
       <a href="/admin?mod=kullanicilar" class="ptopbar-link cikis">← Admin Panele Dön</a>
@@ -123,10 +129,11 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="profil-banner-sol">
       <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
       <div>
-        <div class="profil-banner-isim"><%= k.kullaniciAdi %></div>
-        <div class="profil-banner-alt"><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <%= k.okul %> · <%= k.il %> / <%= k.ilce %></div>
+        <div class="profil-banner-isim"><%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> <span style="font-size:12px; background:#f3e5f5; color:#6a1b9a; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">👩‍🏫 Öğretmen</span><% } %></div>
+        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen') { %><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <% } %><%= k.okul %> · <%= k.il %> / <%= k.ilce %></div>
       </div>
     </div>
+    <% if (k.rol !== 'ogretmen') { %>
     <div class="profil-banner-sag">
       <div class="profil-banner-stat">
         <div class="profil-banner-no"><%= k.puan %></div>
@@ -143,12 +150,22 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="profil-banner-label">Okul sırası</div>
       </div>
     </div>
+    <% } else { %>
+    <div class="profil-banner-sag">
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no"><%= davetEdilenler ? davetEdilenler.length : 0 %></div>
+        <div class="profil-banner-label">Davet ettiğin</div>
+      </div>
+    </div>
+    <% } %>
   </div>
 
   <!-- Sekme bar -->
   <div class="sekme-bar">
     <button class="sekme-btn aktif" onclick="sekmeAc('genel',this)">📊 Genel</button>
+    <% if (k.rol !== 'ogretmen') { %>
     <button class="sekme-btn" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri</button>
+    <% } %>
     <% if (!adminGorunum) { %>
     <button class="sekme-btn" onclick="sekmeAc('guvenlik',this)">🔒 Güvenlik</button>
     <% } %>
@@ -162,9 +179,11 @@ document.addEventListener('DOMContentLoaded', function() {
         <!-- Kişisel bilgiler -->
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Kişisel bilgiler</p>
-          <div class="info-row"><span class="info-label">Okul</span><span class="info-val"><%= k.okul %></span></div>
+          <div class="info-row"><span class="info-label"><%= k.rol === 'ogretmen' ? 'Görev yaptığınız okul' : 'Okul' %></span><span class="info-val"><%= k.okul %></span></div>
           <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
-          <% if (adminGorunum) { %>
+          <% if (k.rol === 'ogretmen') { %>
+            <!-- Öğretmen: sınıf/şube yok, ek alan da yok -->
+          <% } else if (adminGorunum) { %>
             <div class="info-row"><span class="info-label">Sınıf / Şube</span><span class="info-val"><%= k.sinif %><%= k.sube ? '/' + k.sube : '' %></span></div>
           <% } else { %>
           <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
@@ -201,8 +220,16 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
 
-      <!-- Sağ: Sıralamalar -->
+      <!-- Sağ: Sıralamalar (öğrenci için; öğretmen için davet listesi linki) -->
       <div>
+        <% if (k.rol === 'ogretmen') { %>
+          <div class="profil-kart-yeni" style="text-align:center;">
+            <p class="profil-kart-baslik-yeni">👩‍🏫 Davet Ettiklerim</p>
+            <div style="font-size:36px; font-weight:700; color:#6a1b9a; margin:14px 0 6px 0;"><%= davetEdilenler ? davetEdilenler.length : 0 %></div>
+            <p style="font-size:12px; color:#888; margin-bottom:14px;">kullanıcı senin referansınla kayıt oldu.</p>
+            <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" style="display:inline-block; padding:8px 18px; background:#6a1b9a; color:white; border-radius:8px; text-decoration:none; font-size:13px; font-weight:600;">Listeyi Gör →</a>
+          </div>
+        <% } else { %>
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Genel sıralama</p>
           <% if (siralamaVerisi.nitelikli === false) { %>
@@ -237,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(sr.sinif) %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
         </div>
         <% }); %>
+        <% } %>
       </div>
     </div>
   </div>
@@ -643,11 +671,54 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
   <% } %>
 
+<% } else if (mod === 'davetEdilenler') { %>
+
+  <!-- Öğretmen: Davet Ettiklerim -->
+  <div class="profil-kart-yeni" style="max-width:1200px; margin:0 auto;">
+    <p class="profil-kart-baslik-yeni">Davet Ettiklerim — <%= davetEdilenler.length %> kullanıcı</p>
+    <p style="font-size:13px; color:#888; margin-bottom:14px;">Senin referans linklerini kullanarak kayıt olan öğrenciler.</p>
+    <% if (davetEdilenler.length === 0) { %>
+      <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:14px 16px; font-size:13px; color:#795548;">
+        ℹ️ Henüz referans linkin kullanan biri yok. Profil sayfandaki davet linklerini paylaş.
+      </div>
+    <% } else { %>
+      <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead>
+          <tr style="background:#f8f9fa; text-align:left;">
+            <th style="padding:10px;">Kullanıcı</th>
+            <th style="padding:10px;">Sınıf/Şube</th>
+            <th style="padding:10px;">Okul</th>
+            <th style="padding:10px;">İl/İlçe</th>
+            <th style="padding:10px; text-align:right;">Puan</th>
+            <th style="padding:10px; text-align:right;">Çözülen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% davetEdilenler.sort(function(a,b){ return (b.puan||0) - (a.puan||0); }).forEach(function(o) { %>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:10px; font-weight:500;"><%= o.kullaniciAdi %><% if (o.rol === 'ogretmen') { %> <span style="font-size:10px; background:#e1bee7; color:#6a1b9a; padding:2px 6px; border-radius:8px; margin-left:4px;">👩‍🏫 ÖĞRETMEN</span><% } %></td>
+              <td style="padding:10px;"><%= o.rol === 'ogretmen' ? '—' : (o.sinif + (o.sube ? '/' + o.sube : '')) %></td>
+              <td style="padding:10px;"><%= o.okul || '-' %></td>
+              <td style="padding:10px;"><%= o.il || '-' %> / <%= o.ilce || '-' %></td>
+              <td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+              <td style="padding:10px; text-align:right; color:#666;"><%= o.soruIndex || 0 %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      </div>
+    <% } %>
+  </div>
+
 <% } else { %>
 
   <% if (!sorular.length) { %>
     <div style="text-align:center; margin-top:50px; padding:20px;">
-      <% if (k.soruIndex > 0) { %>
+      <% if (k.rol === 'ogretmen') { %>
+        <h2>Henüz örnek soru yok</h2>
+        <p>Sistemde yayında soru bulunmuyor.</p>
+      <% } else if (k.soruIndex > 0) { %>
         <h2 style="color:#27ae60;">🎉 Tebrikler!</h2>
         <p style="font-size:16px;">Sistemdeki tüm soruları çözdünüz.</p>
         <p style="color:#666;">Yeni soru eklenmesini bekleyiniz.</p>
@@ -658,7 +729,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <% } %>
     </div>
 
-  <% } else if (!basla) { %>
+  <% } else if (k.rol !== 'ogretmen' && !basla) { %>
     <div style="text-align:center; margin-top:100px;">
       <% if (yeniSoruSayisi > 0) { %>
       <div style="display:inline-flex; align-items:center; gap:10px; background:#e8f5e9; border:1.5px solid #a5d6a7; border-radius:12px; padding:12px 24px; margin-bottom:24px; font-size:14px; color:#2e7d32; font-weight:500;">
@@ -672,7 +743,63 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true" class="btn btn-success btn-lg">SORU ÇÖZMEYE BAŞLA</a>
     </div>
 
-  <% } else {
+  <% } else if (k.rol === 'ogretmen') { %>
+    <!-- Öğretmen için: doğrudan örnek soru göster, üst bilgilendirme + "Yeni örnek" butonu -->
+    <div style="max-width:900px; margin:0 auto 14px auto; padding:12px 16px; background:#f3e5f5; border:1px solid #ce93d8; border-radius:10px; font-size:13px; color:#6a1b9a; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span>👩‍🏫 <b>Örnek Soru:</b> Bu soru sistemdeki sorulardan rastgele seçildi. Aşağıda doğru cevap işaretli.</span>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="btn" style="background:#6a1b9a; color:white; padding:6px 14px; font-size:12px;">🎲 Yeni Örnek</a>
+    </div>
+    <%
+      const soru = sorular[0];
+      const zb = zorlukBilgisi(soru);
+      const harfler = ['A','B','C','D'];
+    %>
+    <div class="soru-kart-yeni">
+      <div class="soru-etiket-bar">
+        <span class="ep ep-zorluk">Zorluk: <%= zb.etiket %></span>
+        <% if (soru.sinif) { %><span class="ep ep-sinif"><%= soru.sinif %>. Sınıf</span><% } %>
+        <span class="ep ep-ders">Ders: <%= soru.ders %></span>
+        <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
+        <% if (soru.konu) { %><span class="ep ep-konu">Konu: <%= soru.konu %></span><% } %>
+      </div>
+      <div class="soru-govde-yeni">
+        <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
+        <% if (soru.soruOnculu1Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu1Resmi %>" style="max-width:100%; max-height:180px; border-radius:8px; object-fit:contain;"></div><% } %>
+        <% if (soru.soruOnculu2) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu2 %></div><% } %>
+        <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu2Resmi %>" style="max-width:100%; max-height:180px; border-radius:8px; object-fit:contain;"></div><% } %>
+        <% if (soru.soruOnculu3) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu3 %></div><% } %>
+        <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu3Resmi %>" style="max-width:100%; max-height:180px; border-radius:8px; object-fit:contain;"></div><% } %>
+        <h2 class="soru-metni-yeni"><%- soru.soruMetni %></h2>
+        <% if (soru.soruResmi) { %><div style="text-align:center; margin-bottom:14px;"><img src="<%= soru.soruResmi %>" style="max-width:100%; max-height:280px; border-radius:8px; object-fit:contain;"></div><% } %>
+        <div class="secenekler" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; clear:both;">
+          <% for (let i = 0; i < 4; i++) {
+              if (!soru.secenekler[i]) continue;
+              const sik = soru.secenekler[i];
+              const sikIcerigi = sik.metin || '';
+              const dogruMu = soru.dogruCevapIndex === i;
+              const tabloMu = sikIcerigi.indexOf('<table') !== -1;
+          %>
+            <% var sadeceGorsel = !sikIcerigi.trim() && sik.gorsel; %>
+            <% if (sadeceGorsel) { %>
+              <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default; flex-direction:column; align-items:flex-start;">
+                <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
+                <img src="<%= sik.gorsel %>" style="max-width:100%; margin-top:8px; align-self:center;">
+                <% if (dogruMu) { %><span style="margin-top:6px; font-size:11px; color:#43a047; font-weight:600;">✓ Doğru</span><% } %>
+              </div>
+            <% } else { %>
+              <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default;">
+                <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
+                <% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
+                <% if (dogruMu) { %><span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
+                <% if (sik.gorsel) { %><br><img src="<%= sik.gorsel %>" style="max-width:150px; margin-top:5px;"><% } %>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+        <p style="text-align:center; color:#aaa; font-size:11px; margin-top:14px;">Eğitim amaçlıdır. Soruların tüm hakları MEB'e aittir.</p>
+      </div>
+    </div>
+  <% } else if (sorular.length && basla) {
     const soru = sorular[0];
     const zb = zorlukBilgisi(soru);
     const harfler = ['A','B','C','D'];
