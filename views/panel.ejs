@@ -105,6 +105,9 @@ document.addEventListener('DOMContentLoaded', function() {
     <% if (adminGorunum) { %>
       <span class="ptopbar-link" style="background:#fff3cd; color:#856404; font-weight:600; cursor:default;">👁️ ADMİN GÖRÜNÜMÜ</span>
       <a href="/admin?mod=kullanicilar" class="ptopbar-link cikis">← Admin Panele Dön</a>
+    <% } else if (ogretmenGorunum) { %>
+      <span class="ptopbar-link" style="background:#f3e5f5; color:#6a1b9a; font-weight:600; cursor:default;">👩‍🏫 ÖĞRETMEN GÖRÜNÜMÜ</span>
+      <a href="/panel/<%= encodeURIComponent(ogretmenGorunumSahip) %>?mod=takip" class="ptopbar-link cikis">← Takip Sayfasına Dön</a>
     <% } else { %>
       <a href="/cikis" class="ptopbar-link cikis">Çıkış Yap</a>
     <% } %>
@@ -166,16 +169,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   <!-- Sekme bar -->
   <div class="sekme-bar">
+    <% if (!ogretmenGorunum) { %>
     <button class="sekme-btn aktif" onclick="sekmeAc('genel',this)">📊 Genel</button>
-    <% if (k.rol !== 'ogretmen') { %>
-    <button class="sekme-btn" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri</button>
     <% } %>
-    <% if (!adminGorunum) { %>
+    <% if (k.rol !== 'ogretmen') { %>
+    <button class="sekme-btn <%= ogretmenGorunum ? 'aktif' : '' %>" onclick="sekmeAc('istatistik',this)">📈 Ders İstatistikleri</button>
+    <% } %>
+    <% if (!adminGorunum && !ogretmenGorunum) { %>
     <button class="sekme-btn" onclick="sekmeAc('guvenlik',this)">🔒 Güvenlik</button>
     <% } %>
   </div>
 
   <!-- GENEL SEKMESİ -->
+  <% if (!ogretmenGorunum) { %>
   <div id="sekme-genel" class="sekme-icerik aktif">
     <div style="display:grid; grid-template-columns:1fr 260px; gap:14px; align-items:start;">
 
@@ -187,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
           <% if (k.rol === 'ogretmen') { %>
             <!-- Öğretmen: sınıf/şube yok, ek alan da yok -->
-          <% } else if (adminGorunum) { %>
+          <% } else if (adminGorunum || ogretmenGorunum) { %>
             <div class="info-row"><span class="info-label">Sınıf / Şube</span><span class="info-val"><%= k.sinif %><%= k.sube ? '/' + k.sube : '' %></span></div>
           <% } else { %>
           <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
@@ -272,9 +278,10 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
   </div>
+  <% } %>
 
   <!-- İSTATİSTİK SEKMESİ -->
-  <div id="sekme-istatistik" class="sekme-icerik">
+  <div id="sekme-istatistik" class="sekme-icerik <%= ogretmenGorunum ? 'aktif' : '' %>">
     <%
       var tumC = tumCevaplar || [];
       var genelDogru  = tumC.filter(function(c){ return c.dogruMu; }).length;
@@ -625,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <!-- GÜVENLİK SEKMESİ -->
-  <% if (!adminGorunum) { %>
+  <% if (!adminGorunum && !ogretmenGorunum) { %>
   <div id="sekme-guvenlik" class="sekme-icerik">
     <div class="sifre-kart-profil">
       <div class="sifre-profil-header">
@@ -762,13 +769,6 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="aktifTakipciler" style="font-size:13px; color:#888;">Yükleniyor…</div>
     </div>
 
-    <!-- Modal: öğrenci istatistik detayı -->
-    <div id="ogrenciDetayModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:flex-start; justify-content:center; padding:30px 20px; overflow-y:auto;">
-      <div style="background:white; border-radius:14px; max-width:900px; width:100%; padding:24px; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
-        <button onclick="ogrenciDetayKapat()" style="position:absolute; top:14px; right:14px; background:#f0f0f0; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:16px;">×</button>
-        <div id="ogrenciDetayIcerik">Yükleniyor…</div>
-      </div>
-    </div>
   <% } else { %>
     <!-- Öğrenci: arama + bekleyen istekler + kabul edilmiş takipçi öğretmenler -->
 
@@ -991,7 +991,7 @@ document.addEventListener('DOMContentLoaded', function() {
         html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Öğrenci</th><th style="padding:10px; text-align:left;">Sınıf</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:right;">Puan</th><th style="padding:10px; text-align:right;">Çözülen</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
         d.takipciler.forEach(function(o) {
           const sinifGoster = (o.ogrenciSinif||'') + (o.ogrenciSube ? '/' + o.ogrenciSube : '');
-          html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👨‍🎓 ' + o.ogrenciAdi + '</td><td style="padding:10px;">' + sinifGoster + '</td><td style="padding:10px;">' + (o.ogrenciOkul||'-') + '</td><td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;">' + (o.ogrenciPuan||0) + '</td><td style="padding:10px; text-align:right; color:#666;">' + (o.ogrenciSoruIndex||0) + '</td><td style="padding:10px; text-align:right;"><button onclick="ogrenciDetayAc(\'' + o.ogrenciAdi.replace(/\x27/g, "\\\x27") + '\')" style="background:#1a73e8; color:white; padding:5px 12px; border:none; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; margin-right:4px;">📊 İstatistikler</button><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Çıkar</button></td></tr>';
+          html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👨‍🎓 ' + o.ogrenciAdi + '</td><td style="padding:10px;">' + sinifGoster + '</td><td style="padding:10px;">' + (o.ogrenciOkul||'-') + '</td><td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;">' + (o.ogrenciPuan||0) + '</td><td style="padding:10px; text-align:right; color:#666;">' + (o.ogrenciSoruIndex||0) + '</td><td style="padding:10px; text-align:right;"><a href="/panel/' + encodeURIComponent(o.ogrenciAdi) + '?mod=profil&sekme=istatistik" target="_blank" style="background:#1a73e8; color:white; padding:5px 12px; border:none; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; display:inline-block; margin-right:4px;">📊 İstatistikler</a><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Çıkar</button></td></tr>';
         });
         html += '</tbody></table>';
       } else {
@@ -1023,73 +1023,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (e) { alert('Bağlantı hatası'); }
   }
 
-  // ── Öğretmen: Öğrenci detay modal (istatistikler) ──
-  async function ogrenciDetayAc(ogrenciAdi) {
-    const modal = document.getElementById('ogrenciDetayModal');
-    const icerik = document.getElementById('ogrenciDetayIcerik');
-    if (!modal || !icerik) return;
-    icerik.innerHTML = 'Yükleniyor…';
-    modal.style.display = 'flex';
-    try {
-      const r = await fetch('/api/takip/ogrenci-istatistik/' + encodeURIComponent(ogrenciAdi));
-      const d = await r.json();
-      if (!d.ok) { icerik.innerHTML = '<div style="color:#c0392b;">Hata: ' + (d.hata||'bilinmeyen') + '</div>'; return; }
-
-      const o = d.ogrenci;
-      const ist = d.istatistik;
-      const sirala = o.siralamaCache || {};
-      const dogruOrani = ist.toplamCevap > 0 ? Math.round(ist.toplamDogru / ist.toplamCevap * 100) : 0;
-
-      let html = '<h2 style="margin-top:0; font-size:22px; color:#1a73e8;">👨‍🎓 ' + o.kullaniciAdi + '</h2>';
-      html += '<p style="color:#666; font-size:13px; margin-bottom:14px;">' + (o.sinif||'') + '. Sınıf' + (o.sube ? '/' + o.sube : '') + ' · ' + (o.okul||'-') + ' · ' + (o.il||'-') + ' / ' + (o.ilce||'-') + '</p>';
-
-      // 4 büyük metrik
-      html += '<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:18px;">';
-      html += '<div style="text-align:center; padding:14px; background:#e8f0fe; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#1a73e8;">' + (o.puan||0) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Toplam Puan</div></div>';
-      html += '<div style="text-align:center; padding:14px; background:#f0f9f0; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#43a047;">' + (o.soruIndex||0) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Çözülen Soru</div></div>';
-      html += '<div style="text-align:center; padding:14px; background:#fff8e1; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#f57c00;">' + dogruOrani + '%</div><div style="font-size:11px; color:#888; margin-top:4px;">Doğru Oranı</div></div>';
-      html += '<div style="text-align:center; padding:14px; background:#fce4ec; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#c2185b;">' + (ist.ortSure||0) + 'sn</div><div style="font-size:11px; color:#888; margin-top:4px;">Ort. Süre</div></div>';
-      html += '</div>';
-
-      // Sıralamalar
-      if (sirala && sirala.toplamKullanici !== undefined) {
-        const srFmt = function(no){ return no > 0 ? '#'+no : '—'; };
-        html += '<div style="background:#f8f9fa; border-radius:10px; padding:14px; margin-bottom:18px;">';
-        html += '<div style="font-weight:600; font-size:13px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Genel Sıralama</div>';
-        if (sirala.nitelikli === false) {
-          html += '<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#795548;">ℹ️ Sıralamada yer alabilmek için en az ' + (sirala.minSoru||10) + ' soru çözmeli. (Şu ana kadar: ' + (sirala.kullaniciSoruSayisi||0) + ')</div>';
-        }
-        html += '<div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">';
-        ['Türkiye','İl','İlçe','Okul','Sınıf'].forEach(function(lbl, idx) {
-          const key = ['turkiye','il','ilce','okul','sinif'][idx];
-          const totKey = ['toplamKullanici','ilKullanici','ilceKullanici','okulKullanici','sinifKullanici'][idx];
-          html += '<div style="text-align:center; padding:8px; background:white; border-radius:8px;"><div style="font-size:11px; color:#888;">' + lbl + '</div><div style="font-size:18px; font-weight:700; color:#1a73e8; margin:3px 0;">' + srFmt(sirala[key]||0) + '</div><div style="font-size:10px; color:#aaa;">/ ' + (sirala[totKey]||0) + '</div></div>';
-        });
-        html += '</div></div>';
-      }
-
-      // Ders bazlı dağılım
-      if (ist.dersIstat && Object.keys(ist.dersIstat).length > 0) {
-        html += '<div style="background:#f8f9fa; border-radius:10px; padding:14px;"><div style="font-weight:600; font-size:13px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">Ders Bazlı İstatistikler</div>';
-        html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
-        html += '<thead><tr><th style="padding:6px 10px; text-align:left; color:#888; font-weight:500;">Ders</th><th style="padding:6px 10px; text-align:right; color:#888; font-weight:500;">Doğru</th><th style="padding:6px 10px; text-align:right; color:#888; font-weight:500;">Yanlış</th><th style="padding:6px 10px; text-align:right; color:#888; font-weight:500;">% Doğru</th></tr></thead><tbody>';
-        Object.keys(ist.dersIstat).sort().forEach(function(ders) {
-          const di = ist.dersIstat[ders];
-          const top = di.dogru + di.yanlis;
-          const oran = top > 0 ? Math.round(di.dogru / top * 100) : 0;
-          html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:8px 10px; font-weight:500;">' + ders + '</td><td style="padding:8px 10px; text-align:right; color:#43a047; font-weight:600;">' + di.dogru + '</td><td style="padding:8px 10px; text-align:right; color:#e24b4a; font-weight:600;">' + di.yanlis + '</td><td style="padding:8px 10px; text-align:right;">' + oran + '%</td></tr>';
-        });
-        html += '</tbody></table></div>';
-      }
-
-      icerik.innerHTML = html;
-    } catch (e) {
-      icerik.innerHTML = '<div style="color:#c0392b;">Bağlantı hatası: ' + e.message + '</div>';
-    }
-  }
-  function ogrenciDetayKapat() {
-    document.getElementById('ogrenciDetayModal').style.display = 'none';
-  }
+  // ── Öğretmen: Öğrenci istatistikleri öğrencinin profil sayfasında gösterilir
+  // (📊 İstatistikler butonu link olarak çalışır, yeni sekmede açılır) ──
 
   // Sayfa yüklendiğinde her iki kullanıcı için listeleri yükle
   if (document.getElementById('bekleyenIstekListesi')) {
@@ -1455,9 +1390,29 @@ window.addEventListener('DOMContentLoaded', function() {
 function sekmeAc(id, btn) {
     document.querySelectorAll('.sekme-icerik').forEach(function(el){ el.classList.remove('aktif'); });
     document.querySelectorAll('.sekme-btn').forEach(function(b){ b.classList.remove('aktif'); });
-    document.getElementById('sekme-' + id).classList.add('aktif');
-    btn.classList.add('aktif');
+    var hedef = document.getElementById('sekme-' + id);
+    if (hedef) hedef.classList.add('aktif');
+    if (btn) {
+        btn.classList.add('aktif');
+    } else {
+        // URL'den çağrıldığında doğru butonu da aktif yap
+        var ilgiliBtn = document.querySelector('.sekme-btn[onclick*="\'' + id + '\'"]');
+        if (ilgiliBtn) ilgiliBtn.classList.add('aktif');
+    }
 }
+// Sayfa açıldığında URL'de ?sekme=... parametresi varsa o sekmeyi aç (öğretmen istatistik linki için)
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var sekmeAdi = params.get('sekme');
+    if (sekmeAdi && document.getElementById('sekme-' + sekmeAdi)) {
+        // DOM hazırsa hemen, değilse load sonrası
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function(){ sekmeAc(sekmeAdi, null); });
+        } else {
+            sekmeAc(sekmeAdi, null);
+        }
+    }
+})();
 function sfToggle(id, btn) {
     var inp = document.getElementById(id);
     inp.type = inp.type === 'password' ? 'text' : 'password';
