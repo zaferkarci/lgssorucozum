@@ -198,6 +198,34 @@ router.post('/kayit-yap', async (req, res) => {
         // Yeni kullanıcıya 2 adet referans kodu üret (Bölüm 2'de öğretmen için 2+2 olacak)
         await referansKoduUret(kullaniciAdi, 2, 'ogrenci');
 
+        // Yeni kayıt OĞRENCİ ise ve ref kodu bir öğretmen tarafından üretildiyse,
+        // o öğretmenden öğrenciye otomatik takip isteği gönder
+        if (rol === 'ogrenci' && ref.olusturan && ref.olusturan !== 'admin') {
+            try {
+                const olusturanKullanici = await Kullanici.findOne({ kullaniciAdi: ref.olusturan }).lean();
+                if (olusturanKullanici && olusturanKullanici.rol === 'ogretmen') {
+                    const TakipIliski = require('../models/TakipIliski');
+                    // Mevcut bir kayıt varsa duplicate yaratma
+                    const mevcut = await TakipIliski.findOne({
+                        ogretmenAdi: ref.olusturan,
+                        ogrenciAdi: kullaniciAdi
+                    });
+                    if (!mevcut) {
+                        await new TakipIliski({
+                            ogretmenAdi: ref.olusturan,
+                            ogrenciAdi: kullaniciAdi,
+                            isteyenRol: 'ogretmen',
+                            durum: 'beklemede'
+                        }).save();
+                        console.log('[kayit-yap] Otomatik takip isteği oluşturuldu: ' + ref.olusturan + ' → ' + kullaniciAdi);
+                    }
+                }
+            } catch (e) {
+                // Bu işlem başarısız olsa da kayıt başarılı sayılır — sadece log'la
+                console.warn('[kayit-yap] Otomatik takip isteği oluşturulamadı:', e.message);
+            }
+        }
+
         res.redirect('/?kayit=basarili');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
