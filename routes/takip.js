@@ -69,29 +69,41 @@ router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
     }
 });
 
-// Öğretmen → öğrenciye takip isteği gönderir
+// Takip isteği gönderir
+// - Öğretmen → öğrenciAdi belirtir (req.body.ogrenciAdi)
+// - Öğrenci  → ogretmenAdi belirtir (req.body.ogretmenAdi)
 router.post('/takip/istek-gonder', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim || benim.rol !== 'ogretmen') {
-            return res.status(403).json({ ok: false, hata: 'Sadece öğretmenler takip isteği gönderebilir.' });
+        if (!benim) return res.status(401).json({ ok: false, hata: 'Oturum bulunamadı.' });
+        if (benim.rol !== 'ogretmen' && benim.rol !== 'ogrenci') {
+            return res.status(403).json({ ok: false, hata: 'Sadece öğretmen veya öğrenciler takip isteği gönderebilir.' });
         }
 
-        const ogrenciAdi = (req.body.ogrenciAdi || '').trim();
-        if (!ogrenciAdi) return res.json({ ok: false, hata: 'Öğrenci adı gerekli.' });
-
-        const ogrenci = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }).lean();
-        if (!ogrenci || ogrenci.rol !== 'ogrenci') {
-            return res.json({ ok: false, hata: 'Geçerli bir öğrenci bulunamadı.' });
+        let ogretmenAdi, ogrenciAdi;
+        if (benim.rol === 'ogretmen') {
+            ogretmenAdi = benim.kullaniciAdi;
+            ogrenciAdi = (req.body.ogrenciAdi || '').trim();
+            if (!ogrenciAdi) return res.json({ ok: false, hata: 'Öğrenci adı gerekli.' });
+            const hedef = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }).lean();
+            if (!hedef || hedef.rol !== 'ogrenci') return res.json({ ok: false, hata: 'Geçerli bir öğrenci bulunamadı.' });
+        } else {
+            // Öğrenci → öğretmene istek
+            ogrenciAdi = benim.kullaniciAdi;
+            ogretmenAdi = (req.body.ogretmenAdi || '').trim();
+            if (!ogretmenAdi) return res.json({ ok: false, hata: 'Öğretmen adı gerekli.' });
+            const hedef = await Kullanici.findOne({ kullaniciAdi: ogretmenAdi }).lean();
+            if (!hedef || hedef.rol !== 'ogretmen') return res.json({ ok: false, hata: 'Geçerli bir öğretmen bulunamadı.' });
         }
 
-        // Mevcut bir kayıt var mı?
-        const mevcut = await TakipIliski.findOne({ ogretmenAdi: benim.kullaniciAdi, ogrenciAdi });
+        // Mevcut kayıt var mı?
+        const mevcut = await TakipIliski.findOne({ ogretmenAdi, ogrenciAdi });
         if (mevcut) {
-            if (mevcut.durum === 'kabul')      return res.json({ ok: false, hata: 'Zaten bu öğrenciyi takip ediyorsunuz.' });
-            if (mevcut.durum === 'beklemede')  return res.json({ ok: false, hata: 'İstek zaten beklemede.' });
-            // Reddedilmişse yeniden istek gönderilebilir → durumu sıfırla
+            if (mevcut.durum === 'kabul')     return res.json({ ok: false, hata: 'Bu kişiyle zaten takip ilişkin var.' });
+            if (mevcut.durum === 'beklemede') return res.json({ ok: false, hata: 'İstek zaten beklemede.' });
+            // Reddedilmişse yeniden açılır
             mevcut.durum = 'beklemede';
+            mevcut.isteyenRol = benim.rol;
             mevcut.istekTarih = new Date();
             mevcut.yanitTarih = null;
             await mevcut.save();
@@ -99,8 +111,9 @@ router.post('/takip/istek-gonder', oturumGerekli, async (req, res) => {
         }
 
         await new TakipIliski({
-            ogretmenAdi: benim.kullaniciAdi,
-            ogrenciAdi
+            ogretmenAdi,
+            ogrenciAdi,
+            isteyenRol: benim.rol
         }).save();
         res.json({ ok: true, mesaj: 'Takip isteği gönderildi.' });
     } catch (err) {
@@ -109,7 +122,8 @@ router.post('/takip/istek-gonder', oturumGerekli, async (req, res) => {
     }
 });
 
-// Öğrenci → bekleyen takip isteğine yanıt verir (kabul/red)
+// Bekleyen takip isteğine yanıt verir (kabul/red)
+// İsteyen değilim, alıcıyım — tek kontrol bu
 router.post('/takip/yanitla', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
@@ -123,20 +137,19 @@ router.post('/takip/yanitla', oturumGerekli, async (req, res) => {
         const iliski = await TakipIliski.findById(iliskiId);
         if (!iliski) return res.json({ ok: false, hata: 'İstek bulunamadı.' });
 
-        // Yetki kontrolü: öğretmen → öğrenci ise sadece öğrenci yanıtlar; öğrenci → öğretmen ise sadece öğretmen yanıtlar
-        const yanitlayicıAdi = (iliski.ogretmenAdi === benim.kullaniciAdi) ? null : iliski.ogrenciAdi;
-        // Yani: bekleyen isteği sadece "diğer taraf" yanıtlayabilir
-        const dogruYanitlayici = (iliski.ogretmenAdi !== benim.kullaniciAdi);
-        if (!dogruYanitlayici && iliski.ogrenciAdi !== benim.kullaniciAdi) {
+        // Yanıtlayabilen taraf: isteyenin tersi (öğrenci başlattıysa öğretmen yanıtlar, vice versa)
+        const benTarafim = (iliski.ogretmenAdi === benim.kullaniciAdi) ? 'ogretmen' :
+                          (iliski.ogrenciAdi  === benim.kullaniciAdi) ? 'ogrenci' : null;
+        if (!benTarafim) {
             return res.status(403).json({ ok: false, hata: 'Bu istek size ait değil.' });
         }
-        // Öğretmenin gönderdiği isteğe öğrenci yanıt verir
-        if (iliski.ogretmenAdi === benim.kullaniciAdi) {
+        // Bekleyen istekte: sadece "isteyen değilim" olan taraf yanıtlayabilir
+        // Kabul edilmiş ilişkide: her iki taraf da "Takipten çıkar" diyebilir
+        if (iliski.durum === 'beklemede' && benTarafim === iliski.isteyenRol) {
             return res.status(403).json({ ok: false, hata: 'Kendi gönderdiğiniz isteğe yanıt veremezsiniz.' });
         }
-
-        if (iliski.durum !== 'beklemede') {
-            return res.json({ ok: false, hata: 'Bu istek zaten yanıtlanmış.' });
+        if (iliski.durum === 'red') {
+            return res.json({ ok: false, hata: 'Bu istek zaten reddedilmiş.' });
         }
 
         iliski.durum = yanit;
@@ -150,16 +163,16 @@ router.post('/takip/yanitla', oturumGerekli, async (req, res) => {
     }
 });
 
-// Öğrenci için bekleyen istekleri getir (panel.ejs'te badge için)
+// Bekleyen istek sayısı (her iki rol için, üst menü rozetinde gösterilir)
 router.get('/api/takip/bekleyen-istekler', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.json({ ok: false, sayi: 0 });
 
-        // Bekleyen istekler: bana (öğrenci/öğretmen fark etmez) gelmiş, durumu beklemede
+        // "Bana gelen" = isteyenRol benim rolümün tersi
         const filtre = (benim.rol === 'ogretmen')
-            ? { ogretmenAdi: benim.kullaniciAdi, durum: 'beklemede' } // bu fazda bu hiç olmayacak
-            : { ogrenciAdi: benim.kullaniciAdi, durum: 'beklemede' };
+            ? { ogretmenAdi: benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogrenci' }
+            : { ogrenciAdi:  benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogretmen' };
         const sayi = await TakipIliski.countDocuments(filtre);
         res.json({ ok: true, sayi });
     } catch (err) {
@@ -167,15 +180,15 @@ router.get('/api/takip/bekleyen-istekler', oturumGerekli, async (req, res) => {
     }
 });
 
-// Öğrenciye gelen bekleyen istekler (öğretmen detayıyla beraber)
+// Bana gelen bekleyen istekler (kim gönderdiyse karşı rolü ile detay)
 router.get('/api/takip/gelenler', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Oturum bulunamadı' });
 
         const filtre = (benim.rol === 'ogretmen')
-            ? { ogretmenAdi: benim.kullaniciAdi, durum: 'beklemede' }
-            : { ogrenciAdi: benim.kullaniciAdi, durum: 'beklemede' };
+            ? { ogretmenAdi: benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogrenci' }
+            : { ogrenciAdi:  benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogretmen' };
         const istekler = await TakipIliski.find(filtre).sort({ istekTarih: -1 }).lean();
 
         const adlar = istekler.map(i => benim.rol === 'ogretmen' ? i.ogrenciAdi : i.ogretmenAdi);
@@ -193,8 +206,13 @@ router.get('/api/takip/gelenler', oturumGerekli, async (req, res) => {
                 durum: i.durum,
                 istekTarih: i.istekTarih,
                 ogretmenOkul: (benim.rol === 'ogretmen') ? null : d.okul,
-                ogretmenIl: (benim.rol === 'ogretmen') ? null : d.il,
-                ogretmenIlce: (benim.rol === 'ogretmen') ? null : d.ilce
+                ogretmenIl:   (benim.rol === 'ogretmen') ? null : d.il,
+                ogretmenIlce: (benim.rol === 'ogretmen') ? null : d.ilce,
+                ogrenciOkul:  (benim.rol === 'ogretmen') ? d.okul : null,
+                ogrenciIl:    (benim.rol === 'ogretmen') ? d.il : null,
+                ogrenciIlce:  (benim.rol === 'ogretmen') ? d.ilce : null,
+                ogrenciSinif: (benim.rol === 'ogretmen') ? d.sinif : null,
+                ogrenciSube:  (benim.rol === 'ogretmen') ? d.sube : null
             };
         });
         res.json({ ok: true, istekler: zengin });
@@ -243,6 +261,79 @@ router.get('/api/takip/kabul-edilenler', oturumGerekli, async (req, res) => {
     } catch (err) {
         console.error('[takip-kabul-edilenler] hata:', err.message);
         res.json({ ok: false, hata: err.message });
+    }
+});
+
+// Öğretmenin takip ettiği bir öğrencinin detaylı istatistikleri
+// Erişim: yalnızca kabul edilmiş takip ilişkisi varsa
+router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (req, res) => {
+    try {
+        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+        if (!benim || benim.rol !== 'ogretmen') {
+            return res.status(403).json({ ok: false, hata: 'Sadece öğretmenler erişebilir.' });
+        }
+
+        const ogrenciAdi = req.params.ogrenciAdi;
+        // Yetki: kabul edilmiş ilişki olmalı
+        const iliski = await TakipIliski.findOne({
+            ogretmenAdi: benim.kullaniciAdi,
+            ogrenciAdi,
+            durum: 'kabul'
+        });
+        if (!iliski) {
+            return res.status(403).json({ ok: false, hata: 'Bu öğrenciyi takip etmek için onay alınmamış.' });
+        }
+
+        const ogrenci = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }).lean();
+        if (!ogrenci) return res.json({ ok: false, hata: 'Öğrenci bulunamadı.' });
+
+        // Cevap kayıtlarını al ve ders bazlı istatistikleri hesapla
+        const CevapKaydi = require('../models/CevapKaydi');
+        const Soru = require('../models/Soru');
+        const cevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi }).lean();
+        const soruIds = cevaplar.map(c => c.soruId);
+        const sorular = soruIds.length ? await Soru.find({ _id: { $in: soruIds } }, 'ders konu').lean() : [];
+        const soruMap = {};
+        sorular.forEach(s => { soruMap[String(s._id)] = s; });
+
+        const dersIstat = {};
+        let toplamDogru = 0, toplamYanlis = 0, toplamSure = 0;
+        cevaplar.forEach(c => {
+            const sb = soruMap[String(c.soruId)];
+            if (!sb) return;
+            const ders = sb.ders || 'Diğer';
+            if (!dersIstat[ders]) dersIstat[ders] = { dogru: 0, yanlis: 0, sure: 0 };
+            if (c.dogruMu) { dersIstat[ders].dogru++; toplamDogru++; }
+            else           { dersIstat[ders].yanlis++; toplamYanlis++; }
+            dersIstat[ders].sure += c.sure || 0;
+            toplamSure += c.sure || 0;
+        });
+
+        res.json({
+            ok: true,
+            ogrenci: {
+                kullaniciAdi: ogrenci.kullaniciAdi,
+                sinif: ogrenci.sinif,
+                sube: ogrenci.sube,
+                il: ogrenci.il,
+                ilce: ogrenci.ilce,
+                okul: ogrenci.okul,
+                puan: ogrenci.puan || 0,
+                soruIndex: ogrenci.soruIndex || 0,
+                dersPuanlari: ogrenci.dersPuanlari || [],
+                siralamaCache: ogrenci.siralamaCache || null
+            },
+            istatistik: {
+                toplamCevap: cevaplar.length,
+                toplamDogru,
+                toplamYanlis,
+                ortSure: cevaplar.length ? Math.round(toplamSure / cevaplar.length) : 0,
+                dersIstat
+            }
+        });
+    } catch (err) {
+        console.error('[takip-ogrenci-istatistik] hata:', err.message);
+        res.status(500).json({ ok: false, hata: err.message });
     }
 });
 
