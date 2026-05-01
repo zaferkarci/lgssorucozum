@@ -19,19 +19,18 @@ router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
 
         const aranacakRol = (benim.rol === 'ogretmen') ? 'ogrenci' : 'ogretmen';
         const filtre = { rol: aranacakRol };
-        // En az 1 filtre kriteri zorunlu (boş listede tüm kullanıcılar dönmesin)
+        // Kullanıcı adı zorunlu — diğer alanlar daraltıcı filtre
         const { il, ilce, okul, q } = req.query;
-        const enAz1Filtre = (il && il.trim()) || (ilce && ilce.trim()) || (okul && okul.trim()) || (q && q.trim());
-        if (!enAz1Filtre) return res.json({ ok: true, sonuclar: [], mesaj: 'En az bir filtre kriteri girin.' });
+        if (!q || !q.trim()) {
+            return res.json({ ok: true, sonuclar: [], mesaj: 'Aramak için kullanıcı adı zorunludur.' });
+        }
 
         if (il && il.trim())   filtre.il = il.trim();
         if (ilce && ilce.trim()) filtre.ilce = ilce.trim();
         if (okul && okul.trim()) filtre.okul = okul.trim();
-        if (q && q.trim()) {
-            // Kullanıcı adında kısmi eşleşme (case-insensitive)
-            const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            filtre.kullaniciAdi = regex;
-        }
+        // Kullanıcı adında kısmi eşleşme (case-insensitive)
+        const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        filtre.kullaniciAdi = regex;
 
         const sonuclar = await Kullanici.find(filtre, 'kullaniciAdi sinif sube il ilce okul rol')
             .limit(50)

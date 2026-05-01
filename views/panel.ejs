@@ -679,13 +679,19 @@ document.addEventListener('DOMContentLoaded', function() {
   <% if (k.rol === 'ogretmen') { %>
     <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto 16px auto;">
       <p class="profil-kart-baslik-yeni">🔍 Öğrenci Ara ve Takip İsteği Gönder</p>
-      <p style="font-size:13px; color:#888; margin-bottom:14px;">İl, ilçe, okul veya kullanıcı adı ile öğrenci ara. İstek gönderdiğin öğrenciler kabul edince takip edebileceksin.</p>
+      <p style="font-size:13px; color:#888; margin-bottom:14px;">İl, ilçe, okul listeden seçilir. Aramak için kullanıcı adı zorunludur. İstek gönderdiğin öğrenciler kabul edince takip edebileceksin.</p>
 
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px;">
-        <input id="ara-il" type="text" placeholder="İl (örn: Aydın)" class="input" style="margin:0;">
-        <input id="ara-ilce" type="text" placeholder="İlçe (örn: Nazilli)" class="input" style="margin:0;">
-        <input id="ara-okul" type="text" placeholder="Okul adı (kısmi)" class="input" style="margin:0;">
-        <input id="ara-q" type="text" placeholder="Kullanıcı adı (kısmi)" class="input" style="margin:0;">
+        <select id="ara-il" class="input" style="margin:0;" onchange="aramaIlDegisti()">
+          <option value="">İl seçiniz…</option>
+        </select>
+        <select id="ara-ilce" class="input" style="margin:0;" onchange="aramaIlceDegisti()">
+          <option value="">İlçe seçiniz…</option>
+        </select>
+        <select id="ara-okul" class="input" style="margin:0;">
+          <option value="">Okul seçiniz…</option>
+        </select>
+        <input id="ara-q" type="text" placeholder="Kullanıcı adı (zorunlu)" class="input" style="margin:0;">
       </div>
       <div style="display:flex; gap:8px;">
         <button onclick="takipAra()" style="background:#1a73e8; color:white; padding:10px 22px; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px;">Ara</button>
@@ -722,12 +728,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Öğretmen ara ve istek gönder -->
     <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto 16px auto;">
       <p class="profil-kart-baslik-yeni">🔍 Öğretmen Ara ve İstek Gönder</p>
-      <p style="font-size:13px; color:#888; margin-bottom:14px;">İl, ilçe, görev yapılan okul veya kullanıcı adı ile öğretmen ara. İstek gönderdiğin öğretmenler kabul edince seni takip edebilecek.</p>
+      <p style="font-size:13px; color:#888; margin-bottom:14px;">İl, ilçe, görev yapılan okul listeden seçilir. Aramak için kullanıcı adı zorunludur.</p>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px;">
-        <input id="ara-il" type="text" placeholder="İl (örn: Aydın)" class="input" style="margin:0;">
-        <input id="ara-ilce" type="text" placeholder="İlçe (örn: Nazilli)" class="input" style="margin:0;">
-        <input id="ara-okul" type="text" placeholder="Görev yaptığı okul (kısmi)" class="input" style="margin:0;">
-        <input id="ara-q" type="text" placeholder="Kullanıcı adı (kısmi)" class="input" style="margin:0;">
+        <select id="ara-il" class="input" style="margin:0;" onchange="aramaIlDegisti()">
+          <option value="">İl seçiniz…</option>
+        </select>
+        <select id="ara-ilce" class="input" style="margin:0;" onchange="aramaIlceDegisti()">
+          <option value="">İlçe seçiniz…</option>
+        </select>
+        <select id="ara-okul" class="input" style="margin:0;">
+          <option value="">Görev yaptığı okul…</option>
+        </select>
+        <input id="ara-q" type="text" placeholder="Kullanıcı adı (zorunlu)" class="input" style="margin:0;">
       </div>
       <div style="display:flex; gap:8px;">
         <button onclick="takipAra()" style="background:#1a73e8; color:white; padding:10px 22px; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px;">Ara</button>
@@ -753,6 +765,66 @@ document.addEventListener('DOMContentLoaded', function() {
   <script>
   // Sayfadaki kullanıcının rolü (ogretmen / ogrenci)
   var BENIM_ROL = '<%= k.rol %>';
+  var aramaIlIdMap = {};
+
+  // ── İl/İlçe/Okul dropdownları (Türkiye API + kendi /api/okullar) ──
+  function aramaIlleriYukle() {
+    var sel = document.getElementById('ara-il');
+    if (!sel) return;
+    fetch('https://api.turkiyeapi.dev/v1/provinces')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        (data.data||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(il) {
+          aramaIlIdMap[il.name] = il.id;
+          var opt = document.createElement('option');
+          opt.value = il.name; opt.textContent = il.name;
+          sel.appendChild(opt);
+        });
+      })
+      ['catch'](function(){ /* sessiz */ });
+  }
+  function aramaIlDegisti() {
+    var ilAdi = document.getElementById('ara-il').value;
+    var ilceSel = document.getElementById('ara-ilce');
+    var okulSel = document.getElementById('ara-okul');
+    ilceSel.innerHTML = '<option value="">İlçe seçiniz…</option>';
+    okulSel.innerHTML = '<option value="">' + (BENIM_ROL === 'ogretmen' ? 'Okul seçiniz…' : 'Görev yaptığı okul…') + '</option>';
+    if (!ilAdi) return;
+    var ilId = aramaIlIdMap[ilAdi];
+    if (!ilId) return;
+    fetch('https://api.turkiyeapi.dev/v1/provinces/'+ilId)
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        ((data.data&&data.data.districts)||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(ilce) {
+          ilceSel.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
+        });
+      })
+      ['catch'](function(){ /* sessiz */ });
+  }
+  function aramaIlceDegisti() {
+    var il = document.getElementById('ara-il').value;
+    var ilce = document.getElementById('ara-ilce').value;
+    var okulSel = document.getElementById('ara-okul');
+    okulSel.innerHTML = '<option value="">Yükleniyor…</option>';
+    if (!il || !ilce) {
+      okulSel.innerHTML = '<option value="">' + (BENIM_ROL === 'ogretmen' ? 'Okul seçiniz…' : 'Görev yaptığı okul…') + '</option>';
+      return;
+    }
+    fetch('/api/okullar?il='+encodeURIComponent(il)+'&ilce='+encodeURIComponent(ilce))
+      .then(function(r){ return r.json(); })
+      .then(function(liste) {
+        liste.sort(function(a,b){ return a.localeCompare(b,'tr'); });
+        okulSel.innerHTML = '<option value="">' + (BENIM_ROL === 'ogretmen' ? 'Okul seçiniz…' : 'Görev yaptığı okul…') + '</option>';
+        if (liste.length > 0) {
+          liste.forEach(function(o){ okulSel.innerHTML += '<option value="'+o+'">'+o+'</option>'; });
+        } else {
+          okulSel.innerHTML = '<option value="">Bu ilçede kayıtlı okul yok</option>';
+        }
+      })
+      ['catch'](function(){ okulSel.innerHTML = '<option value="">Okullar yüklenemedi</option>'; });
+  }
+  // Sayfa açılınca dropdown'ları doldur
+  if (document.getElementById('ara-il')) aramaIlleriYukle();
 
   // ── Arama (her iki rol için ortak) ──
   async function takipAra() {
@@ -760,8 +832,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const ilce = document.getElementById('ara-ilce').value.trim();
     const okul = document.getElementById('ara-okul').value.trim();
     const q    = document.getElementById('ara-q').value.trim();
-    if (!il && !ilce && !okul && !q) {
-      document.getElementById('takipSonucIcerik').innerHTML = '<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 12px; color:#795548;">⚠ En az bir filtre kriteri girin.</div>';
+    // Kullanıcı adı zorunlu
+    if (!q) {
+      document.getElementById('takipSonucIcerik').innerHTML = '<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 12px; color:#795548;">⚠ Aramak için <b>kullanıcı adı</b> zorunlu. Diğer alanlar (il, ilçe, okul) sonuçları daraltmak için kullanılabilir.</div>';
       return;
     }
     document.getElementById('takipSonucIcerik').innerHTML = 'Aranıyor…';
@@ -799,7 +872,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   function takipAramaTemizle() {
-    ['ara-il','ara-ilce','ara-okul','ara-q'].forEach(function(id){ document.getElementById(id).value = ''; });
+    var ilSel = document.getElementById('ara-il');
+    var ilceSel = document.getElementById('ara-ilce');
+    var okulSel = document.getElementById('ara-okul');
+    if (ilSel)   ilSel.value   = '';
+    if (ilceSel) ilceSel.innerHTML = '<option value="">İlçe seçiniz…</option>';
+    if (okulSel) okulSel.innerHTML = '<option value="">' + (BENIM_ROL === 'ogretmen' ? 'Okul seçiniz…' : 'Görev yaptığı okul…') + '</option>';
+    document.getElementById('ara-q').value = '';
     document.getElementById('takipSonucIcerik').innerHTML = '<span style="color:#888;">Filtreleri girip Ara butonuna bas.</span>';
   }
   async function istekGonder(karsiAd, btn) {
