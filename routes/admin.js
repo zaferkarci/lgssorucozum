@@ -6,6 +6,7 @@ const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
+const Haber = require('../models/Haber');
 let YasakliKelime = null;
 try {
     YasakliKelime = require('../models/YasakliKelime');
@@ -84,6 +85,7 @@ router.get('/admin', async (req, res) => {
         : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
     const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
     const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
+    const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     // Filtre seçenekleri için mevcut değerler
     const tumSoruSiniflar = [...new Set((await Soru.find({}, 'sinif').lean()).map(s => s.sinif).filter(Boolean))].sort();
     const tumSoruDersler  = [...new Set((await Soru.find(filSinif ? {sinif:filSinif} : {}, 'ders').lean()).map(s => s.ders).filter(Boolean))].sort();
@@ -98,7 +100,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler
+        tumReferanslar, yasakliKelimeler, tumHaberler
     });
     } catch (err) {
         console.error('[/admin] HATA:', err);
@@ -386,6 +388,54 @@ router.post('/referans-uret', async (req, res) => {
         await referansKoduUret('admin', adet, tip);
         res.redirect('/admin?mod=referans');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// ── Haberler & Duyurular CRUD ──
+router.post('/haber-ekle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const baslik = (req.body.baslik || '').trim();
+        const icerik = (req.body.icerik || '').trim();
+        if (!baslik || !icerik) {
+            return res.send("<script>alert('Başlık ve içerik boş olamaz.'); window.history.back();</script>");
+        }
+        await new Haber({ baslik, icerik, olusturan: 'admin' }).save();
+        res.redirect('/admin?mod=haberler');
+    } catch (err) {
+        console.error('[haber-ekle] hata:', err.message);
+        res.status(500).send("Hata: " + err.message);
+    }
+});
+
+router.post('/haber-sil', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Haber.deleteOne({ _id: req.body.id });
+        res.redirect('/admin?mod=haberler');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+router.post('/haber-guncelle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const baslik = (req.body.baslik || '').trim();
+        const icerik = (req.body.icerik || '').trim();
+        if (!baslik || !icerik) {
+            return res.send("<script>alert('Başlık ve içerik boş olamaz.'); window.history.back();</script>");
+        }
+        await Haber.updateOne({ _id: req.body.id }, { baslik, icerik });
+        res.redirect('/admin?mod=haberler');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// Genel kullanıcılar için haberleri JSON döner (panel sekmesinde gösterilir)
+router.get('/api/haberler', async (req, res) => {
+    try {
+        const liste = await Haber.find().sort({ yayinTarih: -1 }).limit(50).lean();
+        res.json({ ok: true, haberler: liste });
+    } catch (err) {
+        res.json({ ok: false, hata: err.message });
+    }
 });
 
 router.post('/referans-sil', async (req, res) => {

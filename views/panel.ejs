@@ -94,10 +94,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Örnek Soru</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" class="ptopbar-link <%= mod==='davetEdilenler'?'aktif':'' %>">Davet Ettiklerim</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } %>
     <% if (adminGorunum) { %>
@@ -672,6 +674,51 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
   <% } %>
+
+<% } else if (mod === 'haberler') { %>
+
+  <!-- Haberler & Duyurular (öğretmen ve öğrenci için ortak) -->
+  <div class="profil-kart-yeni" style="max-width:900px; margin:0 auto;">
+    <p class="profil-kart-baslik-yeni">📰 Haberler & Duyurular</p>
+    <p style="font-size:13px; color:#888; margin-bottom:14px;">Yeni özellikler, güncellemeler ve önemli bilgiler.</p>
+    <div id="haberlerListesi" style="display:flex; flex-direction:column; gap:12px;">Yükleniyor…</div>
+  </div>
+  <script>
+  (function(){
+    var liste = document.getElementById('haberlerListesi');
+    if (!liste) return;
+    fetch('/api/haberler')
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (!d.ok) { liste.innerHTML = '<div style="color:#c0392b;">Haberler yüklenemedi.</div>'; return; }
+        if (!d.haberler || d.haberler.length === 0) {
+          liste.innerHTML = '<div style="background:#f8f9fa; border-radius:10px; padding:20px; text-align:center; color:#888;">Henüz haber yok.</div>';
+          return;
+        }
+        var html = '';
+        d.haberler.forEach(function(h) {
+          var tarih = new Date(h.yayinTarih);
+          var simdi = new Date();
+          var farkGun = Math.floor((simdi - tarih) / 86400000);
+          var yeniMi = farkGun < 7;
+          var tarihStr = tarih.toLocaleString('tr-TR', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+          html += '<div style="background:white; border:1px solid #e8eaed; border-radius:10px; padding:16px 18px;">';
+          html += '<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">';
+          html += '<h3 style="margin:0; font-size:16px; color:#1a73e8; font-weight:600;">' + escapeHTML(h.baslik) + '</h3>';
+          if (yeniMi) html += '<span style="background:#e8f5e9; color:#2e7d32; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">🆕 YENİ</span>';
+          html += '<span style="font-size:11px; color:#888; margin-left:auto;">' + tarihStr + '</span>';
+          html += '</div>';
+          html += '<div style="font-size:13px; color:#444; white-space:pre-wrap; line-height:1.6;">' + escapeHTML(h.icerik) + '</div>';
+          html += '</div>';
+        });
+        liste.innerHTML = html;
+      })
+      .catch(function(){ liste.innerHTML = '<div style="color:#c0392b;">Bağlantı hatası.</div>'; });
+    function escapeHTML(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+  })();
+  </script>
 
 <% } else if (mod === 'takip') { %>
 
