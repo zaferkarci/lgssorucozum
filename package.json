@@ -1,6 +1,6 @@
 {
   "name": "lgs-hazirlik",
-  "version": "4.1.12",
+  "version": "4.1.10",
   "description": "LGS Hazirlik Platformu",
   "main": "server.js",
   "scripts": {
