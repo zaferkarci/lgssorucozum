@@ -338,6 +338,7 @@ router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (re
 
 // Öğretmen için: takip ettiği öğrencinin tam istatistik sayfası (ayrı HTML view)
 // Erişim: yalnızca kabul edilmiş takip ilişkisi varsa
+// Veriler: panel.js'in istatistik sekmesi mantığıyla bire bir aynı şekilde hesaplanır
 router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
@@ -358,52 +359,51 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
         const ogrenci = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }).lean();
         if (!ogrenci) return res.status(404).send('Öğrenci bulunamadı.');
 
+        // panel.js'teki istatistik hesaplama mantığının BİRE BİR aynısı:
         const CevapKaydi = require('../models/CevapKaydi');
         const Soru = require('../models/Soru');
-        const cevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi }).lean();
-        const soruIds = cevaplar.map(c => c.soruId);
-        const sorular = soruIds.length ? await Soru.find({ _id: { $in: soruIds } }, 'ders').lean() : [];
-        const soruMap = {};
-        sorular.forEach(s => { soruMap[String(s._id)] = s; });
+        const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi }).lean();
+        const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
+        const cevapSorular = soruIdleri.length > 0
+            ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu soruMetni soruOnculu1 soruOnculu1Resmi soruOnculu2 soruOnculu2Resmi soruOnculu3 soruOnculu3Resmi soruResmi secenekler dogruCevapIndex tabloBaslik sikDizilimi _id').lean()
+            : [];
+        const soruBilgiMap = {};
+        cevapSorular.forEach(s => { soruBilgiMap[String(s._id)] = s; });
 
-        const dersIstat = {};
-        let toplamDogru = 0, toplamYanlis = 0, toplamSure = 0;
-        cevaplar.forEach(c => {
-            const sb = soruMap[String(c.soruId)];
+        const dersIstatMap = {};
+        tumCevaplar.forEach(c => {
+            const sb = soruBilgiMap[String(c.soruId)];
             if (!sb) return;
             const ders = sb.ders || 'Diğer';
-            if (!dersIstat[ders]) dersIstat[ders] = { dogru: 0, yanlis: 0, sure: 0 };
-            if (c.dogruMu) { dersIstat[ders].dogru++; toplamDogru++; }
-            else           { dersIstat[ders].yanlis++; toplamYanlis++; }
-            dersIstat[ders].sure += c.sure || 0;
-            toplamSure += c.sure || 0;
+            const konu = sb.konu || 'Genel';
+            if (!dersIstatMap[ders]) dersIstatMap[ders] = { toplamDogru: 0, toplamYanlis: 0, konular: {} };
+            if (!dersIstatMap[ders].konular[konu]) dersIstatMap[ders].konular[konu] = { dogru: 0, yanlis: 0, toplamSure: 0 };
+            if (c.dogruMu) { dersIstatMap[ders].toplamDogru++; dersIstatMap[ders].konular[konu].dogru++; }
+            else           { dersIstatMap[ders].toplamYanlis++; dersIstatMap[ders].konular[konu].yanlis++; }
+            dersIstatMap[ders].konular[konu].toplamSure += c.sure || 0;
         });
 
+        // ortToplamHesapla — panel.js'teki ile aynı
+        function ortToplamHesapla(kullanici) {
+            if (!kullanici.dersPuanlari || kullanici.dersPuanlari.length === 0) return 0;
+            return kullanici.dersPuanlari.reduce((toplam, d) => {
+                if (!d.soruSayisi) return toplam;
+                return toplam + (d.toplamPuan / d.soruSayisi);
+            }, 0);
+        }
+
         res.render('takip-ogrenci-detay', {
+            k: ogrenci,
+            tumCevaplar,
+            soruBilgiMap,
+            dersIstatMap,
+            ortToplamHesapla,
             ogretmenAdi: benim.kullaniciAdi,
-            ogrenci: {
-                kullaniciAdi: ogrenci.kullaniciAdi,
-                sinif: ogrenci.sinif,
-                sube: ogrenci.sube,
-                il: ogrenci.il,
-                ilce: ogrenci.ilce,
-                okul: ogrenci.okul,
-                puan: ogrenci.puan || 0,
-                soruIndex: ogrenci.soruIndex || 0,
-                siralamaCache: ogrenci.siralamaCache || null
-            },
-            istatistik: {
-                toplamCevap: cevaplar.length,
-                toplamDogru,
-                toplamYanlis,
-                ortSure: cevaplar.length ? Math.round(toplamSure / cevaplar.length) : 0,
-                dersIstat
-            },
             encodeURIComponent
         });
     } catch (err) {
-        console.error('[takip-ogrenci-detay] hata:', err.message);
-        res.status(500).send('<pre>' + err.message + '</pre>');
+        console.error('[takip-ogrenci-detay] hata:', err.message, err.stack);
+        res.status(500).send('<pre>' + (err.message || err) + '</pre>');
     }
 });
 

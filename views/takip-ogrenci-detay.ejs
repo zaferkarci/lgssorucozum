@@ -3,195 +3,425 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><%= ogrenci.kullaniciAdi %> — Ders İstatistikleri</title>
+<title><%= k.kullaniciAdi %> — Ders İstatistikleri</title>
 <link rel="stylesheet" href="/style.css">
 <style>
-body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 0; }
-.üstbant { background: white; border-bottom: 1px solid #e8eaed; padding: 12px 24px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.üstbant-baslik { font-size: 16px; font-weight: 600; color: #1a73e8; }
-.üstbant-rozet { background: #f3e5f5; color: #6a1b9a; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 12px; }
-.üstbant-link { margin-left: auto; padding: 8px 16px; background: #f0f0f0; color: #333; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500; }
-.üstbant-link:hover { background: #e0e0e0; }
-.kapsayici { max-width: 1100px; margin: 18px auto; padding: 0 16px; }
-.profil-banner { background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%); border-radius: 14px; padding: 22px 26px; color: white; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-.profil-banner-isim { font-size: 22px; font-weight: 700; }
-.profil-banner-alt { font-size: 13px; opacity: 0.9; margin-top: 4px; }
-.profil-banner-stat { text-align: center; min-width: 80px; }
-.profil-banner-no { font-size: 28px; font-weight: 700; }
-.profil-banner-label { font-size: 11px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; }
-.profil-kart { background: white; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.profil-kart-baslik { font-size: 15px; font-weight: 600; color: #444; margin: 0 0 14px 0; }
-.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-.metric-kutu { text-align: center; padding: 16px 12px; border-radius: 10px; }
-.metric-no { font-size: 26px; font-weight: 700; }
-.metric-label { font-size: 11px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.ders-tablo { width: 100%; border-collapse: collapse; font-size: 13px; }
-.ders-tablo th { padding: 8px 10px; text-align: left; color: #888; font-weight: 500; background: #f8f9fa; }
-.ders-tablo td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; }
-.ders-bar-tasiyici { width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
-.ders-bar { height: 100%; transition: width 0.3s; }
-.siralama-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
-.siralama-kutu { text-align: center; padding: 10px; background: #f8f9fa; border-radius: 8px; }
-.siralama-kapsam { font-size: 11px; color: #888; }
-.siralama-no { font-size: 20px; font-weight: 700; color: #1a73e8; margin: 4px 0; }
-.siralama-toplam { font-size: 10px; color: #aaa; }
-.uyari-kutu { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px; color: #795548; line-height: 1.5; }
+.sqrt{display:inline-flex;align-items:center;}
+.sqrt-sembol{font-size:1.15em;line-height:1;margin-right:1px;}
+.sqrt-icerik{border-top:1.5px solid currentColor;padding:0 2px;display:inline-block;}
+.math-sup{vertical-align:super;font-size:.75em;}
+.math-sub{vertical-align:sub;font-size:.75em;}
+.math-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;line-height:1.2;}
+.math-frac-ust{border-bottom:1px solid currentColor;padding:0 2px;}
+.math-frac-alt{padding:0 2px;}
 </style>
+<script>
+window.MathJaxReady = false;
+MathJax = {
+  tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+  options: { skipHtmlTags: ['script','style','textarea','pre'] },
+  startup: {
+    ready() {
+      MathJax.startup.defaultReady();
+      window.MathJaxReady = true;
+    }
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
 </head>
-<body>
+<body class="panel-body">
 
-<!-- Üst bant -->
-<div class="üstbant">
-  <span class="üstbant-baslik">📊 <%= ogrenci.kullaniciAdi %> — Ders İstatistikleri</span>
-  <span class="üstbant-rozet">👩‍🏫 ÖĞRETMEN GÖRÜNÜMÜ</span>
-  <a href="/panel/<%= encodeURIComponent(ogretmenAdi) %>?mod=takip" class="üstbant-link">← Takip Sayfasına Dön</a>
+<!-- Üst öğretmen görünümü bandı -->
+<div class="panel-topbar-yeni">
+  <div class="ptopbar-sol">
+    <span class="ptopbar-logo">LGS Hazırlık</span>
+    <div class="ptopbar-ayrac"></div>
+    <div class="ptopbar-kullanici">
+      <div class="ptopbar-avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
+      👨‍🎓 <%= k.kullaniciAdi %> · <%= k.puan %> puan
+    </div>
+  </div>
+  <div class="ptopbar-nav">
+    <span class="ptopbar-link" style="background:#f3e5f5; color:#6a1b9a; font-weight:600; cursor:default;">👩‍🏫 ÖĞRETMEN GÖRÜNÜMÜ</span>
+    <a href="/panel/<%= encodeURIComponent(ogretmenAdi) %>?mod=takip" class="ptopbar-link cikis">← Takip Sayfasına Dön</a>
+  </div>
 </div>
 
-<div class="kapsayici">
+<div class="panel-main">
 
-  <!-- Profil banner -->
+  <!-- Profil banner (kompakt) -->
   <div class="profil-banner">
-    <div>
-      <div class="profil-banner-isim">👨‍🎓 <%= ogrenci.kullaniciAdi %></div>
-      <div class="profil-banner-alt"><%= ogrenci.sinif %>. Sınıf<%= ogrenci.sube ? '/' + ogrenci.sube + ' Şubesi' : '' %> · <%= ogrenci.okul || '-' %> · <%= ogrenci.il || '-' %> / <%= ogrenci.ilce || '-' %></div>
-    </div>
-    <div style="display: flex; gap: 14px;">
-      <div class="profil-banner-stat">
-        <div class="profil-banner-no"><%= ogrenci.puan || 0 %></div>
-        <div class="profil-banner-label">Toplam Puan</div>
+    <div class="profil-banner-sol">
+      <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
+      <div>
+        <div class="profil-banner-isim"><%= k.kullaniciAdi %></div>
+        <div class="profil-banner-alt"><%= k.sinif %>. Sınıf<%= k.sube ? '/' + k.sube + ' Şubesi' : '' %> · <%= k.okul || '-' %> · <%= k.il || '-' %> / <%= k.ilce || '-' %></div>
       </div>
-      <div style="width: 1px; background: rgba(255,255,255,0.3);"></div>
+    </div>
+    <div class="profil-banner-sag">
       <div class="profil-banner-stat">
-        <div class="profil-banner-no"><%= ogrenci.soruIndex || 0 %></div>
-        <div class="profil-banner-label">Çözülen Soru</div>
+        <div class="profil-banner-no"><%= k.puan %></div>
+        <div class="profil-banner-label">Toplam puan</div>
+      </div>
+      <div class="profil-banner-sep"></div>
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no"><%= k.soruIndex %></div>
+        <div class="profil-banner-label">Çözülen soru</div>
       </div>
     </div>
   </div>
 
-  <!-- 4 büyük metrik -->
-  <div class="profil-kart">
-    <p class="profil-kart-baslik">Genel Performans</p>
+  <div id="sekme-istatistik" class="sekme-icerik aktif">
     <%
-      var ist = istatistik;
-      var dogruOrani = ist.toplamCevap > 0 ? Math.round(ist.toplamDogru / ist.toplamCevap * 100) : 0;
-      var oranRenk = dogruOrani >= 70 ? '#2e7d32' : dogruOrani >= 40 ? '#e65100' : '#c62828';
-      var oranBg   = dogruOrani >= 70 ? '#e8f5e9' : dogruOrani >= 40 ? '#fff3e0' : '#ffebee';
+      var tumC = tumCevaplar || [];
+      var genelDogru  = tumC.filter(function(c){ return c.dogruMu; }).length;
+      var genelYanlis = tumC.filter(function(c){ return !c.dogruMu; }).length;
+      var genelToplam = tumC.length;
+      var genelOran   = genelToplam > 0 ? Math.round((genelDogru / genelToplam) * 100) : 0;
+      var genelSure   = genelToplam > 0 ? Math.round(tumC.reduce(function(t,c){ return t+(c.sure||0); },0) / genelToplam) : 0;
+      var genelBarRenk = genelOran >= 70 ? '#43a047' : genelOran >= 40 ? '#fb8c00' : '#e53935';
+      var genelRenk    = genelOran >= 70 ? '#2e7d32' : genelOran >= 40 ? '#e65100' : '#c62828';
+      var dersler = Object.keys(dersIstatMap);
     %>
-    <div class="metric-grid">
-      <div class="metric-kutu" style="background:#e8f0fe;">
-        <div class="metric-no" style="color:#1a73e8;"><%= ist.toplamCevap %></div>
-        <div class="metric-label">Toplam Cevap</div>
-      </div>
-      <div class="metric-kutu" style="background:#e8f5e9;">
-        <div class="metric-no" style="color:#43a047;"><%= ist.toplamDogru %></div>
-        <div class="metric-label">Doğru</div>
-      </div>
-      <div class="metric-kutu" style="background:#ffebee;">
-        <div class="metric-no" style="color:#c62828;"><%= ist.toplamYanlis %></div>
-        <div class="metric-label">Yanlış</div>
-      </div>
-      <div class="metric-kutu" style="background:<%= oranBg %>;">
-        <div class="metric-no" style="color:<%= oranRenk %>;"><%= dogruOrani %>%</div>
-        <div class="metric-label">Doğru Oranı</div>
-      </div>
-      <div class="metric-kutu" style="background:#fce4ec;">
-        <div class="metric-no" style="color:#c2185b;"><%= ist.ortSure || 0 %>sn</div>
-        <div class="metric-label">Ort. Süre</div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Genel sıralama -->
-  <% if (ogrenci.siralamaCache && ogrenci.siralamaCache.toplamKullanici !== undefined) { var sr = ogrenci.siralamaCache; %>
-  <div class="profil-kart">
-    <p class="profil-kart-baslik">Genel Sıralama</p>
-    <% if (sr.nitelikli === false) { %>
-      <div class="uyari-kutu">
-        ℹ️ Sıralamada yer alabilmek için en az <b><%= sr.minSoru || 10 %> soru</b> çözülmesi gerekir.
-        <span style="color:#1565c0; font-weight:600;">(Şu ana kadar: <%= sr.kullaniciSoruSayisi || 0 %>)</span>
+    <% if (genelToplam === 0) { %>
+      <div class="yakin-wrap">
+        <div class="yakin-ikon">📈</div>
+        <div class="yakin-baslik">Henüz istatistik yok</div>
+        <div class="yakin-alt">Soru çözdükçe ders ve konu bazlı istatistiklerin burada görünecek.</div>
       </div>
-    <% } %>
-    <% function srFmt(no) { return no > 0 ? '#' + no : '—'; } %>
-    <div class="siralama-grid">
-      <div class="siralama-kutu">
-        <div class="siralama-kapsam">Türkiye</div>
-        <div class="siralama-no"><%= srFmt(sr.turkiye || 0) %></div>
-        <div class="siralama-toplam">/ <%= sr.toplamKullanici || 0 %></div>
-      </div>
-      <div class="siralama-kutu">
-        <div class="siralama-kapsam">İl</div>
-        <div class="siralama-no"><%= srFmt(sr.il || 0) %></div>
-        <div class="siralama-toplam">/ <%= sr.ilKullanici || 0 %></div>
-      </div>
-      <div class="siralama-kutu">
-        <div class="siralama-kapsam">İlçe</div>
-        <div class="siralama-no"><%= srFmt(sr.ilce || 0) %></div>
-        <div class="siralama-toplam">/ <%= sr.ilceKullanici || 0 %></div>
-      </div>
-      <div class="siralama-kutu">
-        <div class="siralama-kapsam">Okul</div>
-        <div class="siralama-no"><%= srFmt(sr.okul || 0) %></div>
-        <div class="siralama-toplam">/ <%= sr.okulKullanici || 0 %></div>
-      </div>
-      <div class="siralama-kutu">
-        <div class="siralama-kapsam">Sınıf<%= ogrenci.sube ? ' ('+ogrenci.sinif+'-'+ogrenci.sube+')' : '' %></div>
-        <div class="siralama-no"><%= srFmt(sr.sinif || 0) %></div>
-        <div class="siralama-toplam">/ <%= sr.sinifKullanici || 0 %></div>
-      </div>
-    </div>
-  </div>
-  <% } %>
+    <% } else { %>
 
-  <!-- Ders bazlı dağılım -->
-  <% var dersAdlari = Object.keys(istatistik.dersIstat || {}).sort(); %>
-  <% if (dersAdlari.length > 0) { %>
-  <div class="profil-kart">
-    <p class="profil-kart-baslik">Ders Bazlı İstatistikler</p>
-    <table class="ders-tablo">
-      <thead>
-        <tr>
-          <th>Ders</th>
-          <th style="text-align:right;">Doğru</th>
-          <th style="text-align:right;">Yanlış</th>
-          <th style="text-align:right;">Ort. Süre</th>
-          <th style="text-align:right;">% Doğru</th>
-          <th style="width: 25%;">Görsel</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% dersAdlari.forEach(function(ders) {
-            var di = istatistik.dersIstat[ders];
-            var top = di.dogru + di.yanlis;
-            var oran = top > 0 ? Math.round(di.dogru / top * 100) : 0;
-            var ortS = top > 0 ? Math.round(di.sure / top) : 0;
-            var renk = oran >= 70 ? '#43a047' : oran >= 40 ? '#fb8c00' : '#e53935';
+      <!-- Genel özet -->
+      <div class="profil-kart-yeni" style="margin-bottom:14px;">
+        <p class="profil-kart-baslik-yeni">Genel İstatistikler</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= k.puan %></div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Toplam puan</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#202124;"><%= genelToplam %></div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Çözülen soru</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:<%= genelRenk %>;"><%= genelOran %>%</div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Doğru oranı</div>
+          </div>
+          <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#2e7d32;"><%= genelDogru %></div>
+            <div style="font-size:11px; color:#66bb6a; margin-top:3px;">Doğru</div>
+          </div>
+          <div style="background:#ffebee; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#c62828;"><%= genelYanlis %></div>
+            <div style="font-size:11px; color:#ef9a9a; margin-top:3px;">Yanlış</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#202124;"><%= genelSure %>sn</div>
+            <div style="font-size:11px; color:#999; margin-top:3px;">Ort. süre</div>
+          </div>
+        </div>
+        <div style="height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden;">
+          <div style="height:100%; width:<%= genelOran %>%; background:<%= genelBarRenk %>; border-radius:3px;"></div>
+        </div>
+      </div>
+
+      <!-- Tüm konular — başarı yüzdesine göre (zayıftan güçlüye) -->
+      <%
+        var tumKonular = [];
+        dersler.forEach(function(ders) {
+          var di = dersIstatMap[ders];
+          Object.keys(di.konular).forEach(function(konu) {
+            var kd = di.konular[konu];
+            var top = kd.dogru + kd.yanlis;
+            if (top > 0) {
+              tumKonular.push({
+                ders: ders,
+                konu: konu,
+                dogru: kd.dogru,
+                top: top,
+                oran: Math.round((kd.dogru / top) * 100)
+              });
+            }
+          });
+        });
+        tumKonular.sort(function(a, b) {
+          if (a.oran !== b.oran) return a.oran - b.oran;
+          return b.top - a.top; // aynı oranda daha çok soru çözülen önce
+        });
+      %>
+      <% if (tumKonular.length > 0) { %>
+      <div class="profil-kart-yeni" style="margin-bottom:14px;">
+        <p class="profil-kart-baslik-yeni">Konu Bazlı Başarı — Zayıftan Güçlüye</p>
+        <p style="font-size:12px; color:#888; margin-bottom:12px;">Önce çalışılması gereken konular en üstte. Toplam <%= tumKonular.length %> konu listede.</p>
+        <% tumKonular.forEach(function(t, idx) {
+          var renk = t.oran >= 70 ? '#43a047' : t.oran >= 40 ? '#fb8c00' : '#e53935';
         %>
-          <tr>
-            <td style="font-weight:500;"><%= ders %></td>
-            <td style="text-align:right; color:#43a047; font-weight:600;"><%= di.dogru %></td>
-            <td style="text-align:right; color:#e53935; font-weight:600;"><%= di.yanlis %></td>
-            <td style="text-align:right; color:#666;"><%= ortS %>sn</td>
-            <td style="text-align:right; font-weight:600;"><%= oran %>%</td>
-            <td>
-              <div class="ders-bar-tasiyici">
-                <div class="ders-bar" style="width: <%= oran %>%; background: <%= renk %>;"></div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5;">
+            <span style="font-size:11px; color:#bbb; min-width:24px; text-align:right;"><%= idx + 1 %>.</span>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+                <span style="font-size:13px; color:#333; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><%= t.konu %></span>
+                <span style="font-size:12px; font-weight:600; color:<%= renk %>; white-space:nowrap; margin-left:8px;"><%= t.oran %>%</span>
               </div>
-            </td>
-          </tr>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div style="flex:1; height:4px; background:#f0f0f0; border-radius:2px; overflow:hidden;">
+                  <div style="height:100%; width:<%= t.oran %>%; background:<%= renk %>; border-radius:2px;"></div>
+                </div>
+                <span style="font-size:10px; color:#999; white-space:nowrap;"><%= t.ders %> · <%= t.dogru %>/<%= t.top %></span>
+              </div>
+            </div>
+          </div>
         <% }); %>
-      </tbody>
-    </table>
-  </div>
-  <% } else { %>
-  <div class="profil-kart">
-    <p style="text-align:center; color:#888; padding:20px;">Bu öğrenci henüz hiç soru çözmemiş.</p>
-  </div>
-  <% } %>
+      </div>
+      <% } %>
 
-  <p style="text-align: center; color: #aaa; font-size: 11px; margin-top: 20px;">
-    Bu sayfa sadece kabul edilmiş takip ilişkisi olduğunda görünür. · LGS Hazırlık Platformu
-  </p>
+      <!-- Ders bazlı kartlar -->
+      <% dersler.forEach(function(ders) {
+        var di = dersIstatMap[ders];
+        var toplamSoru = di.toplamDogru + di.toplamYanlis;
+        var dogruOran  = toplamSoru > 0 ? Math.round((di.toplamDogru / toplamSoru) * 100) : 0;
+        var renk    = dogruOran >= 70 ? '#2e7d32' : dogruOran >= 40 ? '#e65100' : '#c62828';
+        var barRenk = dogruOran >= 70 ? '#43a047' : dogruOran >= 40 ? '#fb8c00' : '#e53935';
+        var konular = Object.keys(di.konular);
+        var dersOrtSure = toplamSoru > 0 ? Math.round(konular.reduce(function(t,k){ return t+di.konular[k].toplamSure; },0) / toplamSoru) : 0;
+      %>
+      <div class="profil-kart-yeni" style="margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div>
+            <p style="font-size:14px; font-weight:600; color:#202124; margin:0;"><%= ders %></p>
+            <p style="font-size:12px; color:#888; margin:2px 0 0;"><%= toplamSoru %> soru çözüldü</p>
+          </div>
+          <div style="font-size:20px; font-weight:700; color:<%= renk %>;"><%= dogruOran %>%</div>
+        </div>
+        <div style="height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; margin-bottom:14px;">
+          <div style="height:100%; width:<%= dogruOran %>%; background:<%= barRenk %>; border-radius:3px;"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;">
+          <div style="background:#e8f5e9; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#2e7d32;"><%= di.toplamDogru %></div>
+            <div style="font-size:11px; color:#66bb6a;">Doğru</div>
+          </div>
+          <div style="background:#ffebee; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#c62828;"><%= di.toplamYanlis %></div>
+            <div style="font-size:11px; color:#ef9a9a;">Yanlış</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#202124;"><%= dersOrtSure %>sn</div>
+            <div style="font-size:11px; color:#999;">Ort. süre</div>
+          </div>
+        </div>
+        <% if (konular.length > 0) { %>
+        <p style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#b0bcc8; margin-bottom:10px;">Konu Detayı</p>
+        <% var konularSirali = konular.slice().sort(function(a, b) {
+          var ka = di.konular[a], kb = di.konular[b];
+          var taop = ka.dogru + ka.yanlis, tbop = kb.dogru + kb.yanlis;
+          var oa = taop > 0 ? (ka.dogru / taop) : 1;
+          var ob = tbop > 0 ? (kb.dogru / tbop) : 1;
+          if (oa !== ob) return oa - ob;
+          return tbop - taop;
+        }); %>
+        <% konularSirali.forEach(function(konu) {
+          var kd = di.konular[konu];
+          var kTop  = kd.dogru + kd.yanlis;
+          var kOran = kTop > 0 ? Math.round((kd.dogru / kTop) * 100) : 0;
+          var kRenk = kOran >= 70 ? '#43a047' : kOran >= 40 ? '#fb8c00' : '#e53935';
+          var kSure = kTop > 0 ? Math.round(kd.toplamSure / kTop) : 0;
+        %>
+          <div style="padding:10px 0; border-bottom:1px solid #f5f5f5;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <span style="font-size:13px; color:#333; font-weight:500;"><%= konu %></span>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:11px; color:#aaa;">⏱ ort. <%= kSure %>sn</span>
+                <span style="font-size:12px; font-weight:600; color:<%= kRenk %>;"><%= kd.dogru %>/<%= kTop %> — <%= kOran %>%</span>
+              </div>
+            </div>
+            <div style="height:4px; background:#f0f0f0; border-radius:2px; overflow:hidden;">
+              <div style="height:100%; width:<%= kOran %>%; background:<%= kRenk %>; border-radius:2px;"></div>
+            </div>
+          </div>
+        <% }); %>
+        <% } %>
+      </div>
+      <% }); %>
+
+      <!-- Son çözülen sorular -->
+      <div class="profil-kart-yeni">
+        <p class="profil-kart-baslik-yeni">Son Çözülen Sorular (<%= Math.min(tumC.length, 50) %>)</p>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">#</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Ders</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Konu</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Süre</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Puan</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Sonuç</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;">Tarih</th>
+                <th style="background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% tumC.slice(0, 50).forEach(function(c, i) {
+                var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]) || {};
+              %>
+              <tr>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= i+1 %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= sb.ders||'-' %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= sb.konu||'-' %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= c.sure||0 %>sn</td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#1a73e8; font-weight:600;"><%= (c.kazanilanPuan||0).toFixed ? Number(c.kazanilanPuan||0).toFixed(1) : (c.kazanilanPuan||0) %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5;">
+                  <span style="display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; background:<%= c.dogruMu ? '#e8f5e9' : '#ffebee' %>; color:<%= c.dogruMu ? '#2e7d32' : '#c62828' %>;">
+                    <%= c.dogruMu ? '✓ Doğru' : '✗ Yanlış' %>
+                  </span>
+                </td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR') : '-' %></td>
+                <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5;">
+                  <% if (!c.dogruMu && sb.soruMetni) { %>
+                    <button onclick="soruGoster('<%= String(c.soruId) %>')"
+                      style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">
+                      Soruyu Gör
+                    </button>
+                  <% } %>
+                </td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Soru Gör Modalı -->
+      <div id="soruGorModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:16px; max-width:680px; width:100%; max-height:90vh; overflow-y:auto; position:relative;">
+          <div style="padding:16px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; border-radius:16px 16px 0 0;">
+            <span style="font-size:14px; font-weight:600; color:#202124;">Soru İnceleme</span>
+            <button onclick="soruKapat()" style="background:#f5f5f5; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;">✕</button>
+          </div>
+          <div id="soruGorIcerik" style="padding:20px 24px;"></div>
+        </div>
+      </div>
+
+      <!-- Soru verisi JS'e gömülüyor -->
+      <script>
+      var soruVerileri = {};
+      <% tumC.forEach(function(c) {
+        if (!c.dogruMu) {
+          var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]);
+          if (sb && sb.soruMetni) { %>
+      soruVerileri['<%= String(c.soruId) %>'] = <%- JSON.stringify({
+        soruMetni: sb.soruMetni,
+        soruOnculu1: sb.soruOnculu1||'',
+        soruOnculu1Resmi: sb.soruOnculu1Resmi||'',
+        soruOnculu2: sb.soruOnculu2||'',
+        soruOnculu2Resmi: sb.soruOnculu2Resmi||'',
+        soruOnculu3: sb.soruOnculu3||'',
+        soruOnculu3Resmi: sb.soruOnculu3Resmi||'',
+        soruResmi: sb.soruResmi||'',
+        secenekler: sb.secenekler||[],
+        dogruCevapIndex: sb.dogruCevapIndex,
+        tabloBaslik: sb.tabloBaslik||[],
+        sikDizilimi: sb.sikDizilimi||'dikey',
+        ders: sb.ders||'',
+        konu: sb.konu||''
+      }) %>;
+      <% } } }); %>
+
+      var harfler = ['A','B','C','D'];
+
+      function gorselHtml(url) {
+        if (!url || url === '[GÖRSEL VAR]') return '';
+        return '<div style="text-align:center; margin-bottom:8px;"><img src="' + url + '" style="max-width:100%; max-height:220px; border-radius:8px; object-fit:contain;"></div>';
+      }
+
+      function htmlDuzelt(metin) {
+        if (!metin) return '';
+        // HTML entity karekök → direkt sembol
+        return metin.replace(/&#8730;/g, '√').replace(/&radic;/g, '√');
+      }
+
+      function oncul(metin, resim) {
+        var html = '';
+        if (metin) html += '<div style="background:transparent; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;">' + htmlDuzelt(metin) + '</div>';
+        if (resim) html += gorselHtml(resim);
+        return html;
+      }
+
+      function soruGoster(id) {
+        var s = soruVerileri[id];
+        if (!s) return;
+        var html = '';
+
+        // Etiketler
+        html += '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">';
+        if (s.ders) html += '<span style="background:#e3f2fd; color:#1565c0; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.ders + '</span>';
+        if (s.konu) html += '<span style="background:#f3e5f5; color:#6a1b9a; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.konu + '</span>';
+        html += '</div>';
+
+        // Öncüller — metin + görsel çifti olarak
+        html += oncul(s.soruOnculu1, s.soruOnculu1Resmi);
+        html += oncul(s.soruOnculu2, s.soruOnculu2Resmi);
+        html += oncul(s.soruOnculu3, s.soruOnculu3Resmi);
+
+        // Soru metni
+        html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:12px;">' + s.soruMetni + '</div>';
+
+        // Soru görseli
+        if (s.soruResmi) html += gorselHtml(s.soruResmi);
+
+        // Tablo başlığı
+        if (s.tabloBaslik && s.tabloBaslik.length > 0) {
+          html += '<div style="margin-bottom:4px;"><table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:3px 0; width:48px;"></td>';
+          s.tabloBaslik.forEach(function(b) {
+            html += '<td style="padding:3px 0; width:90px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + b + '</td>';
+          });
+          html += '</tr></table></div>';
+        }
+
+        // Şıklar
+        var gridCols = s.sikDizilimi === 'yatay' ? 'repeat(4,1fr)' : s.sikDizilimi === 'ikili' ? 'repeat(2,1fr)' : '1fr';
+        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
+        (s.secenekler || []).forEach(function(sik, i) {
+          var dogru = i === s.dogruCevapIndex;
+          var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
+          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : 'white') + '; cursor:default;">';
+          html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : '#f0f2f5') + '; color:' + (dogru ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
+          var sikMetin = (sik.metin||'').trim();
+          if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + '; flex:1;">' + sikMetin + '</span>';
+          if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; ' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '">';
+          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+
+        // Doğru cevap özet satırı
+        var dogCevap = s.secenekler && s.secenekler[s.dogruCevapIndex];
+        html += '<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; font-size:13px; color:#2e7d32; font-weight:500;">✓ Doğru cevap: <b>' + harfler[s.dogruCevapIndex] + '</b> şıkkı</div>';
+
+        document.getElementById('soruGorIcerik').innerHTML = html;
+        mathRenderSonra(document.getElementById('soruGorIcerik'));
+        if (window.MathJax) MathJax.typesetPromise([document.getElementById('soruGorIcerik')]);
+        var modal = document.getElementById('soruGorModal');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function soruKapat() {
+        document.getElementById('soruGorModal').style.display = 'none';
+        document.body.style.overflow = '';
+      }
+
+      document.getElementById('soruGorModal').addEventListener('click', function(e) {
+        if (e.target === this) soruKapat();
+      });
+      </script>
+
+    <% } %>
+  </div>
+
 </div>
-
 </body>
 </html>
