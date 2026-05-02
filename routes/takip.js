@@ -336,4 +336,75 @@ router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (re
     }
 });
 
+// Öğretmen için: takip ettiği öğrencinin tam istatistik sayfası (ayrı HTML view)
+// Erişim: yalnızca kabul edilmiş takip ilişkisi varsa
+router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
+    try {
+        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+        if (!benim || benim.rol !== 'ogretmen') {
+            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler görüntüleyebilir.</p></div>');
+        }
+
+        const ogrenciAdi = req.params.ogrenciAdi;
+        const iliski = await TakipIliski.findOne({
+            ogretmenAdi: benim.kullaniciAdi,
+            ogrenciAdi,
+            durum: 'kabul'
+        });
+        if (!iliski) {
+            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu öğrenciyle henüz onaylanmış bir takip ilişkin yok.</p><a href="/panel/' + encodeURIComponent(benim.kullaniciAdi) + '?mod=takip" style="color:#1a73e8;">← Takip Sayfasına Dön</a></div>');
+        }
+
+        const ogrenci = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }).lean();
+        if (!ogrenci) return res.status(404).send('Öğrenci bulunamadı.');
+
+        const CevapKaydi = require('../models/CevapKaydi');
+        const Soru = require('../models/Soru');
+        const cevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi }).lean();
+        const soruIds = cevaplar.map(c => c.soruId);
+        const sorular = soruIds.length ? await Soru.find({ _id: { $in: soruIds } }, 'ders').lean() : [];
+        const soruMap = {};
+        sorular.forEach(s => { soruMap[String(s._id)] = s; });
+
+        const dersIstat = {};
+        let toplamDogru = 0, toplamYanlis = 0, toplamSure = 0;
+        cevaplar.forEach(c => {
+            const sb = soruMap[String(c.soruId)];
+            if (!sb) return;
+            const ders = sb.ders || 'Diğer';
+            if (!dersIstat[ders]) dersIstat[ders] = { dogru: 0, yanlis: 0, sure: 0 };
+            if (c.dogruMu) { dersIstat[ders].dogru++; toplamDogru++; }
+            else           { dersIstat[ders].yanlis++; toplamYanlis++; }
+            dersIstat[ders].sure += c.sure || 0;
+            toplamSure += c.sure || 0;
+        });
+
+        res.render('takip-ogrenci-detay', {
+            ogretmenAdi: benim.kullaniciAdi,
+            ogrenci: {
+                kullaniciAdi: ogrenci.kullaniciAdi,
+                sinif: ogrenci.sinif,
+                sube: ogrenci.sube,
+                il: ogrenci.il,
+                ilce: ogrenci.ilce,
+                okul: ogrenci.okul,
+                puan: ogrenci.puan || 0,
+                soruIndex: ogrenci.soruIndex || 0,
+                siralamaCache: ogrenci.siralamaCache || null
+            },
+            istatistik: {
+                toplamCevap: cevaplar.length,
+                toplamDogru,
+                toplamYanlis,
+                ortSure: cevaplar.length ? Math.round(toplamSure / cevaplar.length) : 0,
+                dersIstat
+            },
+            encodeURIComponent
+        });
+    } catch (err) {
+        console.error('[takip-ogrenci-detay] hata:', err.message);
+        res.status(500).send('<pre>' + err.message + '</pre>');
+    }
+});
+
 module.exports = router;

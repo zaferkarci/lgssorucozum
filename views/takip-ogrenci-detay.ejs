@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= ogrenci.kullaniciAdi %> — Ders İstatistikleri</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; margin: 0; padding: 0; }
+.üstbant { background: white; border-bottom: 1px solid #e8eaed; padding: 12px 24px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.üstbant-baslik { font-size: 16px; font-weight: 600; color: #1a73e8; }
+.üstbant-rozet { background: #f3e5f5; color: #6a1b9a; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 12px; }
+.üstbant-link { margin-left: auto; padding: 8px 16px; background: #f0f0f0; color: #333; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500; }
+.üstbant-link:hover { background: #e0e0e0; }
+.kapsayici { max-width: 1100px; margin: 18px auto; padding: 0 16px; }
+.profil-banner { background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%); border-radius: 14px; padding: 22px 26px; color: white; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.profil-banner-isim { font-size: 22px; font-weight: 700; }
+.profil-banner-alt { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+.profil-banner-stat { text-align: center; min-width: 80px; }
+.profil-banner-no { font-size: 28px; font-weight: 700; }
+.profil-banner-label { font-size: 11px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; }
+.profil-kart { background: white; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.profil-kart-baslik { font-size: 15px; font-weight: 600; color: #444; margin: 0 0 14px 0; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.metric-kutu { text-align: center; padding: 16px 12px; border-radius: 10px; }
+.metric-no { font-size: 26px; font-weight: 700; }
+.metric-label { font-size: 11px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.ders-tablo { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ders-tablo th { padding: 8px 10px; text-align: left; color: #888; font-weight: 500; background: #f8f9fa; }
+.ders-tablo td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; }
+.ders-bar-tasiyici { width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.ders-bar { height: 100%; transition: width 0.3s; }
+.siralama-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.siralama-kutu { text-align: center; padding: 10px; background: #f8f9fa; border-radius: 8px; }
+.siralama-kapsam { font-size: 11px; color: #888; }
+.siralama-no { font-size: 20px; font-weight: 700; color: #1a73e8; margin: 4px 0; }
+.siralama-toplam { font-size: 10px; color: #aaa; }
+.uyari-kutu { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px; color: #795548; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- Üst bant -->
+<div class="üstbant">
+  <span class="üstbant-baslik">📊 <%= ogrenci.kullaniciAdi %> — Ders İstatistikleri</span>
+  <span class="üstbant-rozet">👩‍🏫 ÖĞRETMEN GÖRÜNÜMÜ</span>
+  <a href="/panel/<%= encodeURIComponent(ogretmenAdi) %>?mod=takip" class="üstbant-link">← Takip Sayfasına Dön</a>
+</div>
+
+<div class="kapsayici">
+
+  <!-- Profil banner -->
+  <div class="profil-banner">
+    <div>
+      <div class="profil-banner-isim">👨‍🎓 <%= ogrenci.kullaniciAdi %></div>
+      <div class="profil-banner-alt"><%= ogrenci.sinif %>. Sınıf<%= ogrenci.sube ? '/' + ogrenci.sube + ' Şubesi' : '' %> · <%= ogrenci.okul || '-' %> · <%= ogrenci.il || '-' %> / <%= ogrenci.ilce || '-' %></div>
+    </div>
+    <div style="display: flex; gap: 14px;">
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no"><%= ogrenci.puan || 0 %></div>
+        <div class="profil-banner-label">Toplam Puan</div>
+      </div>
+      <div style="width: 1px; background: rgba(255,255,255,0.3);"></div>
+      <div class="profil-banner-stat">
+        <div class="profil-banner-no"><%= ogrenci.soruIndex || 0 %></div>
+        <div class="profil-banner-label">Çözülen Soru</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 büyük metrik -->
+  <div class="profil-kart">
+    <p class="profil-kart-baslik">Genel Performans</p>
+    <%
+      var ist = istatistik;
+      var dogruOrani = ist.toplamCevap > 0 ? Math.round(ist.toplamDogru / ist.toplamCevap * 100) : 0;
+      var oranRenk = dogruOrani >= 70 ? '#2e7d32' : dogruOrani >= 40 ? '#e65100' : '#c62828';
+      var oranBg   = dogruOrani >= 70 ? '#e8f5e9' : dogruOrani >= 40 ? '#fff3e0' : '#ffebee';
+    %>
+    <div class="metric-grid">
+      <div class="metric-kutu" style="background:#e8f0fe;">
+        <div class="metric-no" style="color:#1a73e8;"><%= ist.toplamCevap %></div>
+        <div class="metric-label">Toplam Cevap</div>
+      </div>
+      <div class="metric-kutu" style="background:#e8f5e9;">
+        <div class="metric-no" style="color:#43a047;"><%= ist.toplamDogru %></div>
+        <div class="metric-label">Doğru</div>
+      </div>
+      <div class="metric-kutu" style="background:#ffebee;">
+        <div class="metric-no" style="color:#c62828;"><%= ist.toplamYanlis %></div>
+        <div class="metric-label">Yanlış</div>
+      </div>
+      <div class="metric-kutu" style="background:<%= oranBg %>;">
+        <div class="metric-no" style="color:<%= oranRenk %>;"><%= dogruOrani %>%</div>
+        <div class="metric-label">Doğru Oranı</div>
+      </div>
+      <div class="metric-kutu" style="background:#fce4ec;">
+        <div class="metric-no" style="color:#c2185b;"><%= ist.ortSure || 0 %>sn</div>
+        <div class="metric-label">Ort. Süre</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Genel sıralama -->
+  <% if (ogrenci.siralamaCache && ogrenci.siralamaCache.toplamKullanici !== undefined) { var sr = ogrenci.siralamaCache; %>
+  <div class="profil-kart">
+    <p class="profil-kart-baslik">Genel Sıralama</p>
+    <% if (sr.nitelikli === false) { %>
+      <div class="uyari-kutu">
+        ℹ️ Sıralamada yer alabilmek için en az <b><%= sr.minSoru || 10 %> soru</b> çözülmesi gerekir.
+        <span style="color:#1565c0; font-weight:600;">(Şu ana kadar: <%= sr.kullaniciSoruSayisi || 0 %>)</span>
+      </div>
+    <% } %>
+    <% function srFmt(no) { return no > 0 ? '#' + no : '—'; } %>
+    <div class="siralama-grid">
+      <div class="siralama-kutu">
+        <div class="siralama-kapsam">Türkiye</div>
+        <div class="siralama-no"><%= srFmt(sr.turkiye || 0) %></div>
+        <div class="siralama-toplam">/ <%= sr.toplamKullanici || 0 %></div>
+      </div>
+      <div class="siralama-kutu">
+        <div class="siralama-kapsam">İl</div>
+        <div class="siralama-no"><%= srFmt(sr.il || 0) %></div>
+        <div class="siralama-toplam">/ <%= sr.ilKullanici || 0 %></div>
+      </div>
+      <div class="siralama-kutu">
+        <div class="siralama-kapsam">İlçe</div>
+        <div class="siralama-no"><%= srFmt(sr.ilce || 0) %></div>
+        <div class="siralama-toplam">/ <%= sr.ilceKullanici || 0 %></div>
+      </div>
+      <div class="siralama-kutu">
+        <div class="siralama-kapsam">Okul</div>
+        <div class="siralama-no"><%= srFmt(sr.okul || 0) %></div>
+        <div class="siralama-toplam">/ <%= sr.okulKullanici || 0 %></div>
+      </div>
+      <div class="siralama-kutu">
+        <div class="siralama-kapsam">Sınıf<%= ogrenci.sube ? ' ('+ogrenci.sinif+'-'+ogrenci.sube+')' : '' %></div>
+        <div class="siralama-no"><%= srFmt(sr.sinif || 0) %></div>
+        <div class="siralama-toplam">/ <%= sr.sinifKullanici || 0 %></div>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Ders bazlı dağılım -->
+  <% var dersAdlari = Object.keys(istatistik.dersIstat || {}).sort(); %>
+  <% if (dersAdlari.length > 0) { %>
+  <div class="profil-kart">
+    <p class="profil-kart-baslik">Ders Bazlı İstatistikler</p>
+    <table class="ders-tablo">
+      <thead>
+        <tr>
+          <th>Ders</th>
+          <th style="text-align:right;">Doğru</th>
+          <th style="text-align:right;">Yanlış</th>
+          <th style="text-align:right;">Ort. Süre</th>
+          <th style="text-align:right;">% Doğru</th>
+          <th style="width: 25%;">Görsel</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% dersAdlari.forEach(function(ders) {
+            var di = istatistik.dersIstat[ders];
+            var top = di.dogru + di.yanlis;
+            var oran = top > 0 ? Math.round(di.dogru / top * 100) : 0;
+            var ortS = top > 0 ? Math.round(di.sure / top) : 0;
+            var renk = oran >= 70 ? '#43a047' : oran >= 40 ? '#fb8c00' : '#e53935';
+        %>
+          <tr>
+            <td style="font-weight:500;"><%= ders %></td>
+            <td style="text-align:right; color:#43a047; font-weight:600;"><%= di.dogru %></td>
+            <td style="text-align:right; color:#e53935; font-weight:600;"><%= di.yanlis %></td>
+            <td style="text-align:right; color:#666;"><%= ortS %>sn</td>
+            <td style="text-align:right; font-weight:600;"><%= oran %>%</td>
+            <td>
+              <div class="ders-bar-tasiyici">
+                <div class="ders-bar" style="width: <%= oran %>%; background: <%= renk %>;"></div>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <div class="profil-kart">
+    <p style="text-align:center; color:#888; padding:20px;">Bu öğrenci henüz hiç soru çözmemiş.</p>
+  </div>
+  <% } %>
+
+  <p style="text-align: center; color: #aaa; font-size: 11px; margin-top: 20px;">
+    Bu sayfa sadece kabul edilmiş takip ilişkisi olduğunda görünür. · LGS Hazırlık Platformu
+  </p>
+</div>
+
+</body>
+</html>
