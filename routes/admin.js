@@ -7,6 +7,7 @@ const Unite = require('../models/Unite');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Haber = require('../models/Haber');
+const Mesaj = require('../models/Mesaj');
 let YasakliKelime = null;
 try {
     YasakliKelime = require('../models/YasakliKelime');
@@ -86,6 +87,9 @@ router.get('/admin', async (req, res) => {
     const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
     const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
+    const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
+    // Tüm sekmelerde nav rozeti için okunmamış sayısı
+    const okunmamisMesajSayisi = await Mesaj.countDocuments({ okundu: false });
     // Filtre seçenekleri için mevcut değerler
     const tumSoruSiniflar = [...new Set((await Soru.find({}, 'sinif').lean()).map(s => s.sinif).filter(Boolean))].sort();
     const tumSoruDersler  = [...new Set((await Soru.find(filSinif ? {sinif:filSinif} : {}, 'ders').lean()).map(s => s.ders).filter(Boolean))].sort();
@@ -100,7 +104,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi
     });
     } catch (err) {
         console.error('[/admin] HATA:', err);
@@ -436,6 +440,55 @@ router.get('/api/haberler', async (req, res) => {
     } catch (err) {
         res.json({ ok: false, hata: err.message });
     }
+});
+
+// ── Mesajlar (İletişim Formu) ──
+// Public POST: ziyaretçi formdan mesaj gönderir
+router.post('/iletisim-gonder', async (req, res) => {
+    try {
+        const adSoyad = (req.body.adSoyad || '').trim();
+        const email   = (req.body.email   || '').trim();
+        const telefon = (req.body.telefon || '').trim();
+        const konu    = (req.body.konu    || '').trim();
+        const mesaj   = (req.body.mesaj   || '').trim();
+
+        // Zorunlu: adSoyad + email + mesaj
+        if (!adSoyad) return res.status(400).send("<script>alert('Ad-Soyad alanı zorunludur.'); window.history.back();</script>");
+        if (!email)   return res.status(400).send("<script>alert('E-posta alanı zorunludur.'); window.history.back();</script>");
+        if (!mesaj)   return res.status(400).send("<script>alert('Mesaj alanı zorunludur.'); window.history.back();</script>");
+        // Basit e-posta formatı
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).send("<script>alert('Geçerli bir e-posta adresi girin.'); window.history.back();</script>");
+        }
+        // Aşırı uzun girişlere karşı limit
+        if (adSoyad.length > 100 || email.length > 200 || telefon.length > 30 || konu.length > 200 || mesaj.length > 5000) {
+            return res.status(400).send("<script>alert('Bir veya birden fazla alan çok uzun.'); window.history.back();</script>");
+        }
+
+        await new Mesaj({ adSoyad, email, telefon, konu, mesaj }).save();
+        res.send("<!DOCTYPE html><html lang='tr'><head><meta charset='UTF-8'><title>Mesaj gönderildi</title><link rel='stylesheet' href='/style.css'></head><body style='font-family:sans-serif; padding:60px 20px; text-align:center;'><div style='max-width:480px; margin:0 auto; background:white; border-radius:14px; padding:40px 28px; box-shadow:0 4px 20px rgba(0,0,0,0.08);'><div style='font-size:48px; margin-bottom:14px;'>✉️</div><h2 style='color:#2e7d32; margin:0 0 10px;'>Mesajınız gönderildi</h2><p style='color:#666; line-height:1.6;'>İletişim formundan gönderdiğiniz mesaj başarıyla iletildi. En kısa sürede dönüş yapılacaktır.</p><div style='margin-top:24px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;'><a href='/' style='padding:10px 22px; background:#1a73e8; color:white; border-radius:8px; text-decoration:none; font-weight:500;'>Ana Sayfaya Dön</a><a href='/iletisim' style='padding:10px 22px; background:#f0f0f0; color:#333; border-radius:8px; text-decoration:none; font-weight:500;'>Yeni Mesaj Gönder</a></div></div></body></html>");
+    } catch (err) {
+        console.error('[iletisim-gonder] hata:', err.message);
+        res.status(500).send("Hata: " + err.message);
+    }
+});
+
+// Admin: mesajı okundu işaretle (POST)
+router.post('/mesaj-okundu', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Mesaj.updateOne({ _id: req.body.id }, { okundu: true });
+        res.redirect('/admin?mod=mesajlar');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// Admin: mesajı sil
+router.post('/mesaj-sil', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Mesaj.deleteOne({ _id: req.body.id });
+        res.redirect('/admin?mod=mesajlar');
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
 router.post('/referans-sil', async (req, res) => {

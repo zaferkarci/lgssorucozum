@@ -60,8 +60,9 @@ document.addEventListener('DOMContentLoaded', function() {
   <a href="/admin?mod=uniteler" class="admin-nav-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
   <a href="/admin?mod=okullar" class="admin-nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
   <a href="/admin?mod=haberler" class="admin-nav-link <%= mod==='haberler'?'active':'' %>">📰 Haberler</a>
+  <a href="/admin?mod=mesajlar" class="admin-nav-link <%= mod==='mesajlar'?'active':'' %>" style="position:relative;">💬 Mesajlar<% if (okunmamisMesajSayisi > 0) { %><span style="position:absolute; top:-3px; right:-6px; background:#e24b4a; color:white; font-size:10px; font-weight:700; padding:2px 6px; border-radius:9px; line-height:1.2; min-width:14px; text-align:center;"><%= okunmamisMesajSayisi %></span><% } %></a>
   <a href="/admin?mod=sifirla" class="admin-nav-link danger">🗑️ Sıfırla</a>
-  <div class="admin-nav-right">Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span></div>
+  <div class="admin-nav-right">Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span> · <a href="#" onclick="adminCikisYap(event)" class="admin-nav-link" style="color:#999; font-size:12px;">Çıkış</a></div>
 </div>
 
 <div class="admin-main">
@@ -1536,6 +1537,54 @@ function gosterExcelHata(msg) {
   }
   </script>
 
+<% } else if (mod === 'mesajlar') { %>
+
+  <div class="admin-card">
+    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>💬 Mesajlar — Toplam <%= tumMesajlar.length %> · <span style="color:#e24b4a;">Okunmamış: <%= okunmamisMesajSayisi %></span></span>
+    </div>
+    <% if (tumMesajlar.length === 0) { %>
+      <div style="padding:30px; text-align:center; color:#888;">Henüz mesaj yok.</div>
+    <% } else { %>
+      <% tumMesajlar.forEach(function(m) {
+           var tarih = new Date(m.yazilmaTarih);
+           var tarihStr = tarih.toLocaleString('tr-TR', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      %>
+        <div style="padding:14px 16px; border-bottom:1px solid #f0f0f0; <%= m.okundu ? '' : 'background:#fff8e1;' %>">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px;">
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                <span style="font-weight:600; font-size:14px; color:#222;"><%= m.adSoyad %></span>
+                <% if (!m.okundu) { %><span style="background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px;">YENİ</span><% } %>
+                <span style="font-size:11px; color:#888;"><%= tarihStr %></span>
+              </div>
+              <div style="font-size:12px; color:#666; margin-bottom:4px;">
+                ✉️ <a href="mailto:<%= m.email %>" style="color:#1a73e8; text-decoration:none;"><%= m.email %></a>
+                <% if (m.telefon) { %> · 📞 <%= m.telefon %><% } %>
+              </div>
+              <% if (m.konu) { %>
+              <div style="font-size:13px; font-weight:500; color:#444; margin:6px 0 4px;">Konu: <%= m.konu %></div>
+              <% } %>
+              <div style="font-size:13px; color:#333; white-space:pre-wrap; line-height:1.5; margin-top:6px; padding:8px 10px; background:white; border-radius:6px; border:1px solid #eee;"><%= m.mesaj %></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0;">
+              <% if (!m.okundu) { %>
+              <form action="/mesaj-okundu" method="POST" style="margin:0;">
+                <input type="hidden" name="id" value="<%= m._id %>">
+                <button type="submit" style="background:#e8f5e9; color:#2e7d32; padding:6px 10px; border:1px solid #a5d6a7; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%;">✓ Okundu</button>
+              </form>
+              <% } %>
+              <form action="/mesaj-sil" method="POST" onsubmit="return confirm('Bu mesajı silmek istediğine emin misin?');" style="margin:0;">
+                <input type="hidden" name="id" value="<%= m._id %>">
+                <button type="submit" style="background:#ffebee; color:#c62828; padding:6px 10px; border:1px solid #ffcdd2; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%;">🗑️ Sil</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+
 <% } else if (mod === 'sifirla') { %>
   <div class="card">
     <h3 style="color:red;">⚠️ Veri Sıfırlama</h3>
@@ -1940,6 +1989,25 @@ function gosterExcelHata(msg) {
   }
   </script>
 <% } %>
+
+<script>
+// Admin çıkış: Basic Auth'tan çıkmak için browser'ın kendi düzeyinde authentication state'i temizlemesi gerekir.
+// Çoğu modern browser bu için "logout" sayfasına yönlenmeyi yetersiz görür. Sade çözüm: kullanıcıya bildirip kaydı temizlemesini sağla.
+function adminCikisYap(e) {
+  e.preventDefault();
+  var onay = confirm('Admin panelden çıkmak istediğine emin misin?\n\nDikkat: Tarayıcı Basic Auth bilgilerini cache\'liyor. Tam çıkış için tarayıcıyı kapatman gerekebilir.');
+  if (!onay) return;
+  // Önce session'ı temizle, sonra kullanıcıya bilgi ver
+  fetch('/cikis', { credentials: 'same-origin' }).finally(function(){
+    // Geçersiz credential göndererek browser'ın cache'i sıfırlamasını dene
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/admin', false, 'cikis_yapildi', 'gecersiz_token_' + Date.now());
+    try { xhr.send(); } catch(_) {}
+    // Ana sayfaya yönlen
+    window.location.href = '/?cikis=admin';
+  });
+}
+</script>
 
 </div>
 </body>

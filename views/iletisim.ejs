@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İletişim — LGS Hazırlık</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+.iletisim-kapsayici { max-width: 560px; margin: 60px auto; padding: 0 20px; }
+.iletisim-kart { background: white; border-radius: 14px; padding: 30px 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.iletisim-baslik { font-size: 22px; color: #1a73e8; margin: 0 0 6px; font-weight: 600; }
+.iletisim-alt { font-size: 13px; color: #888; margin: 0 0 20px; line-height: 1.5; }
+.alan { margin-bottom: 14px; }
+.alan label { display: block; font-size: 13px; color: #444; font-weight: 500; margin-bottom: 5px; }
+.alan label .zorunlu { color: #e24b4a; }
+.alan input, .alan textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+.alan input:focus, .alan textarea:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.1); }
+.alan textarea { resize: vertical; min-height: 100px; }
+.btn-gonder { background: #1a73e8; color: white; border: none; padding: 11px 26px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; }
+.btn-gonder:hover { background: #1666cc; }
+.btn-gonder:active { transform: scale(0.99); }
+.geri-link { display: inline-block; margin-bottom: 14px; color: #1a73e8; text-decoration: none; font-size: 13px; }
+.geri-link:hover { text-decoration: underline; }
+.bilgi-mesaj { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #795548; margin-bottom: 16px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="iletisim-kapsayici">
+
+  <a href="/" class="geri-link">← Ana Sayfaya Dön</a>
+
+  <div class="iletisim-kart">
+    <h1 class="iletisim-baslik">📬 İletişim Formu</h1>
+    <p class="iletisim-alt">Görüş, öneri veya sorun bildirmek için aşağıdaki formu doldurun. <span class="zorunlu">*</span> ile işaretli alanlar zorunludur.</p>
+
+    <div class="bilgi-mesaj">
+      ℹ️ Mesajınız sistem yöneticisine iletilir. Sıkça yaşanan sorunlarda <b>ad-soyad ve e-posta</b> bırakırsanız size dönüş yapılabilir.
+    </div>
+
+    <form action="/iletisim-gonder" method="POST" autocomplete="off">
+
+      <div class="alan">
+        <label>Ad Soyad <span class="zorunlu">*</span></label>
+        <input type="text" name="adSoyad" maxlength="100" placeholder="Adınız ve soyadınız">
+      </div>
+
+      <div class="alan">
+        <label>E-posta <span class="zorunlu">*</span></label>
+        <input type="email" name="email" maxlength="200" placeholder="ornek@email.com">
+      </div>
+
+      <div class="alan">
+        <label>Telefon</label>
+        <input type="tel" name="telefon" maxlength="30" placeholder="(opsiyonel) 0555 123 45 67">
+      </div>
+
+      <div class="alan">
+        <label>Konu</label>
+        <input type="text" name="konu" maxlength="200" placeholder="(opsiyonel) Mesajınızın konusu">
+      </div>
+
+      <div class="alan">
+        <label>Mesajınız <span class="zorunlu">*</span></label>
+        <textarea name="mesaj" maxlength="5000" rows="6" placeholder="Mesajınızı buraya yazın..."></textarea>
+      </div>
+
+      <button type="submit" class="btn-gonder">Mesajı Gönder</button>
+
+    </form>
+  </div>
+
+  <p style="text-align:center; color:#aaa; font-size:11px; margin-top:14px;">LGS Hazırlık Platformu — Şehit Muhammet Can Sevim Ortaokulu</p>
+
+</div>
+
+</body>
+</html>

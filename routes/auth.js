@@ -140,6 +140,11 @@ router.get('/kayit', async (req, res) => {
     res.render('kayit', { refKod, refTip });
 });
 
+// İletişim formu sayfası (oturum gerekmez, herkese açık)
+router.get('/iletisim', (req, res) => {
+    res.render('iletisim');
+});
+
 router.post('/kayit-yap', async (req, res) => {
     const { kullaniciAdi, email, sifre, sifreTekrar, sinif, sube, il, ilce, okul, refKod } = req.body;
     if (sifre !== sifreTekrar) return res.send("<script>alert('Şifreler uyuşmuyor!'); window.history.back();</script>");
