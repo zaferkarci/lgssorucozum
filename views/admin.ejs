@@ -1785,7 +1785,7 @@ function gosterExcelHata(msg) {
           <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
           <div>
             <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
-            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
           </div>
         </div>
         <div class="admin-soru-sag">
@@ -1808,7 +1808,7 @@ function gosterExcelHata(msg) {
           <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
           <div>
             <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
-            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
           </div>
         </div>
         <div class="admin-soru-sag">
@@ -1831,7 +1831,7 @@ function gosterExcelHata(msg) {
           <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
           <div>
             <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
-            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %></div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
           </div>
         </div>
         <div class="admin-soru-sag">
