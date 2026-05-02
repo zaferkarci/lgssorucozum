@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const SoruSchema = new mongoose.Schema({
+    soruNo: { type: Number, unique: true, sparse: true, index: true },
     sinif: String, ders: String, unite: String, konu: String,
     soruOnculu1: String, soruOnculu1Resmi: String,
     soruOnculu2: String, soruOnculu2Resmi: String,
