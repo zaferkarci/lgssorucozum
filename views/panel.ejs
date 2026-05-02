@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <p class="profil-kart-baslik-yeni">Konu Bazlı Başarı — Zayıftan Güçlüye</p>
         <p style="font-size:12px; color:#888; margin-bottom:12px;">Önce çalışılması gereken konular en üstte. Toplam <%= tumKonular.length %> konu listede.</p>
         <% tumKonular.forEach(function(t, idx) {
-          var renk = t.oran >= 70 ? '#43a047' : t.oran >= 40 ? '#fb8c00' : '#e53935';
+          var renk = t.oran >= 85 ? '#43a047' : t.oran >= 70 ? '#fbc02d' : t.oran >= 45 ? '#fb8c00' : '#e53935';
         %>
           <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f5f5f5;">
             <span style="font-size:11px; color:#bbb; min-width:24px; text-align:right;"><%= idx + 1 %>.</span>
