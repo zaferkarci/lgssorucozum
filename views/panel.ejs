@@ -400,7 +400,11 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; margin-bottom:14px;">
           <div style="height:100%; width:<%= dogruOran %>%; background:<%= barRenk %>; border-radius:3px;"></div>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;">
+        <%
+          var dToplamPuan = di.toplamPuan || 0;
+          var dOrtPuan = toplamSoru > 0 ? (dToplamPuan / toplamSoru) : 0;
+        %>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:8px; margin-bottom:14px;">
           <div style="background:#e8f5e9; border-radius:8px; padding:10px; text-align:center;">
             <div style="font-size:18px; font-weight:600; color:#2e7d32;"><%= di.toplamDogru %></div>
             <div style="font-size:11px; color:#66bb6a;">Doğru</div>
@@ -412,6 +416,14 @@ document.addEventListener('DOMContentLoaded', function() {
           <div style="background:#f8f9fa; border-radius:8px; padding:10px; text-align:center;">
             <div style="font-size:18px; font-weight:600; color:#202124;"><%= dersOrtSure %>sn</div>
             <div style="font-size:11px; color:#999;">Ort. süre</div>
+          </div>
+          <div style="background:#e8f0fe; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#1a73e8;"><%= dToplamPuan.toFixed(1) %></div>
+            <div style="font-size:11px; color:#7baef5;">Toplam puan</div>
+          </div>
+          <div style="background:#fff3e0; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#e65100;"><%= dOrtPuan.toFixed(2) %></div>
+            <div style="font-size:11px; color:#ffab91;">Ort. puan</div>
           </div>
         </div>
         <% if (konular.length > 0) { %>

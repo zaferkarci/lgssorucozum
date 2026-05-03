@@ -376,11 +376,12 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
             if (!sb) return;
             const ders = sb.ders || 'Diğer';
             const konu = sb.konu || 'Genel';
-            if (!dersIstatMap[ders]) dersIstatMap[ders] = { toplamDogru: 0, toplamYanlis: 0, konular: {} };
+            if (!dersIstatMap[ders]) dersIstatMap[ders] = { toplamDogru: 0, toplamYanlis: 0, toplamPuan: 0, konular: {} };
             if (!dersIstatMap[ders].konular[konu]) dersIstatMap[ders].konular[konu] = { dogru: 0, yanlis: 0, toplamSure: 0 };
             if (c.dogruMu) { dersIstatMap[ders].toplamDogru++; dersIstatMap[ders].konular[konu].dogru++; }
             else           { dersIstatMap[ders].toplamYanlis++; dersIstatMap[ders].konular[konu].yanlis++; }
             dersIstatMap[ders].konular[konu].toplamSure += c.sure || 0;
+            dersIstatMap[ders].toplamPuan += (c.kazanilanPuan || 0);
         });
 
         // ortToplamHesapla — panel.js'teki ile aynı
