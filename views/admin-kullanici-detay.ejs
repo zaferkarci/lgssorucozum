@@ -220,7 +220,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
                 <td><%= c.sure||0 %>sn</td>
                 <td style="color:#1a73e8; font-weight:600;"><%= (c.kazanilanPuan||0).toFixed ? (c.kazanilanPuan||0).toFixed(1) : (c.kazanilanPuan||0) %></td>
                 <td><span class="badge <%= c.dogruMu ? 'badge-dogru' : 'badge-yanlis' %>"><%= c.dogruMu ? '✓ Doğru' : '✗ Yanlış' %></span></td>
-                <td style="color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR') : '-' %></td>
+                <td style="color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : '-' %></td>
               </tr>
               <% }); %>
             </tbody>

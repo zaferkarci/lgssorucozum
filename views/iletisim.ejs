@@ -32,23 +32,40 @@ body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Taho
   <a href="/" class="geri-link">← Ana Sayfaya Dön</a>
 
   <div class="iletisim-kart">
-    <h1 class="iletisim-baslik">📬 İletişim Formu</h1>
-    <p class="iletisim-alt">Görüş, öneri veya sorun bildirmek için aşağıdaki formu doldurun. <span class="zorunlu">*</span> ile işaretli alanlar zorunludur.</p>
+    <% if (typeof hata !== 'undefined' && hata) { %>
+      <h1 class="iletisim-baslik">⚠️ Hatalı Soru Bildirimi</h1>
+      <p class="iletisim-alt">Aşağıdaki form ile yöneticilere hatalı soru bildirebilirsin. Mesaj alanına neyin yanlış olduğunu detaylı açıklamayı unutma.</p>
+    <% } else { %>
+      <h1 class="iletisim-baslik">📬 İletişim Formu</h1>
+      <p class="iletisim-alt">Görüş, öneri veya sorun bildirmek için aşağıdaki formu doldurun. <span class="zorunlu">*</span> ile işaretli alanlar zorunludur.</p>
+    <% } %>
 
     <div class="bilgi-mesaj">
-      ℹ️ Mesajınız sistem yöneticisine iletilir. Sıkça yaşanan sorunlarda <b>ad-soyad ve e-posta</b> bırakırsanız size dönüş yapılabilir.
+      <% if (typeof hata !== 'undefined' && hata) { %>
+        🔍 Soru bilgileri otomatik dolduruldu. Mesaj alanına gözlemini açık şekilde yaz; <b>boş bırakırsan gönderim yapılamaz.</b>
+      <% } else { %>
+        ℹ️ Mesajınız sistem yöneticisine iletilir. Sıkça yaşanan sorunlarda <b>ad-soyad ve e-posta</b> bırakırsanız size dönüş yapılabilir.
+      <% } %>
     </div>
 
     <form action="/iletisim-gonder" method="POST" autocomplete="off">
 
+      <% if (typeof hata !== 'undefined' && hata) { %>
+        <input type="hidden" name="hataBildirimi" value="1">
+        <input type="hidden" name="hataSinif"  value="<%= sinif %>">
+        <input type="hidden" name="hataDers"   value="<%= ders %>">
+        <input type="hidden" name="hataKonu"   value="<%= konu %>">
+        <input type="hidden" name="hataSoruNo" value="<%= soruNo %>">
+      <% } %>
+
       <div class="alan">
         <label>Ad Soyad <span class="zorunlu">*</span></label>
-        <input type="text" name="adSoyad" maxlength="100" placeholder="Adınız ve soyadınız">
+        <input type="text" name="adSoyad" maxlength="100" placeholder="Adınız ve soyadınız" value="<%= typeof kullaniciAdi !== 'undefined' ? kullaniciAdi : '' %>">
       </div>
 
       <div class="alan">
         <label>E-posta <span class="zorunlu">*</span></label>
-        <input type="email" name="email" maxlength="200" placeholder="ornek@email.com">
+        <input type="email" name="email" maxlength="200" placeholder="ornek@email.com" value="<%= typeof email !== 'undefined' ? email : '' %>">
       </div>
 
       <div class="alan">
@@ -58,12 +75,32 @@ body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Taho
 
       <div class="alan">
         <label>Konu</label>
-        <input type="text" name="konu" maxlength="200" placeholder="(opsiyonel) Mesajınızın konusu">
+        <%
+          var konuOto = '';
+          if (typeof hata !== 'undefined' && hata) {
+            konuOto = 'Hatalı Soru';
+            if (soruNo) konuOto += ' #' + soruNo;
+            if (ders) konuOto += ' - ' + ders;
+          }
+        %>
+        <input type="text" name="konu" maxlength="200" placeholder="(opsiyonel) Mesajınızın konusu" value="<%= konuOto %>">
       </div>
 
       <div class="alan">
         <label>Mesajınız <span class="zorunlu">*</span></label>
-        <textarea name="mesaj" maxlength="5000" rows="6" placeholder="Mesajınızı buraya yazın..."></textarea>
+        <% if (typeof hata !== 'undefined' && hata) { %>
+          <textarea name="mesaj" maxlength="5000" rows="8" placeholder="Sorudaki hatayı buraya yaz... (boş bırakılamaz)" style="font-family:inherit;">[Hatalı Soru Bildirimi]
+Sınıf: <%= sinif %>
+Ders: <%= ders %>
+Konu: <%= konu %>
+Soru No: #<%= soruNo %>
+
+------- Açıklamam -------
+</textarea>
+          <p style="font-size:11px; color:#888; margin-top:6px;">⚠️ Yukarıdaki "Açıklamam" satırından sonra <b>en az birkaç kelime</b> yazmadan gönderim yapılamaz.</p>
+        <% } else { %>
+          <textarea name="mesaj" maxlength="5000" rows="6" placeholder="Mesajınızı buraya yazın..."></textarea>
+        <% } %>
       </div>
 
       <button type="submit" class="btn-gonder">Mesajı Gönder</button>

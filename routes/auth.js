@@ -141,8 +141,28 @@ router.get('/kayit', async (req, res) => {
 });
 
 // İletişim formu sayfası (oturum gerekmez, herkese açık)
-router.get('/iletisim', (req, res) => {
-    res.render('iletisim');
+router.get('/iletisim', async (req, res) => {
+    // Hatalı soru bildirimi için URL parametreleri
+    const hata = !!req.query.hata;
+    const sinif = req.query.sinif || '';
+    const ders = req.query.ders || '';
+    const konu = req.query.konu || '';
+    const soruNo = req.query.soruNo || '';
+
+    // Oturumluysa kullanıcı adı + email otomatik doldurulsun
+    let kullaniciAdi = '';
+    let email = '';
+    if (req.session && req.session.kullaniciAdi) {
+        try {
+            const k = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }, 'kullaniciAdi email').lean();
+            if (k) {
+                kullaniciAdi = k.kullaniciAdi || '';
+                email = k.email || '';
+            }
+        } catch (e) { /* yoksay */ }
+    }
+
+    res.render('iletisim', { hata, sinif, ders, konu, soruNo, kullaniciAdi, email });
 });
 
 router.post('/kayit-yap', async (req, res) => {

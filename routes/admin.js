@@ -456,6 +456,20 @@ router.post('/iletisim-gonder', async (req, res) => {
         if (!adSoyad) return res.status(400).send("<script>alert('Ad-Soyad alanı zorunludur.'); window.history.back();</script>");
         if (!email)   return res.status(400).send("<script>alert('E-posta alanı zorunludur.'); window.history.back();</script>");
         if (!mesaj)   return res.status(400).send("<script>alert('Mesaj alanı zorunludur.'); window.history.back();</script>");
+
+        // Hatalı soru bildirimi ise, kullanıcının "------- Açıklamam -------" altına bir şey yazmış olması zorunlu
+        if (req.body.hataBildirimi === '1') {
+            const ayrac = '------- Açıklamam -------';
+            const idx = mesaj.indexOf(ayrac);
+            if (idx === -1) {
+                return res.status(400).send("<script>alert('Mesaj şablonu bozulmuş, lütfen formu yeniden açın.'); window.history.back();</script>");
+            }
+            const aciklama = mesaj.substring(idx + ayrac.length).trim();
+            if (!aciklama || aciklama.length < 3) {
+                return res.status(400).send("<script>alert('Lütfen \"Açıklamam\" satırından sonra hatayı detaylı açıklayın. Boş gönderim yapılamaz.'); window.history.back();</script>");
+            }
+        }
+
         // Basit e-posta formatı
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return res.status(400).send("<script>alert('Geçerli bir e-posta adresi girin.'); window.history.back();</script>");
