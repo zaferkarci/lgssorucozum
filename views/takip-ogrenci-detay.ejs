@@ -96,7 +96,12 @@ MathJax = {
       <!-- Genel özet -->
       <div class="profil-kart-yeni" style="margin-bottom:14px;">
         <p class="profil-kart-baslik-yeni">Genel İstatistikler</p>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <% var genelOrtPuan = ortToplamHesapla(k); %>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:10px; margin-bottom:14px;">
+          <div style="background:#f3e5f5; border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:22px; font-weight:700; color:#6a1b9a;"><%= genelOrtPuan.toFixed(2) %></div>
+            <div style="font-size:11px; color:#888; margin-top:3px;">Genel ortalama</div>
+          </div>
           <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
             <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= k.puan %></div>
             <div style="font-size:11px; color:#999; margin-top:3px;">Toplam puan</div>
@@ -203,6 +208,18 @@ MathJax = {
           var dOrtPuan = toplamSoru > 0 ? (dToplamPuan / toplamSoru) : 0;
         %>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:8px; margin-bottom:14px;">
+          <div style="background:#fff3e0; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#e65100;"><%= dOrtPuan.toFixed(2) %></div>
+            <div style="font-size:11px; color:#ffab91;">Ort. puan</div>
+          </div>
+          <div style="background:#e8f0fe; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:#1a73e8;"><%= dToplamPuan.toFixed(1) %></div>
+            <div style="font-size:11px; color:#7baef5;">Toplam puan</div>
+          </div>
+          <div style="background:#f8f9fa; border-radius:8px; padding:10px; text-align:center;">
+            <div style="font-size:18px; font-weight:600; color:<%= renk %>;"><%= dogruOran %>%</div>
+            <div style="font-size:11px; color:#999;">Başarı yüzdesi</div>
+          </div>
           <div style="background:#e8f5e9; border-radius:8px; padding:10px; text-align:center;">
             <div style="font-size:18px; font-weight:600; color:#2e7d32;"><%= di.toplamDogru %></div>
             <div style="font-size:11px; color:#66bb6a;">Doğru</div>
@@ -210,18 +227,6 @@ MathJax = {
           <div style="background:#ffebee; border-radius:8px; padding:10px; text-align:center;">
             <div style="font-size:18px; font-weight:600; color:#c62828;"><%= di.toplamYanlis %></div>
             <div style="font-size:11px; color:#ef9a9a;">Yanlış</div>
-          </div>
-          <div style="background:#f8f9fa; border-radius:8px; padding:10px; text-align:center;">
-            <div style="font-size:18px; font-weight:600; color:#202124;"><%= dersOrtSure %>sn</div>
-            <div style="font-size:11px; color:#999;">Ort. süre</div>
-          </div>
-          <div style="background:#e8f0fe; border-radius:8px; padding:10px; text-align:center;">
-            <div style="font-size:18px; font-weight:600; color:#1a73e8;"><%= dToplamPuan.toFixed(1) %></div>
-            <div style="font-size:11px; color:#7baef5;">Toplam puan</div>
-          </div>
-          <div style="background:#fff3e0; border-radius:8px; padding:10px; text-align:center;">
-            <div style="font-size:18px; font-weight:600; color:#e65100;"><%= dOrtPuan.toFixed(2) %></div>
-            <div style="font-size:11px; color:#ffab91;">Ort. puan</div>
           </div>
         </div>
         <% if (konular.length > 0) { %>
