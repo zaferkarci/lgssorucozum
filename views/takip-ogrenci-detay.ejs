@@ -96,7 +96,12 @@ MathJax = {
       <!-- Genel özet -->
       <div class="profil-kart-yeni" style="margin-bottom:14px;">
         <p class="profil-kart-baslik-yeni">Genel İstatistikler</p>
-        <% var genelOrtPuan = ortToplamHesapla(k); %>
+        <%
+          // Genel ortalama: ders ortalamalarının toplamı / aktif ders sayısı (yalnızca soru çözülmüş dersleri say)
+          var aktifDersler = (k.dersPuanlari || []).filter(function(d){ return d.soruSayisi > 0; });
+          var dersOrtTop = ortToplamHesapla(k);
+          var genelOrtPuan = aktifDersler.length > 0 ? (dersOrtTop / aktifDersler.length) : 0;
+        %>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:10px; margin-bottom:14px;">
           <div style="background:#f3e5f5; border-radius:10px; padding:14px; text-align:center;">
             <div style="font-size:22px; font-weight:700; color:#6a1b9a;"><%= genelOrtPuan.toFixed(2) %></div>
