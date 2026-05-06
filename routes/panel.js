@@ -256,6 +256,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Yeni soru bildirimi
     const yeniSoruSayisi = (k.soruIndex > 0 && cozulmemisSorular.length > 0) ? cozulmemisSorular.length : 0;
 
+    // v4.1.25: Ana ekran (landing) için hızlı istatistikler — ekstra DB sorgusu yok,
+    // tumCevaplar zaten aşağıda yükleniyor; bu hesapları onun üstünden yapacağız.
+    // Hesaplamalar tumCevaplar yüklendikten SONRA yapılıyor (aşağıda landingStats blokunda).
+
     // Ders istatistikleri — CevapKaydi'ndan ders/konu bazlı detay
     const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).lean();
     const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
@@ -295,6 +299,28 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         } catch (e) { console.warn('davetEdilenler yüklenemedi:', e.message); }
     }
 
+    // v4.1.25: Landing istatistikleri — tumCevaplar üzerinden hesaplanıyor (ek DB yok)
+    const toplamCozulen = tumCevaplar.length;
+    const toplamDogru   = tumCevaplar.filter(c => c.dogruMu).length;
+    const dogrulukYuzde = toplamCozulen > 0 ? Math.round((toplamDogru / toplamCozulen) * 100) : 0;
+    // Bugün çözülen
+    const bugunBaslangic = new Date(); bugunBaslangic.setHours(0,0,0,0);
+    const bugunCozulen   = tumCevaplar.filter(c => c.tarih && new Date(c.tarih) >= bugunBaslangic).length;
+    // Sıralama: cache'ten oku (cron 05:00'da günceller). Cache yoksa null gönder.
+    const cacheVar = k.siralamaCache && k.siralamaCache.nitelikli !== undefined && k.siralamaCache.sinif !== undefined;
+    const landingStats = {
+        toplamPuan:    Math.round(k.puan || 0),
+        toplamCozulen,
+        toplamDogru,
+        dogrulukYuzde,
+        bugunCozulen,
+        sinifSira:      cacheVar && k.siralamaCache.nitelikli ? k.siralamaCache.sinif : null,
+        sinifKullanici: cacheVar ? (k.siralamaCache.sinifKullanici || 0) : 0,
+        nitelikli:      cacheVar ? !!k.siralamaCache.nitelikli : false,
+        kullaniciSoruSayisi: cacheVar ? (k.siralamaCache.kullaniciSoruSayisi || 0) : 0,
+        minSoru:        cacheVar ? (k.siralamaCache.minSoru || 10) : 10
+    };
+
     res.render('panel', {
         k,
         mod,
@@ -315,6 +341,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         davetEdilenler,
         modIdx,
         toplamSoru: cozulmemisSorular.length,
+        landingStats,
         adminGorunum: req.adminGorunum || false
     });
 });

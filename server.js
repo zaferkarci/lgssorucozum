@@ -1,9 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.24 (Modüler Yapı) ---
-// v4.1.24 değişiklikleri:
-//   • Admin için sticky session yetkilendirmesi: bir kez şifre girilince
-//     panel ↔ kullanıcı detay geçişlerinde browser tekrar şifre sormuyor.
-//   • Dosya yapısı temizlendi; servereski.js ve geliştirme notu .docx'leri
-//     _arsiv/ klasörüne taşındı (silinmedi).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.25 (Modüler Yapı) ---
+// v4.1.25 değişiklikleri:
+//   • Ana panel landing ekranı zenginleştirildi: toplam puan, çözülen soru,
+//     doğruluk oranı ve sınıf sıralaması istatistik kartları eklendi.
+//   • Bugünkü çözüm sayısına göre motivasyon mesajı.
+//   • Mobil responsive (kartlar 4 sütun → 2 sütun).
+//   • Ekstra DB sorgusu yok — mevcut yüklenen veriden hesaplanıyor.
 
 const mongoose = require('mongoose');
 const express = require('express');
