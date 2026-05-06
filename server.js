@@ -1,9 +1,11 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.27 (Modüler Yapı) ---
-// v4.1.27 değişiklikleri:
-//   • Öğretmen davet linkinde kayıt formu öğretmenin il/ilçe/okul bilgileri ile
-//     pre-fill oluyor. Öğrenci farklı okul / özel ders ise dokunup değiştirebilir.
-//   • Backend'deki otomatik fallback kaldırıldı — ne gönderilirse o kaydedilir;
-//     bu yüzden öğretmen başka okul öğrencisini davet ettiğinde okul karışmaz.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.28 (Modüler Yapı) ---
+// v4.1.28 değişiklikleri:
+//   • Öğretmenler için otomatik günlük davet kodu üretimi (lazy/on-demand):
+//     Profili açtığında, aktif kodu yoksa ve son üretim bugünden eskiyse
+//     2 yeni davet kodu otomatik üretilir. Birikme yok.
+//   • "Davet linkleri" kartında bilgilendirme notu + boşken bilgi mesajı.
+//   • Kopyala butonuna basıldığında öğretmen için "yarın 2 yeni linkin gelecek"
+//     toast bilgilendirmesi.
 
 const mongoose = require('mongoose');
 const express = require('express');

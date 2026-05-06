@@ -330,6 +330,11 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Davet linklerin</p>
           <p style="font-size:12px; color:#888; margin-bottom:12px;">Bu linklerle arkadaşlarını davet edebilirsin. Her link tek kullanımlık.</p>
+          <% if (k.rol === 'ogretmen') { %>
+          <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:9px 12px; margin-bottom:12px; font-size:12px; color:#2e7d32; line-height:1.5;">
+            ℹ️ Linklerin <b>kullanıldıkça</b> yenisi gelir. Aktif linkin kalmazsa ertesi gün otomatik <b>2 yeni link</b> üretilir. Birikme olmaz.
+          </div>
+          <% } %>
           <div id="davet-link-listesi">
           <% (referansKodlari||[]).forEach(function(r) { if (r.kullanildi) return; %>
             <div class="davet-link-satir" data-kod="<%= r.kod %>" style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #e8edf2;">
@@ -341,7 +346,11 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <% var aktifKodlar = (referansKodlari||[]).filter(function(r){ return !r.kullanildi; }); %>
           <% if (aktifKodlar.length === 0) { %>
-            <p style="font-size:13px; color:#aaa;">Aktif referans kodun yok.</p>
+            <% if (k.rol === 'ogretmen') { %>
+              <p style="font-size:13px; color:#f57c00; padding:10px 12px; background:#fff8e1; border:1px solid #ffe082; border-radius:8px; margin:0;">⏰ Aktif referans kodun yok. <b>Yarın 2 yeni link otomatik üretilecek.</b></p>
+            <% } else { %>
+              <p style="font-size:13px; color:#aaa;">Aktif referans kodun yok.</p>
+            <% } %>
           <% } %>
         </div>
       </div>
@@ -1592,6 +1601,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <% } %>
 
 <script>
+// v4.1.28: Kullanıcı rolünü JS'e expose et (toast mesaj seçimi için)
+var KULLANICI_ROL = <%- JSON.stringify(k.rol || 'ogrenci') %>;
+
 function kopyala(metin, btn) {
     var tamMetin = '"Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra yüklenecek."\n' + metin;
     navigator.clipboard.writeText(tamMetin).then(function() {
@@ -1615,6 +1627,12 @@ function kopyala(metin, btn) {
                 console.warn('referans-kopyalandi bildirimi başarısız:', e);
                 davetLinkSunucuHatasiGoster(satir, 'Ağ hatası');
             });
+            // v4.1.28: Öğretmen için bilgilendirme toast'ı
+            if (typeof KULLANICI_ROL !== 'undefined' && KULLANICI_ROL === 'ogretmen') {
+                gosterDavetToast('✓ Link kopyalandı! Yarın 2 yeni linkin otomatik gelecek.', 4500);
+            } else {
+                gosterDavetToast('✓ Link kopyalandı', 2500);
+            }
         } else {
             // Davet linki dışı kullanım için geçici geri bildirim
             var eski = btn.innerText;
@@ -1625,6 +1643,25 @@ function kopyala(metin, btn) {
     }).catch(function(e){
         console.warn('Pano (clipboard) yazma hatası:', e);
     });
+}
+
+// v4.1.28: Toast helper — alt-sağda kısa bilgi mesajı
+function gosterDavetToast(mesaj, sure) {
+    var t = document.getElementById('davet-toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'davet-toast';
+        t.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#1a73e8; color:white; padding:12px 18px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:9999; font-size:13px; max-width:320px; line-height:1.4; transition:opacity 0.3s;';
+        document.body.appendChild(t);
+    }
+    t.textContent = mesaj;
+    t.style.opacity = '1';
+    t.style.display = 'block';
+    if (window._davetToastTimer) clearTimeout(window._davetToastTimer);
+    window._davetToastTimer = setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function(){ t.style.display = 'none'; }, 300);
+    }, sure || 3000);
 }
 function davetLinkKopyalandiKaydet(kod) {
     try {

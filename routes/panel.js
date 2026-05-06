@@ -250,6 +250,28 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
+    // v4.1.28: Öğretmen için otomatik günlük kod üretimi (lazy/on-demand).
+    // Profil sayfasını açtığında çalışır. Kural: aktif (kullanılmamış) kodu yoksa
+    // ve son üretim bugünden eski ise 2 yeni öğrenci davet kodu üret. Birikme yok.
+    if (mod === 'profil' && k.rol === 'ogretmen') {
+        try {
+            const aktifKodSayisi = await ReferansKodu.countDocuments({
+                olusturan: k.kullaniciAdi, kullanildi: false
+            });
+            if (aktifKodSayisi === 0) {
+                const sonKod = await ReferansKodu.findOne({ olusturan: k.kullaniciAdi })
+                    .sort({ olusturmaTarih: -1 }).select('olusturmaTarih').lean();
+                const bugunBasi = new Date(); bugunBasi.setHours(0, 0, 0, 0);
+                const sonTarih = sonKod ? new Date(sonKod.olusturmaTarih) : null;
+                if (!sonTarih || sonTarih < bugunBasi) {
+                    const { referansKoduUret } = require('./auth');
+                    await referansKoduUret(k.kullaniciAdi, 2, 'ogrenci');
+                    console.log('[panel] Otomatik 2 davet kodu üretildi: ' + k.kullaniciAdi);
+                }
+            }
+        } catch (e) { console.warn('[panel] Otomatik kod üretimi başarısız:', e.message); }
+    }
+
     const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ kopyalandi: 1, olusturmaTarih: 1 }).lean();
     const baseUrl = (process.env.SITE_URL || 'https://' + req.get('host')).replace(/\/$/, '');
 
