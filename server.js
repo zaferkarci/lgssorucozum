@@ -1,10 +1,9 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.25 (Modüler Yapı) ---
-// v4.1.25 değişiklikleri:
-//   • Ana panel landing ekranı zenginleştirildi: toplam puan, çözülen soru,
-//     doğruluk oranı ve sınıf sıralaması istatistik kartları eklendi.
-//   • Bugünkü çözüm sayısına göre motivasyon mesajı.
-//   • Mobil responsive (kartlar 4 sütun → 2 sütun).
-//   • Ekstra DB sorgusu yok — mevcut yüklenen veriden hesaplanıyor.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.27 (Modüler Yapı) ---
+// v4.1.27 değişiklikleri:
+//   • Öğretmen davet linkinde kayıt formu öğretmenin il/ilçe/okul bilgileri ile
+//     pre-fill oluyor. Öğrenci farklı okul / özel ders ise dokunup değiştirebilir.
+//   • Backend'deki otomatik fallback kaldırıldı — ne gönderilirse o kaydedilir;
+//     bu yüzden öğretmen başka okul öğrencisini davet ettiğinde okul karışmaz.
 
 const mongoose = require('mongoose');
 const express = require('express');

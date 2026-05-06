@@ -131,13 +131,29 @@ router.get('/', async (req, res) => {
 router.get('/kayit', async (req, res) => {
     const refKod = (req.query.ref || '').trim();
     let refTip = 'ogrenci';
+    // v4.1.27: Öğretmen davet linkinde öğretmenin il/ilçe/okul'unu view'a gönder
+    // ki form dropdownları pre-fill olsun. Öğrenci farklı okulda ise değiştirebilir.
+    let onSecimIl = '', onSecimIlce = '', onSecimOkul = '';
     if (refKod) {
         try {
             const ref = await ReferansKodu.findOne({ kod: refKod }).lean();
-            if (ref && ref.tip === 'ogretmen') refTip = 'ogretmen';
-        } catch (e) { /* yoksay, default ogrenci */ }
+            if (ref && ref.tip === 'ogretmen') {
+                refTip = 'ogretmen';
+                if (ref.olusturan && ref.olusturan !== 'admin') {
+                    const ogretmenSahip = await Kullanici.findOne(
+                        { kullaniciAdi: ref.olusturan, rol: 'ogretmen' },
+                        'il ilce okul'
+                    ).lean();
+                    if (ogretmenSahip) {
+                        onSecimIl   = ogretmenSahip.il   || '';
+                        onSecimIlce = ogretmenSahip.ilce || '';
+                        onSecimOkul = ogretmenSahip.okul || '';
+                    }
+                }
+            }
+        } catch (e) { /* yoksay, default ogrenci + boş ön seçim */ }
     }
-    res.render('kayit', { refKod, refTip });
+    res.render('kayit', { refKod, refTip, onSecimIl, onSecimIlce, onSecimOkul });
 });
 
 // İletişim formu sayfası (oturum gerekmez, herkese açık)
@@ -198,12 +214,21 @@ router.post('/kayit-yap', async (req, res) => {
         const varMi = await Kullanici.findOne({ kullaniciAdi });
         if (varMi) return res.send("<script>alert('Kullanıcı adı alınmış!'); window.history.back();</script>");
 
+        // v4.1.27: Form pre-fill yaklaşımı — öğretmen kodu ile gelen formda
+        // il/ilçe/okul dropdownları öğretmenin değerleriyle önceden seçili gelir
+        // (kayit GET handler'ında doldurulur). Öğrenci özel ders / başka okul ise
+        // dokunup değiştirebilir. Backend tarafında otomatik fallback YOK; ne
+        // gönderilirse o kaydedilir. Boş gönderildiyse boş kalır.
+        const ilSon   = (il   && il.trim())   || '';
+        const ilceSon = (ilce && ilce.trim()) || '';
+        const okulSon = (okul && okul.trim()) || '';
+
         // Öğretmen ise sınıf/şube boş; öğrenci ise normal
         const yeniKullaniciData = {
             kullaniciAdi,
             email: email || '',
             sifre: await bcrypt.hash(sifre, SALT_ROUNDS),
-            il, ilce, okul,
+            il: ilSon, ilce: ilceSon, okul: okulSon,
             rol
         };
         if (rol === 'ogrenci') {

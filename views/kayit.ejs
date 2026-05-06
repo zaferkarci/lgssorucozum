@@ -158,16 +158,26 @@
         <% }); %>
       </select>
       <% } %>
-      <label class="k-label">İl</label>
-      <select name="il" id="ilSelect" onchange="ilDegisti()" required class="input">
+      <% if (refTip !== 'ogretmen') { %>
+      <div style="background:#e3f2fd; border:1px solid #90caf9; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#1565c0; line-height:1.5;">
+        💡 İl/İlçe/Okul alanları <b>opsiyoneldir</b>.
+        <% if (onSecimOkul) { %>
+          Öğretmeninin bilgileriyle önceden dolduruldu. Aynı okuldaysan dokunma; farklı bir okuldan/özel ders öğrencisiyse <b>değiştirebilirsin.</b>
+        <% } else { %>
+          Şimdi boş bırakırsan sonra profilinden tamamlayabilirsin.
+        <% } %>
+      </div>
+      <% } %>
+      <label class="k-label">İl<% if (refTip !== 'ogretmen') { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
+      <select name="il" id="ilSelect" onchange="ilDegisti()" <% if (refTip === 'ogretmen') { %>required<% } %> class="input">
         <option value="">İl Seçiniz...</option>
       </select>
-      <label class="k-label">İlçe</label>
-      <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" required class="input">
+      <label class="k-label">İlçe<% if (refTip !== 'ogretmen') { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
+      <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" <% if (refTip === 'ogretmen') { %>required<% } %> class="input">
         <option value="">İlçe Seçiniz</option>
       </select>
-      <label class="k-label"><%= refTip === 'ogretmen' ? 'Görev Yaptığınız Okul' : 'Okul' %></label>
-      <select name="okul" id="okulListesi" class="input" required>
+      <label class="k-label"><%= refTip === 'ogretmen' ? 'Görev Yaptığınız Okul' : 'Okul' %><% if (refTip !== 'ogretmen') { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
+      <select name="okul" id="okulListesi" class="input" <% if (refTip === 'ogretmen') { %>required<% } %>>
         <option value=""><%= refTip === 'ogretmen' ? 'Görev yaptığınız okulu seçiniz' : 'Okul Seçiniz' %></option>
       </select>
       <button type="submit" class="giris-btn-yeni" style="margin-top:16px;">Kaydı Tamamla</button>
@@ -232,6 +242,12 @@ function kullaniciAdiKontrolEt(ad) {
 }
 
 var ilIdMap = {};
+// v4.1.27: Öğretmen koduyla kayıt — öğretmenin il/ilçe/okul'u dropdownlarda
+// önceden seçili gelsin. Öğrenci farklı okul ise dokunup değiştirebilir.
+var onSecimIl   = <%- JSON.stringify(typeof onSecimIl   !== 'undefined' ? onSecimIl   : '') %>;
+var onSecimIlce = <%- JSON.stringify(typeof onSecimIlce !== 'undefined' ? onSecimIlce : '') %>;
+var onSecimOkul = <%- JSON.stringify(typeof onSecimOkul !== 'undefined' ? onSecimOkul : '') %>;
+
 fetch('https://api.turkiyeapi.dev/v1/provinces')
   .then(function(r){ return r.json(); })
   .then(function(data) {
@@ -240,8 +256,11 @@ fetch('https://api.turkiyeapi.dev/v1/provinces')
       ilIdMap[il.name] = il.id;
       var opt = document.createElement('option');
       opt.value = il.name; opt.textContent = il.name;
+      if (il.name === onSecimIl) opt.selected = true;
       ilSelect.appendChild(opt);
     });
+    // İl yüklendiyse, ilçe yüklemeyi tetikle (pre-fill zinciri)
+    if (onSecimIl && ilIdMap[onSecimIl]) ilDegisti();
   })
   ['catch'](function(e){ document.getElementById('ilSelect').innerHTML += '<option>İller yüklenemedi</option>'; });
 
@@ -257,8 +276,11 @@ function ilDegisti() {
     .then(function(data) {
       ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
       ((data.data&&data.data.districts)||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(ilce) {
-        ilceSelect.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
+        var sec = (ilce.name === onSecimIlce) ? ' selected' : '';
+        ilceSelect.innerHTML += '<option value="'+ilce.name+'"'+sec+'>'+ilce.name+'</option>';
       });
+      // Pre-fill ilçe seçildiyse okul yüklemeyi tetikle
+      if (onSecimIlce && ilceSelect.value === onSecimIlce) ilceDegisti();
     })
     ['catch'](function(e){ ilceSelect.innerHTML='<option>İlçeler yüklenemedi</option>'; });
 }
@@ -276,10 +298,18 @@ function ilceDegisti() {
       okulListesi.innerHTML = '<option value="">Okul Seçiniz</option>';
       if (liste.length > 0) {
         liste.forEach(function(o) {
-          okulListesi.innerHTML += '<option value="'+o+'">'+o+'</option>';
+          var sec = (o === onSecimOkul) ? ' selected' : '';
+          okulListesi.innerHTML += '<option value="'+o+'"'+sec+'>'+o+'</option>';
         });
       } else {
         okulListesi.innerHTML = '<option value="">Bu ilçede okul bulunamadı</option>';
+      }
+      // Öğretmenin okulu listede yoksa (Okul tablosunda kayıtlı değilse) yine de pre-select için manuel ekle
+      if (onSecimOkul && !Array.from(okulListesi.options).some(function(o){return o.value === onSecimOkul;})) {
+        var ek = document.createElement('option');
+        ek.value = onSecimOkul; ek.textContent = onSecimOkul + ' (öğretmenin okulu)';
+        ek.selected = true;
+        okulListesi.appendChild(ek);
       }
     })
     ['catch'](function(e){ okulListesi.innerHTML = '<option value="">Okullar yüklenemedi</option>'; });

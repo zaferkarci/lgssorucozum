@@ -321,6 +321,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         minSoru:        cacheVar ? (k.siralamaCache.minSoru || 10) : 10
     };
 
+    // v4.1.26: Profil tamamlanma kontrolü — il/ilçe/okul'dan herhangi biri boşsa
+    // landing'de ve profilde "Profilini tamamla" uyarısı gösterilir.
+    const eksikBilgiVar = !(k.il && k.il.trim()) || !(k.ilce && k.ilce.trim()) || !(k.okul && k.okul.trim());
+
     res.render('panel', {
         k,
         mod,
@@ -342,6 +346,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         modIdx,
         toplamSoru: cozulmemisSorular.length,
         landingStats,
+        eksikBilgiVar,
         adminGorunum: req.adminGorunum || false
     });
 });
@@ -440,6 +445,24 @@ router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
     try {
         const { kullaniciAdi, sube } = req.body;
         await Kullanici.findOneAndUpdate({ kullaniciAdi }, { sube: sube || '' });
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.1.26: Konum (il/ilçe/okul) güncelleme — kayıt formunda opsiyonel olduğu için
+// sonradan profilden tamamlanabilir. Sıralama cron'u 05:00'da yeni değerleri yakalar.
+router.post('/profil/konum-guncelle', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, il, ilce, okul } = req.body;
+        // Sadece oturum sahibi kendi profilini güncelleyebilsin
+        if (req.session.kullaniciAdi !== kullaniciAdi) {
+            return res.status(403).send('Yetkisiz işlem');
+        }
+        const guncelleme = {};
+        if (typeof il   === 'string') guncelleme.il   = il.trim();
+        if (typeof ilce === 'string') guncelleme.ilce = ilce.trim();
+        if (typeof okul === 'string') guncelleme.okul = okul.trim();
+        await Kullanici.findOneAndUpdate({ kullaniciAdi }, guncelleme);
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
