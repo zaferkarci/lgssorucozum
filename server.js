@@ -1,4 +1,9 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.23 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.24 (Modüler Yapı) ---
+// v4.1.24 değişiklikleri:
+//   • Admin için sticky session yetkilendirmesi: bir kez şifre girilince
+//     panel ↔ kullanıcı detay geçişlerinde browser tekrar şifre sormuyor.
+//   • Dosya yapısı temizlendi; servereski.js ve geliştirme notu .docx'leri
+//     _arsiv/ klasörüne taşındı (silinmedi).
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -82,11 +87,18 @@ async function basladiktanSonraKontrol() {
 setTimeout(basladiktanSonraKontrol, 30 * 1000);
 
 // Manuel tetikleme (admin için)
+// v4.1.24: önce session kontrolü; admin paneline girişli kullanıcı tekrar
+// şifre sormadan butona basabilir. Session yoksa eski Basic Auth davranışı.
 app.post('/admin/cron-tetikle', async (req, res) => {
-    const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Basic ')) return res.status(401).send('Yetkisiz');
-    const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
-    if (user !== process.env.ADMIN_USER || pass !== process.env.ADMIN_PASSWORD) return res.status(401).send('Yetkisiz');
+    let yetkili = req.session && req.session.adminGirisli === true;
+    if (!yetkili) {
+        const auth = req.headers.authorization;
+        if (!auth || !auth.startsWith('Basic ')) return res.status(401).send('Yetkisiz');
+        const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
+        if (user !== process.env.ADMIN_USER || pass !== process.env.ADMIN_PASSWORD) return res.status(401).send('Yetkisiz');
+        if (req.session) req.session.adminGirisli = true;
+        yetkili = true;
+    }
     try {
         await gunlukHesapla();
         res.send('<script>alert("Hesaplama tamamlandı!"); window.location.href="/admin";</script>');

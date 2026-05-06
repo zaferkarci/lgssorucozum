@@ -37,7 +37,14 @@ const uploadOkulExcel = multer({
 });
 
 // ── Yetki kontrolü ───────────────────────────────────────────────────────────
+// v4.1.24: Bir kez başarılı Basic Auth girilince session'a "adminGirisli" işareti
+// koyuluyor. Sonraki admin isteklerinde browser şifre sormuyor (session 7 gün geçerli).
+// Mevcut AJAX'ler Authorization header'ını yine gönderdiği için geriye uyumlu.
 function adminKontrol(req, res) {
+    // 1) Session'da daha önce admin doğrulandıysa direkt geç
+    if (req.session && req.session.adminGirisli === true) return true;
+
+    // 2) Basic Auth header kontrolü
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
@@ -46,7 +53,11 @@ function adminKontrol(req, res) {
     }
     const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
     const [user, pass] = credentials.split(':');
-    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) return true;
+    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        // İlk başarılı girişte session'a kaydet — bir daha şifre sorulmasın
+        if (req.session) req.session.adminGirisli = true;
+        return true;
+    }
     res.status(401).send('Yetkisiz!');
     return false;
 }
