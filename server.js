@@ -1,10 +1,8 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.32 (Modüler Yapı) ---
-// v4.1.32 değişiklikleri:
-//   • Eski sorularda yanlış JSON kaçışlama nedeniyle "\\le" gibi çift backslash
-//     ile kaydedilmiş matematik metinleri render anında normalize ediliyor.
-//   • Hem MathJax yüklendiğinde (startup.ready'de) hem CSS fallback'te aynı
-//     temizleme çalışır. Sadece $...$ matematik blokları içinde geçerli, normal
-//     metne dokunulmaz.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.33 (Modüler Yapı) ---
+// v4.1.33 değişiklikleri:
+//   • v4.1.32'deki çift backslash normalizesi admin.ejs'e de eklendi.
+//     Admin panelinde soru düzenleme/önizleme sayfalarında da matematik
+//     ifadeleri doğru render ediliyor.
 
 const mongoose = require('mongoose');
 const express = require('express');

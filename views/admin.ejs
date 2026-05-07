@@ -21,14 +21,43 @@ MathJax = {
   tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
   options: { skipHtmlTags: ['script','style','textarea','pre'] },
   startup: {
-    ready() { MathJax.startup.defaultReady(); window.MathJaxReady = true; }
+    ready() {
+      // v4.1.33: Eski sorularda "\\le" gibi çift backslash ile kaydedilmiş matematik
+      // metinleri MathJax otomatik typeset etmeden ÖNCE normalize et.
+      try {
+        if (typeof ciftBackslashNormalize === 'function') {
+          ciftBackslashNormalize(document.body);
+        }
+      } catch(e) {}
+      MathJax.startup.defaultReady();
+      window.MathJaxReady = true;
+    }
   }
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
 <script>
+// v4.1.33: Bazı eski sorularda metin "\\le" gibi çift backslash ile kaydedilmiş.
+// LaTeX'te "\\" yeni satır demektir, "\le" değil. Render etmeden önce sadece
+// $...$ matematik blokları içindeki çift backslash'ları tek backslash'a indirgiyoruz.
+function ciftBackslashNormalize(el) {
+  if (!el) return;
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function(node) {
+    var t = node.textContent;
+    if (t.indexOf('\\\\') === -1) return;
+    if (!t.match(/\$[^$]*\\\\[^$]*\$/)) return;
+    var yeni = t.replace(/\$([^$]+)\$/g, function(tam, ic) {
+      return '$' + ic.replace(/\\\\/g, '\\') + '$';
+    });
+    if (yeni !== t) node.textContent = yeni;
+  });
+}
 function mathRenderSonra(el) {
   if (!el) return;
+  ciftBackslashNormalize(el);
   if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
     MathJax.typesetPromise([el]).catch(function(){});
   } else if (window.MathJax && MathJax.typesetPromise) {
@@ -36,6 +65,7 @@ function mathRenderSonra(el) {
   }
 }
 document.addEventListener('DOMContentLoaded', function() {
+  try { ciftBackslashNormalize(document.body); } catch(e) {}
   if (window.MathJax && MathJax.typesetPromise) {
     MathJax.typesetPromise([document.body]).catch(function(){});
   }
