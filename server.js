@@ -1,8 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.33 (Modüler Yapı) ---
-// v4.1.33 değişiklikleri:
-//   • v4.1.32'deki çift backslash normalizesi admin.ejs'e de eklendi.
-//     Admin panelinde soru düzenleme/önizleme sayfalarında da matematik
-//     ifadeleri doğru render ediliyor.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.35 (Modüler Yapı) ---
+// v4.1.35 değişiklikleri:
+//   • oturumKontrol middleware'ine session-tabanlı admin bypass eklendi.
+//     v4.1.24'te sticky session geldikten sonra, admin başka bir kullanıcının
+//     profiline normal navigation ile gittiğinde Authorization header
+//     gönderilmediği için "Yetkiniz yok" hatası alıyordu. Artık session'da
+//     adminGirisli=true varsa direkt geçiriliyor.
 
 const mongoose = require('mongoose');
 const express = require('express');

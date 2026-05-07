@@ -2002,6 +2002,13 @@ function gosterExcelHata(msg) {
       .catch(function(e){ icerik.innerHTML = '<p style="color:red;">Hata: ' + e.message + '</p>'; });
   }
   function adminMathRender(el) {
+    // v4.1.34: Önizleme modal'ı AJAX ile içerik yüklediği için normalize burada
+    // çağrılmalı (MathJax startup.ready o sırada henüz başka modal yokken çalışmıştı).
+    try {
+      if (typeof ciftBackslashNormalize === 'function') {
+        ciftBackslashNormalize(el);
+      }
+    } catch(e) {}
     if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
       MathJax.typesetPromise([el]).catch(function(err){ console.warn('MathJax render hatası:', err); });
     } else if (window.MathJax && MathJax.typesetPromise) {

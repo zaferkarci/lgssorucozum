@@ -61,17 +61,27 @@ function ortToplamHesapla(kullanici) {
 }
 
 // Oturum kontrol: session'daki kullanıcı URL'dekiyle eşleşmeli.
-// İstisna: Basic Auth ile admin yetkisi varsa, başka bir kullanıcının profilini incelemesine izin ver.
+// İstisna: Admin yetkisi varsa (session veya Basic Auth), başka bir kullanıcının
+// profilini incelemesine izin ver.
 function oturumKontrol(req, res, next) {
     const sessionKullanici = req.session && req.session.kullaniciAdi;
     const urlKullanici = req.params.kullaniciAdi;
 
-    // Normal akış: session sahibi kendi sayfasını görüyorsa direk geçir (admin token olsa bile)
+    // Normal akış: session sahibi kendi sayfasını görüyorsa direk geçir
     if (sessionKullanici && urlKullanici && sessionKullanici === urlKullanici) {
         return next();
     }
 
-    // Admin bypass: session yok veya session sahibi başka biri AMA admin token doğru
+    // v4.1.35: Admin bypass — session-based admin kontrolü.
+    // Sticky session sayesinde admin bir kez giriş yaptıysa req.session.adminGirisli=true.
+    // Bu durumda admin başka bir kullanıcının profilini görüntüleyebilir (sayfa
+    // navigation'larında Authorization header gelmediği için bu kontrol gerekli).
+    if (req.session && req.session.adminGirisli === true) {
+        req.adminGorunum = true;
+        return next();
+    }
+
+    // Admin bypass: AJAX vb. isteklerde Basic Auth header'ı doğrudan gelirse de geçir
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Basic ')) {
         try {
@@ -79,6 +89,7 @@ function oturumKontrol(req, res, next) {
             const [u, p] = cred.split(':');
             if (u === (process.env.ADMIN_USER || 'admin') && p === (process.env.ADMIN_PASSWORD || '1234')) {
                 req.adminGorunum = true;
+                if (req.session) req.session.adminGirisli = true; // tutarlılık için işaretle
                 return next();
             }
         } catch (e) { /* yoksay */ }
