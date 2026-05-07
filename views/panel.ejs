@@ -64,7 +64,18 @@ function latexToHtml(s) {
   s = s.replace(/\^(\S)/g,'<span class="math-sup">$1</span>');
   s = s.replace(/_{([^}]+)}/g,'<span class="math-sub">$1</span>');
   s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g,'<span class="math-frac"><span class="math-frac-ust">$1</span><span class="math-frac-alt">$2</span></span>');
-  s = s.replace(/\\pi/g,'\u03c0').replace(/\\times/g,'\xd7').replace(/\\div/g,'\xf7').replace(/\\pm/g,'\xb1').replace(/\\leq/g,'\u2264').replace(/\\geq/g,'\u2265').replace(/\\neq/g,'\u2260').replace(/\\approx/g,'\u2248').replace(/\\infty/g,'\u221e');
+  // v4.1.31: Önce çok karakterli komutları çevir (sıralama önemli — uzun olanlar önce).
+  s = s.replace(/\\leq/g,'\u2264').replace(/\\geq/g,'\u2265').replace(/\\neq/g,'\u2260').replace(/\\approx/g,'\u2248').replace(/\\infty/g,'\u221e');
+  // Kısa formlar (\le, \ge) — aynı sembollerin alternatif yazımı; yukarıdaki uzun
+  // formlar zaten çevrildiği için artakalanları yakalar. \\le\b / \\ge\b kelime
+  // sınırı ile yazıldı ki \\leq / \\geq parçaları yanlışlıkla yakalanmasın.
+  s = s.replace(/\\le\b/g,'\u2264').replace(/\\ge\b/g,'\u2265');
+  // Diğer yaygın komutlar
+  s = s.replace(/\\cdot/g,'\u00b7').replace(/\\times/g,'\xd7').replace(/\\div/g,'\xf7').replace(/\\pm/g,'\xb1');
+  s = s.replace(/\\to\b/g,'\u2192').replace(/\\rightarrow/g,'\u2192').replace(/\\leftarrow/g,'\u2190').replace(/\\Rightarrow/g,'\u21d2');
+  s = s.replace(/\\circ/g,'\u00b0').replace(/\\degree/g,'\u00b0');
+  s = s.replace(/\\ldots/g,'\u2026').replace(/\\cdots/g,'\u2026').replace(/\\dots/g,'\u2026');
+  s = s.replace(/\\pi/g,'\u03c0').replace(/\\alpha/g,'\u03b1').replace(/\\beta/g,'\u03b2').replace(/\\theta/g,'\u03b8');
   s = s.replace(/\\[a-zA-Z]+/g,'');
   return s;
 }

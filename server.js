@@ -1,7 +1,9 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.30 (Modüler Yapı) ---
-// v4.1.30 değişiklikleri:
-//   • Günlük yeniden hesaplama cron saati 05:00 → 05:10 olarak güncellendi.
-//   • İlgili kullanıcıya yönelik metinler ve kod yorumları senkronize edildi.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.31 (Modüler Yapı) ---
+// v4.1.31 değişiklikleri:
+//   • LaTeX CSS fallback'inde eksik komutlar tamamlandı: \le, \ge (kısa formlar),
+//     \cdot, \to, \rightarrow, \leftarrow, \Rightarrow, \circ, \degree,
+//     \ldots, \cdots, \dots, \alpha, \beta, \theta. MathJax CDN yüklenemediği
+//     durumda da matematik sembolleri doğru görünür.
 
 const mongoose = require('mongoose');
 const express = require('express');
