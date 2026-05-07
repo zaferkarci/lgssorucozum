@@ -1,4 +1,4 @@
-// Günlük cron job — her gün 05:00 (Europe/Istanbul) çalışır
+// Günlük cron job — her gün 05:10 (Europe/Istanbul) çalışır
 // Sorunun istatistiklerini CevapKaydi'dan yeniden hesaplar, kullanıcı puanlarını yeni zorluklarla günceller
 
 const Soru = require('./models/Soru');

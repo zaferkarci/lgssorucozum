@@ -1,9 +1,7 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.29 (Modüler Yapı) ---
-// v4.1.29 değişiklikleri:
-//   • "Siyah ekran görürseniz..." uyarı metni 4 yerden kaldırıldı:
-//     giriş sayfası, kayıt sayfası, davet linki kopyalama metni (panel + admin).
-//   • Asıl çözüm: Render free tier cold start'ını external uptime monitor
-//     (UptimeRobot, cron-job.org vb.) ile çözmek. /health endpoint hazır.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.30 (Modüler Yapı) ---
+// v4.1.30 değişiklikleri:
+//   • Günlük yeniden hesaplama cron saati 05:00 → 05:10 olarak güncellendi.
+//   • İlgili kullanıcıya yönelik metinler ve kod yorumları senkronize edildi.
 
 const mongoose = require('mongoose');
 const express = require('express');
@@ -50,11 +48,11 @@ app.use('/', require('./routes/takip'));
 // Health check — loading.html bu endpoint'i izler
 app.get('/health', (req, res) => res.json({ durum: 'hazir' }));
 
-// Günlük cron job — her gün 05:00 (Europe/Istanbul)
+// Günlük cron job — her gün 05:10 (Europe/Istanbul)
 const cron = require('node-cron');
 const { gunlukHesapla } = require('./cronJobs');
-cron.schedule('0 5 * * *', async () => {
-    console.log('⏰ Cron tetiklendi (05:00 Istanbul):', new Date().toISOString());
+cron.schedule('10 5 * * *', async () => {
+    console.log('⏰ Cron tetiklendi (05:10 Istanbul):', new Date().toISOString());
     try {
         await gunlukHesapla();
     } catch (err) {
@@ -63,7 +61,7 @@ cron.schedule('0 5 * * *', async () => {
 }, { timezone: 'Europe/Istanbul' });
 
 // Sunucu açıldıktan sonra: son hesaplama 24 saatten eskiyse otomatik tetikle
-// (Render uyandırma / restart durumunda 05:00 kaçırıldıysa kurtarma)
+// (Render uyandırma / restart durumunda 05:10 kaçırıldıysa kurtarma)
 const Kullanici = require('./models/Kullanici');
 async function basladiktanSonraKontrol() {
     try {

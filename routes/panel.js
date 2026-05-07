@@ -328,7 +328,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Bugün çözülen
     const bugunBaslangic = new Date(); bugunBaslangic.setHours(0,0,0,0);
     const bugunCozulen   = tumCevaplar.filter(c => c.tarih && new Date(c.tarih) >= bugunBaslangic).length;
-    // Sıralama: cache'ten oku (cron 05:00'da günceller). Cache yoksa null gönder.
+    // Sıralama: cache'ten oku (cron 05:10'da günceller). Cache yoksa null gönder.
     const cacheVar = k.siralamaCache && k.siralamaCache.nitelikli !== undefined && k.siralamaCache.sinif !== undefined;
     const landingStats = {
         toplamPuan:    Math.round(k.puan || 0),
@@ -446,7 +446,7 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
             k.markModified('dersPuanlari');
 
             await k.save();
-            // Zorluk artık anlık güncellenmiyor — günlük cron job (05:00) üzerinden hesaplanacak
+            // Zorluk artık anlık güncellenmiyor — günlük cron job (05:10) üzerinden hesaplanacak
             // await zorlukGuncelle(soruId);
 
             // Cevap kaydını tut (günlük istatistik için)
@@ -472,7 +472,7 @@ router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
 });
 
 // v4.1.26: Konum (il/ilçe/okul) güncelleme — kayıt formunda opsiyonel olduğu için
-// sonradan profilden tamamlanabilir. Sıralama cron'u 05:00'da yeni değerleri yakalar.
+// sonradan profilden tamamlanabilir. Sıralama cron'u 05:10'da yeni değerleri yakalar.
 router.post('/profil/konum-guncelle', oturumKontrol, async (req, res) => {
     try {
         const { kullaniciAdi, il, ilce, okul } = req.body;

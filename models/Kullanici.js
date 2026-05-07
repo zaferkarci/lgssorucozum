@@ -18,7 +18,7 @@ const KullaniciSchema = new mongoose.Schema({
         soruSayisi:  { type: Number, default: 0 },
         toplamSure:  { type: Number, default: 0 }
     }],
-    // Sıralama cache (cron job'da 05:00'da güncellenir)
+    // Sıralama cache (cron job'da 05:10'da güncellenir)
     siralamaCache: {
         type: mongoose.Schema.Types.Mixed,
         default: null
