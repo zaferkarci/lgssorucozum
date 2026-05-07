@@ -1,11 +1,9 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.28 (Modüler Yapı) ---
-// v4.1.28 değişiklikleri:
-//   • Öğretmenler için otomatik günlük davet kodu üretimi (lazy/on-demand):
-//     Profili açtığında, aktif kodu yoksa ve son üretim bugünden eskiyse
-//     2 yeni davet kodu otomatik üretilir. Birikme yok.
-//   • "Davet linkleri" kartında bilgilendirme notu + boşken bilgi mesajı.
-//   • Kopyala butonuna basıldığında öğretmen için "yarın 2 yeni linkin gelecek"
-//     toast bilgilendirmesi.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.29 (Modüler Yapı) ---
+// v4.1.29 değişiklikleri:
+//   • "Siyah ekran görürseniz..." uyarı metni 4 yerden kaldırıldı:
+//     giriş sayfası, kayıt sayfası, davet linki kopyalama metni (panel + admin).
+//   • Asıl çözüm: Render free tier cold start'ını external uptime monitor
+//     (UptimeRobot, cron-job.org vb.) ile çözmek. /health endpoint hazır.
 
 const mongoose = require('mongoose');
 const express = require('express');

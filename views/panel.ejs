@@ -1605,7 +1605,8 @@ document.addEventListener('DOMContentLoaded', function() {
 var KULLANICI_ROL = <%- JSON.stringify(k.rol || 'ogrenci') %>;
 
 function kopyala(metin, btn) {
-    var tamMetin = '"Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra yüklenecek."\n' + metin;
+    // v4.1.29: "Siyah ekran" uyarısı kaldırıldı — sadece linkin kendisi kopyalansın.
+    var tamMetin = metin;
     navigator.clipboard.writeText(tamMetin).then(function() {
         var satir = btn.closest('.davet-link-satir');
         if (satir) {

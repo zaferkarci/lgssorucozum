@@ -1713,7 +1713,8 @@ function gosterExcelHata(msg) {
   <script>
   function adminKopyala(kod, btn) {
     var link = btn.getAttribute('data-link');
-    var metin = '"Siyah ekran görürseniz kısa bir süre bekleyiniz. Sayfa ilk açılıştan sonra yüklenecek."\n' + link;
+    // v4.1.29: "Siyah ekran" uyarısı kaldırıldı — sadece linkin kendisi kopyalansın.
+    var metin = link;
     navigator.clipboard.writeText(metin).then(function() {
       // 1) Sunucuya bildir (kalıcı işaretle)
       fetch('/admin-referans-kopyalandi', {
