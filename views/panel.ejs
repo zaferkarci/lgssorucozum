@@ -22,6 +22,13 @@ MathJax = {
   options: { skipHtmlTags: ['script','style','textarea','pre'] },
   startup: {
     ready() {
+      // v4.1.32: MathJax otomatik typeset etmeden ÖNCE çift backslash'ları temizle.
+      // Eski sorulardaki "\\le" gibi yanlış kaçışlamaları "\le" yapar.
+      try {
+        if (typeof ciftBackslashNormalize === 'function') {
+          ciftBackslashNormalize(document.body);
+        }
+      } catch(e) {}
       MathJax.startup.defaultReady();
       window.MathJaxReady = true;
     }
@@ -30,8 +37,30 @@ MathJax = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
 <script>
+// v4.1.32: Bazı eski sorularda metin "\\le" gibi çift backslash ile kaydedilmiş
+// (JSON kaçışlama hatası). LaTeX'te "\\" yeni satır demektir; "\le" değil.
+// Bu yüzden hem MathJax hem CSS fallback render etmeden önce el içindeki
+// $...$ matematik bloklarındaki çift backslash'ları tek backslash'a indirgiyoruz.
+// Sadece $...$ içinde çalışır, normal metne dokunmaz.
+function ciftBackslashNormalize(el) {
+  if (!el) return;
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function(node) {
+    var t = node.textContent;
+    if (t.indexOf('\\\\') === -1) return;          // Hiç çift backslash yoksa atla
+    if (!t.match(/\$[^$]*\\\\[^$]*\$/)) return;    // Çift backslash $...$ içinde değilse atla
+    var yeni = t.replace(/\$([^$]+)\$/g, function(tam, ic) {
+      return '$' + ic.replace(/\\\\/g, '\\') + '$';
+    });
+    if (yeni !== t) node.textContent = yeni;
+  });
+}
+
 function mathRenderSonra(el) {
   if (!el) return;
+  ciftBackslashNormalize(el);
   if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
     MathJax.typesetPromise([el]).catch(function(){});
   } else if (window.MathJax && MathJax.typesetPromise) {
@@ -42,6 +71,7 @@ function mathRenderSonra(el) {
 }
 function mathRenderCSS(el) {
   if (!el) return;
+  ciftBackslashNormalize(el);
   var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
   var nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -80,6 +110,9 @@ function latexToHtml(s) {
   return s;
 }
 document.addEventListener('DOMContentLoaded', function() {
+  // v4.1.32: Sayfa yüklendiğinde tüm body'deki çift backslash'ları normalize et.
+  // MathJax otomatik typeset bu temizlikten sonra çalışır.
+  try { ciftBackslashNormalize(document.body); } catch(e) {}
   setTimeout(function() {
     if (!window.MathJaxReady) {
       console.log('MathJax CDN yüklenmedi, CSS fallback devreye giriyor');

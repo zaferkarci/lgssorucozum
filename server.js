@@ -1,9 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.31 (Modüler Yapı) ---
-// v4.1.31 değişiklikleri:
-//   • LaTeX CSS fallback'inde eksik komutlar tamamlandı: \le, \ge (kısa formlar),
-//     \cdot, \to, \rightarrow, \leftarrow, \Rightarrow, \circ, \degree,
-//     \ldots, \cdots, \dots, \alpha, \beta, \theta. MathJax CDN yüklenemediği
-//     durumda da matematik sembolleri doğru görünür.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.32 (Modüler Yapı) ---
+// v4.1.32 değişiklikleri:
+//   • Eski sorularda yanlış JSON kaçışlama nedeniyle "\\le" gibi çift backslash
+//     ile kaydedilmiş matematik metinleri render anında normalize ediliyor.
+//   • Hem MathJax yüklendiğinde (startup.ready'de) hem CSS fallback'te aynı
+//     temizleme çalışır. Sadece $...$ matematik blokları içinde geçerli, normal
+//     metne dokunulmaz.
 
 const mongoose = require('mongoose');
 const express = require('express');
