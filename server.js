@@ -1,10 +1,9 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.35 (Modüler Yapı) ---
-// v4.1.35 değişiklikleri:
-//   • oturumKontrol middleware'ine session-tabanlı admin bypass eklendi.
-//     v4.1.24'te sticky session geldikten sonra, admin başka bir kullanıcının
-//     profiline normal navigation ile gittiğinde Authorization header
-//     gönderilmediği için "Yetkiniz yok" hatası alıyordu. Artık session'da
-//     adminGirisli=true varsa direkt geçiriliyor.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.36 (Modüler Yapı) ---
+// v4.1.36 değişiklikleri:
+//   • Admin paneline yeni sekme: "📊 Zorluk Raporu" (mod=zorlukRapor).
+//     Tüm sorular tek tabloda, kolaydan zora sıralı. Sütun başlıklarına
+//     tıklayarak yön/alan değiştirilebilir. Üstte zorluk dağılımı özeti.
+//   • Sadece okuma — DB'ye dokunulmuyor. Mevcut tumSorular verisi kullanılıyor.
 
 const mongoose = require('mongoose');
 const express = require('express');

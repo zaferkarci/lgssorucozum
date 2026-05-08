@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </a>
   <a href="/admin?mod=soruListesi" class="admin-nav-link <%= mod==='soruListesi'?'active':'' %>">📋 Sorular</a>
+  <a href="/admin?mod=zorlukRapor" class="admin-nav-link <%= mod==='zorlukRapor'?'active':'' %>">📊 Zorluk Raporu</a>
   <a href="/admin?mod=soruEkle" class="admin-nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru</a>
   <a href="/admin?mod=pdfYukle" class="admin-nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
   <a href="/admin?mod=kullanicilar" class="admin-nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
@@ -1780,6 +1781,201 @@ function gosterExcelHata(msg) {
       console.warn('Pano (clipboard) yazma hatası:', e);
     });
   }
+  </script>
+
+<% } else if (mod === 'zorlukRapor') { %>
+  <!-- v4.1.36: Zorluk Raporu — soruları zorluk katsayısına göre listeler -->
+  <div class="admin-card">
+    <div class="admin-card-title">📊 Zorluk Raporu</div>
+    <p style="font-size:13px; color:#666; line-height:1.6; margin:6px 0 14px;">
+      Tüm soruların zorluk katsayıları. Default kolaydan zora sıralı. Sütun başlığına tıklayarak sıralamayı değiştirebilirsin (aynı başlığa ikinci tıklamada yön değişir).
+      Zorluk katsayısı her gün <b>05:10</b>'da çözüm verilerine göre yeniden hesaplanır. Hiç çözülmemiş sorularda default <b>3.0</b> görünür.
+    </p>
+
+    <%
+      // Zorluk dağılımı özeti
+      const zSay = { cokKolay:0, kolay:0, orta:0, zor:0, cokZor:0 };
+      tumSorular.forEach(function(s) {
+        const z = s.zorlukKatsayisi != null ? s.zorlukKatsayisi : 3;
+        if (z < 1.5) zSay.cokKolay++;
+        else if (z < 2.5) zSay.kolay++;
+        else if (z < 3.5) zSay.orta++;
+        else if (z < 4.5) zSay.zor++;
+        else zSay.cokZor++;
+      });
+    %>
+
+    <!-- Özet kartları -->
+    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin-bottom:16px;">
+      <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#2e7d32; font-weight:600;">ÇOK KOLAY</div>
+        <div style="font-size:22px; font-weight:700; color:#27ae60;"><%= zSay.cokKolay %></div>
+        <div style="font-size:10px; color:#888;">Z: 1.0 — 1.4</div>
+      </div>
+      <div style="background:#f1f8e9; border:1px solid #c5e1a5; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#558b2f; font-weight:600;">KOLAY</div>
+        <div style="font-size:22px; font-weight:700; color:#2ecc71;"><%= zSay.kolay %></div>
+        <div style="font-size:10px; color:#888;">Z: 1.5 — 2.4</div>
+      </div>
+      <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#f57c00; font-weight:600;">ORTA</div>
+        <div style="font-size:22px; font-weight:700; color:#f39c12;"><%= zSay.orta %></div>
+        <div style="font-size:10px; color:#888;">Z: 2.5 — 3.4</div>
+      </div>
+      <div style="background:#ffe0b2; border:1px solid #ffb74d; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#e65100; font-weight:600;">ZOR</div>
+        <div style="font-size:22px; font-weight:700; color:#e67e22;"><%= zSay.zor %></div>
+        <div style="font-size:10px; color:#888;">Z: 3.5 — 4.4</div>
+      </div>
+      <div style="background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#c62828; font-weight:600;">ÇOK ZOR</div>
+        <div style="font-size:22px; font-weight:700; color:#c0392b;"><%= zSay.cokZor %></div>
+        <div style="font-size:10px; color:#888;">Z: 4.5 — 5.0</div>
+      </div>
+    </div>
+
+    <!-- Toplam ve filtre uyarısı -->
+    <p style="font-size:12px; color:#666; margin-bottom:10px;">Toplam <b><%= tumSorular.length %></b> soru gösteriliyor.
+      <% if (filSinif || filDers || filUnite || filKonu) { %>
+        <span style="color:#1565c0;">Aktif filtre: <%= [filSinif&&(filSinif+'. Sınıf'), filDers, filUnite, filKonu].filter(Boolean).join(' / ') %> · <a href="/admin?mod=zorlukRapor" style="color:#c0392b;">filtreyi temizle</a></span>
+      <% } else { %>
+        <span style="color:#888;">(Filtre uygulamak için Sorular sekmesinden filtreleyip tekrar buraya gel.)</span>
+      <% } %>
+    </p>
+
+    <!-- Sıralanabilir tablo -->
+    <div style="overflow-x:auto; border:1px solid #e0e7ff; border-radius:10px;">
+      <table id="zorlukTablo" style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead style="background:#f5f7fa; user-select:none;">
+          <tr>
+            <th data-sort="soruNo"  data-tip="num" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Soru No <span class="sort-icon"></span></th>
+            <th data-sort="sinif"   data-tip="num" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Sınıf <span class="sort-icon"></span></th>
+            <th data-sort="ders"    data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Ders <span class="sort-icon"></span></th>
+            <th data-sort="unite"   data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Ünite <span class="sort-icon"></span></th>
+            <th data-sort="konu"    data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Konu <span class="sort-icon"></span></th>
+            <th data-sort="zorluk"  data-tip="num" data-aktif="1" data-yon="asc" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff; background:#e3f2fd;">Z (Zorluk) <span class="sort-icon">▲</span></th>
+            <th data-sort="hp"      data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">HP <span class="sort-icon"></span></th>
+            <th data-sort="cozulme" data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">Çözülme <span class="sort-icon"></span></th>
+            <th data-sort="dogruluk" data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">Doğruluk <span class="sort-icon"></span></th>
+            <th data-sort="ortSure" data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">Ort. Süre <span class="sort-icon"></span></th>
+            <th data-sort="durum"   data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Durum <span class="sort-icon"></span></th>
+            <th style="padding:10px 8px; text-align:center; border-bottom:2px solid #e0e7ff;">İşlem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <%
+            // Önce kolaydan zora sırala (default)
+            var siraliSorular = (tumSorular || []).slice().sort(function(a, b) {
+              var za = a.zorlukKatsayisi != null ? a.zorlukKatsayisi : 3;
+              var zb = b.zorlukKatsayisi != null ? b.zorlukKatsayisi : 3;
+              return za - zb;
+            });
+          %>
+          <% siraliSorular.forEach(function(s) {
+            var z = s.zorlukKatsayisi != null ? s.zorlukKatsayisi : 3;
+            var zEt = z < 1.5 ? 'Çok Kolay' : z < 2.5 ? 'Kolay' : z < 3.5 ? 'Orta' : z < 4.5 ? 'Zor' : 'Çok Zor';
+            var zRenk = z < 1.5 ? '#27ae60' : z < 2.5 ? '#2ecc71' : z < 3.5 ? '#f39c12' : z < 4.5 ? '#e67e22' : '#c0392b';
+            var dogruluk = (s.cozulmeSayisi||0) > 0 ? Math.round((s.dogruSayisi||0) / s.cozulmeSayisi * 100) : null;
+            var hp = s.hamPuan != null ? Number(s.hamPuan).toFixed(1) : null;
+            var ortSure = s.ortalamaSure ? Math.round(s.ortalamaSure) : null;
+            var durumRenk = s.durum === 'yayinda' ? '#2e7d32' : s.durum === 'taslak' ? '#888' : '#c62828';
+          %>
+          <tr style="border-bottom:1px solid #f0f3f7;"
+              data-soruno="<%= s.soruNo||0 %>"
+              data-sinif="<%= s.sinif||0 %>"
+              data-ders="<%= s.ders||'' %>"
+              data-unite="<%= s.unite||'' %>"
+              data-konu="<%= s.konu||'' %>"
+              data-zorluk="<%= z %>"
+              data-hp="<%= hp != null ? hp : -1 %>"
+              data-cozulme="<%= s.cozulmeSayisi||0 %>"
+              data-dogruluk="<%= dogruluk != null ? dogruluk : -1 %>"
+              data-ortsure="<%= ortSure != null ? ortSure : -1 %>"
+              data-durum="<%= s.durum||'' %>">
+            <td style="padding:8px;"><%= s.soruNo||'-' %></td>
+            <td style="padding:8px;"><%= s.sinif||'-' %></td>
+            <td style="padding:8px;"><%= s.ders||'-' %></td>
+            <td style="padding:8px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= s.unite||'' %>"><%= s.unite||'-' %></td>
+            <td style="padding:8px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= s.konu||'' %>"><%= s.konu||'-' %></td>
+            <td style="padding:8px; text-align:right;">
+              <span style="display:inline-block; padding:2px 8px; background:<%= zRenk %>; color:white; border-radius:10px; font-size:11px; font-weight:600;"><%= z.toFixed(1) %></span>
+              <div style="font-size:10px; color:<%= zRenk %>; margin-top:2px;"><%= zEt %></div>
+            </td>
+            <td style="padding:8px; text-align:right;"><%= hp != null ? hp : '—' %></td>
+            <td style="padding:8px; text-align:right;"><%= s.cozulmeSayisi||0 %></td>
+            <td style="padding:8px; text-align:right;"><%= dogruluk != null ? '%'+dogruluk : '—' %></td>
+            <td style="padding:8px; text-align:right;"><%= ortSure != null ? ortSure+'sn' : '—' %></td>
+            <td style="padding:8px; color:<%= durumRenk %>;"><%= s.durum||'-' %></td>
+            <td style="padding:8px; text-align:center; white-space:nowrap;">
+              <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">ÖNİZLE</button>
+              <a href="/admin?duzenle=<%= s._id %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (!tumSorular.length) { %>
+      <p style="text-align:center; color:#888; padding:30px;">Hiç soru yok.</p>
+    <% } %>
+  </div>
+
+  <script>
+    // v4.1.36: Tablo sıralaması — başlığa tıkla, aynı başlığa tekrar tıklarsan yön değişir
+    (function() {
+      var tablo = document.getElementById('zorlukTablo');
+      if (!tablo) return;
+      var thead = tablo.querySelector('thead');
+      var tbody = tablo.querySelector('tbody');
+
+      thead.addEventListener('click', function(e) {
+        var th = e.target.closest('th[data-sort]');
+        if (!th) return;
+        var alan = th.getAttribute('data-sort');
+        var tip = th.getAttribute('data-tip');
+        var aktifTh = thead.querySelector('th[data-aktif="1"]');
+        var yon = 'asc';
+        if (aktifTh === th) {
+          // Aynı başlık — yön değiştir
+          yon = th.getAttribute('data-yon') === 'asc' ? 'desc' : 'asc';
+        }
+        // Tüm başlıkların aktif/yön bayraklarını sıfırla
+        thead.querySelectorAll('th[data-sort]').forEach(function(x) {
+          x.removeAttribute('data-aktif');
+          x.removeAttribute('data-yon');
+          x.style.background = '';
+          var ic = x.querySelector('.sort-icon');
+          if (ic) ic.textContent = '';
+        });
+        th.setAttribute('data-aktif', '1');
+        th.setAttribute('data-yon', yon);
+        th.style.background = '#e3f2fd';
+        var ic = th.querySelector('.sort-icon');
+        if (ic) ic.textContent = yon === 'asc' ? '▲' : '▼';
+
+        // Satırları sırala
+        var satirlar = Array.from(tbody.querySelectorAll('tr'));
+        satirlar.sort(function(a, b) {
+          var av = a.getAttribute('data-' + alan.toLowerCase());
+          var bv = b.getAttribute('data-' + alan.toLowerCase());
+          if (tip === 'num') {
+            av = parseFloat(av); if (isNaN(av)) av = -1;
+            bv = parseFloat(bv); if (isNaN(bv)) bv = -1;
+            return yon === 'asc' ? av - bv : bv - av;
+          } else {
+            av = (av||'').toString();
+            bv = (bv||'').toString();
+            var c = av.localeCompare(bv, 'tr');
+            return yon === 'asc' ? c : -c;
+          }
+        });
+        // Yeniden ekle
+        var frag = document.createDocumentFragment();
+        satirlar.forEach(function(r){ frag.appendChild(r); });
+        tbody.appendChild(frag);
+      });
+    })();
   </script>
 
 <% } else if (mod === 'soruListesi') { %>
