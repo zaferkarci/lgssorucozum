@@ -664,10 +664,13 @@ document.addEventListener('DOMContentLoaded', function() {
               </tr>
             </thead>
             <tbody>
-              <% tumC.slice(0, 50).forEach(function(c, i) {
+              <% var sonGosterilen = tumC.slice(0, 50); %>
+              <% sonGosterilen.forEach(function(c, i) {
                 var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]) || {};
+                // v4.1.37: İlk 30 satır görünür, kalanlar "Tümünü göster" butonuna kadar gizli.
+                var ekstraSatir = i >= 30;
               %>
-              <tr>
+              <tr<%= ekstraSatir ? ' class="ekstra-satir" style="display:none;"' : '' %>>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= i+1 %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= sb.ders||'-' %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= sb.konu||'-' %></td>
@@ -696,6 +699,21 @@ document.addEventListener('DOMContentLoaded', function() {
               <% }); %>
             </tbody>
           </table>
+          <% if (sonGosterilen.length > 30) { %>
+            <!-- v4.1.37: İlk 30 göster, kalanları butonla aç -->
+            <div style="text-align:center; padding:14px;">
+              <button id="ekstraSatirAcBtn" onclick="ekstraSatirlariAc(this)"
+                style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:8px; padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer;">
+                Tümünü göster (<%= sonGosterilen.length %> kayıt)
+              </button>
+            </div>
+            <script>
+              function ekstraSatirlariAc(btn) {
+                document.querySelectorAll('tr.ekstra-satir').forEach(function(tr){ tr.style.display = ''; });
+                if (btn) btn.parentElement.style.display = 'none';
+              }
+            </script>
+          <% } %>
         </div>
       </div>
 

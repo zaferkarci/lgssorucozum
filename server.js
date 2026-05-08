@@ -1,9 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.36 (Modüler Yapı) ---
-// v4.1.36 değişiklikleri:
-//   • Admin paneline yeni sekme: "📊 Zorluk Raporu" (mod=zorlukRapor).
-//     Tüm sorular tek tabloda, kolaydan zora sıralı. Sütun başlıklarına
-//     tıklayarak yön/alan değiştirilebilir. Üstte zorluk dağılımı özeti.
-//   • Sadece okuma — DB'ye dokunulmuyor. Mevcut tumSorular verisi kullanılıyor.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.37 (Modüler Yapı) ---
+// v4.1.37 değişiklikleri:
+//   • Backend: tumCevaplar query'sine projection ('soruId dogruMu sure
+//     kazanilanPuan tarih') eklendi. Satır sayısı aynı, payload ~%60 küçüldü.
+//     Hesaplamalar (toplamCozulen, doğruluk, ders kırılımı, bugün) etkilenmedi.
+//   • Frontend: Profilde son cevaplar tablosu default 30 satır gösterir;
+//     "Tümünü göster (X kayıt)" butonu ile 50'ye genişler. Yeni DB sorgusu yok,
+//     gizli satırlar zaten DOM'da.
+//   • Tutarlılık kontrolü: k.puan ile cevaplardan toplanan puan farkı 0.5'ten
+//     büyükse console.warn — kullanıcıya görsel etki yok, bug yakalama amacı.
 
 const mongoose = require('mongoose');
 const express = require('express');

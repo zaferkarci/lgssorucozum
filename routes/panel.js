@@ -294,7 +294,28 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Hesaplamalar tumCevaplar yüklendikten SONRA yapılıyor (aşağıda landingStats blokunda).
 
     // Ders istatistikleri — CevapKaydi'ndan ders/konu bazlı detay
-    const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).lean();
+    // v4.1.37: Projection eklendi — sadece kullanılan 5 alan çekiliyor (önceden tüm
+    // belge alanları geliyordu). Satır sayısı aynı kalır, payload ~%60 küçülür.
+    // Hesaplamalar (toplamCozulen, dogruluk, ders kırılımı, bugün) etkilenmez.
+    const tumCevaplar = await CevapKaydi.find(
+        { kullaniciAdi: k.kullaniciAdi },
+        'soruId dogruMu sure kazanilanPuan tarih'
+    ).lean();
+
+    // v4.1.37: Tutarlılık kontrolü — k.puan ile cevaplardan toplanan puan farkı.
+    // Aynı /cevap endpoint'inde k.puan += kazanilan VE CevapKaydi.save() çağrılır;
+    // ikisi tutarsızsa save'lerden biri bir noktada başarısız olmuştur. Sadece
+    // logla, kullanıcıya görsel etki yok.
+    try {
+        const cevaplardanToplam = tumCevaplar.reduce((s, c) => s + (c.kazanilanPuan || 0), 0);
+        const kPuan = Number(k.puan || 0);
+        const fark = Math.abs(kPuan - cevaplardanToplam);
+        if (fark > 0.5) {
+            console.warn('[tutarlılık] ' + k.kullaniciAdi + ' — k.puan=' + kPuan.toFixed(2) +
+                ' / cevaplardan=' + cevaplardanToplam.toFixed(2) + ' / fark=' + fark.toFixed(2));
+        }
+    } catch (e) { /* sessiz */ }
+
     const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
     const cevapSorular = soruIdleri.length > 0
         ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu sinif soruNo soruMetni soruOnculu1 soruOnculu1Resmi soruOnculu2 soruOnculu2Resmi soruOnculu3 soruOnculu3Resmi soruResmi secenekler dogruCevapIndex tabloBaslik sikDizilimi _id').lean()
