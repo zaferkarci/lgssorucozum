@@ -648,7 +648,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <!-- Son çözülen sorular -->
       <div class="profil-kart-yeni">
-        <p class="profil-kart-baslik-yeni">Son Çözülen Sorular (<%= Math.min(tumC.length, 50) %>)</p>
+        <%
+          // v4.1.38: Tüm geçmiş sayfalı gösteriliyor (30/sayfa).
+          var SAYFA_BOYUT = 30;
+          var toplamCevap = tumC.length;
+          var toplamSayfa = Math.max(1, Math.ceil(toplamCevap / SAYFA_BOYUT));
+        %>
+        <p class="profil-kart-baslik-yeni">Çözülen Sorular (Toplam <%= toplamCevap %>)</p>
         <div style="overflow-x:auto;">
           <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
@@ -664,13 +670,13 @@ document.addEventListener('DOMContentLoaded', function() {
               </tr>
             </thead>
             <tbody>
-              <% var sonGosterilen = tumC.slice(0, 50); %>
-              <% sonGosterilen.forEach(function(c, i) {
+              <% tumC.forEach(function(c, i) {
                 var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]) || {};
-                // v4.1.37: İlk 30 satır görünür, kalanlar "Tümünü göster" butonuna kadar gizli.
-                var ekstraSatir = i >= 30;
+                // v4.1.38: Sayfa numarası 1-tabanlı; ilk 30 → sayfa 1, 31-60 → sayfa 2, vs.
+                var rowSayfa = Math.floor(i / SAYFA_BOYUT) + 1;
+                var ilkSayfa = rowSayfa === 1;
               %>
-              <tr<%= ekstraSatir ? ' class="ekstra-satir" style="display:none;"' : '' %>>
+              <tr class="cevap-satir" data-sayfa="<%= rowSayfa %>"<%= ilkSayfa ? '' : ' style="display:none;"' %>>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= i+1 %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= sb.ders||'-' %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= sb.konu||'-' %></td>
@@ -699,19 +705,53 @@ document.addEventListener('DOMContentLoaded', function() {
               <% }); %>
             </tbody>
           </table>
-          <% if (sonGosterilen.length > 30) { %>
-            <!-- v4.1.37: İlk 30 göster, kalanları butonla aç -->
-            <div style="text-align:center; padding:14px;">
-              <button id="ekstraSatirAcBtn" onclick="ekstraSatirlariAc(this)"
-                style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:8px; padding:8px 18px; font-size:13px; font-weight:600; cursor:pointer;">
-                Tümünü göster (<%= sonGosterilen.length %> kayıt)
-              </button>
+          <% if (toplamSayfa > 1) { %>
+            <!-- v4.1.38: Sayfalama kontrolü -->
+            <div id="cevapSayfaKontrol" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 10px; user-select:none;">
+              <button type="button" data-yon="bas" class="cevap-sayfa-btn" title="İlk sayfa"
+                style="background:#f1f3f4; color:#5f6368; border:1px solid #dadce0; border-radius:6px; padding:5px 10px; font-size:13px; cursor:pointer; min-width:32px;">⏮</button>
+              <button type="button" data-yon="oncekiSayfa" class="cevap-sayfa-btn" title="Önceki sayfa"
+                style="background:#f1f3f4; color:#5f6368; border:1px solid #dadce0; border-radius:6px; padding:5px 10px; font-size:13px; cursor:pointer; min-width:32px;">◀</button>
+              <span style="font-size:13px; color:#5f6368; padding:0 10px;">
+                Sayfa <input id="cevapSayfaInput" type="number" min="1" max="<%= toplamSayfa %>" value="1"
+                  style="width:50px; text-align:center; border:1px solid #dadce0; border-radius:4px; padding:3px 4px; font-size:13px;">
+                / <span id="cevapToplamSayfa"><%= toplamSayfa %></span>
+              </span>
+              <button type="button" data-yon="sonrakiSayfa" class="cevap-sayfa-btn" title="Sonraki sayfa"
+                style="background:#f1f3f4; color:#5f6368; border:1px solid #dadce0; border-radius:6px; padding:5px 10px; font-size:13px; cursor:pointer; min-width:32px;">▶</button>
+              <button type="button" data-yon="son" class="cevap-sayfa-btn" title="Son sayfa"
+                style="background:#f1f3f4; color:#5f6368; border:1px solid #dadce0; border-radius:6px; padding:5px 10px; font-size:13px; cursor:pointer; min-width:32px;">⏭</button>
             </div>
             <script>
-              function ekstraSatirlariAc(btn) {
-                document.querySelectorAll('tr.ekstra-satir').forEach(function(tr){ tr.style.display = ''; });
-                if (btn) btn.parentElement.style.display = 'none';
-              }
+              (function() {
+                var aktifSayfa = 1;
+                var TOPLAM_SAYFA = <%= toplamSayfa %>;
+                var input = document.getElementById('cevapSayfaInput');
+                var btnler = document.querySelectorAll('.cevap-sayfa-btn');
+
+                function goster(sayfa) {
+                  sayfa = Math.max(1, Math.min(TOPLAM_SAYFA, parseInt(sayfa, 10) || 1));
+                  aktifSayfa = sayfa;
+                  input.value = sayfa;
+                  document.querySelectorAll('tr.cevap-satir').forEach(function(tr) {
+                    tr.style.display = (parseInt(tr.getAttribute('data-sayfa'), 10) === sayfa) ? '' : 'none';
+                  });
+                }
+
+                btnler.forEach(function(b) {
+                  b.addEventListener('click', function() {
+                    var yon = b.getAttribute('data-yon');
+                    if (yon === 'bas') goster(1);
+                    else if (yon === 'son') goster(TOPLAM_SAYFA);
+                    else if (yon === 'oncekiSayfa') goster(aktifSayfa - 1);
+                    else if (yon === 'sonrakiSayfa') goster(aktifSayfa + 1);
+                  });
+                });
+                input.addEventListener('change', function() { goster(input.value); });
+                input.addEventListener('keydown', function(e) {
+                  if (e.key === 'Enter') { e.preventDefault(); goster(input.value); }
+                });
+              })();
             </script>
           <% } %>
         </div>
