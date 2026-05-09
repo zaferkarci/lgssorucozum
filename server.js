@@ -1,10 +1,9 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.38 (Modüler Yapı) ---
-// v4.1.38 değişiklikleri:
-//   • Profilde "Çözülen Sorular" tablosu sayfalı: 30 satır/sayfa, tüm geçmiş.
-//     Minimal sayfalama kontrolü (⏮ ◀ Sayfa N / X ▶ ⏭). v4.1.37'deki "Tümünü
-//     göster" butonu kaldırıldı, yerini sayfalama aldı.
-//   • Yeni DB sorgusu yok: tüm satırlar aynı render'da DOM'a yazılıyor, sadece
-//     aktif sayfa görünür. Kullanıcı için: 200 cevap = 7 sayfa = aynı performans.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.39 (Modüler Yapı) ---
+// v4.1.39 değişiklikleri:
+//   • ulkemkarci kullanıcısına özel karşılama banner'ı eklendi (panel landing
+//     ekranında, sadece soru çözmeye başlamadan önceki ana ekranda görünür).
+//     Sonradan değiştirmek için: views/panel.ejs içinde "ulkemkarci" araması
+//     yap, banner içeriğini düzenle.
 
 const mongoose = require('mongoose');
 const express = require('express');
