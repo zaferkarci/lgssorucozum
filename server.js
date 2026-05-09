@@ -1,9 +1,11 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.39 (Modüler Yapı) ---
-// v4.1.39 değişiklikleri:
-//   • ulkemkarci kullanıcısına özel karşılama banner'ı eklendi (panel landing
-//     ekranında, sadece soru çözmeye başlamadan önceki ana ekranda görünür).
-//     Sonradan değiştirmek için: views/panel.ejs içinde "ulkemkarci" araması
-//     yap, banner içeriğini düzenle.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.40 (Modüler Yapı) ---
+// v4.1.40 değişiklikleri:
+//   • Öğrenci kendi sınıf seviyesinde yayında soru olmadığında soğuk "Soru
+//     bulunamadı" mesajı yerine bilgilendirici "Yapım Aşamasında" ekranı:
+//     diğer sınıflarda kaç soru olduğunu gösterir, çocuk siteyi terk etmek
+//     yerine "demek ki canlı bir site" hisseder.
+//   • Backend: Sadece öğrencinin sınıfında 0 soru varken aggregate sorgusu
+//     çalışır (gereksiz yük yok).
 
 const mongoose = require('mongoose');
 const express = require('express');

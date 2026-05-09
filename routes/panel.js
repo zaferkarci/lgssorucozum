@@ -121,6 +121,23 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         ? await Soru.find({ durum: 'yayinda' }).lean()
         : await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }).lean();
 
+    // v4.1.40: Eğer öğrencinin sınıfı için soru yoksa, diğer sınıflarda kaç soru
+    // olduğunu say — "yapım aşamasında, 8. sınıf için X soru var" mesajı için.
+    // Sadece öğrenci ve yayında sorusu hiç yoksa çağrılır (gereksiz aggregate yok).
+    let digerSinifSoruSayilari = null;
+    if (!ogretmen && yayindaSorular.length === 0) {
+        try {
+            const dagilim = await Soru.aggregate([
+                { $match: { durum: 'yayinda' } },
+                { $group: { _id: '$sinif', sayi: { $sum: 1 } } }
+            ]);
+            digerSinifSoruSayilari = {};
+            dagilim.forEach(d => {
+                if (d._id) digerSinifSoruSayilari[String(d._id)] = d.sayi;
+            });
+        } catch (e) { digerSinifSoruSayilari = null; }
+    }
+
     // Moderatör tüm soruları görür, öğrenci sadece çözülmemişleri
     const moderator = k.rol === 'moderator';
     const cozulmemisSorular = (moderator || ogretmen)
@@ -400,6 +417,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         modIdx,
         toplamSoru: cozulmemisSorular.length,
         landingStats,
+        digerSinifSoruSayilari,
         eksikBilgiVar,
         adminGorunum: req.adminGorunum || false
     });
