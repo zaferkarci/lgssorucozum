@@ -1,14 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.3 (Modüler Yapı) ---
-// v4.2.3 değişiklikleri:
-//   • "Hesapla" butonu admin nav'ın sağ tarafına taşındı — her sayfadan tek
-//     tıkla erişilebilir (sıfırlama sayfasına gitmeye gerek yok).
-//   • Sıfırla sayfasındaki yıkıcı butonlar koruma altında: kullanıcı yan
-//     kutuya 'sifirla' yazmadan buton aktif olmuyor + ek confirm dialog.
-//     Kazara tıklama riski minimum.
-//   • Sıfırla sayfasından hesaplama bölümü kaldırıldı — sayfa sadece yıkıcı
-//     işlemleri içerir, kafa karışıklığı yok.
-//   • Alt nav satırının solunda grup etiketi (İÇERİK / KULLANICILAR /
-//     İLETİŞİM / SİSTEM) — hangi grupta olduğun her zaman görünür.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.4 (Modüler Yapı) ---
+// v4.2.4 değişiklikleri:
+//   • Tüm matematik araç çubuklarına "Şapka (açı)" butonu eklendi: x̂.
+//     Soru metni, 3 öncül ve 4 şık alanı (toplam 5 toolbar). Tıklayınca
+//     $\hat{}$ LaTeX kodu yerleştirilir, cursor süslü parantezin içinde durur.
+//   • MathJax inline matematiğin font boyutu %8 büyütüldü ki şıklarda
+//     $\hat{A}$ gibi gösterimler okunaklı olsun. Hem panel.ejs hem admin.ejs.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

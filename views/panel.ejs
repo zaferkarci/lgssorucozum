@@ -14,6 +14,9 @@
 .math-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;line-height:1.2;}
 .math-frac-ust{border-bottom:1px solid currentColor;padding:0 2px;}
 .math-frac-alt{padding:0 2px;}
+/* v4.2.4: MathJax inline matematiği biraz büyüt — şıklarda $\hat{A}$ gibi gösterimler küçük kalmasın */
+mjx-container[jax="CHTML"][display="false"] { font-size: 1.08em !important; }
+mjx-container[jax="CHTML"] { line-height: 1.5; }
 </style>
 <script>
 window.MathJaxReady = false;

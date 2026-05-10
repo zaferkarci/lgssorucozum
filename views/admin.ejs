@@ -14,6 +14,9 @@
 .math-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;line-height:1.2;}
 .math-frac-ust{border-bottom:1px solid currentColor;padding:0 2px;}
 .math-frac-alt{padding:0 2px;}
+/* v4.2.4: MathJax inline matematiği biraz büyüt — şıklarda $\hat{A}$ gibi gösterimler küçük kalmasın */
+mjx-container[jax="CHTML"][display="false"] { font-size: 1.08em !important; }
+mjx-container[jax="CHTML"] { line-height: 1.5; }
 </style>
 <script>
 window.MathJaxReady = false;
@@ -745,6 +748,7 @@ function escHtml(str) {
         <button type="button" onclick="ekle('soruOnculu1Alan','△',0)" class="toolbar-btn" title="Üçgen">△</button>
         <button type="button" onclick="ekle('soruOnculu1Alan','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
         <button type="button" onclick="ekle('soruOnculu1Alan','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
         <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
         <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
         <button type="button" onclick="ekle('soruOnculu1Alan','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
@@ -786,6 +790,7 @@ function escHtml(str) {
         <button type="button" onclick="ekle('soruOnculu2Alan','△',0)" class="toolbar-btn">△</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','⊥',0)" class="toolbar-btn">⊥</button>
         <button type="button" onclick="ekle('soruOnculu2Alan','∥',0)" class="toolbar-btn">∥</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
         <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
         <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
         <button type="button" onclick="ekle('soruOnculu2Alan','∈',0)" class="toolbar-btn">∈</button>
@@ -827,6 +832,7 @@ function escHtml(str) {
         <button type="button" onclick="ekle('soruOnculu3Alan','△',0)" class="toolbar-btn" title="Üçgen">△</button>
         <button type="button" onclick="ekle('soruOnculu3Alan','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
         <button type="button" onclick="ekle('soruOnculu3Alan','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
         <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
         <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
         <button type="button" onclick="ekle('soruOnculu3Alan','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
@@ -868,6 +874,7 @@ function escHtml(str) {
         <button type="button" onclick="ekle('soruMetni','△',0)" class="toolbar-btn" title="Üçgen">△</button>
         <button type="button" onclick="ekle('soruMetni','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
         <button type="button" onclick="ekle('soruMetni','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <button type="button" onclick="ekle('soruMetni','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
         <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
         <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
         <button type="button" onclick="ekle('soruMetni','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
@@ -920,6 +927,7 @@ function escHtml(str) {
               <button type="button" onclick="ekle('sikMetin<%=i%>','°',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">°</button>
               <span style="display:inline-block;width:1px;height:16px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
               <button type="button" onclick="ekle('sikMetin<%=i%>','∠',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Açı">∠</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\hat{}$',7)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Şapka (açı)">x̂</button>
               <button type="button" onclick="ekle('sikMetin<%=i%>','△',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Üçgen">△</button>
               <button type="button" onclick="ekle('sikMetin<%=i%>','∈',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Eleman">∈</button>
               <button type="button" onclick="ekle('sikMetin<%=i%>','∪',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Birleşim">∪</button>
