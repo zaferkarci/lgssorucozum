@@ -1,10 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.1 (Modüler Yapı) ---
-// v4.2.1 değişiklikleri:
-//   • pdfyukle.js'in kendi adminKontrol fonksiyonu session-aware yapıldı.
-//     v4.1.24'te admin.js'deki adminKontrol session-aware olmuştu, ama
-//     pdfyukle.js'deki kopya unutulmuştu. Sticky session aktif iken PDF analiz
-//     ve kaydet endpoint'leri 401 dönüyordu, bu da JS'te HTML/JSON parse
-//     hatasına yol açıyordu ("Unexpected token '<'").
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.2 (Modüler Yapı) ---
+// v4.2.2 değişiklikleri:
+//   • Admin paneli navigasyonu sadeleştirildi: 11 sekme → 4 ana grup + alt sekmeler.
+//     Üst satır: 📚 İçerik · 👥 Kullanıcılar · 📢 İletişim · ⚙️ Sistem
+//     Alt satır: aktif gruba göre o grubun sekmeleri görünür.
+//   • İçerik = Sorular, Zorluk Raporu, Yeni Soru, PDF Yükle, Üniteler
+//   • Kullanıcılar = Kullanıcılar, Referans, Okullar
+//   • İletişim = Haberler, Mesajlar (rozet üst grupta da görünür)
+//   • Sistem = Sıfırla
+//   • URL parametreleri (?mod=...) korundu, mevcut backend kodu değişmedi.
 
 const mongoose = require('mongoose');
 const express = require('express');

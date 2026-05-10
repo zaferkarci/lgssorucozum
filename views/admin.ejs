@@ -82,19 +82,108 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="admin-logo-sub">Admin Paneli</div>
     </div>
   </a>
-  <a href="/admin?mod=soruListesi" class="admin-nav-link <%= mod==='soruListesi'?'active':'' %>">📋 Sorular</a>
-  <a href="/admin?mod=zorlukRapor" class="admin-nav-link <%= mod==='zorlukRapor'?'active':'' %>">📊 Zorluk Raporu</a>
-  <a href="/admin?mod=soruEkle" class="admin-nav-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru</a>
-  <a href="/admin?mod=pdfYukle" class="admin-nav-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
-  <a href="/admin?mod=kullanicilar" class="admin-nav-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
-  <a href="/admin?mod=referans" class="admin-nav-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
-  <a href="/admin?mod=uniteler" class="admin-nav-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
-  <a href="/admin?mod=okullar" class="admin-nav-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
-  <a href="/admin?mod=haberler" class="admin-nav-link <%= mod==='haberler'?'active':'' %>">📰 Haberler</a>
-  <a href="/admin?mod=mesajlar" class="admin-nav-link <%= mod==='mesajlar'?'active':'' %>" style="position:relative;">💬 Mesajlar<% if (okunmamisMesajSayisi > 0) { %><span style="position:absolute; top:-3px; right:-6px; background:#e24b4a; color:white; font-size:10px; font-weight:700; padding:2px 6px; border-radius:9px; line-height:1.2; min-width:14px; text-align:center;"><%= okunmamisMesajSayisi %></span><% } %></a>
-  <a href="/admin?mod=sifirla" class="admin-nav-link danger">🗑️ Sıfırla</a>
-  <div class="admin-nav-right">Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span> · <a href="#" onclick="adminCikisYap(event)" class="admin-nav-link" style="color:#999; font-size:12px;">Çıkış</a></div>
+
+  <%
+    // v4.2.2: Admin nav iki seviyeli gruplandırma.
+    // Her grup, içindeki mod'lara göre aktiflik durumu hesaplar.
+    var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler'];
+    var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
+    var iletisimModlari    = ['haberler', 'mesajlar'];
+    var sistemModlari      = ['sifirla'];
+
+    var aktifGrup = 'icerik';
+    if (kullaniciModlari.indexOf(mod) !== -1) aktifGrup = 'kullanicilar';
+    else if (iletisimModlari.indexOf(mod) !== -1) aktifGrup = 'iletisim';
+    else if (sistemModlari.indexOf(mod) !== -1) aktifGrup = 'sistem';
+  %>
+
+  <div class="admin-nav-grup">
+    <a href="/admin?mod=soruListesi" class="admin-grup-btn <%= aktifGrup==='icerik'?'active':'' %>">📚 İçerik</a>
+    <a href="/admin?mod=kullanicilar" class="admin-grup-btn <%= aktifGrup==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+    <a href="/admin?mod=haberler" class="admin-grup-btn <%= aktifGrup==='iletisim'?'active':'' %>" style="position:relative;">
+      📢 İletişim
+      <% if (okunmamisMesajSayisi > 0) { %>
+        <span style="position:absolute; top:-3px; right:-6px; background:#e24b4a; color:white; font-size:10px; font-weight:700; padding:2px 6px; border-radius:9px; line-height:1.2; min-width:14px; text-align:center;"><%= okunmamisMesajSayisi %></span>
+      <% } %>
+    </a>
+    <a href="/admin?mod=sifirla" class="admin-grup-btn <%= aktifGrup==='sistem'?'active':'' %>">⚙️ Sistem</a>
+    <div class="admin-nav-right">Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span> · <a href="#" onclick="adminCikisYap(event)" class="admin-nav-link" style="color:#999; font-size:12px;">Çıkış</a></div>
+  </div>
 </div>
+
+<!-- v4.2.2: Alt sekme satırı — aktif gruba göre o grubun sekmeleri -->
+<div class="admin-alt-nav">
+  <% if (aktifGrup === 'icerik') { %>
+    <a href="/admin?mod=soruListesi" class="admin-alt-link <%= mod==='soruListesi'?'active':'' %>">📋 Sorular</a>
+    <a href="/admin?mod=zorlukRapor" class="admin-alt-link <%= mod==='zorlukRapor'?'active':'' %>">📊 Zorluk Raporu</a>
+    <a href="/admin?mod=soruEkle" class="admin-alt-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru</a>
+    <a href="/admin?mod=pdfYukle" class="admin-alt-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
+    <a href="/admin?mod=uniteler" class="admin-alt-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
+  <% } else if (aktifGrup === 'kullanicilar') { %>
+    <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+    <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
+    <a href="/admin?mod=okullar" class="admin-alt-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
+  <% } else if (aktifGrup === 'iletisim') { %>
+    <a href="/admin?mod=haberler" class="admin-alt-link <%= mod==='haberler'?'active':'' %>">📰 Haberler</a>
+    <a href="/admin?mod=mesajlar" class="admin-alt-link <%= mod==='mesajlar'?'active':'' %>" style="position:relative;">
+      💬 Mesajlar
+      <% if (okunmamisMesajSayisi > 0) { %>
+        <span style="position:absolute; top:-3px; right:-6px; background:#e24b4a; color:white; font-size:10px; font-weight:700; padding:2px 6px; border-radius:9px; line-height:1.2; min-width:14px; text-align:center;"><%= okunmamisMesajSayisi %></span>
+      <% } %>
+    </a>
+  <% } else if (aktifGrup === 'sistem') { %>
+    <a href="/admin?mod=sifirla" class="admin-alt-link danger <%= mod==='sifirla'?'active':'' %>">🗑️ Sıfırla</a>
+  <% } %>
+</div>
+
+<style>
+  /* v4.2.2: İki seviyeli admin nav */
+  .admin-nav-grup { display:flex; flex:1; align-items:center; gap:4px; flex-wrap:wrap; }
+  .admin-grup-btn {
+    color: rgba(255,255,255,0.85);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .admin-grup-btn:hover { background: rgba(255,255,255,0.10); color: white; }
+  .admin-grup-btn.active { background: rgba(255,255,255,0.22); color: white; }
+
+  .admin-alt-nav {
+    background: #f0f4f9;
+    padding: 10px 24px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #1a73e8;
+    align-items: center;
+  }
+  .admin-alt-link {
+    color: #37474f;
+    font-size: 13px;
+    text-decoration: none;
+    padding: 6px 14px;
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  .admin-alt-link:hover { border-color: #1a73e8; color: #1a73e8; }
+  .admin-alt-link.active { color: #1a73e8; border-color: #1a73e8; font-weight: 600; }
+  .admin-alt-link.danger { color: #c62828; border-color: #f5c6cb; }
+  .admin-alt-link.danger.active { background: #fde8e8; border-color: #c62828; color: #c62828; }
+  .admin-alt-link.danger:hover { border-color: #c62828; }
+
+  @media (max-width: 700px) {
+    .admin-grup-btn { padding: 7px 12px; font-size: 13px; }
+    .admin-alt-nav { padding: 8px 14px; overflow-x: auto; flex-wrap: nowrap; }
+    .admin-alt-link { font-size: 12px; padding: 5px 10px; }
+  }
+</style>
 
 <div class="admin-main">
 
