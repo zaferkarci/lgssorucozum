@@ -1,15 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.0 (Modüler Yapı) ---
-// v4.2.0 değişiklikleri (yeni minor seri):
-//   • v4.1.41'in tüm değişikliklerini içerir:
-//     - "Soru Çöz" landing yeniden tasarlandı (Eksiklerini Kapat + ders kartları)
-//     - Soru sıralama: ders → ünite (admin uniteNo) → konu (admin array sırası)
-//       → zorluk (artan) → soruID (artan)
-//     - Filtre desteği: ?ders ve ?eksik
-//     - Filtre tükenirse landing'e redirect ?bitti=...
-//   • v4.2.0 ek: "Tüm soruları çözdün" mesajına motivasyon notu eklendi —
-//     "Yarın yeni sorular eklenecek, çözmeyi unutma." Hem ders/konu bittiğinde
-//     hem sistemdeki tüm sorular bittiğinde gösterilir. Kullanıcı işin bittiğini
-//     düşünmesin, devam etmeye motive olsun.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.1 (Modüler Yapı) ---
+// v4.2.1 değişiklikleri:
+//   • pdfyukle.js'in kendi adminKontrol fonksiyonu session-aware yapıldı.
+//     v4.1.24'te admin.js'deki adminKontrol session-aware olmuştu, ama
+//     pdfyukle.js'deki kopya unutulmuştu. Sticky session aktif iken PDF analiz
+//     ve kaydet endpoint'leri 401 dönüyordu, bu da JS'te HTML/JSON parse
+//     hatasına yol açıyordu ("Unexpected token '<'").
 
 const mongoose = require('mongoose');
 const express = require('express');

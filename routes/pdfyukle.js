@@ -15,7 +15,14 @@ const upload = multer({
     }
 });
 
+// v4.2.1: Session-aware adminKontrol — admin sticky session ile gelinen
+// requestlerde (PDF yükleme sayfasından AJAX) Authorization header gelmediği
+// için eski sürüm 401 dönüyordu. Artık önce session'a bakar, sonra header'a.
 function adminKontrol(req, res) {
+    // 1) Session'da daha önce admin doğrulandıysa direkt geç
+    if (req.session && req.session.adminGirisli === true) return true;
+
+    // 2) Basic Auth header kontrolü (geriye uyumluluk)
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Basic ')) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Admin"');
@@ -25,7 +32,11 @@ function adminKontrol(req, res) {
     const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
     const [user, pass] = credentials.split(':');
     if (user === (process.env.ADMIN_USER || 'admin') &&
-        pass === (process.env.ADMIN_PASSWORD || '1234')) return true;
+        pass === (process.env.ADMIN_PASSWORD || '1234')) {
+        // İlk başarılı girişte session'a kaydet — tutarlılık
+        if (req.session) req.session.adminGirisli = true;
+        return true;
+    }
     res.status(401).send('Yetkisiz!');
     return false;
 }
