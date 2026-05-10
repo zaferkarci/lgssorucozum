@@ -107,12 +107,30 @@ document.addEventListener('DOMContentLoaded', function() {
       <% } %>
     </a>
     <a href="/admin?mod=sifirla" class="admin-grup-btn <%= aktifGrup==='sistem'?'active':'' %>">⚙️ Sistem</a>
-    <div class="admin-nav-right">Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span> · <a href="#" onclick="adminCikisYap(event)" class="admin-nav-link" style="color:#999; font-size:12px;">Çıkış</a></div>
+    <div class="admin-nav-right">
+      <!-- v4.2.3: Hesaplama butonu üst sağa taşındı — her sayfadan tek tıkla erişim -->
+      <button type="button" onclick="adminHesaplaTetikle(event)" id="adminHesaplaBtn" title="Günlük hesaplamayı şimdi çalıştır" style="background:#e8f0fe; color:#1a73e8; border:1px solid #1a73e8; border-radius:6px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; margin-right:14px; white-space:nowrap; transition:background 0.15s;"
+        onmouseover="this.style.background='#d2e3fc'" onmouseout="this.style.background='#e8f0fe'">
+        ⏰ Hesapla
+      </button>
+      Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span> · <a href="#" onclick="adminCikisYap(event)" class="admin-nav-link" style="color:#999; font-size:12px;">Çıkış</a>
+    </div>
   </div>
 </div>
 
 <!-- v4.2.2: Alt sekme satırı — aktif gruba göre o grubun sekmeleri -->
+<!-- v4.2.3: Sol başında grup etiketi (örn. "İÇERİK") — hangi grupta olduğunu netleştirir -->
+<%
+  var grupAdiMap = {
+    'icerik':       'İÇERİK',
+    'kullanicilar': 'KULLANICILAR',
+    'iletisim':     'İLETİŞİM',
+    'sistem':       'SİSTEM'
+  };
+  var grupAdi = grupAdiMap[aktifGrup] || '';
+%>
 <div class="admin-alt-nav">
+  <span class="admin-grup-etiket"><%= grupAdi %></span>
   <% if (aktifGrup === 'icerik') { %>
     <a href="/admin?mod=soruListesi" class="admin-alt-link <%= mod==='soruListesi'?'active':'' %>">📋 Sorular</a>
     <a href="/admin?mod=zorlukRapor" class="admin-alt-link <%= mod==='zorlukRapor'?'active':'' %>">📊 Zorluk Raporu</a>
@@ -138,19 +156,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
   /* v4.2.2: İki seviyeli admin nav */
-  .admin-nav-grup { display:flex; flex:1; align-items:center; gap:4px; flex-wrap:wrap; }
+  /* v4.2.3: Renk paleti beyaz header için düzeltildi — eskiden header'ı mavi
+     varsayıp beyaz metin koymuştum, ama header beyaz olduğu için metin
+     görünmüyordu. Mevcut .admin-nav-link gri-mavi paletine uyumlu. */
+  .admin-nav-grup { display:flex; flex:1; align-items:center; gap:2px; flex-wrap:wrap; }
   .admin-grup-btn {
-    color: rgba(255,255,255,0.85);
+    color: #6b7a99;
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
-    padding: 8px 18px;
-    border-radius: 6px;
-    transition: background 0.15s, color 0.15s;
+    padding: 0 16px;
+    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
     white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
-  .admin-grup-btn:hover { background: rgba(255,255,255,0.10); color: white; }
-  .admin-grup-btn.active { background: rgba(255,255,255,0.22); color: white; }
+  .admin-grup-btn:hover { color: #0c447c; background: #f7f9fc; }
+  .admin-grup-btn.active { color: #0c447c; border-bottom-color: #0c447c; font-weight: 600; }
+
+  /* v4.2.3: Grup etiketi — alt nav satırının solunda küçük kategori adı.
+     Minimal stil: arka plan yok, sadece koyu mavi yazı + üstte ince çizgi. */
+  .admin-grup-etiket {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: #1a73e8;
+    padding: 4px 12px 4px 4px;
+    margin-right: 4px;
+    border-right: 2px solid #c2d4f0;
+    text-transform: uppercase;
+    user-select: none;
+  }
 
   .admin-alt-nav {
     background: #f0f4f9;
@@ -179,7 +218,8 @@ document.addEventListener('DOMContentLoaded', function() {
   .admin-alt-link.danger:hover { border-color: #c62828; }
 
   @media (max-width: 700px) {
-    .admin-grup-btn { padding: 7px 12px; font-size: 13px; }
+    .admin-grup-btn { padding: 0 10px; font-size: 13px; }
+    .admin-grup-etiket { font-size: 10px; padding: 3px 9px 3px 3px; letter-spacing: 1px; }
     .admin-alt-nav { padding: 8px 14px; overflow-x: auto; flex-wrap: nowrap; }
     .admin-alt-link { font-size: 12px; padding: 5px 10px; }
   }
@@ -1706,12 +1746,21 @@ function gosterExcelHata(msg) {
   </div>
 
 <% } else if (mod === 'sifirla') { %>
+  <!-- v4.2.3: Hesaplama butonu üst sağa taşındı, bu sayfada sadece yıkıcı işlemler kaldı.
+       Kazara tıklamayı önlemek için "sifirla" yazma zorunluluğu eklendi. -->
+  <div style="background:#fff8e1; border:1.5px solid #ffd54f; border-radius:10px; padding:14px 18px; margin-bottom:18px; font-size:13px; color:#5d4037; line-height:1.6;">
+    ⚠️ <b>Bu sayfadaki işlemler geri alınamaz.</b> Onaylamak için her butonun yanına <code style="background:#fff; padding:1px 6px; border-radius:4px; font-family:monospace;">sifirla</code> yazman gerekir.
+  </div>
+
   <div class="card">
-    <h3 style="color:red;">⚠️ Veri Sıfırlama</h3>
+    <h3 style="color:red;">⚠️ Tüm Verileri Sıfırla</h3>
     <p>Bu işlem tüm kullanıcıların puan, soru ve istatistik verilerini sıfırlar. Kullanıcı hesapları ve soru içerikleri silinmez.</p>
     <p><b>Bu işlem geri alınamaz!</b></p>
-    <form action="/sifirla" method="POST">
-      <button onclick="return confirm('Emin misiniz? Bu işlem geri alınamaz!')" class="btn btn-danger">SIFIRLA</button>
+    <form action="/sifirla" method="POST" onsubmit="return sifirlaOnay(this, 'TÜM VERİLERİ SIFIRLA');" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="text" placeholder="onaylamak için 'sifirla' yaz" autocomplete="off"
+        oninput="sifirlaInputDegisti(this)"
+        style="padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:13px; min-width:240px; font-family:monospace;">
+      <button type="submit" disabled class="btn btn-danger" style="opacity:0.45; cursor:not-allowed;">SIFIRLA</button>
     </form>
   </div>
 
@@ -1720,19 +1769,28 @@ function gosterExcelHata(msg) {
     <p>Bu işlem soruların çözülme sayısı, doğru sayısı, ortalama süre ve zorluk katsayısı gibi istatistiklerini sıfırlar.</p>
     <p>Kullanıcı verileri, soru içerikleri ve öğrenci puanları <b>etkilenmez</b>.</p>
     <p><b>Bu işlem geri alınamaz!</b></p>
-    <form action="/soru-istatistik-sifirla" method="POST">
-      <button onclick="return confirm('Soru istatistikleri sıfırlansın mı? Bu işlem geri alınamaz!')" class="btn" style="background:#e65100; color:white;">📊 SORU İSTATİSTİKLERİNİ SIFIRLA</button>
+    <form action="/soru-istatistik-sifirla" method="POST" onsubmit="return sifirlaOnay(this, 'SORU İSTATİSTİKLERİNİ SIFIRLA');" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="text" placeholder="onaylamak için 'sifirla' yaz" autocomplete="off"
+        oninput="sifirlaInputDegisti(this)"
+        style="padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:13px; min-width:240px; font-family:monospace;">
+      <button type="submit" disabled class="btn" style="background:#e65100; color:white; opacity:0.45; cursor:not-allowed;">📊 SORU İSTATİSTİKLERİNİ SIFIRLA</button>
     </form>
   </div>
 
-  <div class="card" style="margin-top:16px;">
-    <h3 style="color:#2980b9;">⏰ Günlük Hesaplamayı Manuel Çalıştır</h3>
-    <p>Normalde her gün 05:10'da (Türkiye saati) otomatik çalışır.</p>
-    <p>Tüm soruların zorluk katsayısını ve kullanıcıların puanlarını <b>CevapKaydi</b> verilerinden yeniden hesaplar.</p>
-    <form action="/admin/cron-tetikle" method="POST">
-      <button onclick="return confirm('Hesaplama başlatılsın mı? İşlem birkaç dakika sürebilir.')" class="btn" style="background:#2980b9; color:white;">⏰ ŞİMDİ HESAPLA</button>
-    </form>
-  </div>
+  <script>
+    // v4.2.3: "sifirla" yazma zorunluluğu — kazara tıklamayı önlemek için
+    function sifirlaInputDegisti(inp) {
+      var btn = inp.parentElement.querySelector('button[type="submit"]');
+      if (!btn) return;
+      var dogru = (inp.value.trim().toLowerCase() === 'sifirla');
+      btn.disabled = !dogru;
+      btn.style.opacity = dogru ? '1' : '0.45';
+      btn.style.cursor = dogru ? 'pointer' : 'not-allowed';
+    }
+    function sifirlaOnay(form, etiket) {
+      return confirm(etiket + ' işlemi başlatılsın mı?\n\nBu işlem GERİ ALINAMAZ. Emin misin?');
+    }
+  </script>
 
 <% } else if (mod === 'referans') { %>
   <%
@@ -2316,6 +2374,21 @@ function gosterExcelHata(msg) {
 <script>
 // Admin çıkış: Basic Auth'tan çıkmak için browser'ın kendi düzeyinde authentication state'i temizlemesi gerekir.
 // Çoğu modern browser bu için "logout" sayfasına yönlenmeyi yetersiz görür. Sade çözüm: kullanıcıya bildirip kaydı temizlemesini sağla.
+// v4.2.3: Hesaplama butonu — üst nav'dan tetikleme. CSRF yok, mevcut form-submit
+// gibi POST atar. Çift tıklamayı önlemek için işlem sırasında button disable.
+function adminHesaplaTetikle(e) {
+  e.preventDefault();
+  if (!confirm('Günlük hesaplama şimdi başlatılsın mı?\n\nİşlem birkaç dakika sürebilir, bu sırada başka işlemler yapabilirsin.')) return;
+  var btn = document.getElementById('adminHesaplaBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Çalışıyor...'; btn.style.opacity = '0.6'; }
+  var f = document.createElement('form');
+  f.method = 'POST';
+  f.action = '/admin/cron-tetikle';
+  f.style.display = 'none';
+  document.body.appendChild(f);
+  f.submit();
+}
+
 function adminCikisYap(e) {
   e.preventDefault();
   var onay = confirm('Admin panelden çıkmak istediğine emin misin?\n\nDikkat: Tarayıcı Basic Auth bilgilerini cache\'liyor. Tam çıkış için tarayıcıyı kapatman gerekebilir.');

@@ -1,13 +1,20 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.2 (Modüler Yapı) ---
-// v4.2.2 değişiklikleri:
-//   • Admin paneli navigasyonu sadeleştirildi: 11 sekme → 4 ana grup + alt sekmeler.
-//     Üst satır: 📚 İçerik · 👥 Kullanıcılar · 📢 İletişim · ⚙️ Sistem
-//     Alt satır: aktif gruba göre o grubun sekmeleri görünür.
-//   • İçerik = Sorular, Zorluk Raporu, Yeni Soru, PDF Yükle, Üniteler
-//   • Kullanıcılar = Kullanıcılar, Referans, Okullar
-//   • İletişim = Haberler, Mesajlar (rozet üst grupta da görünür)
-//   • Sistem = Sıfırla
-//   • URL parametreleri (?mod=...) korundu, mevcut backend kodu değişmedi.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.3 (Modüler Yapı) ---
+// v4.2.3 değişiklikleri:
+//   • "Hesapla" butonu admin nav'ın sağ tarafına taşındı — her sayfadan tek
+//     tıkla erişilebilir (sıfırlama sayfasına gitmeye gerek yok).
+//   • Sıfırla sayfasındaki yıkıcı butonlar koruma altında: kullanıcı yan
+//     kutuya 'sifirla' yazmadan buton aktif olmuyor + ek confirm dialog.
+//     Kazara tıklama riski minimum.
+//   • Sıfırla sayfasından hesaplama bölümü kaldırıldı — sayfa sadece yıkıcı
+//     işlemleri içerir, kafa karışıklığı yok.
+//   • Alt nav satırının solunda grup etiketi (İÇERİK / KULLANICILAR /
+//     İLETİŞİM / SİSTEM) — hangi grupta olduğun her zaman görünür.
+//   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
+//     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
+//     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler
+//     görünüyordu.
+//   • Alt nav satırının solunda küçük grup etiketi (örn. "İÇERİK", "SİSTEM")
+//     eklendi — kullanıcı hangi grupta olduğunu net görüyor.
 
 const mongoose = require('mongoose');
 const express = require('express');
