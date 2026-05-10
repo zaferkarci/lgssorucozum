@@ -4,6 +4,7 @@ const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
+const Unite = require('../models/Unite');
 
 function stdSapma(dizi) {
     if (!dizi || dizi.length < 2) return 0;
@@ -140,22 +141,74 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
 
     // Moderatör tüm soruları görür, öğrenci sadece çözülmemişleri
     const moderator = k.rol === 'moderator';
-    const cozulmemisSorular = (moderator || ogretmen)
+    let cozulmemisSorular = (moderator || ogretmen)
         ? yayindaSorular
         : yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
 
+    // v4.1.41: Yeni sıralama mantığı — admin'de tanımlı sıraya göre
+    //   1) ders filtresi (?ders=Matematik) varsa o derse indirgenir
+    //   2) "eksik konu" filtresi (?eksik=ders|konu) varsa sadece o konuya indirgenir
+    //   3) Sıralama: ders → ünite (uniteNo artan) → konu (admin array sırası)
+    //                → zorluk (artan) → soruID (artan)
+    //   4) Unite tablosunda olmayan ünite/konu sona düşer (güvenlik ağı)
+    const dersFiltre = (req.query.ders || '').trim();
+    const eksikFiltre = (req.query.eksik || '').trim(); // "ders|konu" formatı
+
+    if (dersFiltre && !ogretmen && !moderator) {
+        cozulmemisSorular = cozulmemisSorular.filter(s => (s.ders || '') === dersFiltre);
+    }
+    if (eksikFiltre && !ogretmen && !moderator) {
+        const [eDers, eKonu] = eksikFiltre.split('|');
+        cozulmemisSorular = cozulmemisSorular.filter(s =>
+            (s.ders || '') === eDers && (s.konu || '') === eKonu
+        );
+    }
+
+    // Admin'de tanımlı ünite/konu sırasını çek (öğrencinin sınıfı için)
+    let uniteSiraMap = {}; // anahtar: "ders|unite", değer: { uniteSira, konuSiraMap }
+    if (!ogretmen) {
+        try {
+            const uniteler = await Unite.find({ sinif: String(k.sinif) }).lean();
+            uniteler.forEach(u => {
+                const anahtar = (u.ders || '') + '|' + (u.uniteAdi || '');
+                const konuSiraMap = {};
+                (u.konular || []).forEach((kn, idx) => { konuSiraMap[kn] = idx; });
+                uniteSiraMap[anahtar] = {
+                    uniteSira: u.uniteNo || 9999,
+                    konuSiraMap: konuSiraMap
+                };
+            });
+        } catch (e) { /* tablo boşsa fallback alfabetik kalır */ }
+    }
+
     cozulmemisSorular.sort((a, b) => {
-        const uniteA = a.unite || '';
-        const uniteB = b.unite || '';
-        const uniteCmp = uniteA.localeCompare(uniteB, 'tr', { numeric: true });
-        if (uniteCmp !== 0) return uniteCmp;
-        const konuA = a.konu || '';
-        const konuB = b.konu || '';
-        const konuCmp = konuA.localeCompare(konuB, 'tr', { numeric: true });
-        if (konuCmp !== 0) return konuCmp;
-        const za = a.zorlukKatsayisi || 3;
-        const zb = b.zorlukKatsayisi || 3;
-        return za - zb;
+        // 1) Ders alfabetik (ders filtreli mod'da bu hiç tetiklenmez)
+        const dersA = a.ders || '';
+        const dersB = b.ders || '';
+        const dersCmp = dersA.localeCompare(dersB, 'tr');
+        if (dersCmp !== 0) return dersCmp;
+
+        // 2) Ünite — admin'deki uniteNo'ya göre
+        const uniteAnhA = (a.ders || '') + '|' + (a.unite || '');
+        const uniteAnhB = (b.ders || '') + '|' + (b.unite || '');
+        const uA = uniteSiraMap[uniteAnhA];
+        const uB = uniteSiraMap[uniteAnhB];
+        const uniteSiraA = uA ? uA.uniteSira : 9999;
+        const uniteSiraB = uB ? uB.uniteSira : 9999;
+        if (uniteSiraA !== uniteSiraB) return uniteSiraA - uniteSiraB;
+
+        // 3) Konu — admin'deki konular array sırası
+        const konuSiraA = uA && uA.konuSiraMap[a.konu] !== undefined ? uA.konuSiraMap[a.konu] : 9999;
+        const konuSiraB = uB && uB.konuSiraMap[b.konu] !== undefined ? uB.konuSiraMap[b.konu] : 9999;
+        if (konuSiraA !== konuSiraB) return konuSiraA - konuSiraB;
+
+        // 4) Zorluk artan
+        const za = a.zorlukKatsayisi != null ? a.zorlukKatsayisi : 3;
+        const zb = b.zorlukKatsayisi != null ? b.zorlukKatsayisi : 3;
+        if (za !== zb) return za - zb;
+
+        // 5) Eşitlik durumunda soruID artan
+        return String(a._id).localeCompare(String(b._id));
     });
 
     // Moderatör için navigasyon indexi
@@ -173,6 +226,13 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     } else {
         sorular = cozulmemisSorular;
+    }
+
+    // v4.1.41: Filtre ile gelmiş (ders veya eksik) ama o filtrede çözülmemiş soru
+    // kalmamışsa, kullanıcıyı ders seçim ekranına geri yönlendir (mod=soru, basla yok).
+    // Soru çözme akışında yarıda kalmasın, ders seçim ekranını görsün.
+    if (!moderator && !ogretmen && req.query.basla === 'true' && sorular.length === 0 && (dersFiltre || eksikFiltre)) {
+        return res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi) + '?bitti=' + (dersFiltre || eksikFiltre.split('|').join('-')));
     }
 
     const zorlukBilgisi = (soru) => {
@@ -396,12 +456,82 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // landing'de ve profilde "Profilini tamamla" uyarısı gösterilir.
     const eksikBilgiVar = !(k.il && k.il.trim()) || !(k.ilce && k.ilce.trim()) || !(k.okul && k.okul.trim());
 
+    // v4.1.41: Ders seçim ekranı için ders bazlı çözülmemiş soru sayısı.
+    // Sadece öğrencide ve hiçbir filtre yokken hesaplanır.
+    let cozulmemisDersDagilim = null;
+    let tumDersler = []; // admin Unite tablosundan tanımlı dersler (sınıf seviyesi için)
+    if (!ogretmen && !moderator) {
+        try {
+            // Admin'de tanımlı tüm derslerin listesi (öğrencinin sınıfı için)
+            const uniteler = await Unite.find({ sinif: String(k.sinif) }, 'ders').lean();
+            const dersSet = new Set(uniteler.map(u => u.ders).filter(Boolean));
+            tumDersler = Array.from(dersSet).sort((a, b) => a.localeCompare(b, 'tr'));
+
+            // Öğrencinin tüm yayında soruları için ders dağılımı (filtre uygulanmadan)
+            // yayindaSorular zaten kullanıcının sınıfına özel
+            const dagilim = {};
+            tumDersler.forEach(d => { dagilim[d] = 0; });
+            yayindaSorular.forEach(s => {
+                if (!cozulenIds.has(String(s._id))) {
+                    if (s.ders) dagilim[s.ders] = (dagilim[s.ders] || 0) + 1;
+                }
+            });
+            cozulmemisDersDagilim = dagilim;
+        } catch (e) { cozulmemisDersDagilim = null; }
+    }
+
+    // v4.1.41: "Eksiklerini Kapat" için en zayıf konuyu bul
+    // Profildeki "zayıftan güçlüye" mantığı: doğru oranı düşük olan konular önce
+    let enZayifKonu = null; // { ders, konu, oran, kalanSoru }
+    if (!ogretmen && !moderator && cozulmemisDersDagilim) {
+        try {
+            // Konu bazında doğru/toplam say
+            const konuStat = {}; // anahtar: "ders|konu" → { dogru, toplam }
+            const soruIdToDersKonu = {};
+            // Önce yayındaki sorular için ders/konu eşle
+            yayindaSorular.forEach(s => {
+                soruIdToDersKonu[String(s._id)] = { ders: s.ders || '', konu: s.konu || '' };
+            });
+            // Cevaplardan konu istatistiği bina et
+            tumCevaplar.forEach(c => {
+                const dk = soruIdToDersKonu[String(c.soruId)];
+                if (!dk || !dk.ders || !dk.konu) return;
+                const anahtar = dk.ders + '|' + dk.konu;
+                if (!konuStat[anahtar]) konuStat[anahtar] = { dogru: 0, toplam: 0, ders: dk.ders, konu: dk.konu };
+                konuStat[anahtar].toplam++;
+                if (c.dogruMu) konuStat[anahtar].dogru++;
+            });
+            // Konuları zayıftan güçlüye sırala
+            const konuListesi = Object.values(konuStat).map(kk => ({
+                ders: kk.ders, konu: kk.konu,
+                oran: kk.toplam > 0 ? Math.round((kk.dogru / kk.toplam) * 100) : 0,
+                toplam: kk.toplam
+            })).sort((a, b) => {
+                if (a.oran !== b.oran) return a.oran - b.oran;
+                return b.toplam - a.toplam;
+            });
+            // Sırayla geç, çözülmemiş sorusu olan ilk konuyu bul
+            for (const kn of konuListesi) {
+                const kalanSoru = yayindaSorular.filter(s =>
+                    !cozulenIds.has(String(s._id)) &&
+                    (s.ders || '') === kn.ders &&
+                    (s.konu || '') === kn.konu
+                ).length;
+                if (kalanSoru > 0) {
+                    enZayifKonu = { ders: kn.ders, konu: kn.konu, oran: kn.oran, kalanSoru };
+                    break;
+                }
+            }
+        } catch (e) { enZayifKonu = null; }
+    }
+
     res.render('panel', {
         k,
         mod,
         sorular,
         zorlukBilgisi,
         basla: req.query.basla,
+        query: req.query,
         encodeURIComponent,
         siralamaVerisi,
         ortToplamHesapla,
@@ -418,6 +548,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         toplamSoru: cozulmemisSorular.length,
         landingStats,
         digerSinifSoruSayilari,
+        cozulmemisDersDagilim,
+        tumDersler,
+        enZayifKonu,
+        dersFiltre,
+        eksikFiltre,
         eksikBilgiVar,
         adminGorunum: req.adminGorunum || false
     });

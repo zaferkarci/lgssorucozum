@@ -1,11 +1,15 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.1.40 (Modüler Yapı) ---
-// v4.1.40 değişiklikleri:
-//   • Öğrenci kendi sınıf seviyesinde yayında soru olmadığında soğuk "Soru
-//     bulunamadı" mesajı yerine bilgilendirici "Yapım Aşamasında" ekranı:
-//     diğer sınıflarda kaç soru olduğunu gösterir, çocuk siteyi terk etmek
-//     yerine "demek ki canlı bir site" hisseder.
-//   • Backend: Sadece öğrencinin sınıfında 0 soru varken aggregate sorgusu
-//     çalışır (gereksiz yük yok).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.0 (Modüler Yapı) ---
+// v4.2.0 değişiklikleri (yeni minor seri):
+//   • v4.1.41'in tüm değişikliklerini içerir:
+//     - "Soru Çöz" landing yeniden tasarlandı (Eksiklerini Kapat + ders kartları)
+//     - Soru sıralama: ders → ünite (admin uniteNo) → konu (admin array sırası)
+//       → zorluk (artan) → soruID (artan)
+//     - Filtre desteği: ?ders ve ?eksik
+//     - Filtre tükenirse landing'e redirect ?bitti=...
+//   • v4.2.0 ek: "Tüm soruları çözdün" mesajına motivasyon notu eklendi —
+//     "Yarın yeni sorular eklenecek, çözmeyi unutma." Hem ders/konu bittiğinde
+//     hem sistemdeki tüm sorular bittiğinde gösterilir. Kullanıcı işin bittiğini
+//     düşünmesin, devam etmeye motive olsun.
 
 const mongoose = require('mongoose');
 const express = require('express');

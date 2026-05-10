@@ -1407,10 +1407,19 @@ document.addEventListener('DOMContentLoaded', function() {
         <h2>Henüz örnek soru yok</h2>
         <p>Sistemde yayında soru bulunmuyor.</p>
       <% } else if (k.soruIndex > 0) { %>
-        <h2 style="color:#27ae60;">🎉 Tebrikler!</h2>
-        <p style="font-size:16px;">Sistemdeki tüm soruları çözdünüz.</p>
-        <p style="color:#666;">Yeni soru eklenmesini bekleyiniz.</p>
-        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="btn btn-success" style="margin-top:16px;">Profilime Git</a>
+        <!-- v4.2.0: "tüm sorular bitti" mesajı — yarın yeni sorular motivasyonu -->
+        <div style="max-width:520px; margin:40px auto 0; padding:32px 28px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border:1px solid #a5d6a7; border-radius:16px; text-align:center;">
+          <div style="font-size:42px; margin-bottom:10px;">🎉</div>
+          <h2 style="color:#2e7d32; font-size:22px; margin:0 0 12px; font-weight:500;">Tebrikler!</h2>
+          <p style="font-size:15px; color:#37474f; line-height:1.7; margin:0 0 14px;">
+            Sistemdeki tüm soruları çözdün. Çok iyi gidiyorsun.
+          </p>
+          <div style="background:#fff; border-radius:10px; padding:12px 16px; margin:14px 0; border:1px solid #c8e6c9;">
+            <div style="font-size:14px; color:#1565c0; font-weight:500; margin-bottom:4px;">📌 Yarın yeni sorular eklenecek</div>
+            <div style="font-size:13px; color:#5f6c5f; line-height:1.5;">Çözmeyi unutma. Her gün düzenli çalışmak başarının anahtarı.</div>
+          </div>
+          <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="btn btn-success" style="background:#1a73e8; padding:9px 22px; margin-top:8px;">Profilime Git</a>
+        </div>
       <% } else { %>
         <!-- v4.1.40: Yeni öğrenci farklı sınıf seviyesinden gelmişse — sıcak ve bilgilendirici mesaj -->
         <div style="max-width:560px; margin:40px auto 0; padding:32px 28px; background: linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 100%); border:1px solid #bbdefb; border-radius:16px; text-align:left;">
@@ -1523,12 +1532,92 @@ document.addEventListener('DOMContentLoaded', function() {
 
       </div>
 
-      <!-- Ana CTA -->
-      <div style="text-align:center; margin-top:24px; margin-bottom:20px;">
-        <h1 style="color:#1a73e8; margin-bottom:8px;">Hazır mısın?</h1>
-        <p style="color:#5f6368; margin-bottom:20px;">Sıradaki soruyu çözmek için butona tıkla.</p>
-        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true" class="btn btn-success btn-lg">SORU ÇÖZMEYE BAŞLA</a>
+      <% if (typeof query !== 'undefined' && query && query.bitti) { %>
+        <!-- v4.1.41: Bir ders veya konu tamamlandığında redirect notice -->
+        <!-- v4.2.0: "yarın yeni sorular" motivasyon notu eklendi -->
+        <div style="margin-bottom:20px; padding:14px 20px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:12px; color:#2e7d32; font-size:14px; line-height:1.6;">
+          <div style="font-weight:500; margin-bottom:4px;">🎉 Bu konu/dersteki tüm soruları çözdün! Başka bir mod seçerek devam et.</div>
+          <div style="font-size:13px; color:#5f6c5f; font-weight:400;">📌 Yarın yeni sorular eklenecek, çözmeyi unutma.</div>
+        </div>
+      <% } %>
+
+      <!-- Ana CTA — v4.1.41: Tek butondan ders seçim ekranına dönüştürüldü -->
+      <div style="text-align:center; margin-top:24px; margin-bottom:8px;">
+        <h1 style="color:#1a73e8; margin-bottom:6px; font-size:26px;">Hadi Başlayalım</h1>
+        <p style="color:#5f6368; margin-bottom:22px; font-size:14px;">Bir mod seç ve soru çözmeye başla.</p>
       </div>
+
+      <% if (enZayifKonu) { %>
+      <!-- "Eksiklerini Kapat" — sadece zayıf konuda çözülmemiş soru varsa -->
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&eksik=<%= encodeURIComponent(enZayifKonu.ders + '|' + enZayifKonu.konu) %>"
+         style="display:block; text-decoration:none; background: linear-gradient(135deg,#fff8e1 0%, #fff3c4 100%); border:1.5px solid #ffd54f; border-radius:14px; padding:18px 22px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="font-size:30px;">🎯</div>
+          <div style="flex:1;">
+            <div style="font-size:16px; font-weight:600; color:#f57c00; margin-bottom:4px;">
+              Eksiklerini Kapat
+              <span style="background:#fff; color:#f57c00; font-size:10px; padding:2px 8px; border-radius:10px; font-weight:500; margin-left:6px;">ÖNERİLEN</span>
+            </div>
+            <div style="font-size:13px; color:#795548; line-height:1.5;">En zayıf olduğun konudan başla. Sistem otomatik seçti.</div>
+            <div style="font-size:12px; color:#a16626; margin-top:6px;">
+              Şu an: <b><%= enZayifKonu.ders %> · <%= enZayifKonu.konu %></b>
+              <% if (enZayifKonu.oran > 0) { %>(%<%= enZayifKonu.oran %> doğru)<% } %>
+              · <%= enZayifKonu.kalanSoru %> soru kalan
+            </div>
+          </div>
+          <div style="color:#f57c00; font-size:22px;">→</div>
+        </div>
+      </a>
+      <% } %>
+
+      <% if (tumDersler && tumDersler.length > 0) { %>
+        <p style="text-align:center; font-size:13px; color:#888; margin:18px 0 12px;">veya bir ders seç</p>
+
+        <!-- Ders seçim grid'i -->
+        <%
+          var dersIkonMap = {
+            'Matematik':       { ikon: '🧮', renk: '#185FA5' },
+            'Türkçe':          { ikon: '📖', renk: '#3B6D11' },
+            'Fen Bilimleri':   { ikon: '🔬', renk: '#854F0B' },
+            'T.C. İnkılâp Tarihi': { ikon: '🏛️', renk: '#993C1D' },
+            'İngilizce':       { ikon: '🌍', renk: '#534AB7' },
+            'Din Kültürü':     { ikon: '📿', renk: '#0F6E56' }
+          };
+        %>
+        <div class="ders-secim-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+          <% tumDersler.forEach(function(ders) {
+            var sayi = (cozulmemisDersDagilim && cozulmemisDersDagilim[ders]) || 0;
+            var dr = dersIkonMap[ders] || { ikon: '📚', renk: '#5f6368' };
+            var pasif = sayi === 0;
+          %>
+            <% if (pasif) { %>
+              <div style="background:#f5f5f5; border:1.5px solid #ddd; border-radius:12px; padding:16px 12px; text-align:center; opacity:0.55; cursor:not-allowed;">
+                <div style="font-size:26px; margin-bottom:6px; filter:grayscale(1);"><%= dr.ikon %></div>
+                <div style="font-size:14px; font-weight:600; color:#888;"><%= ders %></div>
+                <div style="font-size:10px; color:#aaa; margin-top:3px;">Yapım aşamasında</div>
+              </div>
+            <% } else { %>
+              <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&ders=<%= encodeURIComponent(ders) %>"
+                 style="display:block; text-decoration:none; background:#fff; border:1.5px solid <%= dr.renk %>; border-radius:12px; padding:16px 12px; text-align:center; transition:transform 0.1s;"
+                 onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+                <div style="font-size:26px; margin-bottom:6px;"><%= dr.ikon %></div>
+                <div style="font-size:14px; font-weight:600; color:<%= dr.renk %>;"><%= ders %></div>
+                <div style="font-size:11px; color:#5f6368; margin-top:3px;"><%= sayi %> soru</div>
+              </a>
+            <% } %>
+          <% }); %>
+        </div>
+        <style>
+          @media (max-width: 600px) {
+            .ders-secim-grid { grid-template-columns: 1fr 1fr !important; }
+          }
+        </style>
+      <% } else { %>
+        <div style="text-align:center; padding:20px;">
+          <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true" class="btn btn-success btn-lg">SORU ÇÖZMEYE BAŞLA</a>
+          <p style="font-size:12px; color:#888; margin-top:8px;">Tüm sorulardan rastgele başla</p>
+        </div>
+      <% } %>
 
       <!-- Motivasyon: bugünkü çözüm -->
       <% if (landingStats.bugunCozulen > 0) { %>
