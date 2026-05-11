@@ -936,6 +936,58 @@ document.addEventListener('DOMContentLoaded', function() {
         </form>
       </div>
     </div>
+
+    <!-- v4.2.5: Mail Değiştirme — 2 adımlı doğrulamalı -->
+    <div class="sifre-kart-profil" id="email-dogrulama" style="margin-top:18px;">
+      <div class="sifre-profil-header">
+        <div>
+          <div class="sifre-profil-baslik">Mail Adresi</div>
+          <div class="sifre-profil-alt">
+            <% if (k.email && k.email.trim()) { %>
+              Mevcut: <b><%= k.email %></b>
+            <% } else { %>
+              Henüz mail adresi tanımlı değil
+            <% } %>
+            <% if (k.yeniEmailBekleyen) { %>
+              <br><span style="color:#f57c00;">⏳ <b><%= k.yeniEmailBekleyen %></b> adresine doğrulama kodu gönderildi, doğrulama bekleniyor.</span>
+            <% } %>
+          </div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0bcc8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </div>
+      <div class="sifre-profil-body">
+
+        <!-- ADIM 1: Yeni mail gir → kod gönder -->
+        <form method="POST" action="/profil/email-degistir-kod-gonder" style="margin-bottom:0;">
+          <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+          <div class="sf-field">
+            <label class="sf-label">Yeni mail adresi</label>
+            <div class="sf-wrap">
+              <input type="email" name="yeniEmail" required class="sf-input" placeholder="ornek@gmail.com" value="<%= k.yeniEmailBekleyen || '' %>">
+            </div>
+            <div class="sf-hint" style="color:#5f6368;">Bu adrese 6 haneli doğrulama kodu gönderilir.</div>
+          </div>
+          <button type="submit" class="sf-btn"><%= k.yeniEmailBekleyen ? 'Kodu Tekrar Gönder' : 'Doğrulama Kodu Gönder' %></button>
+        </form>
+
+        <% if (k.yeniEmailBekleyen) { %>
+          <!-- ADIM 2: Sadece bekleyen değişiklik varsa göster -->
+          <hr class="sf-divider" style="margin-top:18px;">
+          <form method="POST" action="/profil/email-degistir-kod-dogrula">
+            <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+            <div class="sf-field">
+              <label class="sf-label">Doğrulama kodu (6 haneli)</label>
+              <div class="sf-wrap">
+                <input type="text" name="kod" required pattern="[0-9]{6}" maxlength="6" class="sf-input" placeholder="••••••" style="letter-spacing:8px; font-family:'Courier New',monospace; font-size:18px; text-align:center;" autocomplete="off">
+              </div>
+              <div class="sf-hint">Maile gelen 6 haneli kodu girin. 15 dakika geçerlidir.</div>
+            </div>
+            <button type="submit" class="sf-btn">Maili Onayla ve Değiştir</button>
+          </form>
+        <% } %>
+
+      </div>
+    </div>
   </div>
   <% } %>
 

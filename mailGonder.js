@@ -42,4 +42,25 @@ async function sifreSifirlamaMailiGonder(aliciEmail, kullaniciAdi, sifirlamaLink
     return await mailGonder(aliciEmail, konu, html);
 }
 
-module.exports = { mailGonder, sifreSifirlamaMailiGonder };
+// v4.2.5: Mail değiştirme doğrulama kodu
+async function emailDogrulamaKoduGonder(aliciEmail, kullaniciAdi, kod) {
+    const konu = 'LGS Hazırlık — Mail Doğrulama Kodu';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #1a73e8;">Mail Doğrulama</h2>
+            <p>Merhaba <b>${kullaniciAdi}</b>,</p>
+            <p>LGS Hazırlık Platformu hesabınızda mail adresinizi bu adresle değiştirmek istediniz.</p>
+            <p style="font-size: 14px;">Aşağıdaki kodu doğrulama sayfasına girin:</p>
+            <div style="text-align:center; margin:30px 0;">
+                <div style="display:inline-block; background:#f0f7ff; border:2px solid #1a73e8; padding:18px 36px; border-radius:10px; font-size:32px; font-weight:bold; color:#1a73e8; letter-spacing:8px; font-family:'Courier New', monospace;">${kod}</div>
+            </div>
+            <p style="font-size: 13px; color: #666;">Bu kod <b>15 dakika</b> geçerlidir.</p>
+            <p style="font-size: 13px; color: #666;">Bu isteği siz yapmadıysanız bu mesajı görmezden gelebilirsiniz. Mail adresiniz değişmez.</p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #999;">Bu otomatik bir mesajdır, yanıtlamayın.</p>
+        </div>
+    `;
+    return await mailGonder(aliciEmail, konu, html);
+}
+
+module.exports = { mailGonder, sifreSifirlamaMailiGonder, emailDogrulamaKoduGonder };

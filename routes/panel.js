@@ -694,6 +694,68 @@ router.post('/profil/sifre-degistir', oturumKontrol, async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
+// v4.2.5: Mail değiştirme — 2 adımlı doğrulama akışı
+// Adım 1: Kullanıcı yeni mail girer, sistem o mail'e 6 haneli kod gönderir
+router.post('/profil/email-degistir-kod-gonder', oturumKontrol, async (req, res) => {
+    const { kullaniciAdi, yeniEmail } = req.body;
+    const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil';
+    try {
+        const mail = (yeniEmail || '').trim().toLowerCase();
+        if (!mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+            return res.send("<script>alert('Geçerli bir mail adresi girin.'); window.location.href='" + geri + "';</script>");
+        }
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send("Kullanıcı bulunamadı.");
+        if (k.email && k.email.toLowerCase() === mail) {
+            return res.send("<script>alert('Bu zaten mevcut mail adresiniz.'); window.location.href='" + geri + "';</script>");
+        }
+        // 6 haneli rastgele kod (100000–999999)
+        const kod = String(Math.floor(100000 + Math.random() * 900000));
+        k.yeniEmailBekleyen = mail;
+        k.emailDogrulamaKodu = kod;
+        k.emailDogrulamaSonGecerli = new Date(Date.now() + 15 * 60 * 1000); // 15 dk
+        await k.save();
+        try {
+            const { emailDogrulamaKoduGonder } = require('../mailGonder');
+            await emailDogrulamaKoduGonder(mail, k.kullaniciAdi, kod);
+        } catch (err) {
+            console.error('[email-degistir] mail gonderme hatasi:', err.message);
+            return res.send("<script>alert('Mail gönderilirken hata oluştu. Mail servisi yapılandırılmamış olabilir.'); window.location.href='" + geri + "';</script>");
+        }
+        res.send("<script>alert('Doğrulama kodu " + mail + " adresine gönderildi. 15 dakika içinde girin.'); window.location.href='" + geri + "#email-dogrulama';</script>");
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// Adım 2: Kullanıcı kodu girer, doğruysa email kalıcı değişir
+router.post('/profil/email-degistir-kod-dogrula', oturumKontrol, async (req, res) => {
+    const { kullaniciAdi, kod } = req.body;
+    const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil';
+    try {
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send("Kullanıcı bulunamadı.");
+        if (!k.yeniEmailBekleyen || !k.emailDogrulamaKodu) {
+            return res.send("<script>alert('Bekleyen mail değiştirme isteği yok.'); window.location.href='" + geri + "';</script>");
+        }
+        if (!k.emailDogrulamaSonGecerli || new Date() > new Date(k.emailDogrulamaSonGecerli)) {
+            k.yeniEmailBekleyen = '';
+            k.emailDogrulamaKodu = '';
+            k.emailDogrulamaSonGecerli = null;
+            await k.save();
+            return res.send("<script>alert('Kodun süresi dolmuş. Tekrar isteyin.'); window.location.href='" + geri + "';</script>");
+        }
+        if (String(kod || '').trim() !== String(k.emailDogrulamaKodu)) {
+            return res.send("<script>alert('Kod yanlış. Tekrar deneyin.'); window.location.href='" + geri + "#email-dogrulama';</script>");
+        }
+        // Başarılı — yeni maili kalıcı kaydet, geçici alanları temizle
+        k.email = k.yeniEmailBekleyen;
+        k.yeniEmailBekleyen = '';
+        k.emailDogrulamaKodu = '';
+        k.emailDogrulamaSonGecerli = null;
+        await k.save();
+        res.send("<script>alert('Mail adresiniz başarıyla güncellendi.'); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
 // Davet linki kopyalandı bildirimi (sadece kodun sahibi işaretleyebilir)
 router.post('/referans-kopyalandi', async (req, res) => {
     console.log('[referans-kopyalandi] istek geldi:', { kod: req.body && req.body.kod, kullanici: req.session && req.session.kullaniciAdi });

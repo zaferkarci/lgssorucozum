@@ -23,7 +23,11 @@ const KullaniciSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: null
     },
-    siralamaCacheTarih: { type: Date, default: null }
+    siralamaCacheTarih: { type: Date, default: null },
+    // v4.2.5: Mail değiştirme doğrulama akışı için geçici alanlar
+    yeniEmailBekleyen: { type: String, default: '' },      // Kullanıcının değiştirmek istediği yeni mail
+    emailDogrulamaKodu: { type: String, default: '' },     // 6 haneli kod (hash'li değil, kısa ömürlü)
+    emailDogrulamaSonGecerli: { type: Date, default: null } // Kod son geçerlilik tarihi (15 dk)
 });
 
 // Compound indexes — sıralama filtreleri için
