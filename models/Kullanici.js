@@ -4,7 +4,14 @@ const KullaniciSchema = new mongoose.Schema({
     kullaniciAdi: { type: String, unique: true, index: true },
     sifre: String,
     email: { type: String, default: '' },
-    rol: { type: String, default: 'ogrenci' }, // 'ogrenci' | 'ogretmen' | 'moderator'
+    rol: { type: String, default: 'ogrenci' }, // 'ogrenci' | 'ogretmen' | 'moderator' | 'kurumsal'
+    // v4.3.0: Çoklu rol desteği — bir kullanıcı hem kurumsal hem öğretmen olabilir
+    // ve roller arası geçiş yapabilir. rolListesi boş kalırsa eski tek-rol mantığı geçerli.
+    rolListesi: { type: [String], default: [] },   // ör: ['kurumsal', 'ogretmen']
+    aktifRol: { type: String, default: '' },        // şu an hangi rolde panel açtı
+    // v4.3.0: Kurum bağlantıları
+    yonettigiKurumId: { type: mongoose.Schema.Types.ObjectId, ref: 'Kurum', default: null }, // kurumsal kullanıcı için
+    bagliKurumId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Kurum', default: null }, // öğretmen/öğrenci için
     il: String, ilce: String, okul: String,
     sinif: { type: Number, default: 8 },
     sube: { type: String, default: '' },

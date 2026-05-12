@@ -1,17 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.2.5 (Modüler Yapı) ---
-// v4.2.5 değişiklikleri:
-//   • Profil → Güvenlik sekmesine "Mail Adresi" kartı eklendi (2 adımlı doğrulama).
-//     Adım 1: Yeni mail gir → /profil/email-degistir-kod-gonder → 6 haneli kod
-//     o adrese gönderilir, geçici alanlara (yeniEmailBekleyen, emailDogrulamaKodu,
-//     emailDogrulamaSonGecerli) yazılır.
-//     Adım 2: Kullanıcı kodu girer → /profil/email-degistir-kod-dogrula →
-//     kod doğruysa email kalıcı değişir, geçici alanlar temizlenir.
-//   • Kod 15 dakika geçerli, süre dolarsa otomatik temizlenir.
-//   • Kayıt formunda mail hâlâ opsiyonel (kullanıcı isteğine göre) — doğrulama
-//     sadece değişiklikte istenir.
-//   • mailGonder.js'e emailDogrulamaKoduGonder fonksiyonu eklendi.
-//   • Kullanici modeline 3 geçici alan eklendi (yeniEmailBekleyen,
-//     emailDogrulamaKodu, emailDogrulamaSonGecerli).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.0 (Modüler Yapı) ---
+// v4.3.0 değişiklikleri (kurumsal kullanıcı temel veri modeli — UI yok):
+//   • Yeni model: models/Kurum.js — okul/dershane/kurs tipinde kurumları temsil
+//     eder. Kurumsal kullanıcı bir kurumu yönetir.
+//   • Kullanici modeline 4 yeni alan eklendi (hepsi default değerli, eski
+//     belgeleri etkilemez):
+//     - rolListesi: çoklu rol (ör: ['kurumsal', 'ogretmen'])
+//     - aktifRol: hangi rolde panel açtığı
+//     - yonettigiKurumId: kurumsal kullanıcının yönettiği kurum
+//     - bagliKurumId: öğretmen/öğrenci'nin kayıtlı olduğu kurum
+//   • ReferansKodu modeline 'kurumsal' tipi + kurumId alanı eklendi.
+//   • UI ve route'lar dokunulmadı — sadece veri yapısı hazırlandı.
+//   • Sonraki sürümler bu altyapı üzerine inşa edilecek (admin'de kurum oluşturma,
+//     kurumsal panel, takip ilişkileri, vb.)
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler
