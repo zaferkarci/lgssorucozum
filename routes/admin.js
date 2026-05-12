@@ -399,7 +399,9 @@ router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         const adet = Math.min(parseInt(req.body.adet) || 1, 500);
-        const tip = (req.body.tip === 'ogretmen') ? 'ogretmen' : 'ogrenci';
+        // v4.3.2: 'kurumsal' tipi de eklendi
+        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal'];
+        const tip = gecerliTipler.includes(req.body.tip) ? req.body.tip : 'ogrenci';
         await referansKoduUret('admin', adet, tip);
         res.redirect('/admin?mod=referans');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
@@ -651,7 +653,7 @@ router.post('/kullanici-rol', async (req, res) => {
         const k = await Kullanici.findOne({ kullaniciAdi });
         if (!k) return res.status(404).send('Kullanıcı bulunamadı');
         // Form'dan gelen geçerli bir rol varsa onu kullan; yoksa eski toggle davranışı
-        const gecerliRoller = ['ogrenci', 'ogretmen', 'moderator'];
+        const gecerliRoller = ['ogrenci', 'ogretmen', 'moderator', 'kurumsal'];
         let yeniRol;
         if (gecerliRoller.indexOf(yeniRolForm) !== -1) {
             yeniRol = yeniRolForm;
@@ -700,7 +702,7 @@ router.post('/kullanici-rol-degistir', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         const { kullaniciAdi, yeniRol } = req.body;
-        const gecerliRoller = ['ogrenci', 'ogretmen', 'moderator'];
+        const gecerliRoller = ['ogrenci', 'ogretmen', 'moderator', 'kurumsal'];
         if (!gecerliRoller.includes(yeniRol)) return res.status(400).send('Geçersiz rol.');
         const sonuc = await Kullanici.updateOne({ kullaniciAdi }, { rol: yeniRol });
         if (sonuc.matchedCount === 0) return res.status(404).send('Kullanıcı bulunamadı.');

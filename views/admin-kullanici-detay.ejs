@@ -48,6 +48,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
   <span class="topbar-admin-baslik"><%= k.kullaniciAdi %> — Detay</span>
   <% if (k.rol === 'moderator') { %><span style="background:#e8f0fe;color:#1a73e8;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">MOD</span><% } %>
   <% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5;color:#6a1b9a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">👩‍🏫 ÖĞRETMEN</span><% } %>
+  <% if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1;color:#00695c;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">🏛️ KURUMSAL</span><% } %>
 </div>
 
 <div class="detay-wrap">
@@ -65,7 +66,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <% } %>
         <div class="d-satir"><span class="d-etiket">İl / İlçe</span><span class="d-deger"><%= k.il||'-' %> / <%= k.ilce||'-' %></span></div>
         <div class="d-satir"><span class="d-etiket"><%= k.rol === 'ogretmen' ? 'Görev yaptığı okul' : 'Okul' %></span><span class="d-deger"><%= k.okul||'-' %></span></div>
-        <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : (k.rol === 'ogretmen' ? '👩‍🏫 Öğretmen' : 'Öğrenci') %></span></div>
+        <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : (k.rol === 'ogretmen' ? '👩‍🏫 Öğretmen' : (k.rol === 'kurumsal' ? '🏛️ Kurumsal' : 'Öğrenci')) %></span></div>
       </div>
 
       <!-- Rol değiştirme -->
@@ -77,6 +78,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
           <select name="yeniRol" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1;">
             <option value="ogrenci"  <%= k.rol === 'ogrenci'  ? 'selected' : '' %>>👨‍🎓 Öğrenci</option>
             <option value="ogretmen" <%= k.rol === 'ogretmen' ? 'selected' : '' %>>👩‍🏫 Öğretmen</option>
+            <option value="kurumsal" <%= k.rol === 'kurumsal' ? 'selected' : '' %>>🏛️ Kurumsal</option>
             <option value="moderator" <%= k.rol === 'moderator' ? 'selected' : '' %>>🛡️ Moderatör</option>
           </select>
           <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Rolü Güncelle</button>

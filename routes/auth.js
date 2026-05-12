@@ -105,7 +105,9 @@ router.get('/api/kullaniciadi-oner', async (req, res) => {
 // Benzersiz 10 karakterlik referans kodu üret
 async function referansKoduUret(olusturan, adet, tip) {
     const kodlar = [];
-    const kodTip = (tip === 'ogretmen') ? 'ogretmen' : 'ogrenci';
+    // v4.3.2: 'kurumsal' tipi de geçerli
+    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal'];
+    const kodTip = gecerliTipler.includes(tip) ? tip : 'ogrenci';
     let deneme = 0;
     while (kodlar.length < adet && deneme < adet * 10) {
         deneme++;
@@ -191,7 +193,9 @@ router.post('/kayit-yap', async (req, res) => {
         if (!ref) return res.send("<script>alert('Geçersiz veya kullanılmış referans kodu!'); window.history.back();</script>");
 
         // Rol referans kodundan belirleniyor (kullanıcı manipüle edemesin)
-        const rol = (ref.tip === 'ogretmen') ? 'ogretmen' : 'ogrenci';
+        // v4.3.2: 'kurumsal' tipi de eklendi
+        const rol = (ref.tip === 'ogretmen') ? 'ogretmen' :
+                    (ref.tip === 'kurumsal') ? 'kurumsal' : 'ogrenci';
 
         // Kullanıcı adı format ve küfür kontrolü
         const adHata = kullaniciAdiKontrol(kullaniciAdi);

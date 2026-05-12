@@ -1,17 +1,15 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.0 (Modüler Yapı) ---
-// v4.3.0 değişiklikleri (kurumsal kullanıcı temel veri modeli — UI yok):
-//   • Yeni model: models/Kurum.js — okul/dershane/kurs tipinde kurumları temsil
-//     eder. Kurumsal kullanıcı bir kurumu yönetir.
-//   • Kullanici modeline 4 yeni alan eklendi (hepsi default değerli, eski
-//     belgeleri etkilemez):
-//     - rolListesi: çoklu rol (ör: ['kurumsal', 'ogretmen'])
-//     - aktifRol: hangi rolde panel açtığı
-//     - yonettigiKurumId: kurumsal kullanıcının yönettiği kurum
-//     - bagliKurumId: öğretmen/öğrenci'nin kayıtlı olduğu kurum
-//   • ReferansKodu modeline 'kurumsal' tipi + kurumId alanı eklendi.
-//   • UI ve route'lar dokunulmadı — sadece veri yapısı hazırlandı.
-//   • Sonraki sürümler bu altyapı üzerine inşa edilecek (admin'de kurum oluşturma,
-//     kurumsal panel, takip ilişkileri, vb.)
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.2 (Modüler Yapı) ---
+// v4.3.2 değişiklikleri:
+//   • Admin → Referans Kodları menüsündeki "Kod Üret" dropdown'una "🏛️ Kurumsal
+//     linki" seçeneği eklendi.
+//   • Üretilen kurumsal kodlar listede turkuaz "🏛️ KURUMSAL" rozetiyle ayrılır.
+//   • Backend:
+//     - /referans-uret endpoint'i artık 3 tipi destekliyor (ogrenci/ogretmen/kurumsal)
+//     - referansKoduUret() helper fonksiyonu kurumsal tipi geçirir
+//     - Kayıt akışında (auth.js) kurumsal referans koduyla kayıt olan kullanıcının
+//       rolü otomatik 'kurumsal' atanır
+//   • Önemli: Bu sürüm sadece kurumsal "rol"ünü destekler — Kurum kaydı oluşturma,
+//     yönetilen kurum bağlantısı, kurum paneli henüz yok (sonraki sürümlerde).
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler
