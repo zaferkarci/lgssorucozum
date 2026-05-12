@@ -105,16 +105,29 @@
   </div>
 
   <!-- Sağ: Form -->
+  <%
+    // v4.3.3: Öğretmen VE kurumsal kullanıcı kayıt formunda aynı davranır:
+    // sınıf yok, il/ilçe/okul zorunlu, başlıkta rol vurgulu. Tek değişken
+    // ile tüm form-içi koşulları sadeleştiriyoruz.
+    var ogretmenVeyaKurumsal = (refTip === 'ogretmen' || refTip === 'kurumsal');
+    var formBaslik = refTip === 'ogretmen' ? 'Öğretmen Hesabı Oluştur'
+                   : refTip === 'kurumsal' ? 'Kurumsal Hesap Oluştur'
+                   : 'Hesap Oluştur';
+  %>
   <div class="kayit-sag">
-    <div class="kayit-form-baslik"><%= refTip === 'ogretmen' ? 'Öğretmen Hesabı Oluştur' : 'Hesap Oluştur' %></div>
+    <div class="kayit-form-baslik"><%= formBaslik %></div>
     <div class="kayit-form-alt">Katılmak için referans kodu gereklidir.</div>
     <% if (refTip === 'ogretmen') { %>
       <div style="background:#f3e5f5; border:1px solid #ce93d8; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#6a1b9a;">
         👩‍🏫 <b>Öğretmen kaydı.</b> Bu kayıt formu öğretmenlere özeldir.
       </div>
+    <% } else if (refTip === 'kurumsal') { %>
+      <div style="background:#e0f2f1; border:1px solid #80cbc4; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#00695c;">
+        🏛️ <b>Kurumsal hesap.</b> Bu kayıt formu kurum (okul, dershane, kurs) yöneticilerine özeldir.
+      </div>
     <% } %>
     <form action="/kayit-yap" method="POST" id="kayitForm">
-      <input type="hidden" name="rol" value="<%= refTip === 'ogretmen' ? 'ogretmen' : 'ogrenci' %>">
+      <input type="hidden" name="rol" value="<%= refTip === 'ogretmen' ? 'ogretmen' : (refTip === 'kurumsal' ? 'kurumsal' : 'ogrenci') %>">
       <label class="k-label">Referans Kodu</label>
       <input name="refKod" placeholder="Referans Kodu (zorunlu)" required class="input" value="<%= refKod %>" style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;">
       <label class="k-label">Ad ve Soyad</label>
@@ -138,7 +151,7 @@
       <input type="password" name="sifre" placeholder="••••••••" required class="input">
       <label class="k-label">Şifre Tekrar</label>
       <input type="password" name="sifreTekrar" placeholder="••••••••" required class="input">
-      <% if (refTip !== 'ogretmen') { %>
+      <% if (!ogretmenVeyaKurumsal) { %>
       <label class="k-label">Sınıf</label>
       <select name="sinif" required class="input">
         <option value="">Sınıf Seçiniz</option>
@@ -154,7 +167,7 @@
         <% }); %>
       </select>
       <% } %>
-      <% if (refTip !== 'ogretmen') { %>
+      <% if (!ogretmenVeyaKurumsal) { %>
       <div style="background:#e3f2fd; border:1px solid #90caf9; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#1565c0; line-height:1.5;">
         💡 İl/İlçe/Okul alanları <b>opsiyoneldir</b>.
         <% if (onSecimOkul) { %>
@@ -164,17 +177,17 @@
         <% } %>
       </div>
       <% } %>
-      <label class="k-label">İl<% if (refTip !== 'ogretmen') { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
-      <select name="il" id="ilSelect" onchange="ilDegisti()" <% if (refTip === 'ogretmen') { %>required<% } %> class="input">
+      <label class="k-label">İl<% if (!ogretmenVeyaKurumsal) { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
+      <select name="il" id="ilSelect" onchange="ilDegisti()" <% if (ogretmenVeyaKurumsal) { %>required<% } %> class="input">
         <option value="">İl Seçiniz...</option>
       </select>
-      <label class="k-label">İlçe<% if (refTip !== 'ogretmen') { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
-      <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" <% if (refTip === 'ogretmen') { %>required<% } %> class="input">
+      <label class="k-label">İlçe<% if (!ogretmenVeyaKurumsal) { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
+      <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" <% if (ogretmenVeyaKurumsal) { %>required<% } %> class="input">
         <option value="">İlçe Seçiniz</option>
       </select>
-      <label class="k-label"><%= refTip === 'ogretmen' ? 'Görev Yaptığınız Okul' : 'Okul' %><% if (refTip !== 'ogretmen') { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
-      <select name="okul" id="okulListesi" class="input" <% if (refTip === 'ogretmen') { %>required<% } %>>
-        <option value=""><%= refTip === 'ogretmen' ? 'Görev yaptığınız okulu seçiniz' : 'Okul Seçiniz' %></option>
+      <label class="k-label"><%= refTip === 'ogretmen' ? 'Görev Yaptığınız Okul' : (refTip === 'kurumsal' ? 'Yönettiğiniz Kurum (Okul)' : 'Okul') %><% if (!ogretmenVeyaKurumsal) { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
+      <select name="okul" id="okulListesi" class="input" <% if (ogretmenVeyaKurumsal) { %>required<% } %>>
+        <option value=""><%= ogretmenVeyaKurumsal ? 'Kurumu seçiniz' : 'Okul Seçiniz' %></option>
       </select>
       <button type="submit" class="giris-btn-yeni" style="margin-top:16px;">Kaydı Tamamla</button>
     </form>

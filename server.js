@@ -1,15 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.2 (Modüler Yapı) ---
-// v4.3.2 değişiklikleri:
-//   • Admin → Referans Kodları menüsündeki "Kod Üret" dropdown'una "🏛️ Kurumsal
-//     linki" seçeneği eklendi.
-//   • Üretilen kurumsal kodlar listede turkuaz "🏛️ KURUMSAL" rozetiyle ayrılır.
-//   • Backend:
-//     - /referans-uret endpoint'i artık 3 tipi destekliyor (ogrenci/ogretmen/kurumsal)
-//     - referansKoduUret() helper fonksiyonu kurumsal tipi geçirir
-//     - Kayıt akışında (auth.js) kurumsal referans koduyla kayıt olan kullanıcının
-//       rolü otomatik 'kurumsal' atanır
-//   • Önemli: Bu sürüm sadece kurumsal "rol"ünü destekler — Kurum kaydı oluşturma,
-//     yönetilen kurum bağlantısı, kurum paneli henüz yok (sonraki sürümlerde).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.3 (Modüler Yapı) ---
+// v4.3.3 değişiklikleri:
+//   • Kayıt formunda (views/kayit.ejs) öğretmen ile kurumsal kullanıcı aynı
+//     davranışa eşitlendi: ikisinde de sınıf/şube alanları gizli, il/ilçe/okul
+//     alanları zorunlu (öğretmen için "görev yaptığı okul", kurumsal için
+//     "yönettiği kurum").
+//   • Kurumsal kullanıcı için turkuaz "🏛️ Kurumsal hesap" uyarı kutusu.
+//   • Form başlığı role göre değişir: "Hesap Oluştur" / "Öğretmen Hesabı Oluştur"
+//     / "Kurumsal Hesap Oluştur".
+//   • Backend'de zaten 'rol === ogrenci' kontrolüyle sinif atanıyor, dokunulmadı.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler
