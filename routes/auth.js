@@ -152,6 +152,9 @@ router.get('/kayit', async (req, res) => {
                         onSecimOkul = ogretmenSahip.okul || '';
                     }
                 }
+            } else if (ref && ref.tip === 'kurumsal') {
+                // v4.3.4: Kurumsal davet kodu için refTip atanıyor
+                refTip = 'kurumsal';
             }
         } catch (e) { /* yoksay, default ogrenci + boş ön seçim */ }
     }

@@ -1,13 +1,18 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.3 (Modüler Yapı) ---
-// v4.3.3 değişiklikleri:
-//   • Kayıt formunda (views/kayit.ejs) öğretmen ile kurumsal kullanıcı aynı
-//     davranışa eşitlendi: ikisinde de sınıf/şube alanları gizli, il/ilçe/okul
-//     alanları zorunlu (öğretmen için "görev yaptığı okul", kurumsal için
-//     "yönettiği kurum").
-//   • Kurumsal kullanıcı için turkuaz "🏛️ Kurumsal hesap" uyarı kutusu.
-//   • Form başlığı role göre değişir: "Hesap Oluştur" / "Öğretmen Hesabı Oluştur"
-//     / "Kurumsal Hesap Oluştur".
-//   • Backend'de zaten 'rol === ogrenci' kontrolüyle sinif atanıyor, dokunulmadı.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.4 (Modüler Yapı) ---
+// v4.3.4 değişiklikleri:
+//   • auth.js /kayit route'unda kurumsal davet kodu kontrolü eklendi:
+//     ref.tip === 'kurumsal' ise refTip='kurumsal' atanır, kayıt formunda
+//     sınıf alanları gizli, okul zorunlu.
+//   • panel.js'te ogretmen flag'i (k.rol === 'ogretmen' || k.rol === 'kurumsal')
+//     olarak genişletildi — kurumsal kullanıcı da öğretmen gibi soru çözmez,
+//     sıralamaya girmez, tüm soruları görür.
+//   • views/panel.ejs'te öğretmen davranış kontrolleri kurumsal'ı da kapsayacak
+//     şekilde güncellendi (nav bar, profil sayfası, takip sekmesi, soru çözme).
+//   • Etiket gösterimi: üst başlıkta "🏛️ Kurumsal", profil banner'da turkuaz
+//     "🏛️ Kurumsal" rozeti, profil bilgi kartında "Yönettiğiniz kurum" label'ı.
+//   • Bilinen sınırlama: Takip sekmesindeki JS hâlâ BENIM_ROL === 'ogretmen'
+//     kontrolüyle çalışıyor, kurumsal için bu sürümde aynı arama arayüzünü
+//     görür ama "öğrenci ara" gibi başlıklar gelir. v4.3.5'te düzeltilecek.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

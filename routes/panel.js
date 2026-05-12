@@ -115,7 +115,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
-    const ogretmen = k.rol === 'ogretmen';
+    // v4.3.4: ogretmen flag, hem öğretmen hem kurumsal kullanıcıları kapsar
+    // (her ikisi de soru çözmez, sıralamaya girmez, tüm soruları görebilir).
+    // Etiket/rozet için view'da k.rol özelliği ayrıca kontrol edilir.
+    const ogretmen = (k.rol === 'ogretmen' || k.rol === 'kurumsal');
     // Sadece yayında olan, öğrencinin sınıf seviyesindeki sorular
     // Öğretmen için: tüm yayında sorular (sınıf filtresi yok)
     const yayindaSorular = ogretmen
