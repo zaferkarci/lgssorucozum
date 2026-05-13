@@ -1,20 +1,27 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.7 (Modüler Yapı) ---
-// v4.3.7 değişiklikleri (Madde 3 — kurum üyelik onay sistemi):
-//   • Yeni model: KurumUyelikIstek — öğretmen kuruma katılmak için istek atar,
-//     kurumsal kullanıcı kabul/red verir. Unique compound index ile aynı çift
-//     için tek aktif istek.
-//   • Öğretmen profil sayfasında "Kurum Üyeliği" kartı: beyan ettiği okul
-//     kayıtlı kurumsa "Kuruma Katılma İsteği Gönder" butonu görünür. Bekleyen
-//     istek varsa sarı durum mesajı, kabulse yeşil "Bağlısın" mesajı.
-//   • Kurum Üyeleri sayfasına "Bekleyen Üyelik İstekleri" bölümü eklendi —
-//     sarı vurgulu kart, her istek için Onayla/Reddet butonları + isteyen
-//     kullanıcının okul/il/ilçe bilgileri.
-//   • Öğretmen tablosuna "Çıkar" butonu eklendi — kurumsal kullanıcı bir
-//     öğretmeni kurumdan çıkarabilir (bagliKurumId temizlenir, ilgili istek
-//     kaydı silinir, gerekirse tekrar istek atabilir).
-//   • 3 yeni endpoint: /kurum/istek-gonder, /kurum/istek-yanitla, /kurum/uye-cikar.
-//   • Yetki kontrolleri: kurumsal yönetici sadece kendi kurumunun isteklerini
-//     yanıtlar/üyelerini çıkarır. Öğretmen sadece kendi adına istek atar.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.8 (Modüler Yapı) ---
+// v4.3.8 değişiklikleri (v4.3.7 hatasını düzeltir + otomatik istek akışı):
+//   • Kurum Üyeliği kartı doğru yere taşındı: Profil → Genel sekmesi içinde,
+//     Kişisel Bilgiler'in hemen altında. v4.3.7'de Güvenlik sekmesinin dışına
+//     yanlış yerleştirilmişti, hiç görünmüyordu.
+//   • Otomatik istek gönderme:
+//     - Yeni öğretmen kayıt olunca beyan ettiği okul kayıtlı kurumsa otomatik
+//       katılma isteği oluşturulur (kullanıcı butona basmaz).
+//     - Yeni kurumsal kullanıcı kayıt olunca o okuldaki mevcut öğretmenler için
+//       toplu istekler oluşturulur.
+//     - Lazy fix: panel açılışında eski öğretmenler için kurum varsa otomatik
+//       istek oluşturulur (geçmiş kullanıcılar için).
+//   • Kişisel Bilgiler kartında "Görev yaptığınız okul" alanı:
+//     - İstek beklemede ise "— (kurum onayı bekleniyor)" gri italik
+//     - Onaylandıysa veya hiç istek yoksa beyan ettiği okul görünür
+//   • Kurum Üyeliği kartı durum durumlarına göre:
+//     - Kuruma bağlı: yeşil "✓ Kuruma bağlısın"
+//     - Bekleyen istek: sarı "⏳ Kurum yöneticisinin onayını bekliyor. Kurum
+//       yöneticisiyle iletişime geçiniz."
+//     - Reddedilmiş: kırmızı + tekrar istek butonu
+//     - Kurum yok: gri "Kurumsal yönetici kayıt olunca burada bildirim düşecek"
+//   • Buton metni: "Çalıştığın kuruma katılmak için istek gönder"
+//   • Onaylanmadan öğretmenin istatistik görünürlüğüne dokunulmadı — öğretmen
+//     sadece kendi davet ettiği öğrencileri görür (mevcut davranış aynen).
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

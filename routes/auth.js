@@ -6,6 +6,7 @@ const Kullanici = require('../models/Kullanici');
 const PasswordReset = require('../models/PasswordReset');
 const ReferansKodu = require('../models/ReferansKodu');
 const Kurum = require('../models/Kurum');
+const KurumUyelikIstek = require('../models/KurumUyelikIstek');
 const { sifreSifirlamaMailiGonder } = require('../mailGonder');
 
 const SALT_ROUNDS = 10;
@@ -271,9 +272,59 @@ router.post('/kayit-yap', async (req, res) => {
                 }).save();
                 yeniKullanici.yonettigiKurumId = yeniKurum._id;
                 await yeniKullanici.save();
+                // v4.3.8: Bu okulda görev yaptığını beyan etmiş mevcut öğretmenler için
+                // otomatik kuruma katılma istekleri oluştur — kurum yöneticisi paneli
+                // açtığında bekleyen istekleri görür ve onaylar.
+                try {
+                    const mevcutOgretmenler = await Kullanici.find({
+                        rol: 'ogretmen',
+                        okul: okulSon,
+                        il: ilSon || '',
+                        ilce: ilceSon || '',
+                        bagliKurumId: null
+                    }, 'kullaniciAdi').lean();
+                    for (const ogr of mevcutOgretmenler) {
+                        try {
+                            await new KurumUyelikIstek({
+                                kullaniciAdi: ogr.kullaniciAdi,
+                                kullaniciRol: 'ogretmen',
+                                kurumId: yeniKurum._id
+                            }).save();
+                        } catch (e) {
+                            if (e.code !== 11000) {
+                                console.error('[kayit] Toplu istek hatasi:', e.message);
+                            }
+                        }
+                    }
+                } catch (e) { /* sessiz */ }
             } catch (e) {
                 console.error('[kayit] Kurum olusturma hatasi:', e.message);
                 // Kurum oluşturulamasa bile kullanıcı kaydı düşmesin
+            }
+        }
+
+        // v4.3.8: Öğretmen kayıt olunca, beyan ettiği okul kayıtlı kurumsa otomatik
+        // katılma isteği oluşturulur. Kullanıcı butona basmaz. İstek kabul edilene
+        // kadar profilde "görev yaptığınız okul" boş gösterilir.
+        if (rol === 'ogretmen' && okulSon) {
+            try {
+                const eslesenKurum = await Kurum.findOne({
+                    ad: okulSon,
+                    il: ilSon || '',
+                    ilce: ilceSon || ''
+                });
+                if (eslesenKurum) {
+                    await new KurumUyelikIstek({
+                        kullaniciAdi: kullaniciAdi,
+                        kullaniciRol: 'ogretmen',
+                        kurumId: eslesenKurum._id
+                    }).save();
+                }
+            } catch (e) {
+                // Unique index hatası (kayıt çift kez gelirse) yoksay; başka hatayı logla
+                if (e.code !== 11000) {
+                    console.error('[kayit] Otomatik kurum istegi hatasi:', e.message);
+                }
             }
         }
 

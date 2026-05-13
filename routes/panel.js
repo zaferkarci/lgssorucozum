@@ -618,12 +618,12 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.3.7: Öğretmen için — beyan ettiği okula bağlı kurumun bilgisi + onun gönderdiği istek durumu
+    // v4.3.7-3.8: Öğretmen için — beyan ettiği okula bağlı kurumun bilgisi + onun gönderdiği istek durumu
+    // Yeni davranış (v4.3.8): Eğer kurum var ve öğretmen henüz hiç istek atmamışsa, otomatik istek atılır.
+    // İstek beklemede ise "görev yaptığı okul" boş gösterilir; kabulse normal görünür.
     let oğretmenIcinKurum = null;
     let oğretmenIstekDurum = null;
     if (k.aktifRol === 'ogretmen' && k.rol === 'ogretmen') {
-        // Öğretmen kullanıcı (kurumsal değil, sadece öğretmen) — bagliKurumId yoksa
-        // ve okul bilgisi varsa, okul adıyla eşleşen Kurum belgelerini bulup öner
         if (!k.bagliKurumId && k.okul) {
             try {
                 oğretmenIcinKurum = await Kurum.findOne({
@@ -633,10 +633,24 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 }).lean();
                 if (oğretmenIcinKurum) {
                     // Bu kuruma daha önce istek atmış mı?
-                    const istek = await KurumUyelikIstek.findOne({
+                    let istek = await KurumUyelikIstek.findOne({
                         kullaniciAdi: k.kullaniciAdi,
                         kurumId: oğretmenIcinKurum._id
-                    }).lean();
+                    });
+                    // Hiç yoksa otomatik oluştur (lazy fix — eski öğretmenler için)
+                    if (!istek) {
+                        try {
+                            istek = await new KurumUyelikIstek({
+                                kullaniciAdi: k.kullaniciAdi,
+                                kullaniciRol: 'ogretmen',
+                                kurumId: oğretmenIcinKurum._id
+                            }).save();
+                        } catch (e) {
+                            if (e.code !== 11000) {
+                                console.error('[panel] Otomatik kurum istegi olusturulamadi:', e.message);
+                            }
+                        }
+                    }
                     oğretmenIstekDurum = istek ? istek.durum : null;
                 }
             } catch (e) { /* sessiz */ }
