@@ -179,6 +179,10 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="ptopbar-nav">
     <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Örnek Soru</a>
+      <% if (k.aktifRol === 'kurumsal') { %>
+        <!-- v4.3.6: Kurumsal moda özel - Kurum Üyeleri sekmesi -->
+        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=kurumUyeleri" class="ptopbar-link <%= mod==='kurumUyeleri'?'aktif':'' %>">🏛️ Kurum Üyeleri</a>
+      <% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" class="ptopbar-link <%= mod==='davetEdilenler'?'aktif':'' %>">Davet Ettiklerim</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
@@ -200,7 +204,132 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="panel-main">
 
-<% if (mod === 'profil') { %>
+<% if (mod === 'kurumUyeleri') { %>
+  <!-- v4.3.6: Kurum Üyeleri sayfası — sadece kurumsal modda erişilebilir -->
+  <% if (k.aktifRol !== 'kurumsal') { %>
+    <div style="max-width:600px; margin:60px auto; padding:30px; background:#fff8e1; border:1px solid #ffe082; border-radius:12px; text-align:center;">
+      <div style="font-size:38px; margin-bottom:10px;">🔒</div>
+      <h2 style="color:#f57c00; margin-bottom:8px;">Bu sayfa Kurumsal moduna özeldir</h2>
+      <p style="font-size:14px; color:#5d4037;">Üst köşeden <b>Kurumsal Modu</b>'na geçtikten sonra buraya erişebilirsin.</p>
+    </div>
+  <% } else if (!kurum) { %>
+    <div style="max-width:600px; margin:60px auto; padding:30px; background:#fde7e9; border:1px solid #f4a8af; border-radius:12px; text-align:center;">
+      <div style="font-size:38px; margin-bottom:10px;">⚠️</div>
+      <h2 style="color:#c62828; margin-bottom:8px;">Kurum bilgisi yüklenemedi</h2>
+      <p style="font-size:14px; color:#5d1a1a;">Sayfayı yenileyerek tekrar dene. Sorun devam ederse profilden kurum oluşturmayı manuel başlatmak gerekebilir.</p>
+    </div>
+  <% } else { %>
+    <div style="max-width:1100px; margin:24px auto 0; padding:0 16px;">
+
+      <!-- Kurum bilgi kartı -->
+      <div style="background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%); border:1px solid #80cbc4; border-radius:14px; padding:22px 26px; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="font-size:38px;">🏛️</div>
+          <div style="flex:1;">
+            <div style="font-size:22px; font-weight:600; color:#004d40;"><%= kurum.ad %></div>
+            <div style="font-size:13px; color:#00695c; margin-top:4px;">
+              <%= kurum.tip === 'okul' ? 'Okul' : (kurum.tip === 'dershane' ? 'Dershane' : (kurum.tip === 'kurs' ? 'Kurs' : 'Kurum')) %>
+              <% if (kurum.il || kurum.ilce) { %> · <%= kurum.il %> / <%= kurum.ilce %><% } %>
+              · Yönetici: <b><%= k.kullaniciAdi %></b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Özet kartları -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:22px;">
+        <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:18px; text-align:center;">
+          <div style="font-size:11px; color:#5f6368; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Toplam Üye</div>
+          <div style="font-size:32px; font-weight:700; color:#1a73e8; margin-top:4px;"><%= kurumOgretmenler.length + kurumOgrenciler.length %></div>
+        </div>
+        <div style="background:#fff; border:1px solid #f3e5f5; border-radius:12px; padding:18px; text-align:center;">
+          <div style="font-size:11px; color:#6a1b9a; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">👩‍🏫 Öğretmen</div>
+          <div style="font-size:32px; font-weight:700; color:#6a1b9a; margin-top:4px;"><%= kurumOgretmenler.length %></div>
+        </div>
+        <div style="background:#fff; border:1px solid #e3f2fd; border-radius:12px; padding:18px; text-align:center;">
+          <div style="font-size:11px; color:#1565c0; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">👨‍🎓 Öğrenci</div>
+          <div style="font-size:32px; font-weight:700; color:#1565c0; margin-top:4px;"><%= kurumOgrenciler.length %></div>
+        </div>
+      </div>
+
+      <!-- Öğretmenler tablosu -->
+      <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+          <span style="font-size:15px; font-weight:600; color:#37474f;">👩‍🏫 Kuruma Bağlı Öğretmenler</span>
+          <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumOgretmenler.length %>)</span>
+        </div>
+        <% if (kurumOgretmenler.length === 0) { %>
+          <div style="padding:30px; text-align:center; color:#5f6368; font-size:14px;">
+            Henüz kuruma bağlı öğretmen yok.<br>
+            <span style="font-size:12px; color:#9aa0a6;">Öğretmen ekleme özelliği bir sonraki sürümde geliyor.</span>
+          </div>
+        <% } else { %>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead style="background:#f8f9fa;">
+              <tr>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Kullanıcı</th>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Okul</th>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">İl / İlçe</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% kurumOgretmenler.forEach(function(o) { %>
+                <tr style="border-bottom:1px solid #f0f3f7;">
+                  <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= o.okul || '—' %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= (o.il||'—') %> / <%= (o.ilce||'—') %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <!-- Öğrenciler tablosu -->
+      <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden;">
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+          <span style="font-size:15px; font-weight:600; color:#37474f;">👨‍🎓 Kuruma Bağlı Öğrenciler</span>
+          <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumOgrenciler.length %>)</span>
+        </div>
+        <% if (kurumOgrenciler.length === 0) { %>
+          <div style="padding:30px; text-align:center; color:#5f6368; font-size:14px;">
+            Henüz kuruma bağlı öğrenci yok.<br>
+            <span style="font-size:12px; color:#9aa0a6;">Öğrenci ekleme özelliği bir sonraki sürümde geliyor.</span>
+          </div>
+        <% } else { %>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead style="background:#f8f9fa;">
+              <tr>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Kullanıcı</th>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Sınıf / Şube</th>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Okul</th>
+                <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
+                <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Çözülen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% kurumOgrenciler.forEach(function(o) { %>
+                <tr style="border-bottom:1px solid #f0f3f7;">
+                  <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= o.sinif || '—' %><%= o.sube ? '/' + o.sube : '' %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= o.okul || '—' %></td>
+                  <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+                  <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <!-- Bilgilendirme -->
+      <div style="background:#fff8e1; border:1px solid #ffd54f; border-radius:10px; padding:12px 16px; margin-top:20px; font-size:13px; color:#5d4037; line-height:1.6;">
+        ℹ️ <b>Sonraki sürümlerde gelecek:</b> Öğretmen ekleme (kurumda görev yaptığını beyan eden öğretmenler arasından), öğrenci davet kodu üretimi, sınıf-öğretmen ataması, üye istatistik detayları.
+      </div>
+    </div>
+  <% } %>
+
+<% } else if (mod === 'profil') { %>
   <%
     var dp = k.dersPuanlari || [];
     var ortTop = ortToplamHesapla(k);

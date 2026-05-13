@@ -1,19 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.5 (Modüler Yapı) ---
-// v4.3.5 değişiklikleri:
-//   • Kayıt: Kurumsal kodla kayıt olan kullanıcıya otomatik 2 rol atanır:
-//     rolListesi: ['kurumsal','ogretmen'], aktifRol: 'kurumsal'. Diğer rollerde
-//     rolListesi tek elemanlı doldurulur.
-//   • Panel route'unda lazy-fix: eski kullanıcılarda rolListesi/aktifRol boşsa
-//     ilk girişte otomatik doldurulur ve kaydedilir.
-//   • Yeni endpoint: /profil/mod-degistir — kurumsal kullanıcı modlar arası
-//     geçiş yapar. Güvenlik: rolListesi'nde olmayan role geçiş reddedilir.
-//   • Görsel: Üst nav'da çoklu role sahip kullanıcılara dropdown — "Şu an:
-//     🏛️ Kurumsal Modu ▾" görünür, tıklayınca öteki rollere geçiş seçenekleri
-//     açılır. Aktif olan tek başına işaretli, diğerine tıklayınca POST atılır.
-//   • Görünüm rolü k.rol = k.aktifRol şeklinde bind ediliyor (geçici, DB'ye
-//     yazılmaz). Bu sayede mevcut tüm view kontrolleri (k.rol === 'ogretmen')
-//     aktif moda göre çalışır — kurumsal kullanıcı öğretmen modunda gerçekten
-//     öğretmen gibi davranır.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.6 (Modüler Yapı) ---
+// v4.3.6 değişiklikleri:
+//   • Kurumsal kullanıcı kayıt olunca otomatik Kurum belgesi oluşturuluyor —
+//     kullanıcının seçtiği okul/il/ilçe Kurum'a yazılır, yonettigiKurumId
+//     kurulur.
+//   • Lazy fix: mevcut kurumsal kullanıcıların yonettigiKurumId yoksa panel
+//     ilk açılışında otomatik Kurum oluşturulur ve bağlanır.
+//   • Yeni sayfa: ?mod=kurumUyeleri — sadece "Kurumsal" modunda erişilebilir.
+//     Üst nav'da "🏛️ Kurum Üyeleri" linki sadece aktifRol='kurumsal' ise görünür.
+//   • İçerik: Kurum bilgi kartı (ad, tip, il/ilçe, yönetici) + 3 özet kart
+//     (toplam üye, öğretmen, öğrenci) + öğretmenler tablosu + öğrenciler tablosu.
+//   • Bu sürümde sadece görüntüleme — ekle/çıkar/sınıf atama bir sonraki sürümde.
+//   • Kuruma bağlı kullanıcı yok şu an (Madde 3'e geçince doldurmaya başlayacak).
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

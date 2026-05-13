@@ -5,6 +5,7 @@ const Soru = require('../models/Soru');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
+const Kurum = require('../models/Kurum');
 
 function stdSapma(dizi) {
     if (!dizi || dizi.length < 2) return 0;
@@ -129,6 +130,23 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     }
     if (dbDegisiklik) {
         try { await k.save(); } catch (e) { /* sessiz */ }
+    }
+
+    // v4.3.6: Eski kurumsal kullanıcılarda Kurum belgesi olmayabilir. Lazy oluştur.
+    if (k.rol === 'kurumsal' && !k.yonettigiKurumId) {
+        try {
+            const yeniKurum = await new Kurum({
+                ad: k.okul || ('Kurum-' + k.kullaniciAdi),
+                tip: 'okul',
+                il: k.il || '',
+                ilce: k.ilce || '',
+                olusturanKullaniciAdi: k.kullaniciAdi
+            }).save();
+            k.yonettigiKurumId = yeniKurum._id;
+            await k.save();
+        } catch (e) {
+            console.error('[panel] Kurum lazy olusturma hatasi:', e.message);
+        }
     }
 
     // v4.3.5: Session'da geçici mod tercihi varsa onu kullan (sayfa yenileme arası kalıcı)
@@ -562,6 +580,26 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         } catch (e) { enZayifKonu = null; }
     }
 
+    // v4.3.6: Kurumsal kullanıcı için kurum bilgisi + üye listesi (mod=kurumUyeleri sayfası için)
+    let kurum = null;
+    let kurumOgretmenler = [];
+    let kurumOgrenciler = [];
+    if (k.aktifRol === 'kurumsal' && k.yonettigiKurumId) {
+        try {
+            kurum = await Kurum.findById(k.yonettigiKurumId).lean();
+            if (kurum) {
+                const uyeler = await Kullanici.find(
+                    { bagliKurumId: k.yonettigiKurumId },
+                    'kullaniciAdi rol sinif sube il ilce okul puan soruIndex'
+                ).lean();
+                kurumOgretmenler = uyeler.filter(u => u.rol === 'ogretmen');
+                kurumOgrenciler = uyeler.filter(u => u.rol === 'ogrenci');
+            }
+        } catch (e) {
+            console.error('[panel] Kurum bilgileri yuklenirken hata:', e.message);
+        }
+    }
+
     res.render('panel', {
         k,
         mod,
@@ -591,6 +629,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         dersFiltre,
         eksikFiltre,
         eksikBilgiVar,
+        kurum,
+        kurumOgretmenler,
+        kurumOgrenciler,
         adminGorunum: req.adminGorunum || false
     });
 });

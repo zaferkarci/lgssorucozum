@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const Kullanici = require('../models/Kullanici');
 const PasswordReset = require('../models/PasswordReset');
 const ReferansKodu = require('../models/ReferansKodu');
+const Kurum = require('../models/Kurum');
 const { sifreSifirlamaMailiGonder } = require('../mailGonder');
 
 const SALT_ROUNDS = 10;
@@ -253,7 +254,28 @@ router.post('/kayit-yap', async (req, res) => {
         }
         // Öğretmen için: sinif default 8 olarak kalır şemada (geriye dönük uyumluluk),
         // ama view'larda rol kontrolü ile gizlenir
-        await new Kullanici(yeniKullaniciData).save();
+        const yeniKullanici = await new Kullanici(yeniKullaniciData).save();
+
+        // v4.3.6: Kurumsal kullanıcı kayıt olunca otomatik bir Kurum belgesi oluşur
+        // ve yonettigiKurumId'ye bağlanır. Kullanıcının seçtiği okul/il/ilçe bilgisi
+        // Kurum'un da il/ilçe/ad alanlarına yazılır. Kurumsal kullanıcı bu kurumun
+        // yöneticisi olur (olusturanKullaniciAdi).
+        if (rol === 'kurumsal') {
+            try {
+                const yeniKurum = await new Kurum({
+                    ad: okulSon || ('Kurum-' + kullaniciAdi),
+                    tip: 'okul',
+                    il: ilSon,
+                    ilce: ilceSon,
+                    olusturanKullaniciAdi: kullaniciAdi
+                }).save();
+                yeniKullanici.yonettigiKurumId = yeniKurum._id;
+                await yeniKullanici.save();
+            } catch (e) {
+                console.error('[kayit] Kurum olusturma hatasi:', e.message);
+                // Kurum oluşturulamasa bile kullanıcı kaydı düşmesin
+            }
+        }
 
         // Referans kodunu kullanıldı olarak işaretle
         ref.kullanildi = true;
