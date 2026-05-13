@@ -238,6 +238,15 @@ router.post('/kayit-yap', async (req, res) => {
             il: ilSon, ilce: ilceSon, okul: okulSon,
             rol
         };
+        // v4.3.5: Çoklu rol — kurumsal kullanıcı hem kurumsal hem öğretmen rolüne sahip
+        // olur, aralarında geçiş yapabilir. Diğer roller sadece kendi rollerine sahip.
+        if (rol === 'kurumsal') {
+            yeniKullaniciData.rolListesi = ['kurumsal', 'ogretmen'];
+            yeniKullaniciData.aktifRol = 'kurumsal';
+        } else {
+            yeniKullaniciData.rolListesi = [rol];
+            yeniKullaniciData.aktifRol = rol;
+        }
         if (rol === 'ogrenci') {
             yeniKullaniciData.sinif = sinif;
             yeniKullaniciData.sube = sube || '';

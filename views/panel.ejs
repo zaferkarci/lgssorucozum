@@ -135,6 +135,46 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="ptopbar-avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
       <%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> · 👩‍🏫 Öğretmen<% } else if (k.rol === 'kurumsal') { %> · 🏛️ Kurumsal<% } else { %> · <%= k.puan %> puan<% } %>
     </div>
+    <% if (Array.isArray(k.rolListesi) && k.rolListesi.length >= 2) { %>
+      <!-- v4.3.5: Mod değiştirici — sadece çoklu role sahip kullanıcılarda -->
+      <div class="mod-degistirici" style="position:relative; margin-left:14px;">
+        <button type="button" onclick="modMenuToggle(event)" id="modMenuBtn"
+          style="background:rgba(255,255,255,0.18); color:white; border:1px solid rgba(255,255,255,0.3); border-radius:6px; padding:6px 12px; font-size:12px; font-weight:500; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:6px;">
+          Şu an: <%= k.aktifRol === 'kurumsal' ? '🏛️ Kurumsal' : (k.aktifRol === 'ogretmen' ? '👩‍🏫 Öğretmen' : '👨‍🎓 Öğrenci') %> Modu <span style="font-size:9px; opacity:0.8;">▾</span>
+        </button>
+        <div id="modMenu" style="display:none; position:absolute; top:100%; left:0; margin-top:4px; background:white; border:1px solid #e0e7ff; border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,0.12); min-width:200px; z-index:200; overflow:hidden;">
+          <% k.rolListesi.forEach(function(r) {
+            var rEt = r === 'kurumsal' ? '🏛️ Kurumsal Modu' : (r === 'ogretmen' ? '👩‍🏫 Öğretmen Modu' : '👨‍🎓 Öğrenci Modu');
+            var aktifMi = r === k.aktifRol;
+          %>
+            <% if (!aktifMi) { %>
+              <form method="POST" action="/profil/mod-degistir" style="margin:0;">
+                <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                <input type="hidden" name="yeniMod" value="<%= r %>">
+                <input type="hidden" name="geri" value="/panel/<%= encodeURIComponent(k.kullaniciAdi) %><%= mod ? '?mod=' + mod : '' %>">
+                <button type="submit" style="width:100%; text-align:left; padding:10px 14px; background:white; border:none; cursor:pointer; font-size:13px; color:#37474f;" onmouseover="this.style.background='#f0f4f9'" onmouseout="this.style.background='white'"><%= rEt %></button>
+              </form>
+            <% } else { %>
+              <div style="padding:10px 14px; background:#e8f0fe; font-size:13px; color:#1a73e8; font-weight:600; cursor:default;">
+                ✓ <%= rEt %> (aktif)
+              </div>
+            <% } %>
+          <% }); %>
+        </div>
+      </div>
+      <script>
+        function modMenuToggle(e) {
+          e.stopPropagation();
+          var m = document.getElementById('modMenu');
+          m.style.display = m.style.display === 'none' ? 'block' : 'none';
+        }
+        document.addEventListener('click', function(e) {
+          var m = document.getElementById('modMenu');
+          var btn = document.getElementById('modMenuBtn');
+          if (m && !m.contains(e.target) && e.target !== btn) m.style.display = 'none';
+        });
+      </script>
+    <% } %>
   </div>
   <div class="ptopbar-nav">
     <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>

@@ -111,6 +111,40 @@ function oturumKontrol(req, res, next) {
 router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
+
+    // v4.3.5: rolListesi / aktifRol lazy fix — eski kullanıcıların bu alanları boş gelebilir.
+    // Kurumsal kullanıcılar için her zaman ['kurumsal','ogretmen'] doldurulur, diğerleri tek rol.
+    let dbDegisiklik = false;
+    if (!Array.isArray(k.rolListesi) || k.rolListesi.length === 0) {
+        if (k.rol === 'kurumsal') {
+            k.rolListesi = ['kurumsal', 'ogretmen'];
+        } else {
+            k.rolListesi = [k.rol];
+        }
+        dbDegisiklik = true;
+    }
+    if (!k.aktifRol) {
+        k.aktifRol = k.rol;
+        dbDegisiklik = true;
+    }
+    if (dbDegisiklik) {
+        try { await k.save(); } catch (e) { /* sessiz */ }
+    }
+
+    // v4.3.5: Session'da geçici mod tercihi varsa onu kullan (sayfa yenileme arası kalıcı)
+    // Sadece kullanıcının rolListesi'nde olan rolleri kabul et — güvenlik için.
+    if (req.session && req.session.aktifModlar && req.session.aktifModlar[k.kullaniciAdi]) {
+        const istenenMod = req.session.aktifModlar[k.kullaniciAdi];
+        if (k.rolListesi.includes(istenenMod)) {
+            k.aktifRol = istenenMod;
+        }
+    }
+
+    // Görünüm için: k.rol'ü aktifRol'e bağla. Tüm mevcut view kontrolleri (k.rol === 'ogretmen' vb.)
+    // otomatik olarak aktif görünüm rolüne göre çalışır. DB'deki gerçek rol değişmez.
+    const gercekRol = k.rol;
+    k.rol = k.aktifRol;
+
     const mod = req.query.mod || 'soru';
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
@@ -648,6 +682,32 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
         }
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// v4.3.5: Çoklu rol — kurumsal kullanıcının "Kurum Modu" ↔ "Öğretmen Modu" geçişi.
+// Session'a yazıyoruz (sayfa yenileme arası kalıcı), DB'ye aktifRol da yazılır.
+router.post('/profil/mod-degistir', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, yeniMod } = req.body;
+        const gecerli = ['ogrenci', 'ogretmen', 'kurumsal'];
+        if (!gecerli.includes(yeniMod)) {
+            return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi));
+        }
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send('Kullanıcı bulunamadı.');
+        if (!Array.isArray(k.rolListesi) || !k.rolListesi.includes(yeniMod)) {
+            return res.status(403).send('Bu role geçiş yetkin yok.');
+        }
+        k.aktifRol = yeniMod;
+        await k.save();
+        if (req.session) {
+            if (!req.session.aktifModlar) req.session.aktifModlar = {};
+            req.session.aktifModlar[kullaniciAdi] = yeniMod;
+        }
+        // Hangi sayfaya geri döneceğini referer'dan al, yoksa panele
+        const geri = req.body.geri || ('/panel/' + encodeURIComponent(kullaniciAdi));
+        res.redirect(geri);
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
 // Şube güncelleme
