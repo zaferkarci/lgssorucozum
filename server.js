@@ -1,13 +1,28 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.9 (Modüler Yapı) ---
-// v4.3.9 değişiklikleri (A grubu — bildirim + otomatik istek genişletme):
-//   • Üst nav'da "Kurum Üyeleri" linkine kırmızı bildirim rozeti eklendi
-//     (bekleyen istek sayısını gösterir, haberler bildirimi gibi).
-//   • Öğretmen kuruma onaylandığında, takip ettiği (TakipIliski kabul'lü) ve
-//     aynı okulu beyan eden öğrenciler için otomatik 'beklemede' istek oluşur.
-//     Kurumsal yönetici her birini ayrı onaylar.
-//   • Kurumsal kullanıcı kayıt olunca, o okuldaki mevcut öğrenciler için de
-//     toplu otomatik istek oluşturulur (önceki sürümde sadece öğretmenler vardı).
-//   • Kurum Üyeleri sayfasında öğrenci tablosuna "Çıkar" butonu eklendi.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.10 (Modüler Yapı) ---
+// v4.3.10 değişiklikleri (büyük paket — bug fix + B grubu):
+//   • Otomatik istek üretimi TAMAMEN kaldırıldı (kayıt, lazy fix, öğretmen
+//     onayı sonrası öğrenci toplama — hepsi). Tüm istekler manuel butonla.
+//   • uye-cikar: üyenin bagliKurumId + okul beyanı silinir (il/ilçe kalır).
+//     İstek kaydı silinmek yerine durum='cikarildi' olur, lazy fix yeniden
+//     açmaz.
+//   • Yeni durum 'cikarildi' eklendi (red'den ayrı).
+//   • Profil/Kurum Üyeliği kartı yeniden yazıldı: 5 durum (kabul/beklemede/
+//     red/cikarildi/hiç istek yok). Her durumda uygun sebep mesajı + arama
+//     formu (red/cikarildi/hiç istek için).
+//   • Yeni endpoint: GET /kurum/arama — il/ilçe parametreleri alır, o
+//     bölgedeki kurumları döner (JSON).
+//   • Kurum arama formu: il/ilçe dropdown'ları + dinamik kurum listesi.
+//     Kullanıcı seçim yapıp manuel istek atar. İstek atarken kullanıcının
+//     okul/il/ilçe beyanı kurumun bilgilerine güncellenir.
+//   • Üst profil banner ve Kişisel Bilgiler kartında "Görev yaptığınız okul"
+//     /  "Okul" alanları onay gelmediği sürece gizlenir (beklemede/red/cikarildi
+//     hepsi). beyanGizle değişkeniyle yönetilir.
+//   • Öğrenci için de aynı akış: profilinde kurum üyeliği kartı + arama formu;
+//     beklemede durumda sınıf/şube banner'da gizli (sıralama gizlemesi
+//     B grubunun bir sonraki adımı — bu sürümde profil görünümü yapıldı).
+//   • Öğrenci için ogrenciIcinKurum/ogrenciIstekDurum değişkenleri eklendi.
+//   • İstek gönderme endpoint'i (kurum/istek-gonder) öğrenci rolünü de kabul
+//     eder, üyenin okul/il/ilçe beyanını kuruma göre günceller.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

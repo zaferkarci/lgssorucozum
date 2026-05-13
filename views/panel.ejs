@@ -418,7 +418,15 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
       <div>
         <div class="profil-banner-isim"><%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> <span style="font-size:12px; background:#f3e5f5; color:#6a1b9a; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">👩‍🏫 Öğretmen</span><% } else if (k.rol === 'kurumsal') { %> <span style="font-size:12px; background:#e0f2f1; color:#00695c; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">🏛️ Kurumsal</span><% } %></div>
-        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') { %><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <% } %><%= k.okul %> · <%= k.il %> / <%= k.ilce %></div>
+        <%
+          // v4.3.10: Eğer kullanıcının bu kuruma yönelik isteği var ve onaylanmadıysa
+          // (beklemede/red/cikarildi), okul beyanı ve sınıf bilgileri gizli kalır.
+          // Onay gelene kadar sıralamada ve banner'da görünmez.
+          var beyanGizle = false;
+          if (k.rol === 'ogretmen' && oğretmenIstekDurum && oğretmenIstekDurum !== 'kabul') beyanGizle = true;
+          if (k.rol === 'ogrenci' && ogrenciIstekDurum && ogrenciIstekDurum !== 'kabul') beyanGizle = true;
+        %>
+        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') { %><% if (!beyanGizle) { %><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <% } %><% } %><% if (beyanGizle) { %><span style="color:#999; font-style:italic;">— (kurum onayı bekleniyor)</span> · <%= k.il %> / <%= k.ilce %><% } else { %><%= k.okul %> · <%= k.il %> / <%= k.ilce %><% } %></div>
       </div>
     </div>
     <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') { %>
@@ -470,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="info-row">
             <span class="info-label"><%= k.rol === 'ogretmen' ? 'Görev yaptığınız okul' : (k.rol === 'kurumsal' ? 'Yönettiğiniz kurum' : 'Okul') %></span>
             <span class="info-val">
-              <% if (k.rol === 'ogretmen' && oğretmenIstekDurum === 'beklemede') { %>
+              <% if (beyanGizle) { %>
                 <span style="color:#9aa0a6; font-style:italic;">— (kurum onayı bekleniyor)</span>
               <% } else { %>
                 <%= k.okul %>
@@ -497,50 +505,147 @@ document.addEventListener('DOMContentLoaded', function() {
           <% } %>
         </div>
 
-        <!-- v4.3.8: Kurum Üyeliği kartı — sadece öğretmen rolünde (kurumsal yöneticide değil) -->
-        <% if (k.rol === 'ogretmen') { %>
+        <!-- v4.3.10: Kurum Üyeliği kartı — öğretmen VE öğrenci için.
+             5 durum: kabul / beklemede / red / cikarildi / hiç istek yok.
+             Aktif istek varsa durumu gösterilir; aksi halde kurum arama formu açılır.
+             "Otomatik eşleşme" tamamen kaldırıldı — kullanıcı il/ilçe/kurum seçip
+             manuel istek atar. -->
+        <% if ((k.rol === 'ogretmen' || k.rol === 'ogrenci') && !adminGorunum) { %>
+          <%
+            // Aktif kurum + istek durumu öğrenci/öğretmen için ortak değişkenlere indir
+            var kurumKart    = (k.rol === 'ogretmen') ? oğretmenIcinKurum : ogrenciIcinKurum;
+            var istekDurumK  = (k.rol === 'ogretmen') ? oğretmenIstekDurum : ogrenciIstekDurum;
+          %>
           <div class="profil-kart-yeni">
             <p class="profil-kart-baslik-yeni">🏛️ Kurum Üyeliği</p>
+
             <% if (k.bagliKurumId) { %>
-              <!-- Onaylanmış üye -->
+              <!-- 1. Kuruma bağlı -->
               <div style="background:#e8f5e9; border:1px solid #a5d6a7; padding:12px 16px; border-radius:8px; font-size:13px; color:#1b5e20;">
                 ✓ Kuruma bağlısın. İstatistiklerin kurum yöneticisiyle paylaşılıyor.
               </div>
-            <% } else if (oğretmenIstekDurum === 'beklemede') { %>
-              <!-- Bekleyen istek var -->
+
+            <% } else if (istekDurumK === 'beklemede') { %>
+              <!-- 2. Bekleyen istek -->
               <div style="background:#fff8e1; border:1px solid #ffd54f; padding:12px 16px; border-radius:8px; font-size:13px; color:#5d4037; line-height:1.6;">
-                ⏳ <b><%= oğretmenIcinKurum ? oğretmenIcinKurum.ad : 'Kurum' %></b> için katılma isteğin <b>kurum yöneticisinin onayını bekliyor</b>.<br>
+                ⏳ <b><%= kurumKart ? kurumKart.ad : 'Kurum' %></b> için katılma isteğin <b>kurum yöneticisinin onayını bekliyor</b>.<br>
                 <span style="font-size:12px; color:#8d6e63;">Kurum yöneticisiyle iletişime geçiniz.</span>
               </div>
-            <% } else if (oğretmenIstekDurum === 'red') { %>
-              <!-- Reddedilmiş -->
-              <div style="background:#fde7e9; border:1px solid #f4a8af; padding:12px 16px; border-radius:8px; font-size:13px; color:#c62828; margin-bottom:12px;">
-                ✕ Önceki kuruma katılma isteğin reddedildi.
-              </div>
-              <% if (oğretmenIcinKurum) { %>
-                <form method="POST" action="/kurum/istek-gonder">
-                  <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-                  <input type="hidden" name="kurumId" value="<%= oğretmenIcinKurum._id %>">
-                  <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; font-size:13px; font-weight:600; border:none; border-radius:8px; cursor:pointer;">Çalıştığın kuruma katılmak için istek gönder</button>
-                </form>
-              <% } %>
-            <% } else if (oğretmenIcinKurum) { %>
-              <!-- Henüz hiç istek yok ama kurum mevcut (manuel buton — istek otomatik gönderilmediyse fallback) -->
-              <div style="background:#f8f9fa; border:1px solid #e0e7ff; padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:12px;">
-                <div style="font-weight:600; color:#37474f; margin-bottom:4px;">🏛️ <%= oğretmenIcinKurum.ad %></div>
-                <div style="color:#5f6368; font-size:12px;"><%= oğretmenIcinKurum.il %> / <%= oğretmenIcinKurum.ilce %></div>
-              </div>
-              <form method="POST" action="/kurum/istek-gonder">
-                <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-                <input type="hidden" name="kurumId" value="<%= oğretmenIcinKurum._id %>">
-                <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; font-size:13px; font-weight:600; border:none; border-radius:8px; cursor:pointer;">Çalıştığın kuruma katılmak için istek gönder</button>
-              </form>
+
             <% } else { %>
-              <!-- Kurum yok (henüz okuluna kurumsal yönetici kayıt olmamış) -->
-              <div style="background:#f8f9fa; border:1px dashed #cfd8dc; padding:12px 16px; border-radius:8px; font-size:12px; color:#5f6368; line-height:1.6;">
-                Beyan ettiğin okul (<b><%= k.okul || '—' %>)</b> için henüz kurumsal yönetici kayıtlı değil. Kurumsal yönetici kayıt olduğunda buraya bildirim düşecek.<br>
-                <span style="font-size:11px; color:#9aa0a6;">Şu an kendi davet ettiğin öğrencileri normal şekilde takip edebilirsin.</span>
+              <!-- 3, 4, 5. red / cikarildi / hiç istek yok — sebep mesajı + arama formu -->
+              <% if (istekDurumK === 'red') { %>
+                <div style="background:#fde7e9; border:1px solid #f4a8af; padding:10px 14px; border-radius:8px; font-size:13px; color:#c62828; margin-bottom:12px;">
+                  ✕ Önceki kuruma katılma isteğin <b>reddedildi</b>. İstersen aşağıdan tekrar bir kurum seçebilirsin.
+                </div>
+              <% } else if (istekDurumK === 'cikarildi') { %>
+                <div style="background:#fde7e9; border:1px solid #f4a8af; padding:10px 14px; border-radius:8px; font-size:13px; color:#c62828; margin-bottom:12px;">
+                  ⚠️ Kurum yöneticisi seni kurumdan <b>çıkardı</b>. Aşağıdan tekrar bir kurum seçebilirsin.
+                </div>
+              <% } else if (!k.okul) { %>
+                <div style="background:#e3f2fd; border:1px solid #90caf9; padding:10px 14px; border-radius:8px; font-size:13px; color:#1565c0; margin-bottom:12px;">
+                  ℹ️ Henüz bir kuruma bağlı değilsin. Aşağıdan il/ilçe seç, kurum seç ve istek gönder.
+                </div>
+              <% } else { %>
+                <div style="background:#f8f9fa; border:1px dashed #cfd8dc; padding:10px 14px; border-radius:8px; font-size:12px; color:#5f6368; margin-bottom:12px; line-height:1.6;">
+                  Henüz onaylı bir kuruma katılmadın. Aşağıdan kurum arayıp istek gönderebilirsin.<br>
+                  <span style="font-size:11px; color:#9aa0a6;">Şu an kendi davet ettiklerini normal şekilde takip edebilirsin.</span>
+                </div>
+              <% } %>
+
+              <!-- Kurum arama formu (B akışı): il/ilçe ile filtre, kurum listesi, istek butonu -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+                <div>
+                  <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">İl</label>
+                  <select id="kurumIlSel" class="input-sm" style="width:100%;" onchange="kurumIlDegisti()"></select>
+                </div>
+                <div>
+                  <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">İlçe</label>
+                  <select id="kurumIlceSel" class="input-sm" style="width:100%;" onchange="kurumArama()"></select>
+                </div>
               </div>
+              <div style="margin-bottom:10px;">
+                <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">Kurum</label>
+                <select id="kurumSel" class="input-sm" style="width:100%;">
+                  <option value="">— Önce il/ilçe seç —</option>
+                </select>
+              </div>
+              <form method="POST" action="/kurum/istek-gonder" id="kurumIstekForm" onsubmit="return kurumIstekKontrol(event)">
+                <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                <input type="hidden" name="kurumId" id="kurumIdInput" value="">
+                <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; font-size:13px; font-weight:600; border:none; border-radius:8px; cursor:pointer; width:100%;">
+                  <%= istekDurumK === 'red' || istekDurumK === 'cikarildi' ? 'Tekrar istek gönder' : 'Kuruma katılmak için istek gönder' %>
+                </button>
+              </form>
+
+              <script>
+                (function() {
+                  var mevcutIl   = <%- JSON.stringify(k.il   || '') %>;
+                  var mevcutIlce = <%- JSON.stringify(k.ilce || '') %>;
+                  var ilIdMap = {};
+
+                  function kIlDegisti() { kurumIlceleriYukle(); document.getElementById('kurumSel').innerHTML = '<option value="">— İlçe seçince yüklenir —</option>'; }
+                  window.kurumIlDegisti = kIlDegisti;
+                  window.kurumArama = kurumAramaIstek;
+                  window.kurumIstekKontrol = function(e) {
+                    var v = document.getElementById('kurumSel').value;
+                    if (!v) { e.preventDefault(); alert('Önce bir kurum seçmelisin.'); return false; }
+                    document.getElementById('kurumIdInput').value = v;
+                    return true;
+                  };
+
+                  fetch('https://api.turkiyeapi.dev/v1/provinces').then(r => r.json()).then(function(data) {
+                    var sel = document.getElementById('kurumIlSel'); if (!sel) return;
+                    sel.innerHTML = '<option value="">İl seç...</option>';
+                    (data.data||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(il) {
+                      ilIdMap[il.name] = il.id;
+                      var o = document.createElement('option');
+                      o.value = il.name; o.textContent = il.name;
+                      if (il.name === mevcutIl) o.selected = true;
+                      sel.appendChild(o);
+                    });
+                    if (mevcutIl) kurumIlceleriYukle();
+                  });
+
+                  function kurumIlceleriYukle() {
+                    var il = document.getElementById('kurumIlSel').value;
+                    var sel = document.getElementById('kurumIlceSel');
+                    sel.innerHTML = '<option value="">İlçe seç...</option>';
+                    if (!il || !ilIdMap[il]) return;
+                    fetch('https://api.turkiyeapi.dev/v1/provinces/' + ilIdMap[il]).then(r => r.json()).then(function(d) {
+                      (d.data && d.data.districts || []).forEach(function(ilce) {
+                        var o = document.createElement('option');
+                        o.value = ilce.name; o.textContent = ilce.name;
+                        if (ilce.name === mevcutIlce) o.selected = true;
+                        sel.appendChild(o);
+                      });
+                      if (mevcutIlce) kurumAramaIstek();
+                    });
+                  }
+
+                  function kurumAramaIstek() {
+                    var il = document.getElementById('kurumIlSel').value;
+                    var ilce = document.getElementById('kurumIlceSel').value;
+                    var sel = document.getElementById('kurumSel');
+                    if (!il || !ilce) { sel.innerHTML = '<option value="">— Önce il/ilçe seç —</option>'; return; }
+                    sel.innerHTML = '<option value="">Yükleniyor...</option>';
+                    fetch('/kurum/arama?il=' + encodeURIComponent(il) + '&ilce=' + encodeURIComponent(ilce))
+                      .then(r => r.json()).then(function(j) {
+                        sel.innerHTML = '';
+                        if (!j.sonuclar || j.sonuclar.length === 0) {
+                          sel.innerHTML = '<option value="">Bu ilçede kayıtlı kurum yok</option>';
+                          return;
+                        }
+                        sel.appendChild(new Option('— Kurum seç —', ''));
+                        j.sonuclar.forEach(function(kr) {
+                          var tipEt = kr.tip === 'okul' ? 'Okul' : (kr.tip === 'dershane' ? 'Dershane' : (kr.tip === 'kurs' ? 'Kurs' : 'Kurum'));
+                          var o = new Option(kr.ad + ' (' + tipEt + ')', kr._id);
+                          sel.appendChild(o);
+                        });
+                      });
+                  }
+                })();
+              </script>
             <% } %>
           </div>
         <% } %>
