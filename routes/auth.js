@@ -273,21 +273,22 @@ router.post('/kayit-yap', async (req, res) => {
                 yeniKullanici.yonettigiKurumId = yeniKurum._id;
                 await yeniKullanici.save();
                 // v4.3.8: Bu okulda görev yaptığını beyan etmiş mevcut öğretmenler için
-                // otomatik kuruma katılma istekleri oluştur — kurum yöneticisi paneli
-                // açtığında bekleyen istekleri görür ve onaylar.
+                // otomatik kuruma katılma istekleri oluştur.
+                // v4.3.9: Aynı kuruma o okulda kayıtlı mevcut öğrenciler için de
+                // otomatik istekler oluşturulur (kurumsal her birini ayrı onaylar).
                 try {
-                    const mevcutOgretmenler = await Kullanici.find({
-                        rol: 'ogretmen',
+                    const mevcutUyeler = await Kullanici.find({
+                        rol: { $in: ['ogretmen', 'ogrenci'] },
                         okul: okulSon,
                         il: ilSon || '',
                         ilce: ilceSon || '',
                         bagliKurumId: null
-                    }, 'kullaniciAdi').lean();
-                    for (const ogr of mevcutOgretmenler) {
+                    }, 'kullaniciAdi rol').lean();
+                    for (const u of mevcutUyeler) {
                         try {
                             await new KurumUyelikIstek({
-                                kullaniciAdi: ogr.kullaniciAdi,
-                                kullaniciRol: 'ogretmen',
+                                kullaniciAdi: u.kullaniciAdi,
+                                kullaniciRol: u.rol,
                                 kurumId: yeniKurum._id
                             }).save();
                         } catch (e) {

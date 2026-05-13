@@ -181,7 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Örnek Soru</a>
       <% if (k.aktifRol === 'kurumsal') { %>
         <!-- v4.3.6: Kurumsal moda özel - Kurum Üyeleri sekmesi -->
-        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=kurumUyeleri" class="ptopbar-link <%= mod==='kurumUyeleri'?'aktif':'' %>">🏛️ Kurum Üyeleri</a>
+        <!-- v4.3.9: Bekleyen istek varsa kırmızı bildirim göstergesi -->
+        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=kurumUyeleri" class="ptopbar-link <%= mod==='kurumUyeleri'?'aktif':'' %>" style="position:relative;">
+          🏛️ Kurum Üyeleri<% if (bekleyenIstekler && bekleyenIstekler.length > 0) { %><span style="position:absolute; top:6px; right:-2px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4; min-width:14px; text-align:center;"><%= bekleyenIstekler.length %></span><% } %>
+        </a>
       <% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" class="ptopbar-link <%= mod==='davetEdilenler'?'aktif':'' %>">Davet Ettiklerim</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
@@ -351,6 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Okul</th>
                 <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
                 <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Çözülen</th>
+                <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -361,6 +365,13 @@ document.addEventListener('DOMContentLoaded', function() {
                   <td style="padding:10px 14px; color:#5f6368;"><%= o.okul || '—' %></td>
                   <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
                   <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
+                  <td style="padding:10px 14px; text-align:right;">
+                    <form method="POST" action="/kurum/uye-cikar" style="display:inline; margin:0;" onsubmit="return confirm('<%= o.kullaniciAdi %> kurumdan çıkarılsın mı?');">
+                      <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                      <input type="hidden" name="uyeKullaniciAdi" value="<%= o.kullaniciAdi %>">
+                      <button type="submit" style="background:transparent; border:1px solid #e0e7ff; color:#5f6368; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer;" onmouseover="this.style.background='#fde7e9'; this.style.borderColor='#f4a8af'; this.style.color='#c62828';" onmouseout="this.style.background='transparent'; this.style.borderColor='#e0e7ff'; this.style.color='#5f6368';">Çıkar</button>
+                    </form>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>

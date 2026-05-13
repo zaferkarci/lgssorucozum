@@ -1,27 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.8 (Modüler Yapı) ---
-// v4.3.8 değişiklikleri (v4.3.7 hatasını düzeltir + otomatik istek akışı):
-//   • Kurum Üyeliği kartı doğru yere taşındı: Profil → Genel sekmesi içinde,
-//     Kişisel Bilgiler'in hemen altında. v4.3.7'de Güvenlik sekmesinin dışına
-//     yanlış yerleştirilmişti, hiç görünmüyordu.
-//   • Otomatik istek gönderme:
-//     - Yeni öğretmen kayıt olunca beyan ettiği okul kayıtlı kurumsa otomatik
-//       katılma isteği oluşturulur (kullanıcı butona basmaz).
-//     - Yeni kurumsal kullanıcı kayıt olunca o okuldaki mevcut öğretmenler için
-//       toplu istekler oluşturulur.
-//     - Lazy fix: panel açılışında eski öğretmenler için kurum varsa otomatik
-//       istek oluşturulur (geçmiş kullanıcılar için).
-//   • Kişisel Bilgiler kartında "Görev yaptığınız okul" alanı:
-//     - İstek beklemede ise "— (kurum onayı bekleniyor)" gri italik
-//     - Onaylandıysa veya hiç istek yoksa beyan ettiği okul görünür
-//   • Kurum Üyeliği kartı durum durumlarına göre:
-//     - Kuruma bağlı: yeşil "✓ Kuruma bağlısın"
-//     - Bekleyen istek: sarı "⏳ Kurum yöneticisinin onayını bekliyor. Kurum
-//       yöneticisiyle iletişime geçiniz."
-//     - Reddedilmiş: kırmızı + tekrar istek butonu
-//     - Kurum yok: gri "Kurumsal yönetici kayıt olunca burada bildirim düşecek"
-//   • Buton metni: "Çalıştığın kuruma katılmak için istek gönder"
-//   • Onaylanmadan öğretmenin istatistik görünürlüğüne dokunulmadı — öğretmen
-//     sadece kendi davet ettiği öğrencileri görür (mevcut davranış aynen).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.9 (Modüler Yapı) ---
+// v4.3.9 değişiklikleri (A grubu — bildirim + otomatik istek genişletme):
+//   • Üst nav'da "Kurum Üyeleri" linkine kırmızı bildirim rozeti eklendi
+//     (bekleyen istek sayısını gösterir, haberler bildirimi gibi).
+//   • Öğretmen kuruma onaylandığında, takip ettiği (TakipIliski kabul'lü) ve
+//     aynı okulu beyan eden öğrenciler için otomatik 'beklemede' istek oluşur.
+//     Kurumsal yönetici her birini ayrı onaylar.
+//   • Kurumsal kullanıcı kayıt olunca, o okuldaki mevcut öğrenciler için de
+//     toplu otomatik istek oluşturulur (önceki sürümde sadece öğretmenler vardı).
+//   • Kurum Üyeleri sayfasında öğrenci tablosuna "Çıkar" butonu eklendi.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

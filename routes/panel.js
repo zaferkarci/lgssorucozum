@@ -7,6 +7,7 @@ const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
 const Kurum = require('../models/Kurum');
 const KurumUyelikIstek = require('../models/KurumUyelikIstek');
+const TakipIliski = require('../models/TakipIliski');
 
 function stdSapma(dizi) {
     if (!dizi || dizi.length < 2) return 0;
@@ -878,6 +879,48 @@ router.post('/kurum/istek-yanitla', oturumKontrol, async (req, res) => {
                 { kullaniciAdi: istek.kullaniciAdi },
                 { bagliKurumId: istek.kurumId }
             );
+            // v4.3.9: Eğer onaylanan kullanıcı öğretmen ise — takip ettiği (kabul'lü)
+            // ve aynı okulu beyan eden öğrenciler için otomatik istekler oluştur.
+            // Bunlar 'beklemede' olarak gelir, kurumsal her birini ayrı onaylar.
+            if (istek.kullaniciRol === 'ogretmen') {
+                try {
+                    const kurum = await Kurum.findById(istek.kurumId).lean();
+                    if (kurum) {
+                        // Bu öğretmenin kabul'lü takip ilişkileri
+                        const iliskiler = await TakipIliski.find({
+                            ogretmenAdi: istek.kullaniciAdi,
+                            durum: 'kabul'
+                        }, 'ogrenciAdi').lean();
+                        if (iliskiler.length > 0) {
+                            const ogrAdlar = iliskiler.map(i => i.ogrenciAdi);
+                            // Aynı okul/il/ilçeyi beyan eden ve henüz kuruma bağlı olmayan
+                            const adaylar = await Kullanici.find({
+                                kullaniciAdi: { $in: ogrAdlar },
+                                rol: 'ogrenci',
+                                okul: kurum.ad,
+                                il: kurum.il,
+                                ilce: kurum.ilce,
+                                bagliKurumId: null
+                            }, 'kullaniciAdi').lean();
+                            for (const ogr of adaylar) {
+                                try {
+                                    await new KurumUyelikIstek({
+                                        kullaniciAdi: ogr.kullaniciAdi,
+                                        kullaniciRol: 'ogrenci',
+                                        kurumId: kurum._id
+                                    }).save();
+                                } catch (e) {
+                                    if (e.code !== 11000) {
+                                        console.error('[istek-yanitla] ogrenci istegi:', e.message);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('[istek-yanitla] ogrenci toplama:', e.message);
+                }
+            }
         }
         const mesaj = yanit === 'kabul' ? istek.kullaniciAdi + ' kuruma eklendi.' : 'İstek reddedildi.';
         res.send("<script>alert('" + mesaj + "'); window.location.href='" + geri + "';</script>");
