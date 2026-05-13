@@ -1,16 +1,20 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.6 (Modüler Yapı) ---
-// v4.3.6 değişiklikleri:
-//   • Kurumsal kullanıcı kayıt olunca otomatik Kurum belgesi oluşturuluyor —
-//     kullanıcının seçtiği okul/il/ilçe Kurum'a yazılır, yonettigiKurumId
-//     kurulur.
-//   • Lazy fix: mevcut kurumsal kullanıcıların yonettigiKurumId yoksa panel
-//     ilk açılışında otomatik Kurum oluşturulur ve bağlanır.
-//   • Yeni sayfa: ?mod=kurumUyeleri — sadece "Kurumsal" modunda erişilebilir.
-//     Üst nav'da "🏛️ Kurum Üyeleri" linki sadece aktifRol='kurumsal' ise görünür.
-//   • İçerik: Kurum bilgi kartı (ad, tip, il/ilçe, yönetici) + 3 özet kart
-//     (toplam üye, öğretmen, öğrenci) + öğretmenler tablosu + öğrenciler tablosu.
-//   • Bu sürümde sadece görüntüleme — ekle/çıkar/sınıf atama bir sonraki sürümde.
-//   • Kuruma bağlı kullanıcı yok şu an (Madde 3'e geçince doldurmaya başlayacak).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.7 (Modüler Yapı) ---
+// v4.3.7 değişiklikleri (Madde 3 — kurum üyelik onay sistemi):
+//   • Yeni model: KurumUyelikIstek — öğretmen kuruma katılmak için istek atar,
+//     kurumsal kullanıcı kabul/red verir. Unique compound index ile aynı çift
+//     için tek aktif istek.
+//   • Öğretmen profil sayfasında "Kurum Üyeliği" kartı: beyan ettiği okul
+//     kayıtlı kurumsa "Kuruma Katılma İsteği Gönder" butonu görünür. Bekleyen
+//     istek varsa sarı durum mesajı, kabulse yeşil "Bağlısın" mesajı.
+//   • Kurum Üyeleri sayfasına "Bekleyen Üyelik İstekleri" bölümü eklendi —
+//     sarı vurgulu kart, her istek için Onayla/Reddet butonları + isteyen
+//     kullanıcının okul/il/ilçe bilgileri.
+//   • Öğretmen tablosuna "Çıkar" butonu eklendi — kurumsal kullanıcı bir
+//     öğretmeni kurumdan çıkarabilir (bagliKurumId temizlenir, ilgili istek
+//     kaydı silinir, gerekirse tekrar istek atabilir).
+//   • 3 yeni endpoint: /kurum/istek-gonder, /kurum/istek-yanitla, /kurum/uye-cikar.
+//   • Yetki kontrolleri: kurumsal yönetici sadece kendi kurumunun isteklerini
+//     yanıtlar/üyelerini çıkarır. Öğretmen sadece kendi adına istek atar.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

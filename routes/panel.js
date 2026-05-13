@@ -6,6 +6,7 @@ const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
 const Kurum = require('../models/Kurum');
+const KurumUyelikIstek = require('../models/KurumUyelikIstek');
 
 function stdSapma(dizi) {
     if (!dizi || dizi.length < 2) return 0;
@@ -584,6 +585,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     let kurum = null;
     let kurumOgretmenler = [];
     let kurumOgrenciler = [];
+    let bekleyenIstekler = []; // v4.3.7: kuruma katılma bekleyen öğretmen/öğrenci istekleri
     if (k.aktifRol === 'kurumsal' && k.yonettigiKurumId) {
         try {
             kurum = await Kurum.findById(k.yonettigiKurumId).lean();
@@ -594,9 +596,50 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 ).lean();
                 kurumOgretmenler = uyeler.filter(u => u.rol === 'ogretmen');
                 kurumOgrenciler = uyeler.filter(u => u.rol === 'ogrenci');
+                // Bekleyen istekleri yükle + isteyenin profil bilgilerini ekle
+                const istekler = await KurumUyelikIstek.find(
+                    { kurumId: k.yonettigiKurumId, durum: 'beklemede' }
+                ).lean();
+                if (istekler.length > 0) {
+                    const isteyenAdlar = istekler.map(i => i.kullaniciAdi);
+                    const isteyenProfilller = await Kullanici.find(
+                        { kullaniciAdi: { $in: isteyenAdlar } },
+                        'kullaniciAdi rol okul il ilce'
+                    ).lean();
+                    const profilMap = {};
+                    isteyenProfilller.forEach(p => { profilMap[p.kullaniciAdi] = p; });
+                    bekleyenIstekler = istekler.map(i => Object.assign({}, i, {
+                        profil: profilMap[i.kullaniciAdi] || null
+                    }));
+                }
             }
         } catch (e) {
             console.error('[panel] Kurum bilgileri yuklenirken hata:', e.message);
+        }
+    }
+
+    // v4.3.7: Öğretmen için — beyan ettiği okula bağlı kurumun bilgisi + onun gönderdiği istek durumu
+    let oğretmenIcinKurum = null;
+    let oğretmenIstekDurum = null;
+    if (k.aktifRol === 'ogretmen' && k.rol === 'ogretmen') {
+        // Öğretmen kullanıcı (kurumsal değil, sadece öğretmen) — bagliKurumId yoksa
+        // ve okul bilgisi varsa, okul adıyla eşleşen Kurum belgelerini bulup öner
+        if (!k.bagliKurumId && k.okul) {
+            try {
+                oğretmenIcinKurum = await Kurum.findOne({
+                    ad: k.okul,
+                    il: k.il || '',
+                    ilce: k.ilce || ''
+                }).lean();
+                if (oğretmenIcinKurum) {
+                    // Bu kuruma daha önce istek atmış mı?
+                    const istek = await KurumUyelikIstek.findOne({
+                        kullaniciAdi: k.kullaniciAdi,
+                        kurumId: oğretmenIcinKurum._id
+                    }).lean();
+                    oğretmenIstekDurum = istek ? istek.durum : null;
+                }
+            } catch (e) { /* sessiz */ }
         }
     }
 
@@ -632,6 +675,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         kurum,
         kurumOgretmenler,
         kurumOgrenciler,
+        bekleyenIstekler,
+        oğretmenIcinKurum,
+        oğretmenIstekDurum,
         adminGorunum: req.adminGorunum || false
     });
 });
@@ -748,6 +794,101 @@ router.post('/profil/mod-degistir', oturumKontrol, async (req, res) => {
         // Hangi sayfaya geri döneceğini referer'dan al, yoksa panele
         const geri = req.body.geri || ('/panel/' + encodeURIComponent(kullaniciAdi));
         res.redirect(geri);
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.7: Öğretmen kuruma katılma isteği atar
+router.post('/kurum/istek-gonder', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, kurumId } = req.body;
+        const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil';
+        if (!kurumId) return res.send("<script>alert('Kurum seçilmedi.'); window.location.href='" + geri + "';</script>");
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send('Kullanıcı bulunamadı.');
+        if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') {
+            return res.send("<script>alert('Sadece öğretmen veya kurumsal kullanıcı istek atabilir.'); window.location.href='" + geri + "';</script>");
+        }
+        if (k.bagliKurumId && String(k.bagliKurumId) === String(kurumId)) {
+            return res.send("<script>alert('Bu kuruma zaten bağlısın.'); window.location.href='" + geri + "';</script>");
+        }
+        const kurum = await Kurum.findById(kurumId);
+        if (!kurum) return res.send("<script>alert('Kurum bulunamadı.'); window.location.href='" + geri + "';</script>");
+        // Mevcut istek var mı?
+        const mevcut = await KurumUyelikIstek.findOne({ kullaniciAdi, kurumId });
+        if (mevcut) {
+            if (mevcut.durum === 'beklemede') {
+                return res.send("<script>alert('Bu kuruma zaten istek atmışsın, kurum yöneticisinin yanıtı bekleniyor.'); window.location.href='" + geri + "';</script>");
+            }
+            // Eski red'li istek varsa yeniden aç
+            mevcut.durum = 'beklemede';
+            mevcut.istekTarih = new Date();
+            mevcut.yanitTarih = null;
+            mevcut.yanitlayan = '';
+            await mevcut.save();
+        } else {
+            await new KurumUyelikIstek({
+                kullaniciAdi,
+                kullaniciRol: k.rol,
+                kurumId
+            }).save();
+        }
+        res.send("<script>alert('İsteğin kurum yöneticisine iletildi. Onay bekleniyor.'); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.7: Kurumsal kullanıcı bir bekleyen isteği yanıtlar (kabul/red)
+router.post('/kurum/istek-yanitla', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, istekId, yanit } = req.body;
+        const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=kurumUyeleri';
+        if (!['kabul', 'red'].includes(yanit)) return res.redirect(geri);
+        const yanitlayan = await Kullanici.findOne({ kullaniciAdi });
+        if (!yanitlayan || yanitlayan.rol !== 'kurumsal' || !yanitlayan.yonettigiKurumId) {
+            return res.status(403).send('Yetki yok.');
+        }
+        const istek = await KurumUyelikIstek.findById(istekId);
+        if (!istek) return res.send("<script>alert('İstek bulunamadı.'); window.location.href='" + geri + "';</script>");
+        if (String(istek.kurumId) !== String(yanitlayan.yonettigiKurumId)) {
+            return res.status(403).send('Bu istek senin kurumuna ait değil.');
+        }
+        if (istek.durum !== 'beklemede') {
+            return res.send("<script>alert('Bu istek daha önce yanıtlanmış.'); window.location.href='" + geri + "';</script>");
+        }
+        istek.durum = yanit;
+        istek.yanitTarih = new Date();
+        istek.yanitlayan = kullaniciAdi;
+        await istek.save();
+        // Kabulse, isteyenin bagliKurumId'sini ayarla
+        if (yanit === 'kabul') {
+            await Kullanici.findOneAndUpdate(
+                { kullaniciAdi: istek.kullaniciAdi },
+                { bagliKurumId: istek.kurumId }
+            );
+        }
+        const mesaj = yanit === 'kabul' ? istek.kullaniciAdi + ' kuruma eklendi.' : 'İstek reddedildi.';
+        res.send("<script>alert('" + mesaj + "'); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.7: Kurumsal kullanıcı bir üyeyi kurumdan çıkarır (bagliKurumId temizler)
+router.post('/kurum/uye-cikar', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, uyeKullaniciAdi } = req.body;
+        const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=kurumUyeleri';
+        const yonetici = await Kullanici.findOne({ kullaniciAdi });
+        if (!yonetici || yonetici.rol !== 'kurumsal' || !yonetici.yonettigiKurumId) {
+            return res.status(403).send('Yetki yok.');
+        }
+        const uye = await Kullanici.findOne({ kullaniciAdi: uyeKullaniciAdi });
+        if (!uye) return res.send("<script>alert('Üye bulunamadı.'); window.location.href='" + geri + "';</script>");
+        if (String(uye.bagliKurumId) !== String(yonetici.yonettigiKurumId)) {
+            return res.send("<script>alert('Bu üye senin kurumunda değil.'); window.location.href='" + geri + "';</script>");
+        }
+        uye.bagliKurumId = null;
+        await uye.save();
+        // İlgili kurum istek kaydını da temizle (yeniden istek atabilsin diye)
+        await KurumUyelikIstek.deleteOne({ kullaniciAdi: uyeKullaniciAdi, kurumId: yonetici.yonettigiKurumId });
+        res.send("<script>alert(\"" + uyeKullaniciAdi + " kurumdan çıkarıldı.\"); window.location.href='" + geri + "';</script>");
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
