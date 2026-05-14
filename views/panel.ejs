@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
               <% } %>
 
-              <!-- Kurum arama formu (B akışı): il/ilçe ile filtre, kurum listesi, istek butonu -->
+              <!-- Kurum arama formu: il/ilçe ile filtre, okul listesi (kayıt formundaki gibi MEB), istek butonu -->
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
                 <div>
                   <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">İl</label>
@@ -561,18 +561,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div>
                   <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">İlçe</label>
-                  <select id="kurumIlceSel" class="input-sm" style="width:100%;" onchange="kurumArama()"></select>
+                  <select id="kurumIlceSel" class="input-sm" style="width:100%;" onchange="kurumOkullariYukle()"></select>
                 </div>
               </div>
               <div style="margin-bottom:10px;">
-                <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">Kurum</label>
-                <select id="kurumSel" class="input-sm" style="width:100%;">
+                <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">Okul</label>
+                <select id="kurumOkulSel" name="okul" class="input-sm" style="width:100%;" form="kurumIstekForm">
                   <option value="">— Önce il/ilçe seç —</option>
                 </select>
               </div>
               <form method="POST" action="/kurum/istek-gonder" id="kurumIstekForm" onsubmit="return kurumIstekKontrol(event)">
                 <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
-                <input type="hidden" name="kurumId" id="kurumIdInput" value="">
+                <input type="hidden" name="il"   id="kurumIlHidden"   value="">
+                <input type="hidden" name="ilce" id="kurumIlceHidden" value="">
                 <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; font-size:13px; font-weight:600; border:none; border-radius:8px; cursor:pointer; width:100%;">
                   <%= istekDurumK === 'red' || istekDurumK === 'cikarildi' ? 'Tekrar istek gönder' : 'Kuruma katılmak için istek gönder' %>
                 </button>
@@ -582,15 +583,53 @@ document.addEventListener('DOMContentLoaded', function() {
                 (function() {
                   var mevcutIl   = <%- JSON.stringify(k.il   || '') %>;
                   var mevcutIlce = <%- JSON.stringify(k.ilce || '') %>;
+                  var mevcutOkul = <%- JSON.stringify(k.okul || '') %>;
                   var ilIdMap = {};
 
-                  function kIlDegisti() { kurumIlceleriYukle(); document.getElementById('kurumSel').innerHTML = '<option value="">— İlçe seçince yüklenir —</option>'; }
-                  window.kurumIlDegisti = kIlDegisti;
-                  window.kurumArama = kurumAramaIstek;
+                  window.kurumIlDegisti = function() {
+                    var il = document.getElementById('kurumIlSel').value;
+                    document.getElementById('kurumIlHidden').value = il;
+                    kurumIlceleriYukle();
+                    document.getElementById('kurumOkulSel').innerHTML = '<option value="">— İlçe seçince yüklenir —</option>';
+                  };
+                  window.kurumOkullariYukle = function() {
+                    var il = document.getElementById('kurumIlSel').value;
+                    var ilce = document.getElementById('kurumIlceSel').value;
+                    document.getElementById('kurumIlceHidden').value = ilce;
+                    var sel = document.getElementById('kurumOkulSel');
+                    if (!il || !ilce) { sel.innerHTML = '<option value="">— Önce il/ilçe seç —</option>'; return; }
+                    sel.innerHTML = '<option value="">Yükleniyor...</option>';
+                    fetch('/api/okullar?il=' + encodeURIComponent(il) + '&ilce=' + encodeURIComponent(ilce))
+                      .then(r => r.json()).then(function(data) {
+                        sel.innerHTML = '<option value="">Okul Seçiniz</option>';
+                        var liste = (data && data.okullar) || data || [];
+                        if (!liste.length) {
+                          sel.innerHTML = '<option value="">Bu ilçede okul bulunamadı</option>';
+                          return;
+                        }
+                        liste.forEach(function(o) {
+                          var name = (typeof o === 'string') ? o : (o.ad || o.name || o.okul || '');
+                          if (!name) return;
+                          var opt = document.createElement('option');
+                          opt.value = name; opt.textContent = name;
+                          if (name === mevcutOkul) opt.selected = true;
+                          sel.appendChild(opt);
+                        });
+                      }).catch(function() {
+                        sel.innerHTML = '<option value="">Okul yüklenemedi</option>';
+                      });
+                  };
                   window.kurumIstekKontrol = function(e) {
-                    var v = document.getElementById('kurumSel').value;
-                    if (!v) { e.preventDefault(); alert('Önce bir kurum seçmelisin.'); return false; }
-                    document.getElementById('kurumIdInput').value = v;
+                    var okul = document.getElementById('kurumOkulSel').value;
+                    var il = document.getElementById('kurumIlSel').value;
+                    var ilce = document.getElementById('kurumIlceSel').value;
+                    if (!okul || !il || !ilce) {
+                      e.preventDefault();
+                      alert('Önce il, ilçe ve okul seç.');
+                      return false;
+                    }
+                    document.getElementById('kurumIlHidden').value = il;
+                    document.getElementById('kurumIlceHidden').value = ilce;
                     return true;
                   };
 
@@ -604,7 +643,10 @@ document.addEventListener('DOMContentLoaded', function() {
                       if (il.name === mevcutIl) o.selected = true;
                       sel.appendChild(o);
                     });
-                    if (mevcutIl) kurumIlceleriYukle();
+                    if (mevcutIl) {
+                      document.getElementById('kurumIlHidden').value = mevcutIl;
+                      kurumIlceleriYukle();
+                    }
                   });
 
                   function kurumIlceleriYukle() {
@@ -619,30 +661,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (ilce.name === mevcutIlce) o.selected = true;
                         sel.appendChild(o);
                       });
-                      if (mevcutIlce) kurumAramaIstek();
+                      if (mevcutIlce) {
+                        document.getElementById('kurumIlceHidden').value = mevcutIlce;
+                        window.kurumOkullariYukle();
+                      }
                     });
-                  }
-
-                  function kurumAramaIstek() {
-                    var il = document.getElementById('kurumIlSel').value;
-                    var ilce = document.getElementById('kurumIlceSel').value;
-                    var sel = document.getElementById('kurumSel');
-                    if (!il || !ilce) { sel.innerHTML = '<option value="">— Önce il/ilçe seç —</option>'; return; }
-                    sel.innerHTML = '<option value="">Yükleniyor...</option>';
-                    fetch('/kurum/arama?il=' + encodeURIComponent(il) + '&ilce=' + encodeURIComponent(ilce))
-                      .then(r => r.json()).then(function(j) {
-                        sel.innerHTML = '';
-                        if (!j.sonuclar || j.sonuclar.length === 0) {
-                          sel.innerHTML = '<option value="">Bu ilçede kayıtlı kurum yok</option>';
-                          return;
-                        }
-                        sel.appendChild(new Option('— Kurum seç —', ''));
-                        j.sonuclar.forEach(function(kr) {
-                          var tipEt = kr.tip === 'okul' ? 'Okul' : (kr.tip === 'dershane' ? 'Dershane' : (kr.tip === 'kurs' ? 'Kurs' : 'Kurum'));
-                          var o = new Option(kr.ad + ' (' + tipEt + ')', kr._id);
-                          sel.appendChild(o);
-                        });
-                      });
                   }
                 })();
               </script>

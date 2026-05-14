@@ -1,28 +1,23 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.10 (Modüler Yapı) ---
-// v4.3.10 değişiklikleri (büyük paket — bug fix + B grubu):
-//   • Otomatik istek üretimi TAMAMEN kaldırıldı (kayıt, lazy fix, öğretmen
-//     onayı sonrası öğrenci toplama — hepsi). Tüm istekler manuel butonla.
-//   • uye-cikar: üyenin bagliKurumId + okul beyanı silinir (il/ilçe kalır).
-//     İstek kaydı silinmek yerine durum='cikarildi' olur, lazy fix yeniden
-//     açmaz.
-//   • Yeni durum 'cikarildi' eklendi (red'den ayrı).
-//   • Profil/Kurum Üyeliği kartı yeniden yazıldı: 5 durum (kabul/beklemede/
-//     red/cikarildi/hiç istek yok). Her durumda uygun sebep mesajı + arama
-//     formu (red/cikarildi/hiç istek için).
-//   • Yeni endpoint: GET /kurum/arama — il/ilçe parametreleri alır, o
-//     bölgedeki kurumları döner (JSON).
-//   • Kurum arama formu: il/ilçe dropdown'ları + dinamik kurum listesi.
-//     Kullanıcı seçim yapıp manuel istek atar. İstek atarken kullanıcının
-//     okul/il/ilçe beyanı kurumun bilgilerine güncellenir.
-//   • Üst profil banner ve Kişisel Bilgiler kartında "Görev yaptığınız okul"
-//     /  "Okul" alanları onay gelmediği sürece gizlenir (beklemede/red/cikarildi
-//     hepsi). beyanGizle değişkeniyle yönetilir.
-//   • Öğrenci için de aynı akış: profilinde kurum üyeliği kartı + arama formu;
-//     beklemede durumda sınıf/şube banner'da gizli (sıralama gizlemesi
-//     B grubunun bir sonraki adımı — bu sürümde profil görünümü yapıldı).
-//   • Öğrenci için ogrenciIcinKurum/ogrenciIstekDurum değişkenleri eklendi.
-//   • İstek gönderme endpoint'i (kurum/istek-gonder) öğrenci rolünü de kabul
-//     eder, üyenin okul/il/ilçe beyanını kuruma göre günceller.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.11 (Modüler Yapı) ---
+// v4.3.11 değişiklikleri (otomatik istek geri + arama formu MEB okul listesi):
+//   • Kayıttaki otomatik istek geri getirildi (öğretmen + öğrenci): beyan ettiği
+//     okul kayıtlı kurumsa otomatik 'beklemede' istek oluşur.
+//   • Kurumsal kayıtta toplu otomatik istek geri getirildi: o okuldaki mevcut
+//     öğretmen + öğrenciler için toplu istek (Madde 2).
+//   • Lazy fix geri getirildi, ama bir korumayla: önceki istek 'red' veya
+//     'cikarildi' ise otomatik yenisini açma (kullanıcı manuel istek atmalı).
+//   • Öğretmen onaylanınca otomatik öğrenci istekleri geri (Madde 4): aynı
+//     red/cikarildi koruması ile.
+//   • istek-yanitla 'red' yanıtında kullanıcının okul beyanı temizlenir (Madde 8).
+//     Çıkarma + reddetme her ikisinde de beyan silinir.
+//   • Kurum arama formu yeniden yazıldı (Madde 6 + 9): kayıt formundakine
+//     benzer akış — il/ilçe seçilince /api/okullar endpoint'inden o ilçedeki
+//     TÜM okullar gelir (kayıtlı Kurum belgeleri değil). Kullanıcı okul seçer,
+//     submit eder.
+//   • istek-gonder endpoint'i kurumId yerine okul/il/ilçe alır: bu üçüyle
+//     Kurum aranır; varsa istek atılır + beyan güncellenir; yoksa sadece
+//     beyan güncellenir (kullanıcıya 'kurumsal yönetici henüz kayıt olmamış'
+//     mesajı gider).
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

@@ -619,8 +619,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.3.7-3.10: Öğretmen için — beyan ettiği okula bağlı kurumun bilgisi + onun gönderdiği istek durumu.
-    // v4.3.10: Otomatik istek üretimi kaldırıldı. Sadece mevcut isteğin durumu okunur.
+    // v4.3.7-3.11: Öğretmen için — beyan ettiği okula bağlı kurumun bilgisi + onun gönderdiği istek durumu.
+    // v4.3.11: Lazy fix geri getirildi, ama bir koruma ile:
+    //   • Hiç istek yoksa → otomatik oluştur (eski öğretmenler için)
+    //   • Önceki istek 'red' veya 'cikarildi' ise → otomatik yenisini açma (kullanıcı manuel istek atmalı)
+    //   • 'beklemede' veya 'kabul' ise → mevcut isteği oku
     let oğretmenIcinKurum = null;
     let oğretmenIstekDurum = null;
     if (k.aktifRol === 'ogretmen' && k.rol === 'ogretmen') {
@@ -632,17 +635,32 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     ilce: k.ilce || ''
                 }).lean();
                 if (oğretmenIcinKurum) {
-                    const istek = await KurumUyelikIstek.findOne({
+                    let istek = await KurumUyelikIstek.findOne({
                         kullaniciAdi: k.kullaniciAdi,
                         kurumId: oğretmenIcinKurum._id
-                    }).lean();
+                    });
+                    if (!istek) {
+                        // Hiç istek yok → otomatik oluştur
+                        try {
+                            istek = await new KurumUyelikIstek({
+                                kullaniciAdi: k.kullaniciAdi,
+                                kullaniciRol: 'ogretmen',
+                                kurumId: oğretmenIcinKurum._id
+                            }).save();
+                        } catch (e) {
+                            if (e.code !== 11000) {
+                                console.error('[panel] Otomatik kurum istegi olusturulamadi:', e.message);
+                            }
+                        }
+                    }
+                    // Mevcut istek varsa (red/cikarildi dahil) dokunma — kullanıcı manuel atmalı
                     oğretmenIstekDurum = istek ? istek.durum : null;
                 }
             } catch (e) { /* sessiz */ }
         }
     }
 
-    // v4.3.10: Öğrenci için de aynı yapı — beyan ettiği okul kayıtlı kurumsa bilgisi + istek durumu
+    // v4.3.11: Öğrenci için de aynı lazy fix akışı
     let ogrenciIcinKurum = null;
     let ogrenciIstekDurum = null;
     if (k.rol === 'ogrenci') {
@@ -654,10 +672,23 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     ilce: k.ilce || ''
                 }).lean();
                 if (ogrenciIcinKurum) {
-                    const istek = await KurumUyelikIstek.findOne({
+                    let istek = await KurumUyelikIstek.findOne({
                         kullaniciAdi: k.kullaniciAdi,
                         kurumId: ogrenciIcinKurum._id
-                    }).lean();
+                    });
+                    if (!istek) {
+                        try {
+                            istek = await new KurumUyelikIstek({
+                                kullaniciAdi: k.kullaniciAdi,
+                                kullaniciRol: 'ogrenci',
+                                kurumId: ogrenciIcinKurum._id
+                            }).save();
+                        } catch (e) {
+                            if (e.code !== 11000) {
+                                console.error('[panel] Otomatik kurum istegi olusturulamadi (ogrenci):', e.message);
+                            }
+                        }
+                    }
                     ogrenciIstekDurum = istek ? istek.durum : null;
                 }
             } catch (e) { /* sessiz */ }
@@ -832,32 +863,42 @@ router.get('/kurum/arama', oturumKontrol, async (req, res) => {
     } catch (err) { res.status(500).json({ ok: false, hata: err.message }); }
 });
 
-// v4.3.7-3.10: Öğretmen/öğrenci kuruma katılma isteği atar.
-// v4.3.10: Öğrenci de istek atabilir; istek atılan kurumun adı kullanıcının
-// 'okul' beyanına yazılır (kullanıcı bu kurumda çalıştığını/öğrenci olduğunu beyan
-// etmiş olur — onay gelmediği sürece kart/sıralamada gizlenir).
+// v4.3.7-3.11: Öğretmen/öğrenci kuruma katılma isteği atar.
+// v4.3.11 değişikliği: kurumId yerine okul/il/ilçe alır (kullanıcı listeden seçer).
+// Sunucu tarafında bu üçüyle Kurum belgesi aranır:
+//   • Kurum varsa → istek atılır + kullanıcı beyanı güncellenir
+//   • Kurum yoksa → sadece kullanıcı beyanı güncellenir (kurum yöneticisi henüz
+//     kayıt olmamış demektir; kullanıcı normal şekilde devam eder)
 router.post('/kurum/istek-gonder', oturumKontrol, async (req, res) => {
     try {
-        const { kullaniciAdi, kurumId } = req.body;
+        const { kullaniciAdi, okul, il, ilce } = req.body;
         const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil';
-        if (!kurumId) return res.send("<script>alert('Kurum seçilmedi.'); window.location.href='" + geri + "';</script>");
+        if (!okul || !il || !ilce) {
+            return res.send("<script>alert('Lütfen il, ilçe ve okul seç.'); window.location.href='" + geri + "';</script>");
+        }
         const k = await Kullanici.findOne({ kullaniciAdi });
         if (!k) return res.status(404).send('Kullanıcı bulunamadı.');
         if (k.rol !== 'ogretmen' && k.rol !== 'ogrenci' && k.rol !== 'kurumsal') {
             return res.send("<script>alert('Bu rol istek atamaz.'); window.location.href='" + geri + "';</script>");
         }
-        if (k.bagliKurumId && String(k.bagliKurumId) === String(kurumId)) {
-            return res.send("<script>alert('Bu kuruma zaten bağlısın.'); window.location.href='" + geri + "';</script>");
+        // Beyanı güncelle (her durumda — kayıtlı kurum yoksa bile)
+        k.okul = okul;
+        k.il   = il;
+        k.ilce = ilce;
+        await k.save();
+        // O ilçede o adlı bir kurum kayıtlı mı?
+        const kurum = await Kurum.findOne({ ad: okul, il, ilce });
+        if (!kurum) {
+            // Kayıtlı kurum yok — sadece beyan güncellendi, istek atılmaz
+            return res.send("<script>alert('Okul bilgilerin güncellendi. Bu okul için henüz kurumsal yönetici kayıt olmamış.'); window.location.href='" + geri + "';</script>");
         }
-        const kurum = await Kurum.findById(kurumId);
-        if (!kurum) return res.send("<script>alert('Kurum bulunamadı.'); window.location.href='" + geri + "';</script>");
         // Mevcut istek var mı?
-        const mevcut = await KurumUyelikIstek.findOne({ kullaniciAdi, kurumId });
+        const mevcut = await KurumUyelikIstek.findOne({ kullaniciAdi, kurumId: kurum._id });
         if (mevcut) {
             if (mevcut.durum === 'beklemede') {
                 return res.send("<script>alert('Bu kuruma zaten istek atmışsın, kurum yöneticisinin yanıtı bekleniyor.'); window.location.href='" + geri + "';</script>");
             }
-            // Eski red/cikarildi istek varsa yeniden aç
+            // red/cikarildi/kabul olsa bile yeniden aç (manuel istek)
             mevcut.durum = 'beklemede';
             mevcut.istekTarih = new Date();
             mevcut.yanitTarih = null;
@@ -867,16 +908,9 @@ router.post('/kurum/istek-gonder', oturumKontrol, async (req, res) => {
             await new KurumUyelikIstek({
                 kullaniciAdi,
                 kullaniciRol: k.rol,
-                kurumId
+                kurumId: kurum._id
             }).save();
         }
-        // v4.3.10: İstek atılan kurumun adı/il/ilçesini kullanıcının beyanına yaz.
-        // (Bu beyan onay gelene kadar profil/sıralamada gizlenir — kart yerleştirmesi
-        // panel.js'de bekleyen durumda kontrol ediliyor.)
-        k.okul = kurum.ad;
-        k.il   = kurum.il;
-        k.ilce = kurum.ilce;
-        await k.save();
         res.send("<script>alert('İsteğin kurum yöneticisine iletildi. Onay bekleniyor.'); window.location.href='" + geri + "';</script>");
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
@@ -903,15 +937,75 @@ router.post('/kurum/istek-yanitla', oturumKontrol, async (req, res) => {
         istek.yanitTarih = new Date();
         istek.yanitlayan = kullaniciAdi;
         await istek.save();
+        // v4.3.11: Red durumunda da kullanıcının okul beyanı silinir (çıkarma ile aynı).
+        // İl/ilçe kalır. Bu sayede reddedilen kullanıcı kurumun okulu adıyla beyanda kalamaz.
+        if (yanit === 'red') {
+            try {
+                await Kullanici.findOneAndUpdate(
+                    { kullaniciAdi: istek.kullaniciAdi },
+                    { okul: '' }
+                );
+            } catch (e) {
+                console.error('[istek-yanitla] red okul temizleme:', e.message);
+            }
+        }
         // Kabulse, isteyenin bagliKurumId'sini ayarla
         if (yanit === 'kabul') {
             await Kullanici.findOneAndUpdate(
                 { kullaniciAdi: istek.kullaniciAdi },
                 { bagliKurumId: istek.kurumId }
             );
-            // v4.3.10: Otomatik öğrenci istek üretimi kaldırıldı.
-            // Onaylanan öğretmenin takip ettiği öğrenciler için otomatik istek
-            // oluşmaz. Öğrenci kendi profilinden manuel istek gönderir.
+            // v4.3.11: Eğer onaylanan kullanıcı öğretmen ise — takip ettiği (kabul'lü)
+            // ve aynı okulu beyan eden öğrenciler için otomatik 'beklemede' istek
+            // oluşur. Kurumsal yönetici her birini ayrı onaylar. (v4.3.10'da kaldırılmıştı,
+            // geri getirildi.)
+            if (istek.kullaniciRol === 'ogretmen') {
+                try {
+                    const kurum = await Kurum.findById(istek.kurumId).lean();
+                    if (kurum) {
+                        const iliskiler = await TakipIliski.find({
+                            ogretmenAdi: istek.kullaniciAdi,
+                            durum: 'kabul'
+                        }, 'ogrenciAdi').lean();
+                        if (iliskiler.length > 0) {
+                            const ogrAdlar = iliskiler.map(i => i.ogrenciAdi);
+                            const adaylar = await Kullanici.find({
+                                kullaniciAdi: { $in: ogrAdlar },
+                                rol: 'ogrenci',
+                                okul: kurum.ad,
+                                il: kurum.il,
+                                ilce: kurum.ilce,
+                                bagliKurumId: null
+                            }, 'kullaniciAdi').lean();
+                            for (const ogr of adaylar) {
+                                try {
+                                    // Mevcut red/cikarildi isteği varsa otomatik açma
+                                    const mevcut = await KurumUyelikIstek.findOne({
+                                        kullaniciAdi: ogr.kullaniciAdi,
+                                        kurumId: kurum._id
+                                    });
+                                    if (mevcut && (mevcut.durum === 'red' || mevcut.durum === 'cikarildi')) {
+                                        continue; // Manuel istek atmalı
+                                    }
+                                    if (!mevcut) {
+                                        await new KurumUyelikIstek({
+                                            kullaniciAdi: ogr.kullaniciAdi,
+                                            kullaniciRol: 'ogrenci',
+                                            kurumId: kurum._id
+                                        }).save();
+                                    }
+                                } catch (e) {
+                                    if (e.code !== 11000) {
+                                        console.error('[istek-yanitla] ogrenci istegi:', e.message);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('[istek-yanitla] ogrenci toplama:', e.message);
+                }
+            }
         }
         const mesaj = yanit === 'kabul' ? istek.kullaniciAdi + ' kuruma eklendi.' : 'İstek reddedildi.';
         res.send("<script>alert('" + mesaj + "'); window.location.href='" + geri + "';</script>");

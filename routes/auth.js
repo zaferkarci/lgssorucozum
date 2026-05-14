@@ -272,22 +272,82 @@ router.post('/kayit-yap', async (req, res) => {
                 }).save();
                 yeniKullanici.yonettigiKurumId = yeniKurum._id;
                 await yeniKullanici.save();
-                // v4.3.10: Otomatik toplu istek üretimi kaldırıldı. O okuldaki mevcut
-                // öğretmen/öğrenci kullanıcılar otomatik kuruma katılma isteği
-                // almazlar. Bunun yerine her kullanıcı kendi profilinde manuel
-                // "İstek gönder" butonu görür.
+                // v4.3.11: Bu okulda görev yaptığını/öğrenci olduğunu beyan etmiş
+                // mevcut öğretmen ve öğrenciler için otomatik kuruma katılma istekleri
+                // oluşturulur. Kurum yöneticisi paneli açtığında bekleyen istekleri görür.
+                // (v4.3.10'da kaldırılmıştı, geri getirildi.)
+                try {
+                    const mevcutUyeler = await Kullanici.find({
+                        rol: { $in: ['ogretmen', 'ogrenci'] },
+                        okul: okulSon,
+                        il: ilSon || '',
+                        ilce: ilceSon || '',
+                        bagliKurumId: null
+                    }, 'kullaniciAdi rol').lean();
+                    for (const u of mevcutUyeler) {
+                        try {
+                            await new KurumUyelikIstek({
+                                kullaniciAdi: u.kullaniciAdi,
+                                kullaniciRol: u.rol,
+                                kurumId: yeniKurum._id
+                            }).save();
+                        } catch (e) {
+                            if (e.code !== 11000) {
+                                console.error('[kayit] Toplu istek hatasi:', e.message);
+                            }
+                        }
+                    }
+                } catch (e) { /* sessiz */ }
             } catch (e) {
                 console.error('[kayit] Kurum olusturma hatasi:', e.message);
                 // Kurum oluşturulamasa bile kullanıcı kaydı düşmesin
             }
         }
 
-        // v4.3.10: Otomatik istek üretimi kaldırıldı.
-        // Öğretmen/öğrenci kayıt olunca, beyan ettiği okul kayıtlı kurum olsa bile
-        // otomatik istek atılmaz — kullanıcı profilinde manuel "İstek gönder"
-        // butonuna basmalı. (Kullanıcının kontrolünde olsun.)
-        // Aynı şekilde kurumsal kayıt olunca da o okuldaki mevcut kullanıcılara
-        // otomatik istek gönderilmez.
+        // v4.3.11: Öğretmen kayıt olunca, beyan ettiği okul kayıtlı kurumsa otomatik
+        // katılma isteği oluşturulur. (v4.3.10'da kaldırılmıştı, geri getirildi.)
+        // İstek atılırsa profilde/banner'da okul beyanı onay gelene kadar gizli olur.
+        if (rol === 'ogretmen' && okulSon) {
+            try {
+                const eslesenKurum = await Kurum.findOne({
+                    ad: okulSon,
+                    il: ilSon || '',
+                    ilce: ilceSon || ''
+                });
+                if (eslesenKurum) {
+                    await new KurumUyelikIstek({
+                        kullaniciAdi: kullaniciAdi,
+                        kullaniciRol: 'ogretmen',
+                        kurumId: eslesenKurum._id
+                    }).save();
+                }
+            } catch (e) {
+                if (e.code !== 11000) {
+                    console.error('[kayit] Otomatik kurum istegi hatasi:', e.message);
+                }
+            }
+        }
+        // v4.3.11: Öğrenci için de aynı otomatik istek davranışı
+        if (rol === 'ogrenci' && okulSon) {
+            try {
+                const eslesenKurum = await Kurum.findOne({
+                    ad: okulSon,
+                    il: ilSon || '',
+                    ilce: ilceSon || ''
+                });
+                if (eslesenKurum) {
+                    await new KurumUyelikIstek({
+                        kullaniciAdi: kullaniciAdi,
+                        kullaniciRol: 'ogrenci',
+                        kurumId: eslesenKurum._id
+                    }).save();
+                }
+            } catch (e) {
+                if (e.code !== 11000) {
+                    console.error('[kayit] Otomatik kurum istegi hatasi (ogrenci):', e.message);
+                }
+            }
+        }
 
         // Referans kodunu kullanıldı olarak işaretle
         ref.kullanildi = true;
