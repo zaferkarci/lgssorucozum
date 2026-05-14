@@ -1,23 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.11 (Modüler Yapı) ---
-// v4.3.11 değişiklikleri (otomatik istek geri + arama formu MEB okul listesi):
-//   • Kayıttaki otomatik istek geri getirildi (öğretmen + öğrenci): beyan ettiği
-//     okul kayıtlı kurumsa otomatik 'beklemede' istek oluşur.
-//   • Kurumsal kayıtta toplu otomatik istek geri getirildi: o okuldaki mevcut
-//     öğretmen + öğrenciler için toplu istek (Madde 2).
-//   • Lazy fix geri getirildi, ama bir korumayla: önceki istek 'red' veya
-//     'cikarildi' ise otomatik yenisini açma (kullanıcı manuel istek atmalı).
-//   • Öğretmen onaylanınca otomatik öğrenci istekleri geri (Madde 4): aynı
-//     red/cikarildi koruması ile.
-//   • istek-yanitla 'red' yanıtında kullanıcının okul beyanı temizlenir (Madde 8).
-//     Çıkarma + reddetme her ikisinde de beyan silinir.
-//   • Kurum arama formu yeniden yazıldı (Madde 6 + 9): kayıt formundakine
-//     benzer akış — il/ilçe seçilince /api/okullar endpoint'inden o ilçedeki
-//     TÜM okullar gelir (kayıtlı Kurum belgeleri değil). Kullanıcı okul seçer,
-//     submit eder.
-//   • istek-gonder endpoint'i kurumId yerine okul/il/ilçe alır: bu üçüyle
-//     Kurum aranır; varsa istek atılır + beyan güncellenir; yoksa sadece
-//     beyan güncellenir (kullanıcıya 'kurumsal yönetici henüz kayıt olmamış'
-//     mesajı gider).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.12 (Modüler Yapı) ---
+// v4.3.12 değişiklikleri (2 bug fix):
+//   • Bug 1 düzeltmesi: Çıkarılan öğretmen tekrar kuruma onaylanınca, takip
+//     ettiği (TakipIliski kabul'lü) öğrenciler için otomatik istekler yeniden
+//     üretilir — eski red/cikarildi istekleri 'beklemede'ye çevrilir.
+//     Aday öğrenci filtresi de genişletildi: ya beyanı kuruma uyuyor olmalı,
+//     ya da daha önce bu kuruma istek atmış olmalı (red/cikarildi sonrası
+//     beyan silinen öğrenciler de yakalanır).
+//   • Bug 2 düzeltmesi: uye-cikar ve istek-yanitla 'red' işlemlerinde şube
+//     (sube) alanı da silinir. Öğrenci sıralamasında şube hücresi boş
+//     görünmesin diye.
+//   • Bilinen sınırlama: panel ilk açılışındaki lazy fix hâlâ red/cikarildi
+//     için yeni istek üretmiyor (Madde 3 korumalı davranış). Sadece öğretmen
+//     onaylanma akışı bypass eder.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler

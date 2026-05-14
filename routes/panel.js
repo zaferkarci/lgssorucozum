@@ -937,16 +937,17 @@ router.post('/kurum/istek-yanitla', oturumKontrol, async (req, res) => {
         istek.yanitTarih = new Date();
         istek.yanitlayan = kullaniciAdi;
         await istek.save();
-        // v4.3.11: Red durumunda da kullanıcının okul beyanı silinir (çıkarma ile aynı).
-        // İl/ilçe kalır. Bu sayede reddedilen kullanıcı kurumun okulu adıyla beyanda kalamaz.
+        // v4.3.11-3.12: Red durumunda kullanıcının okul beyanı silinir (çıkarma ile aynı).
+        // v4.3.12: Şube de silinir. İl/ilçe kalır.
+        // Bu sayede reddedilen kullanıcı kurumun okulu/sınıfı adıyla beyanda kalamaz.
         if (yanit === 'red') {
             try {
                 await Kullanici.findOneAndUpdate(
                     { kullaniciAdi: istek.kullaniciAdi },
-                    { okul: '' }
+                    { okul: '', sube: '' }
                 );
             } catch (e) {
-                console.error('[istek-yanitla] red okul temizleme:', e.message);
+                console.error('[istek-yanitla] red okul/sube temizleme:', e.message);
             }
         }
         // Kabulse, isteyenin bagliKurumId'sini ayarla
@@ -969,30 +970,44 @@ router.post('/kurum/istek-yanitla', oturumKontrol, async (req, res) => {
                         }, 'ogrenciAdi').lean();
                         if (iliskiler.length > 0) {
                             const ogrAdlar = iliskiler.map(i => i.ogrenciAdi);
+                            // v4.3.12: Aday öğrenciler iki yoldan birinde olabilir:
+                            //   a) Hâlâ okul=kurum.ad ile beyan etmiş ve bagliKurumId boş
+                            //   b) Daha önce bu kuruma istek atıp red/cikarildi olmuş (okul boş)
+                            // Adayları geniş tutuyoruz; her birini elden geçiriyoruz.
                             const adaylar = await Kullanici.find({
                                 kullaniciAdi: { $in: ogrAdlar },
                                 rol: 'ogrenci',
-                                okul: kurum.ad,
-                                il: kurum.il,
-                                ilce: kurum.ilce,
                                 bagliKurumId: null
-                            }, 'kullaniciAdi').lean();
+                            }, 'kullaniciAdi okul il ilce').lean();
                             for (const ogr of adaylar) {
                                 try {
-                                    // Mevcut red/cikarildi isteği varsa otomatik açma
+                                    // v4.3.12: Öğretmen yeniden kuruma katıldığında takip ettiği
+                                    // öğrenciler için otomatik istek üretilir. Eski red/cikarildi
+                                    // istekleri yeniden 'beklemede'ye çevrilir — öğretmenin
+                                    // tekrar başvurusu öğrenciler için yeni bir tetikleyicidir.
                                     const mevcut = await KurumUyelikIstek.findOne({
                                         kullaniciAdi: ogr.kullaniciAdi,
                                         kurumId: kurum._id
                                     });
-                                    if (mevcut && (mevcut.durum === 'red' || mevcut.durum === 'cikarildi')) {
-                                        continue; // Manuel istek atmalı
-                                    }
+                                    // Öğrencinin bu kuruma dahil olabilmesi için:
+                                    //   a) Mevcut beyanı kurumun okuluyla eşleşiyor olmalı, VEYA
+                                    //   b) Daha önce bu kuruma istek atmış olmalı (red/cikarildi)
+                                    var beyanEslesiyor = (ogr.okul === kurum.ad && ogr.il === kurum.il && ogr.ilce === kurum.ilce);
+                                    if (!beyanEslesiyor && !mevcut) continue;
+
                                     if (!mevcut) {
                                         await new KurumUyelikIstek({
                                             kullaniciAdi: ogr.kullaniciAdi,
                                             kullaniciRol: 'ogrenci',
                                             kurumId: kurum._id
                                         }).save();
+                                    } else if (mevcut.durum !== 'beklemede' && mevcut.durum !== 'kabul') {
+                                        // red veya cikarildi → yeniden beklemede yap
+                                        mevcut.durum = 'beklemede';
+                                        mevcut.istekTarih = new Date();
+                                        mevcut.yanitTarih = null;
+                                        mevcut.yanitlayan = '';
+                                        await mevcut.save();
                                     }
                                 } catch (e) {
                                     if (e.code !== 11000) {
@@ -1033,9 +1048,12 @@ router.post('/kurum/uye-cikar', oturumKontrol, async (req, res) => {
         if (String(uye.bagliKurumId) !== String(yonetici.yonettigiKurumId)) {
             return res.send("<script>alert('Bu üye senin kurumunda değil.'); window.location.href='" + geri + "';</script>");
         }
-        // v4.3.10: Üyenin bagliKurumId temizlenir + okul beyanı silinir (il/ilçe kalır)
+        // v4.3.10-3.12: Üyenin bagliKurumId temizlenir + okul beyanı silinir.
+        // v4.3.12: Şube de silinir (öğrenci sıralamada şubeye girmesin).
+        // il/ilçe kalır.
         uye.bagliKurumId = null;
         uye.okul = '';
+        uye.sube = '';
         await uye.save();
         // İstek kaydını sil değil, 'cikarildi' olarak işaretle
         await KurumUyelikIstek.findOneAndUpdate(
