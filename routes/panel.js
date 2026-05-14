@@ -130,6 +130,13 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         k.aktifRol = k.rol;
         dbDegisiklik = true;
     }
+    // v4.3.14: Lazy temizleme — okul boşsa şube de boş olmalı.
+    // Eski sürümlerden kalmış olabilir: çıkarılan/reddedilen öğrencilerin okul'u
+    // silinmiş ama sube'si dolu kalmış olabilir. Bu kayıtları sessizce temizler.
+    if (k.rol === 'ogrenci' && !k.okul && k.sube) {
+        k.sube = '';
+        dbDegisiklik = true;
+    }
     if (dbDegisiklik) {
         try { await k.save(); } catch (e) { /* sessiz */ }
     }

@@ -1,17 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.13 (Modüler Yapı) ---
-// v4.3.13 değişiklikleri:
-//   • Kurum Üyeleri sayfasına "🔄 Eksik istekleri yeniden tara" butonu eklendi
-//     (özet kartların altında, sağa hizalı).
-//   • Yeni endpoint: POST /kurum/yeniden-tara
-//     - Kurum yöneticisi tıklayınca, o kurumun okul/il/ilçesini beyan etmiş
-//       öğretmen+öğrenci kullanıcıları taranır.
-//     - Henüz kuruma bağlı olmayan ve hiç istek atılmamış olanlara 'beklemede'
-//       istek oluşturulur.
-//     - 'red'/'cikarildi' olanlar atlanır (Madde 3 korumalı davranış korunur).
-//     - Mevcut 'beklemede'/'kabul' olanlara dokunulmaz.
-//     - Sonunda kaç yeni istek oluşturulduğu alert'le bildirilir.
-//   • Bu, kurumsal kayıt sonrası eklenmiş veya beyanı sonradan değişmiş
-//     kullanıcılar için bir "toplu tarama" işlemi sunar.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.14 (Modüler Yapı) ---
+// v4.3.14 değişiklikleri (eksik temizleme):
+//   • v4.3.12'de uye-cikar ve red için kod tarafında şube silme eklenmişti,
+//     ama mevcut DB'deki tutarsız kayıtlara dokunulmamıştı. v4.3.14 iki
+//     yerden bu kayıtları temizler:
+//     1) Server başlangıcında tek seferlik updateMany: okul='' ama sube'si
+//        dolu öğrencilerin sube'si boşaltılır (mongoose.connect callback'inde).
+//     2) Panel açılışındaki lazy temizleme: aynı öğrenci paneli açtığında
+//        kendi kaydı için sube boşalır.
+//   • Atlas'a manuel dokunulmaz, app başlatınca otomatik düzeltilir.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler
@@ -33,7 +29,25 @@ app.set('views', path.join(__dirname, 'views'));
 const PORT = process.env.PORT || 10000;
 const dbURI = process.env.MONGO_URI;
 
-mongoose.connect(dbURI).then(() => console.log("✅ MongoDB Bağlandı")).catch(err => console.error("❌ Hata:", err.message));
+mongoose.connect(dbURI).then(async () => {
+    console.log("✅ MongoDB Bağlandı");
+    // v4.3.14: Tek seferlik bütünlük temizliği — okul'u boş ama sube'si dolu
+    // öğrencilerin sube'sini boşalt. Eski sürümlerden (uye-cikar v4.3.11)
+    // kalmış tutarsız kayıtları düzeltir. Her başlatmada hızlıca çalışır,
+    // hiçbir şey yoksa anında biter.
+    try {
+        const Kullanici = require('./models/Kullanici');
+        const sonuc = await Kullanici.updateMany(
+            { rol: 'ogrenci', okul: '', sube: { $ne: '' } },
+            { $set: { sube: '' } }
+        );
+        if (sonuc.modifiedCount > 0) {
+            console.log(`🧹 v4.3.14 temizlik: ${sonuc.modifiedCount} öğrencinin tutarsız şubesi temizlendi.`);
+        }
+    } catch (e) {
+        console.error('[startup cleanup] hata:', e.message);
+    }
+}).catch(err => console.error("❌ Hata:", err.message));
 
 // Session middleware
 const session = require('express-session');
