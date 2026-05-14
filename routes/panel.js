@@ -1065,6 +1065,58 @@ router.post('/kurum/uye-cikar', oturumKontrol, async (req, res) => {
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
+// v4.3.13: "Eksik istekleri yeniden tara" — kurumsal kullanıcı kuruma uygun olabilecek
+// kullanıcılar için bekleyen istek olmayanları yakalar ve istek oluşturur.
+//   • O kurumun okul/il/ilçesini beyan etmiş öğretmen+öğrenciler aranır.
+//   • Bunlardan henüz kuruma bağlı değil ve hiç istek atılmamış olanlara
+//     'beklemede' istek oluşturulur.
+//   • 'red'/'cikarildi' olanlar atlanır (kullanıcı manuel istek atmalı).
+//   • Mevcut 'beklemede'/'kabul' olanlara dokunulmaz.
+router.post('/kurum/yeniden-tara', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi } = req.body;
+        const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=kurumUyeleri';
+        const yonetici = await Kullanici.findOne({ kullaniciAdi });
+        if (!yonetici || yonetici.rol !== 'kurumsal' || !yonetici.yonettigiKurumId) {
+            return res.status(403).send('Yetki yok.');
+        }
+        const kurum = await Kurum.findById(yonetici.yonettigiKurumId).lean();
+        if (!kurum) return res.send("<script>alert('Kurum bulunamadı.'); window.location.href='" + geri + "';</script>");
+        // O kuruma uyan kullanıcılar (öğretmen + öğrenci), henüz kuruma bağlı olmayanlar
+        const adaylar = await Kullanici.find({
+            rol: { $in: ['ogretmen', 'ogrenci'] },
+            okul: kurum.ad,
+            il:   kurum.il,
+            ilce: kurum.ilce,
+            bagliKurumId: null
+        }, 'kullaniciAdi rol').lean();
+        let yeniSayi = 0;
+        for (const u of adaylar) {
+            try {
+                const mevcut = await KurumUyelikIstek.findOne({
+                    kullaniciAdi: u.kullaniciAdi,
+                    kurumId: kurum._id
+                });
+                if (mevcut) continue; // Hangi durumda olursa olsun dokunma
+                await new KurumUyelikIstek({
+                    kullaniciAdi: u.kullaniciAdi,
+                    kullaniciRol: u.rol,
+                    kurumId: kurum._id
+                }).save();
+                yeniSayi++;
+            } catch (e) {
+                if (e.code !== 11000) {
+                    console.error('[yeniden-tara] istek olusturma:', e.message);
+                }
+            }
+        }
+        const mesaj = yeniSayi > 0
+            ? yeniSayi + ' yeni bekleyen istek oluşturuldu.'
+            : 'Eksik istek bulunamadı. Tüm uygun kullanıcılar zaten taranmış.';
+        res.send("<script>alert(\"" + mesaj + "\"); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
 // Şube güncelleme
 router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
     try {

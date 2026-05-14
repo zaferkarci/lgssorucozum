@@ -1,17 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.12 (Modüler Yapı) ---
-// v4.3.12 değişiklikleri (2 bug fix):
-//   • Bug 1 düzeltmesi: Çıkarılan öğretmen tekrar kuruma onaylanınca, takip
-//     ettiği (TakipIliski kabul'lü) öğrenciler için otomatik istekler yeniden
-//     üretilir — eski red/cikarildi istekleri 'beklemede'ye çevrilir.
-//     Aday öğrenci filtresi de genişletildi: ya beyanı kuruma uyuyor olmalı,
-//     ya da daha önce bu kuruma istek atmış olmalı (red/cikarildi sonrası
-//     beyan silinen öğrenciler de yakalanır).
-//   • Bug 2 düzeltmesi: uye-cikar ve istek-yanitla 'red' işlemlerinde şube
-//     (sube) alanı da silinir. Öğrenci sıralamasında şube hücresi boş
-//     görünmesin diye.
-//   • Bilinen sınırlama: panel ilk açılışındaki lazy fix hâlâ red/cikarildi
-//     için yeni istek üretmiyor (Madde 3 korumalı davranış). Sadece öğretmen
-//     onaylanma akışı bypass eder.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.13 (Modüler Yapı) ---
+// v4.3.13 değişiklikleri:
+//   • Kurum Üyeleri sayfasına "🔄 Eksik istekleri yeniden tara" butonu eklendi
+//     (özet kartların altında, sağa hizalı).
+//   • Yeni endpoint: POST /kurum/yeniden-tara
+//     - Kurum yöneticisi tıklayınca, o kurumun okul/il/ilçesini beyan etmiş
+//       öğretmen+öğrenci kullanıcıları taranır.
+//     - Henüz kuruma bağlı olmayan ve hiç istek atılmamış olanlara 'beklemede'
+//       istek oluşturulur.
+//     - 'red'/'cikarildi' olanlar atlanır (Madde 3 korumalı davranış korunur).
+//     - Mevcut 'beklemede'/'kabul' olanlara dokunulmaz.
+//     - Sonunda kaç yeni istek oluşturulduğu alert'le bildirilir.
+//   • Bu, kurumsal kayıt sonrası eklenmiş veya beyanı sonradan değişmiş
+//     kullanıcılar için bir "toplu tarama" işlemi sunar.
 //   • Üst nav grup butonlarının renkleri düzeltildi (header beyaz arka plana
 //     uygun gri-mavi metin, hover/active koyu mavi). Önceki sürümde beyaz
 //     header'a beyaz metin nedeniyle metinler görünmüyordu, sadece emoji'ler
