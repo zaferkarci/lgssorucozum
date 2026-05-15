@@ -1,19 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.16 (Modüler Yapı) ---
-// v4.3.16 değişiklikleri (sıralama gizleme):
-//   • Kullanıcının okul'u boşsa (çıkarılan/reddedilen) okul sıralamasına
-//     girmez. siralamaVerisi.okul = 0, satır view'da gizlenir.
-//   • Kullanıcının şubesi boşsa (veya okul boşsa) sınıf sıralamasına girmez.
-//     siralamaVerisi.sinif = 0, satır view'da gizlenir.
-//   • Aynı zamanda okul/sınıf listelerinin **kendisi** de filtrelenir:
-//     u.okul === '' olan kullanıcılar bu listelere girmez (yoksa boş okullular
-//     bir araya gelir).
-//   • İl/ilçe/Türkiye sıralamaları normal çalışır — kullanıcı il/ilçesi
-//     dolu olduğu sürece bu sıralamalarda görünür.
-//   • Aynı filtreleme ders sıralamalarına da uygulandı (her ders için
-//     okul/sınıf listesi sadece okul/şubesi dolu kullanıcıları içerir).
-//   • Banner'daki "Okul sırası" zaten 0 → "—" gösteriyordu, davranış korundu.
-//   • İki yeni alan: siralamaVerisi.okulGecerli, sinifGecerli — view'da
-//     satır gizleme kontrolü için.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.17 (Modüler Yapı) ---
+// v4.3.17 değişiklikleri (sıralama gizleme — cache bypass):
+//   • v4.3.16'da view, siralamaVerisi.okulGecerli/sinifGecerli flag'lerine
+//     bakıyordu ama bu flag'ler eski cache'lerde yok. Eski cache'den
+//     okunduğunda undefined olunca !== false true çıkıyor, satır görünüyordu.
+//   • v4.3.17: View artık doğrudan k.okul ve k.sube alanlarını kontrol eder.
+//     Cache flag'leri bypass edilir. Bu daha güvenli — cache eski olsa bile
+//     kullanıcının mevcut beyanına göre gizleme yapılır.
+//   • Ana sıralama, ders sıralamaları, ve banner'daki "Okul sırası" stat'ı
+//     hepsi aynı k.okul/k.sube kontrolüyle gizlenir.
 
 const mongoose = require('mongoose');
 const express = require('express');
