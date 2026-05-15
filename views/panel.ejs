@@ -303,6 +303,38 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       <% } %>
 
+      <!-- v4.3.18: Sınıflar bölümü -->
+      <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+          <span style="font-size:15px; font-weight:600; color:#37474f;">📚 Kurum Sınıfları</span>
+          <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumSiniflar.length %>)</span>
+        </div>
+        <% if (!kurumSiniflar || kurumSiniflar.length === 0) { %>
+          <div style="padding:30px; text-align:center; color:#5f6368; font-size:14px;">
+            Henüz sınıf yok.<br>
+            <span style="font-size:12px; color:#9aa0a6;">Kuruma bağlı öğrencilerin sınıf/şube bilgilerinden otomatik oluşur.</span>
+          </div>
+        <% } else { %>
+          <div style="padding:14px 18px; display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;">
+            <% kurumSiniflar.forEach(function(s) { %>
+              <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=kurumSinif&sinif=<%= s.sinif %>&sube=<%= encodeURIComponent(s.sube) %>" style="background:#f8f9fa; border:1px solid #e0e7ff; border-radius:10px; padding:14px 16px; text-decoration:none; color:inherit; display:block; transition:all 0.15s ease;" onmouseover="this.style.background='#e8f0fe'; this.style.borderColor='#90caf9';" onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#e0e7ff';">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                  <span style="font-size:18px; font-weight:700; color:#1a73e8;"><%= s.sinif %>/<%= s.sube %></span>
+                  <span style="font-size:11px; color:#5f6368; background:#fff; padding:2px 8px; border-radius:10px; border:1px solid #e0e7ff;"><%= s.ogrenciSayisi %> öğrenci</span>
+                </div>
+                <div style="font-size:11px; color:#5f6368;">
+                  <% if (s.atananOgretmenler && s.atananOgretmenler.length > 0) { %>
+                    👩‍🏫 <%= s.atananOgretmenler.length %> atanan öğretmen
+                  <% } else { %>
+                    <span style="color:#9aa0a6;">Henüz öğretmen atanmamış</span>
+                  <% } %>
+                </div>
+              </a>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+
       <!-- Öğretmenler tablosu -->
       <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
         <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
@@ -392,6 +424,106 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- Bilgilendirme -->
       <div style="background:#fff8e1; border:1px solid #ffd54f; border-radius:10px; padding:12px 16px; margin-top:20px; font-size:13px; color:#5d4037; line-height:1.6;">
         ℹ️ <b>Sonraki sürümlerde gelecek:</b> Öğretmen ekleme (kurumda görev yaptığını beyan eden öğretmenler arasından), öğrenci davet kodu üretimi, sınıf-öğretmen ataması, üye istatistik detayları.
+      </div>
+    </div>
+  <% } %>
+
+<% } else if (mod === 'kurumSinif') { %>
+  <!-- v4.3.18: Sınıf detay sayfası -->
+  <% if (k.aktifRol !== 'kurumsal') { %>
+    <div style="max-width:600px; margin:60px auto; padding:30px; background:#fff8e1; border:1px solid #ffe082; border-radius:12px; text-align:center;">
+      <div style="font-size:38px; margin-bottom:10px;">🔒</div>
+      <h2 style="color:#f57c00; margin-bottom:8px;">Bu sayfa Kurumsal moduna özeldir</h2>
+    </div>
+  <% } else if (!kurumSinifDetay) { %>
+    <div style="max-width:600px; margin:60px auto; padding:30px; background:#fde7e9; border:1px solid #f4a8af; border-radius:12px; text-align:center;">
+      <div style="font-size:38px; margin-bottom:10px;">⚠️</div>
+      <h2 style="color:#c62828; margin-bottom:8px;">Sınıf bulunamadı</h2>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=kurumUyeleri" style="color:#1a73e8; font-size:14px;">← Kurum Üyeleri'ne dön</a>
+    </div>
+  <% } else { %>
+    <div style="max-width:1100px; margin:24px auto 0; padding:0 16px;">
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=kurumUyeleri" style="color:#1a73e8; font-size:13px; text-decoration:none; margin-bottom:14px; display:inline-block;">← Kurum Üyeleri</a>
+
+      <!-- Sınıf bilgi kartı -->
+      <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border:1px solid #90caf9; border-radius:14px; padding:22px 26px; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="font-size:38px;">📚</div>
+          <div style="flex:1;">
+            <div style="font-size:24px; font-weight:700; color:#0d47a1;"><%= kurumSinifDetay.sinif %>/<%= kurumSinifDetay.sube %> Sınıfı</div>
+            <div style="font-size:13px; color:#1565c0; margin-top:4px;">
+              <%= kurumSinifDetay.ogrenciler.length %> öğrenci · <%= kurumSinifDetay.atananOgretmenler.length %> atanan öğretmen
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Atanan öğretmenler -->
+      <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-size:15px; font-weight:600; color:#37474f;">👩‍🏫 Atanan Öğretmenler</span>
+            <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumSinifDetay.atananOgretmenler.length %>)</span>
+          </div>
+          <!-- v4.3.19'da öğretmen atama butonu buraya gelecek -->
+          <span style="font-size:11px; color:#9aa0a6; background:#f0f3f7; padding:4px 10px; border-radius:6px;">Öğretmen atama bir sonraki sürümde</span>
+        </div>
+        <% if (kurumSinifDetay.atananOgretmenler.length === 0) { %>
+          <div style="padding:30px; text-align:center; color:#5f6368; font-size:14px;">
+            Henüz öğretmen atanmamış.
+          </div>
+        <% } else { %>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead style="background:#f8f9fa;">
+              <tr>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Kullanıcı</th>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Rol</th>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% kurumSinifDetay.atananOgretmenler.forEach(function(o) { %>
+                <tr style="border-bottom:1px solid #f0f3f7;">
+                  <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= o.rol === 'kurumsal' ? '🏛️ Kurumsal' : '👩‍🏫 Öğretmen' %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= o.email || '—' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+
+      <!-- Sınıftaki öğrenciler -->
+      <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden;">
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+          <span style="font-size:15px; font-weight:600; color:#37474f;">👨‍🎓 Sınıftaki Öğrenciler</span>
+          <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumSinifDetay.ogrenciler.length %>)</span>
+        </div>
+        <% if (kurumSinifDetay.ogrenciler.length === 0) { %>
+          <div style="padding:30px; text-align:center; color:#5f6368; font-size:14px;">
+            Bu sınıfta henüz öğrenci yok.
+          </div>
+        <% } else { %>
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead style="background:#f8f9fa;">
+              <tr>
+                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Kullanıcı</th>
+                <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
+                <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Çözülen</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% kurumSinifDetay.ogrenciler.forEach(function(o) { %>
+                <tr style="border-bottom:1px solid #f0f3f7;">
+                  <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                  <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+                  <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
       </div>
     </div>
   <% } %>

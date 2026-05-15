@@ -1,13 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.17 (Modüler Yapı) ---
-// v4.3.17 değişiklikleri (sıralama gizleme — cache bypass):
-//   • v4.3.16'da view, siralamaVerisi.okulGecerli/sinifGecerli flag'lerine
-//     bakıyordu ama bu flag'ler eski cache'lerde yok. Eski cache'den
-//     okunduğunda undefined olunca !== false true çıkıyor, satır görünüyordu.
-//   • v4.3.17: View artık doğrudan k.okul ve k.sube alanlarını kontrol eder.
-//     Cache flag'leri bypass edilir. Bu daha güvenli — cache eski olsa bile
-//     kullanıcının mevcut beyanına göre gizleme yapılır.
-//   • Ana sıralama, ders sıralamaları, ve banner'daki "Okul sırası" stat'ı
-//     hepsi aynı k.okul/k.sube kontrolüyle gizlenir.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.18 (Modüler Yapı) ---
+// v4.3.18 değişiklikleri (Madde 4 — sınıf modeli + sınıf listesi):
+//   • Yeni model: KurumSinif (kurumId, sinif, sube, atananOgretmenler[]).
+//     Bir sınıfa N öğretmen atanabilir (compound unique kurumId+sinif+sube).
+//   • Lazy üretim: Kurum Üyeleri sayfası açıldığında, kuruma bağlı
+//     öğrencilerin sinif+sube kombolarından sınıflar otomatik oluşur.
+//   • Kurum Üyeleri sayfasında yeni bölüm: "📚 Kurum Sınıfları" — kart
+//     görünümü, her sınıf için öğrenci sayısı + atanan öğretmen sayısı.
+//   • Yeni sayfa: ?mod=kurumSinif&sinif=X&sube=Y — sınıf detayı.
+//     - Sınıf bilgi kartı (mavi gradient)
+//     - Atanan öğretmenler tablosu (şu an boş — v4.3.19'da atama gelir)
+//     - Sınıftaki öğrenciler tablosu (kullaniciAdi, puan, çözülen)
+//   • Öğretmen atama, dashboard ve TakipIliski entegrasyonu sonraki sürümlerde.
 
 const mongoose = require('mongoose');
 const express = require('express');

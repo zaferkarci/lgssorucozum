@@ -7,6 +7,7 @@ const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
 const Kurum = require('../models/Kurum');
 const KurumUyelikIstek = require('../models/KurumUyelikIstek');
+const KurumSinif = require('../models/KurumSinif');
 const TakipIliski = require('../models/TakipIliski');
 
 function stdSapma(dizi) {
@@ -596,6 +597,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     let kurumOgretmenler = [];
     let kurumOgrenciler = [];
     let bekleyenIstekler = []; // v4.3.7: kuruma katılma bekleyen öğretmen/öğrenci istekleri
+    let kurumSiniflar = []; // v4.3.18: kurumun sınıfları + her birinin öğretmenleri/öğrenci sayıları
+    let kurumSinifDetay = null; // v4.3.18: ?mod=kurumSinif sayfası için tek sınıfın detayı
     if (k.aktifRol === 'kurumsal' && k.yonettigiKurumId) {
         try {
             kurum = await Kurum.findById(k.yonettigiKurumId).lean();
@@ -621,6 +624,91 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     bekleyenIstekler = istekler.map(i => Object.assign({}, i, {
                         profil: profilMap[i.kullaniciAdi] || null
                     }));
+                }
+
+                // v4.3.18: Sınıf otomatik üretimi (lazy)
+                // Öğrencilerin sinif+sube beyanından sınıflar oluşur.
+                // Geçerli kombolar (her ikisi de dolu) için KurumSinif kaydı yoksa oluşturulur.
+                try {
+                    const sinifKombolari = {};
+                    kurumOgrenciler.forEach(o => {
+                        const sn = Number(o.sinif);
+                        const sb = (o.sube || '').trim();
+                        if (sn && sb) {
+                            const anahtar = sn + '/' + sb;
+                            if (!sinifKombolari[anahtar]) {
+                                sinifKombolari[anahtar] = { sinif: sn, sube: sb, ogrenciSayisi: 0 };
+                            }
+                            sinifKombolari[anahtar].ogrenciSayisi++;
+                        }
+                    });
+                    // Mevcut sınıf kayıtlarını yükle
+                    const mevcutSiniflar = await KurumSinif.find({ kurumId: k.yonettigiKurumId }).lean();
+                    const mevcutAnahtarSet = new Set(mevcutSiniflar.map(s => s.sinif + '/' + s.sube));
+                    // Eksik olanları oluştur
+                    for (const anahtar of Object.keys(sinifKombolari)) {
+                        if (!mevcutAnahtarSet.has(anahtar)) {
+                            const c = sinifKombolari[anahtar];
+                            try {
+                                await new KurumSinif({
+                                    kurumId: k.yonettigiKurumId,
+                                    sinif:   c.sinif,
+                                    sube:    c.sube,
+                                    atananOgretmenler: []
+                                }).save();
+                            } catch (e) {
+                                if (e.code !== 11000) {
+                                    console.error('[panel] Sınıf olusturma:', e.message);
+                                }
+                            }
+                        }
+                    }
+                    // Hepsini yeniden çek
+                    const tumSiniflar = await KurumSinif.find({ kurumId: k.yonettigiKurumId }).sort({ sinif: 1, sube: 1 }).lean();
+                    kurumSiniflar = tumSiniflar.map(s => {
+                        const k2 = s.sinif + '/' + s.sube;
+                        return {
+                            _id: s._id,
+                            sinif: s.sinif,
+                            sube:  s.sube,
+                            atananOgretmenler: s.atananOgretmenler || [],
+                            ogrenciSayisi: (sinifKombolari[k2] ? sinifKombolari[k2].ogrenciSayisi : 0)
+                        };
+                    });
+                } catch (e) {
+                    console.error('[panel] Sınıf yukleme:', e.message);
+                }
+
+                // v4.3.18: Sınıf detay modu (?mod=kurumSinif&sinif=X&sube=Y)
+                if (mod === 'kurumSinif' && req.query.sinif && req.query.sube) {
+                    const istenenSinif = Number(req.query.sinif);
+                    const istenenSube  = String(req.query.sube).trim();
+                    const sinifBelge = await KurumSinif.findOne({
+                        kurumId: k.yonettigiKurumId,
+                        sinif:   istenenSinif,
+                        sube:    istenenSube
+                    }).lean();
+                    if (sinifBelge) {
+                        // Bu sınıftaki öğrenciler (kuruma bağlı + sinif+sube eşleşen)
+                        const siniftaki = kurumOgrenciler.filter(o =>
+                            Number(o.sinif) === istenenSinif && (o.sube || '').trim() === istenenSube
+                        );
+                        // Atanan öğretmenlerin profilleri
+                        let atananProfilller = [];
+                        if (sinifBelge.atananOgretmenler && sinifBelge.atananOgretmenler.length > 0) {
+                            atananProfilller = await Kullanici.find(
+                                { kullaniciAdi: { $in: sinifBelge.atananOgretmenler } },
+                                'kullaniciAdi rol email'
+                            ).lean();
+                        }
+                        kurumSinifDetay = {
+                            _id:               sinifBelge._id,
+                            sinif:             sinifBelge.sinif,
+                            sube:              sinifBelge.sube,
+                            ogrenciler:        siniftaki,
+                            atananOgretmenler: atananProfilller
+                        };
+                    }
                 }
             }
         } catch (e) {
@@ -737,6 +825,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         kurumOgretmenler,
         kurumOgrenciler,
         bekleyenIstekler,
+        kurumSiniflar,
+        kurumSinifDetay,
         oğretmenIcinKurum,
         oğretmenIstekDurum,
         ogrenciIcinKurum,
