@@ -1,16 +1,14 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.18 (Modüler Yapı) ---
-// v4.3.18 değişiklikleri (Madde 4 — sınıf modeli + sınıf listesi):
-//   • Yeni model: KurumSinif (kurumId, sinif, sube, atananOgretmenler[]).
-//     Bir sınıfa N öğretmen atanabilir (compound unique kurumId+sinif+sube).
-//   • Lazy üretim: Kurum Üyeleri sayfası açıldığında, kuruma bağlı
-//     öğrencilerin sinif+sube kombolarından sınıflar otomatik oluşur.
-//   • Kurum Üyeleri sayfasında yeni bölüm: "📚 Kurum Sınıfları" — kart
-//     görünümü, her sınıf için öğrenci sayısı + atanan öğretmen sayısı.
-//   • Yeni sayfa: ?mod=kurumSinif&sinif=X&sube=Y — sınıf detayı.
-//     - Sınıf bilgi kartı (mavi gradient)
-//     - Atanan öğretmenler tablosu (şu an boş — v4.3.19'da atama gelir)
-//     - Sınıftaki öğrenciler tablosu (kullaniciAdi, puan, çözülen)
-//   • Öğretmen atama, dashboard ve TakipIliski entegrasyonu sonraki sürümlerde.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.19 (Modüler Yapı) ---
+// v4.3.19 değişiklikleri (küçük UX ek):
+//   • Sınıf detay sayfasındaki yanlış uyarı düzeltildi:
+//     "Öğretmen atama bir sonraki sürümde" → "Öğretmenler kurumca onaylananlar
+//      arasından seçilecek" — atama akışının özetini verir.
+//   • Admin kullanıcı listesinde kurumsal (yönetici) rolüne 🏛️ YÖNETİCİ
+//     etiketi eklendi (öğretmenlerde olduğu gibi).
+//   • Admin kullanıcı listesinin "Sınıf" hücresinde kurumsal yöneticiler için
+//     "YÖN" etiketi gösterilir (öğretmenlerde "ÖĞR" gösterildiği gibi).
+//     Yöneticilerin sınıf bilgisi rastgele görünmez.
+//   • Asıl öğretmen atama akışı v4.3.20'de.
 
 const mongoose = require('mongoose');
 const express = require('express');
