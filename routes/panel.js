@@ -331,28 +331,36 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
 
             // Genel sıralama listeleri — sadece en az MIN_SORU çözmüş olanlar
             const nitelikliFiltre = (u) => toplamSoruFn(u) >= MIN_SORU;
-            const sinifFiltre = (u) => u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? u.sube === k.sube : true);
+            // v4.3.16: Sınıf filtresi okul ve şube dolu olmalı (boş okul/şube farklı kişileri eşleyemez)
+            const sinifFiltre = (u) => u.okul && k.okul && u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? (u.sube && u.sube === k.sube) : true);
 
             const turkiyeListesi = tumKullanicilar.filter(nitelikliFiltre).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
             const ilListesi      = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.il === k.il).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
             const ilceListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.ilce === k.ilce).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-            const okulListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            // v4.3.16: Okul ve sınıf sıralamaları sadece okul/şubesi dolu kullanıcılar arasında
+            const okulListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
             const sinifListesi   = tumKullanicilar.filter(u => nitelikliFiltre(u) && sinifFiltre(u)).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+
+            // v4.3.16: Kullanıcının kendi okul/şubesi boşsa o sıralamalarda 0 (görünmez) döndür
+            const okulGecerli  = !!k.okul;
+            const sinifGecerli = !!k.okul && !!k.sube;
 
             siralamaVerisi = {
                 turkiye:         kNitelikli ? turkiyeListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 il:              kNitelikli ? ilListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 ilce:            kNitelikli ? ilceListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                okul:            kNitelikli ? okulListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                sinif:           kNitelikli ? sinifListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
+                okul:            (kNitelikli && okulGecerli)  ? okulListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
+                sinif:           (kNitelikli && sinifGecerli) ? sinifListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 toplamKullanici: turkiyeListesi.length,
                 ilKullanici:     ilListesi.length,
                 ilceKullanici:   ilceListesi.length,
-                okulKullanici:   okulListesi.length,
-                sinifKullanici:  sinifListesi.length,
+                okulKullanici:   okulGecerli  ? okulListesi.length  : 0,
+                sinifKullanici:  sinifGecerli ? sinifListesi.length : 0,
                 nitelikli:       kNitelikli,
                 kullaniciSoruSayisi: kToplamSoru,
-                minSoru:         MIN_SORU
+                minSoru:         MIN_SORU,
+                okulGecerli,     // v4.3.16: view tarafı sıralama satırını gizlemek için
+                sinifGecerli     // v4.3.16: aynısı
             };
 
             const dersSiralamalari = {};
@@ -374,19 +382,20 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 const tList  = tumKullanicilar.filter(dersNitelikliFiltre).map(dersOrtFn).sort((a,b) => b-a);
                 const iList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.il === k.il).map(dersOrtFn).sort((a,b) => b-a);
                 const ilList = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.ilce === k.ilce).map(dersOrtFn).sort((a,b) => b-a);
-                const oList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
+                // v4.3.16: Ders okul/sınıf sıralaması — sadece okul/şubesi dolu kullanıcılar
+                const oList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
                 const sList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && sinifFiltre(u)).map(dersOrtFn).sort((a,b) => b-a);
                 dersSiralamalari[dersAdi] = {
                     turkiye:        kDersNitelikli ? tList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     il:             kDersNitelikli ? iList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     ilce:           kDersNitelikli ? ilList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    okul:           kDersNitelikli ? oList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    sinif:          kDersNitelikli ? sList.findIndex(p => p <= kDersOrt) + 1 : 0,
+                    okul:           (kDersNitelikli && okulGecerli)  ? oList.findIndex(p => p <= kDersOrt) + 1 : 0,
+                    sinif:          (kDersNitelikli && sinifGecerli) ? sList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     toplamKullanici: tList.length,
                     ilKullanici:    iList.length,
                     ilceKullanici:  ilList.length,
-                    okulKullanici:  oList.length,
-                    sinifKullanici: sList.length,
+                    okulKullanici:  okulGecerli  ? oList.length : 0,
+                    sinifKullanici: sinifGecerli ? sList.length : 0,
                     nitelikli:      kDersNitelikli,
                     kullaniciSoruSayisi: kDersSoruSayisi
                 };

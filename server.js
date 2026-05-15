@@ -1,12 +1,19 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.15 (Modüler Yapı) ---
-// v4.3.15 değişiklikleri (geri çekilme):
-//   • v4.3.14'teki tek seferlik startup temizliği (mongoose.connect callback)
-//     v4.3.14 deploy'unda çalıştığı için artık gerek yok — kaldırıldı.
-//   • v4.3.14'teki panel açılışındaki lazy şube temizleme kaldırıldı (gereksiz
-//     yük, kullanıcı her panel açtığında çalışıyordu).
-//   • Yeni çıkarma/red durumlarında şube silme kalıcı olarak v4.3.12'deki
-//     uye-cikar + istek-yanitla red kodlarında zaten yapılıyor. Yeni durumlar
-//     için ek bir şeye gerek yok.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.16 (Modüler Yapı) ---
+// v4.3.16 değişiklikleri (sıralama gizleme):
+//   • Kullanıcının okul'u boşsa (çıkarılan/reddedilen) okul sıralamasına
+//     girmez. siralamaVerisi.okul = 0, satır view'da gizlenir.
+//   • Kullanıcının şubesi boşsa (veya okul boşsa) sınıf sıralamasına girmez.
+//     siralamaVerisi.sinif = 0, satır view'da gizlenir.
+//   • Aynı zamanda okul/sınıf listelerinin **kendisi** de filtrelenir:
+//     u.okul === '' olan kullanıcılar bu listelere girmez (yoksa boş okullular
+//     bir araya gelir).
+//   • İl/ilçe/Türkiye sıralamaları normal çalışır — kullanıcı il/ilçesi
+//     dolu olduğu sürece bu sıralamalarda görünür.
+//   • Aynı filtreleme ders sıralamalarına da uygulandı (her ders için
+//     okul/sınıf listesi sadece okul/şubesi dolu kullanıcıları içerir).
+//   • Banner'daki "Okul sırası" zaten 0 → "—" gösteriyordu, davranış korundu.
+//   • İki yeni alan: siralamaVerisi.okulGecerli, sinifGecerli — view'da
+//     satır gizleme kontrolü için.
 
 const mongoose = require('mongoose');
 const express = require('express');

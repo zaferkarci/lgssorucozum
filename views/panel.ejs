@@ -845,8 +845,14 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Türkiye</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.turkiye) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.toplamKullanici %> öğrenci</div></div></div>
           <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İl</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.il) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilKullanici %> öğrenci</div></div></div>
           <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">İlçe</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.ilce) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.ilceKullanici %> öğrenci</div></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.okul) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
-          <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.sinif) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
+          <% /* v4.3.16: Okul satırı sadece kullanıcının okul bilgisi varsa */ %>
+          <% if (siralamaVerisi.okulGecerli !== false) { %>
+            <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.okul) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
+          <% } %>
+          <% /* v4.3.16: Sınıf satırı sadece okul ve şube doluysa */ %>
+          <% if (siralamaVerisi.sinifGecerli !== false) { %>
+            <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.sinif) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
+          <% } %>
         </div>
         <% dp.forEach(function(d) {
           var sr = ds[d.ders] || {};
