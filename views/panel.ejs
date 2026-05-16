@@ -460,14 +460,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <!-- Atanan öğretmenler -->
       <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
-        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <span style="font-size:15px; font-weight:600; color:#37474f;">👩‍🏫 Atanan Öğretmenler</span>
-            <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumSinifDetay.atananOgretmenler.length %>)</span>
-          </div>
-          <!-- v4.3.19'da öğretmen atama butonu buraya gelecek -->
-          <span style="font-size:11px; color:#9aa0a6; background:#f0f3f7; padding:4px 10px; border-radius:6px;">Öğretmenler kurumca onaylananlar arasından seçilecek</span>
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+          <span style="font-size:15px; font-weight:600; color:#37474f;">👩‍🏫 Atanan Öğretmenler</span>
+          <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= kurumSinifDetay.atananOgretmenler.length %>)</span>
         </div>
+
+        <!-- v4.3.20: Öğretmen atama formu -->
+        <div style="padding:14px 18px; border-bottom:1px solid #f0f3f7; background:#f8fafd;">
+          <% if (kurumSinifDetay.atanabilirOgretmenler && kurumSinifDetay.atanabilirOgretmenler.length > 0) { %>
+            <form method="POST" action="/kurum/sinif-ogretmen-ata" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+              <input type="hidden" name="sinifId" value="<%= kurumSinifDetay._id %>">
+              <span style="font-size:13px; color:#5f6368; font-weight:500;">Öğretmen ata:</span>
+              <select name="ogretmenAdi" class="input-sm" style="min-width:200px;" required>
+                <option value="">— Öğretmen seç —</option>
+                <% kurumSinifDetay.atanabilirOgretmenler.forEach(function(o) { %>
+                  <option value="<%= o.kullaniciAdi %>"><%= o.kullaniciAdi %><%= o.rol === 'kurumsal' ? ' (Kurum Yöneticisi)' : '' %></option>
+                <% }); %>
+              </select>
+              <button type="submit" style="background:#43a047; color:white; border:none; padding:7px 16px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">+ Ata</button>
+            </form>
+            <div style="font-size:11px; color:#9aa0a6; margin-top:6px;">Atanan öğretmen, sınıftaki tüm öğrencileri otomatik takibe alır.</div>
+          <% } else { %>
+            <div style="font-size:12px; color:#9aa0a6;">Atanabilecek başka öğretmen yok. (Kuruma bağlı tüm öğretmenler zaten atanmış veya kurumda öğretmen yok.)</div>
+          <% } %>
+        </div>
+
         <% if (kurumSinifDetay.atananOgretmenler.length === 0) { %>
           <div style="padding:30px; text-align:center; color:#5f6368; font-size:14px;">
             Henüz öğretmen atanmamış.
@@ -478,15 +496,22 @@ document.addEventListener('DOMContentLoaded', function() {
               <tr>
                 <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Kullanıcı</th>
                 <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Rol</th>
-                <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Email</th>
+                <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">İşlem</th>
               </tr>
             </thead>
             <tbody>
               <% kurumSinifDetay.atananOgretmenler.forEach(function(o) { %>
                 <tr style="border-bottom:1px solid #f0f3f7;">
                   <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
-                  <td style="padding:10px 14px; color:#5f6368;"><%= o.rol === 'kurumsal' ? '🏛️ Kurumsal' : '👩‍🏫 Öğretmen' %></td>
-                  <td style="padding:10px 14px; color:#5f6368;"><%= o.email || '—' %></td>
+                  <td style="padding:10px 14px; color:#5f6368;"><%= o.rol === 'kurumsal' ? '🏛️ Kurum Yöneticisi' : '👩‍🏫 Öğretmen' %></td>
+                  <td style="padding:10px 14px; text-align:right;">
+                    <form method="POST" action="/kurum/sinif-ogretmen-cikar" style="display:inline; margin:0;" onsubmit="return confirm('<%= o.kullaniciAdi %> sınıftan çıkarılsın mı? Bu sınıfla ilgili takip ilişkileri silinir.');">
+                      <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                      <input type="hidden" name="sinifId" value="<%= kurumSinifDetay._id %>">
+                      <input type="hidden" name="ogretmenAdi" value="<%= o.kullaniciAdi %>">
+                      <button type="submit" style="background:transparent; border:1px solid #e0e7ff; color:#5f6368; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer;" onmouseover="this.style.background='#fde7e9'; this.style.borderColor='#f4a8af'; this.style.color='#c62828';" onmouseout="this.style.background='transparent'; this.style.borderColor='#e0e7ff'; this.style.color='#5f6368';">Çıkar</button>
+                    </form>
+                  </td>
                 </tr>
               <% }); %>
             </tbody>

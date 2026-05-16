@@ -1,14 +1,21 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.19 (Modüler Yapı) ---
-// v4.3.19 değişiklikleri (küçük UX ek):
-//   • Sınıf detay sayfasındaki yanlış uyarı düzeltildi:
-//     "Öğretmen atama bir sonraki sürümde" → "Öğretmenler kurumca onaylananlar
-//      arasından seçilecek" — atama akışının özetini verir.
-//   • Admin kullanıcı listesinde kurumsal (yönetici) rolüne 🏛️ YÖNETİCİ
-//     etiketi eklendi (öğretmenlerde olduğu gibi).
-//   • Admin kullanıcı listesinin "Sınıf" hücresinde kurumsal yöneticiler için
-//     "YÖN" etiketi gösterilir (öğretmenlerde "ÖĞR" gösterildiği gibi).
-//     Yöneticilerin sınıf bilgisi rastgele görünmez.
-//   • Asıl öğretmen atama akışı v4.3.20'de.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.20 (Modüler Yapı) ---
+// v4.3.20 değişiklikleri (Madde 4 — öğretmen atama akışı):
+//   • TakipIliski'ye 'kaynak' alanı eklendi: 'bireysel' (normal davet) veya
+//     'sinif' (sınıf öğretmeni ataması). Çıkarma sırasında ayrım için.
+//   • Yeni endpoint: POST /kurum/sinif-ogretmen-ata
+//     - Sınıfa öğretmen ekler (KurumSinif.atananOgretmenler).
+//     - O sınıftaki öğrencileri TakipIliski'ye otomatik takibe alır
+//       (durum:'kabul', kaynak:'sinif') — öğrenci onayı gerekmez.
+//     - Atanabilir: kuruma bağlı öğretmen veya kurum yöneticisinin kendisi.
+//   • Yeni endpoint: POST /kurum/sinif-ogretmen-cikar
+//     - Öğretmeni sınıftan çıkarır.
+//     - O sınıfın öğrencileriyle olan 'sinif' kaynaklı takipleri siler.
+//     - 'bireysel' takipler korunur (öğretmen kendi davetiyle takip
+//       ettiyse bozulmaz).
+//   • Sınıf detay sayfasına öğretmen atama formu (dropdown + Ata butonu) +
+//     atanan öğretmen tablosuna "Çıkar" butonu eklendi.
+//   • Atanan öğretmen dashboard'u (sınıf öğrencilerinin detaylı istatistikleri)
+//     bir sonraki sürümde.
 
 const mongoose = require('mongoose');
 const express = require('express');

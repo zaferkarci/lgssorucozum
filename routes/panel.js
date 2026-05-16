@@ -706,7 +706,23 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                             sinif:             sinifBelge.sinif,
                             sube:              sinifBelge.sube,
                             ogrenciler:        siniftaki,
-                            atananOgretmenler: atananProfilller
+                            atananOgretmenler: atananProfilller,
+                            // v4.3.20: Atanabilir öğretmenler — kuruma bağlı öğretmenler +
+                            // yöneticinin kendisi. Zaten atanmış olanlar hariç.
+                            atanabilirOgretmenler: (function() {
+                                const atanmisSet = new Set(sinifBelge.atananOgretmenler || []);
+                                const aday = [];
+                                kurumOgretmenler.forEach(o => {
+                                    if (!atanmisSet.has(o.kullaniciAdi)) {
+                                        aday.push({ kullaniciAdi: o.kullaniciAdi, rol: 'ogretmen' });
+                                    }
+                                });
+                                // Yöneticinin kendisi (zaten atanmamışsa)
+                                if (!atanmisSet.has(k.kullaniciAdi)) {
+                                    aday.push({ kullaniciAdi: k.kullaniciAdi, rol: 'kurumsal' });
+                                }
+                                return aday;
+                            })()
                         };
                     }
                 }
@@ -1213,6 +1229,117 @@ router.post('/kurum/yeniden-tara', oturumKontrol, async (req, res) => {
             ? yeniSayi + ' yeni bekleyen istek oluşturuldu.'
             : 'Eksik istek bulunamadı. Tüm uygun kullanıcılar zaten taranmış.';
         res.send("<script>alert(\"" + mesaj + "\"); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.20: Sınıfa öğretmen ata.
+// Kurumsal yönetici bir sınıfa öğretmen atar. Atanan öğretmen:
+//   • KurumSinif.atananOgretmenler dizisine eklenir
+//   • O sınıftaki tüm öğrencileri TakipIliski'ye (durum:'kabul', kaynak:'sinif')
+//     otomatik takip eder — öğrenci onayı gerekmez.
+// Atanabilir öğretmen: kuruma bağlı (onaylı) öğretmen VEYA kurumsal yöneticinin kendisi.
+router.post('/kurum/sinif-ogretmen-ata', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, sinifId, ogretmenAdi } = req.body;
+        const yonetici = await Kullanici.findOne({ kullaniciAdi });
+        if (!yonetici || yonetici.rol !== 'kurumsal' || !yonetici.yonettigiKurumId) {
+            return res.status(403).send('Yetki yok.');
+        }
+        const sinif = await KurumSinif.findById(sinifId);
+        if (!sinif) return res.status(404).send('Sınıf bulunamadı.');
+        if (String(sinif.kurumId) !== String(yonetici.yonettigiKurumId)) {
+            return res.status(403).send('Bu sınıf senin kurumuna ait değil.');
+        }
+        const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=kurumSinif&sinif=' + sinif.sinif + '&sube=' + encodeURIComponent(sinif.sube);
+        // Atanacak öğretmen: kuruma bağlı öğretmen veya yöneticinin kendisi
+        const ogr = await Kullanici.findOne({ kullaniciAdi: ogretmenAdi });
+        if (!ogr) return res.send("<script>alert('Öğretmen bulunamadı.'); window.location.href='" + geri + "';</script>");
+        const kuruma_bagli_ogretmen = (ogr.rol === 'ogretmen' && String(ogr.bagliKurumId) === String(yonetici.yonettigiKurumId));
+        const yoneticinin_kendisi = (ogr.kullaniciAdi === yonetici.kullaniciAdi);
+        if (!kuruma_bagli_ogretmen && !yoneticinin_kendisi) {
+            return res.send("<script>alert('Sadece kuruma bağlı öğretmenler veya kurum yöneticisi atanabilir.'); window.location.href='" + geri + "';</script>");
+        }
+        // Zaten atanmışsa
+        if (sinif.atananOgretmenler.includes(ogretmenAdi)) {
+            return res.send("<script>alert('Bu öğretmen zaten bu sınıfa atanmış.'); window.location.href='" + geri + "';</script>");
+        }
+        sinif.atananOgretmenler.push(ogretmenAdi);
+        await sinif.save();
+        // O sınıftaki öğrencileri otomatik takibe al (kaynak:'sinif', durum:'kabul')
+        const siniftakiler = await Kullanici.find({
+            bagliKurumId: yonetici.yonettigiKurumId,
+            rol: 'ogrenci',
+            sinif: sinif.sinif,
+            sube: sinif.sube
+        }, 'kullaniciAdi').lean();
+        let takipSayi = 0;
+        for (const o of siniftakiler) {
+            try {
+                const mevcut = await TakipIliski.findOne({ ogretmenAdi, ogrenciAdi: o.kullaniciAdi });
+                if (mevcut) {
+                    // Bireysel takip varsa dokunma; yoksa kabul'e çek
+                    if (mevcut.durum !== 'kabul') {
+                        mevcut.durum = 'kabul';
+                        mevcut.kaynak = 'sinif';
+                        mevcut.yanitTarih = new Date();
+                        await mevcut.save();
+                        takipSayi++;
+                    }
+                } else {
+                    await new TakipIliski({
+                        ogretmenAdi,
+                        ogrenciAdi: o.kullaniciAdi,
+                        isteyenRol: 'ogretmen',
+                        durum: 'kabul',
+                        kaynak: 'sinif',
+                        yanitTarih: new Date()
+                    }).save();
+                    takipSayi++;
+                }
+            } catch (e) {
+                if (e.code !== 11000) console.error('[sinif-ogretmen-ata] takip:', e.message);
+            }
+        }
+        res.send("<script>alert('" + ogretmenAdi + " sınıfa atandı. " + takipSayi + " öğrenci takibe alındı.'); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.20: Sınıftan öğretmen çıkar.
+// Öğretmen KurumSinif.atananOgretmenler'den çıkarılır + o sınıfın öğrencileriyle
+// olan 'sinif' kaynaklı takip ilişkileri silinir. 'bireysel' takipler korunur.
+router.post('/kurum/sinif-ogretmen-cikar', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, sinifId, ogretmenAdi } = req.body;
+        const yonetici = await Kullanici.findOne({ kullaniciAdi });
+        if (!yonetici || yonetici.rol !== 'kurumsal' || !yonetici.yonettigiKurumId) {
+            return res.status(403).send('Yetki yok.');
+        }
+        const sinif = await KurumSinif.findById(sinifId);
+        if (!sinif) return res.status(404).send('Sınıf bulunamadı.');
+        if (String(sinif.kurumId) !== String(yonetici.yonettigiKurumId)) {
+            return res.status(403).send('Bu sınıf senin kurumuna ait değil.');
+        }
+        const geri = '/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=kurumSinif&sinif=' + sinif.sinif + '&sube=' + encodeURIComponent(sinif.sube);
+        sinif.atananOgretmenler = (sinif.atananOgretmenler || []).filter(a => a !== ogretmenAdi);
+        await sinif.save();
+        // O sınıftaki öğrencilerle 'sinif' kaynaklı takipleri sil
+        const siniftakiler = await Kullanici.find({
+            bagliKurumId: yonetici.yonettigiKurumId,
+            rol: 'ogrenci',
+            sinif: sinif.sinif,
+            sube: sinif.sube
+        }, 'kullaniciAdi').lean();
+        const ogrAdlar = siniftakiler.map(o => o.kullaniciAdi);
+        let silinen = 0;
+        if (ogrAdlar.length > 0) {
+            const sonuc = await TakipIliski.deleteMany({
+                ogretmenAdi,
+                ogrenciAdi: { $in: ogrAdlar },
+                kaynak: 'sinif'
+            });
+            silinen = sonuc.deletedCount || 0;
+        }
+        res.send("<script>alert('" + ogretmenAdi + " sınıftan çıkarıldı. " + silinen + " sınıf takibi kaldırıldı.'); window.location.href='" + geri + "';</script>");
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
