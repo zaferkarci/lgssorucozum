@@ -1,16 +1,18 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.23 (Modüler Yapı) ---
-// v4.3.23 değişiklikleri (sınıf ortalaması — konu bazlı + yönetici görünümü):
-//   • Sınıf ortalama başarısı artık DERS + KONU bazlı. Her dersin altında
-//     o derse ait konular zayıftan güçlüye sıralı listelenir (öğrencinin
-//     bireysel istatistik sayfasındaki mantıkla aynı).
-//   • Ortak yardımcı fonksiyon: sinifOrtalamaHesapla(ogrenciAdlari) —
-//     CevapKaydi'larından ders+konu kırılımlı doğru oranlarını hesaplar.
-//   • Kurum yöneticisi de sınıf ortalamasını görür: sınıf detay sayfasına
-//     (?mod=kurumSinif) "📊 Sınıf Ortalama Başarısı" bölümü eklendi.
-//     Önceden sadece atanan öğretmen "Sınıflarım" sayfasında görüyordu.
-//   • Hem atanan öğretmen hem kurum yöneticisi, ders + konu bazlı başarıyı
-//     görür. Renk kodu: ders %60+/40-60/40- yeşil/turuncu/kırmızı,
-//     konular için açık tonlar.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.24 (Modüler Yapı) ---
+// v4.3.24 değişiklikleri (referans kod sistemi düzeltme):
+//   • SORUN: Otomatik davet kodu üretimi sadece "mod === 'profil'" iken
+//     çalışıyordu. Öğretmen panele girip profile uğramazsa kod hiç
+//     yenilenmiyordu — bazı kullanıcılarda kodlar ertesi gün gelmiyordu.
+//   • ÇÖZÜM: mod kısıtı kaldırıldı. Öğretmen panele hangi sekmeden girerse
+//     girsin kod kontrolü çalışır.
+//   • Yeni kural: kopyalanmamış + kullanılmamış ("taze") kod sayısı 2'nin
+//     altındaysa 2'ye tamamlanır. Kopyalanan kodlar kullanılana kadar
+//     durur, taze sayımına katılmaz.
+//   • Günlük tavan: bir günde en fazla 2 kod üretilir (o gün üretilen kod
+//     sayısı kontrol edilir). Bu, öğretmenin kodları kopyalayıp paneli
+//     yenileyerek sınırsız kod üretmesini engeller.
+//   • Üretim adedi = min(2 - tazeKod, 2 - bugünÜretilen) — iki sınırın
+//     küçüğü kadar.
 
 const mongoose = require('mongoose');
 const express = require('express');

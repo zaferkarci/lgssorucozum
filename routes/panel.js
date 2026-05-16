@@ -467,23 +467,38 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.1.28: Öğretmen için otomatik günlük kod üretimi (lazy/on-demand).
-    // Profil sayfasını açtığında çalışır. Kural: aktif (kullanılmamış) kodu yoksa
-    // ve son üretim bugünden eski ise 2 yeni öğrenci davet kodu üret. Birikme yok.
-    if (mod === 'profil' && k.rol === 'ogretmen') {
+    // v4.1.28 / v4.3.24: Öğretmen için otomatik günlük davet kodu yenileme.
+    // v4.3.24 değişiklikleri:
+    //   • Eski "mod === 'profil'" kısıtı kaldırıldı — öğretmen panele hangi
+    //     sekmeden girerse girsin kontrol çalışır.
+    //   • Yeni kural: kopyalanmamış + kullanılmamış kod sayısı 2'nin altındaysa
+    //     2'ye tamamlanır.
+    //   • Günlük tavan: bir günde en fazla 2 kod üretilir. Bu, öğretmenin
+    //     kodları kopyalayıp paneli yenileyerek sınırsız kod üretmesini engeller.
+    //   • Kopyalanan kodlar kullanılana kadar durur, taze sayımına katılmaz.
+    if (k.rol === 'ogretmen') {
         try {
-            const aktifKodSayisi = await ReferansKodu.countDocuments({
-                olusturan: k.kullaniciAdi, kullanildi: false
+            const bugunBasi = new Date(); bugunBasi.setHours(0, 0, 0, 0);
+            // Bugün üretilmiş kod sayısı (günlük tavan kontrolü)
+            const bugunUretilen = await ReferansKodu.countDocuments({
+                olusturan: k.kullaniciAdi,
+                olusturmaTarih: { $gte: bugunBasi }
             });
-            if (aktifKodSayisi === 0) {
-                const sonKod = await ReferansKodu.findOne({ olusturan: k.kullaniciAdi })
-                    .sort({ olusturmaTarih: -1 }).select('olusturmaTarih').lean();
-                const bugunBasi = new Date(); bugunBasi.setHours(0, 0, 0, 0);
-                const sonTarih = sonKod ? new Date(sonKod.olusturmaTarih) : null;
-                if (!sonTarih || sonTarih < bugunBasi) {
-                    const { referansKoduUret } = require('./auth');
-                    await referansKoduUret(k.kullaniciAdi, 2, 'ogrenci');
-                    console.log('[panel] Otomatik 2 davet kodu üretildi: ' + k.kullaniciAdi);
+            if (bugunUretilen < 2) {
+                // Kopyalanmamış + kullanılmamış aktif kod sayısı
+                const tazeKodSayisi = await ReferansKodu.countDocuments({
+                    olusturan: k.kullaniciAdi,
+                    kullanildi: false,
+                    kopyalandi: { $ne: true }
+                });
+                if (tazeKodSayisi < 2) {
+                    // Hem "2'ye tamamla" hem "günde en fazla 2" — ikisinin küçüğü kadar üret
+                    const eksik = Math.min(2 - tazeKodSayisi, 2 - bugunUretilen);
+                    if (eksik > 0) {
+                        const { referansKoduUret } = require('./auth');
+                        await referansKoduUret(k.kullaniciAdi, eksik, 'ogrenci');
+                        console.log('[panel] ' + eksik + ' davet kodu uretildi: ' + k.kullaniciAdi);
+                    }
                 }
             }
         } catch (e) { console.warn('[panel] Otomatik kod üretimi başarısız:', e.message); }
