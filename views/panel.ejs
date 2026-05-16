@@ -450,6 +450,37 @@ document.addEventListener('DOMContentLoaded', function() {
             <span style="font-size:17px; font-weight:700; color:#0d47a1;"><%= s.sinif %>/<%= s.sube %> Sınıfı</span>
             <span style="font-size:12px; color:#1565c0; margin-left:8px;"><%= s.kurumAdi %> · <%= s.ogrenciler.length %> öğrenci</span>
           </div>
+
+          <!-- v4.3.22: Sınıf ortalama başarısı -->
+          <% var dersAnahtarlari = s.dersIstat ? Object.keys(s.dersIstat).sort() : []; %>
+          <% if (s.genelToplamCevap > 0) { %>
+            <div style="padding:16px 18px; border-bottom:1px solid #f0f3f7;">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                <span style="font-size:13px; font-weight:600; color:#37474f;">📊 Sınıf Ortalama Başarısı</span>
+                <span style="font-size:20px; font-weight:700; color:<%= s.genelOran >= 60 ? '#43a047' : (s.genelOran >= 40 ? '#fb8c00' : '#e53935') %>;"><%= s.genelOran %>%</span>
+                <span style="font-size:11px; color:#9aa0a6;">(<%= s.genelToplamCevap %> cevap)</span>
+              </div>
+              <% if (dersAnahtarlari.length > 0) { %>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <% dersAnahtarlari.forEach(function(ders) { var d = s.dersIstat[ders]; %>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="font-size:12px; color:#37474f; min-width:110px; font-weight:500;"><%= ders %></span>
+                      <div style="flex:1; background:#f0f3f7; border-radius:6px; height:18px; overflow:hidden; position:relative;">
+                        <div style="height:100%; width:<%= d.oran %>%; background:<%= d.oran >= 60 ? '#43a047' : (d.oran >= 40 ? '#fb8c00' : '#e53935') %>; border-radius:6px;"></div>
+                      </div>
+                      <span style="font-size:12px; font-weight:600; color:#37474f; min-width:38px; text-align:right;"><%= d.oran %>%</span>
+                      <span style="font-size:11px; color:#9aa0a6; min-width:90px; text-align:right;"><%= d.dogru %>D / <%= d.yanlis %>Y</span>
+                    </div>
+                  <% }); %>
+                </div>
+              <% } %>
+            </div>
+          <% } else { %>
+            <div style="padding:14px 18px; border-bottom:1px solid #f0f3f7; font-size:12px; color:#9aa0a6;">
+              📊 Sınıf ortalaması: henüz yeterli cevap verisi yok.
+            </div>
+          <% } %>
+
           <% if (s.ogrenciler.length === 0) { %>
             <div style="padding:24px; text-align:center; color:#5f6368; font-size:13px;">Bu sınıfta henüz öğrenci yok.</div>
           <% } else { %>

@@ -1,17 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.21 (Modüler Yapı) ---
-// v4.3.21 değişiklikleri (Madde 4 son adım — öğretmen dashboard'u):
-//   • Öğretmen/kurumsal kullanıcının üst nav'ında "📚 Sınıflarım" linki
-//     (sadece bir sınıfa atanmışsa görünür).
-//   • Yeni sayfa: ?mod=atandigimSiniflar — atanan kişinin dashboard'u.
-//     Her atandığı sınıf için: sınıf başlığı + öğrenci listesi (puan,
-//     çözülen soru) + her öğrenci için "İstatistik →" linki.
-//   • İstatistik linki mevcut /takip/ogrenci/:ogrenciAdi detay sayfasına
-//     gider (ders başarıları, eksik konular, cevap geçmişi — zaten vardı).
-//   • takip.js: /api/takip/ogrenci-istatistik ve /takip/ogrenci/:ogrenciAdi
-//     endpoint'leri artık kurumsal rolü de kabul ediyor (önceden sadece
-//     öğretmen). Kurum yöneticisi kendini bir sınıfa atayabildiği için bu
-//     gerekli. Yetki yine TakipIliski kabul kaydına bağlı — sınıf ataması
-//     bu kaydı otomatik oluşturuyor.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.22 (Modüler Yapı) ---
+// v4.3.22 değişiklikleri (sınıf ortalama başarısı):
+//   • "Atandığım Sınıflar" dashboard'unda her sınıf için ortalama başarı
+//     hesaplanır. Sınıftaki tüm öğrencilerin CevapKaydi'ları toplanır,
+//     ders bazında doğru/yanlış sayılır, doğru oranı (%) çıkarılır.
+//   • Sınıf kartında: genel ortalama başarı yüzdesi (renkli) + her ders
+//     için yatay bar grafiği (oran %, doğru/yanlış sayısı).
+//   • Renk kodu: %60+ yeşil, %40-60 turuncu, %40 altı kırmızı.
+//   • Bireysel öğrenci istatistikleri (önceki sürümlerde vardı) korundu —
+//     bu sürüm sadece sınıf geneli ortalamayı ekler.
 
 const mongoose = require('mongoose');
 const express = require('express');

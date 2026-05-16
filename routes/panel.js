@@ -825,12 +825,62 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     sinif: s.sinif,
                     sube: s.sube
                 }, 'kullaniciAdi puan soruIndex').sort({ puan: -1 }).lean();
+
+                // v4.3.22: Sınıfın ders bazlı ortalama başarısı.
+                // Sınıftaki tüm öğrencilerin cevap kayıtları toplanır, ders bazında
+                // doğru/yanlış sayılır, doğru oranı (%) hesaplanır.
+                let sinifDersIstat = {};   // { ders: { dogru, yanlis, toplam, oran } }
+                let sinifGenelDogru = 0, sinifGenelToplam = 0;
+                try {
+                    const ogrAdlari = ogrenciler.map(o => o.kullaniciAdi);
+                    if (ogrAdlari.length > 0) {
+                        const cevaplar = await CevapKaydi.find(
+                            { kullaniciAdi: { $in: ogrAdlari } },
+                            'soruId dogruMu'
+                        ).lean();
+                        if (cevaplar.length > 0) {
+                            const soruIdler = [...new Set(cevaplar.map(c => String(c.soruId)))];
+                            const sorular = await Soru.find(
+                                { _id: { $in: soruIdler } }, 'ders'
+                            ).lean();
+                            const soruDersMap = {};
+                            sorular.forEach(sr => { soruDersMap[String(sr._id)] = sr.ders || 'Diğer'; });
+                            cevaplar.forEach(c => {
+                                const ders = soruDersMap[String(c.soruId)] || 'Diğer';
+                                if (!sinifDersIstat[ders]) {
+                                    sinifDersIstat[ders] = { dogru: 0, yanlis: 0, toplam: 0, oran: 0 };
+                                }
+                                sinifDersIstat[ders].toplam++;
+                                sinifGenelToplam++;
+                                if (c.dogruMu) {
+                                    sinifDersIstat[ders].dogru++;
+                                    sinifGenelDogru++;
+                                } else {
+                                    sinifDersIstat[ders].yanlis++;
+                                }
+                            });
+                            // Oran hesapla
+                            Object.keys(sinifDersIstat).forEach(ders => {
+                                const d = sinifDersIstat[ders];
+                                d.oran = d.toplam > 0 ? Math.round((d.dogru / d.toplam) * 100) : 0;
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error('[panel] sinif ders istatistik:', e.message);
+                }
+                const sinifGenelOran = sinifGenelToplam > 0
+                    ? Math.round((sinifGenelDogru / sinifGenelToplam) * 100) : 0;
+
                 atandigimSiniflar.push({
                     _id:        s._id,
                     sinif:      s.sinif,
                     sube:       s.sube,
                     kurumAdi:   kurumBilgi ? kurumBilgi.ad : '—',
-                    ogrenciler: ogrenciler
+                    ogrenciler: ogrenciler,
+                    dersIstat:  sinifDersIstat,
+                    genelOran:  sinifGenelOran,
+                    genelToplamCevap: sinifGenelToplam
                 });
             }
         } catch (e) {
