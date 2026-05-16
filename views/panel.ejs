@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <span style="font-size:12px; color:#1565c0; margin-left:8px;"><%= s.kurumAdi %> · <%= s.ogrenciler.length %> öğrenci</span>
           </div>
 
-          <!-- v4.3.22: Sınıf ortalama başarısı -->
+          <!-- v4.3.22-3.23: Sınıf ortalama başarısı (ders + konu bazlı) -->
           <% var dersAnahtarlari = s.dersIstat ? Object.keys(s.dersIstat).sort() : []; %>
           <% if (s.genelToplamCevap > 0) { %>
             <div style="padding:16px 18px; border-bottom:1px solid #f0f3f7;">
@@ -461,15 +461,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span style="font-size:11px; color:#9aa0a6;">(<%= s.genelToplamCevap %> cevap)</span>
               </div>
               <% if (dersAnahtarlari.length > 0) { %>
-                <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; flex-direction:column; gap:14px;">
                   <% dersAnahtarlari.forEach(function(ders) { var d = s.dersIstat[ders]; %>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                      <span style="font-size:12px; color:#37474f; min-width:110px; font-weight:500;"><%= ders %></span>
-                      <div style="flex:1; background:#f0f3f7; border-radius:6px; height:18px; overflow:hidden; position:relative;">
-                        <div style="height:100%; width:<%= d.oran %>%; background:<%= d.oran >= 60 ? '#43a047' : (d.oran >= 40 ? '#fb8c00' : '#e53935') %>; border-radius:6px;"></div>
+                    <div>
+                      <!-- Ders satırı -->
+                      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                        <span style="font-size:13px; color:#37474f; min-width:110px; font-weight:600;"><%= ders %></span>
+                        <div style="flex:1; background:#f0f3f7; border-radius:6px; height:18px; overflow:hidden;">
+                          <div style="height:100%; width:<%= d.oran %>%; background:<%= d.oran >= 60 ? '#43a047' : (d.oran >= 40 ? '#fb8c00' : '#e53935') %>; border-radius:6px;"></div>
+                        </div>
+                        <span style="font-size:12px; font-weight:700; color:#37474f; min-width:38px; text-align:right;"><%= d.oran %>%</span>
+                        <span style="font-size:11px; color:#9aa0a6; min-width:90px; text-align:right;"><%= d.dogru %>D / <%= d.yanlis %>Y</span>
                       </div>
-                      <span style="font-size:12px; font-weight:600; color:#37474f; min-width:38px; text-align:right;"><%= d.oran %>%</span>
-                      <span style="font-size:11px; color:#9aa0a6; min-width:90px; text-align:right;"><%= d.dogru %>D / <%= d.yanlis %>Y</span>
+                      <!-- Konu kırılımı — zayıftan güçlüye -->
+                      <% if (d.konular && d.konular.length > 0) { %>
+                        <div style="padding-left:14px; display:flex; flex-direction:column; gap:4px;">
+                          <% d.konular.forEach(function(kn) { %>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                              <span style="font-size:11px; color:#5f6368; min-width:140px;"><%= kn.konu %></span>
+                              <div style="flex:1; background:#f5f6f8; border-radius:4px; height:12px; overflow:hidden;">
+                                <div style="height:100%; width:<%= kn.oran %>%; background:<%= kn.oran >= 60 ? '#81c784' : (kn.oran >= 40 ? '#ffb74d' : '#e57373') %>; border-radius:4px;"></div>
+                              </div>
+                              <span style="font-size:11px; font-weight:600; color:#5f6368; min-width:34px; text-align:right;"><%= kn.oran %>%</span>
+                              <span style="font-size:10px; color:#b0bcc8; min-width:76px; text-align:right;"><%= kn.dogru %>D / <%= kn.yanlis %>Y</span>
+                            </div>
+                          <% }); %>
+                        </div>
+                      <% } %>
                     </div>
                   <% }); %>
                 </div>
@@ -540,6 +558,55 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- v4.3.23: Sınıf ortalama başarısı (ders + konu bazlı) — kurum yöneticisi de görür -->
+      <% var ksDersler = kurumSinifDetay.dersIstat ? Object.keys(kurumSinifDetay.dersIstat).sort() : []; %>
+      <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
+        <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+          <span style="font-size:15px; font-weight:600; color:#37474f;">📊 Sınıf Ortalama Başarısı</span>
+        </div>
+        <% if (kurumSinifDetay.genelToplamCevap > 0) { %>
+          <div style="padding:16px 18px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+              <span style="font-size:13px; color:#5f6368;">Genel başarı:</span>
+              <span style="font-size:22px; font-weight:700; color:<%= kurumSinifDetay.genelOran >= 60 ? '#43a047' : (kurumSinifDetay.genelOran >= 40 ? '#fb8c00' : '#e53935') %>;"><%= kurumSinifDetay.genelOran %>%</span>
+              <span style="font-size:11px; color:#9aa0a6;">(<%= kurumSinifDetay.genelToplamCevap %> cevap)</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <% ksDersler.forEach(function(ders) { var d = kurumSinifDetay.dersIstat[ders]; %>
+                <div>
+                  <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                    <span style="font-size:13px; color:#37474f; min-width:110px; font-weight:600;"><%= ders %></span>
+                    <div style="flex:1; background:#f0f3f7; border-radius:6px; height:18px; overflow:hidden;">
+                      <div style="height:100%; width:<%= d.oran %>%; background:<%= d.oran >= 60 ? '#43a047' : (d.oran >= 40 ? '#fb8c00' : '#e53935') %>; border-radius:6px;"></div>
+                    </div>
+                    <span style="font-size:12px; font-weight:700; color:#37474f; min-width:38px; text-align:right;"><%= d.oran %>%</span>
+                    <span style="font-size:11px; color:#9aa0a6; min-width:90px; text-align:right;"><%= d.dogru %>D / <%= d.yanlis %>Y</span>
+                  </div>
+                  <% if (d.konular && d.konular.length > 0) { %>
+                    <div style="padding-left:14px; display:flex; flex-direction:column; gap:4px;">
+                      <% d.konular.forEach(function(kn) { %>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                          <span style="font-size:11px; color:#5f6368; min-width:140px;"><%= kn.konu %></span>
+                          <div style="flex:1; background:#f5f6f8; border-radius:4px; height:12px; overflow:hidden;">
+                            <div style="height:100%; width:<%= kn.oran %>%; background:<%= kn.oran >= 60 ? '#81c784' : (kn.oran >= 40 ? '#ffb74d' : '#e57373') %>; border-radius:4px;"></div>
+                          </div>
+                          <span style="font-size:11px; font-weight:600; color:#5f6368; min-width:34px; text-align:right;"><%= kn.oran %>%</span>
+                          <span style="font-size:10px; color:#b0bcc8; min-width:76px; text-align:right;"><%= kn.dogru %>D / <%= kn.yanlis %>Y</span>
+                        </div>
+                      <% }); %>
+                    </div>
+                  <% } %>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        <% } else { %>
+          <div style="padding:24px; text-align:center; color:#9aa0a6; font-size:13px;">
+            Henüz yeterli cevap verisi yok.
+          </div>
+        <% } %>
       </div>
 
       <!-- Atanan öğretmenler -->

@@ -112,6 +112,68 @@ function oturumKontrol(req, res, next) {
     next();
 }
 
+// v4.3.23: Bir sınıfın ders + konu bazlı ortalama başarısını hesaplayan yardımcı.
+// Hem "Atandığım Sınıflar" hem kurum yöneticisinin sınıf detay sayfası kullanır.
+// Dönüş: { dersIstat:{ders:{dogru,yanlis,toplam,oran,konular:[]}}, genelOran, genelToplamCevap }
+async function sinifOrtalamaHesapla(ogrenciAdlari) {
+    const sonuc = { dersIstat: {}, genelOran: 0, genelToplamCevap: 0 };
+    try {
+        if (!ogrenciAdlari || ogrenciAdlari.length === 0) return sonuc;
+        const cevaplar = await CevapKaydi.find(
+            { kullaniciAdi: { $in: ogrenciAdlari } }, 'soruId dogruMu'
+        ).lean();
+        if (cevaplar.length === 0) return sonuc;
+        const soruIdler = [...new Set(cevaplar.map(c => String(c.soruId)))];
+        const sorular = await Soru.find({ _id: { $in: soruIdler } }, 'ders konu').lean();
+        const soruDersMap = {}, soruKonuMap = {};
+        sorular.forEach(sr => {
+            soruDersMap[String(sr._id)] = sr.ders || 'Diğer';
+            soruKonuMap[String(sr._id)] = sr.konu || 'Genel';
+        });
+        let genelDogru = 0, genelToplam = 0;
+        const konuSayac = {};
+        cevaplar.forEach(c => {
+            const ders = soruDersMap[String(c.soruId)] || 'Diğer';
+            const konu = soruKonuMap[String(c.soruId)] || 'Genel';
+            if (!sonuc.dersIstat[ders]) {
+                sonuc.dersIstat[ders] = { dogru: 0, yanlis: 0, toplam: 0, oran: 0, konular: [] };
+            }
+            if (!konuSayac[ders]) konuSayac[ders] = {};
+            if (!konuSayac[ders][konu]) konuSayac[ders][konu] = { dogru: 0, yanlis: 0 };
+            sonuc.dersIstat[ders].toplam++;
+            genelToplam++;
+            if (c.dogruMu) {
+                sonuc.dersIstat[ders].dogru++;
+                genelDogru++;
+                konuSayac[ders][konu].dogru++;
+            } else {
+                sonuc.dersIstat[ders].yanlis++;
+                konuSayac[ders][konu].yanlis++;
+            }
+        });
+        Object.keys(sonuc.dersIstat).forEach(ders => {
+            const d = sonuc.dersIstat[ders];
+            d.oran = d.toplam > 0 ? Math.round((d.dogru / d.toplam) * 100) : 0;
+            const konular = [];
+            Object.keys(konuSayac[ders] || {}).forEach(konu => {
+                const ks = konuSayac[ders][konu];
+                const kt = ks.dogru + ks.yanlis;
+                konular.push({
+                    konu: konu, dogru: ks.dogru, yanlis: ks.yanlis, toplam: kt,
+                    oran: kt > 0 ? Math.round((ks.dogru / kt) * 100) : 0
+                });
+            });
+            konular.sort((a, b) => a.oran - b.oran); // zayıftan güçlüye
+            d.konular = konular;
+        });
+        sonuc.genelToplamCevap = genelToplam;
+        sonuc.genelOran = genelToplam > 0 ? Math.round((genelDogru / genelToplam) * 100) : 0;
+    } catch (e) {
+        console.error('[sinifOrtalamaHesapla] hata:', e.message);
+    }
+    return sonuc;
+}
+
 router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const k = await Kullanici.findOne({ kullaniciAdi: req.params.kullaniciAdi });
     if (!k) return res.send("Kullanıcı bulunamadı.");
@@ -701,12 +763,17 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                                 'kullaniciAdi rol email'
                             ).lean();
                         }
+                        // v4.3.23: Sınıf ortalama başarısı (ders + konu bazlı)
+                        const sinifOrt = await sinifOrtalamaHesapla(siniftaki.map(o => o.kullaniciAdi));
                         kurumSinifDetay = {
                             _id:               sinifBelge._id,
                             sinif:             sinifBelge.sinif,
                             sube:              sinifBelge.sube,
                             ogrenciler:        siniftaki,
                             atananOgretmenler: atananProfilller,
+                            dersIstat:         sinifOrt.dersIstat,
+                            genelOran:         sinifOrt.genelOran,
+                            genelToplamCevap:  sinifOrt.genelToplamCevap,
                             // v4.3.20: Atanabilir öğretmenler — kuruma bağlı öğretmenler +
                             // yöneticinin kendisi. Zaten atanmış olanlar hariç.
                             atanabilirOgretmenler: (function() {
@@ -826,51 +893,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     sube: s.sube
                 }, 'kullaniciAdi puan soruIndex').sort({ puan: -1 }).lean();
 
-                // v4.3.22: Sınıfın ders bazlı ortalama başarısı.
-                // Sınıftaki tüm öğrencilerin cevap kayıtları toplanır, ders bazında
-                // doğru/yanlış sayılır, doğru oranı (%) hesaplanır.
-                let sinifDersIstat = {};   // { ders: { dogru, yanlis, toplam, oran } }
-                let sinifGenelDogru = 0, sinifGenelToplam = 0;
-                try {
-                    const ogrAdlari = ogrenciler.map(o => o.kullaniciAdi);
-                    if (ogrAdlari.length > 0) {
-                        const cevaplar = await CevapKaydi.find(
-                            { kullaniciAdi: { $in: ogrAdlari } },
-                            'soruId dogruMu'
-                        ).lean();
-                        if (cevaplar.length > 0) {
-                            const soruIdler = [...new Set(cevaplar.map(c => String(c.soruId)))];
-                            const sorular = await Soru.find(
-                                { _id: { $in: soruIdler } }, 'ders'
-                            ).lean();
-                            const soruDersMap = {};
-                            sorular.forEach(sr => { soruDersMap[String(sr._id)] = sr.ders || 'Diğer'; });
-                            cevaplar.forEach(c => {
-                                const ders = soruDersMap[String(c.soruId)] || 'Diğer';
-                                if (!sinifDersIstat[ders]) {
-                                    sinifDersIstat[ders] = { dogru: 0, yanlis: 0, toplam: 0, oran: 0 };
-                                }
-                                sinifDersIstat[ders].toplam++;
-                                sinifGenelToplam++;
-                                if (c.dogruMu) {
-                                    sinifDersIstat[ders].dogru++;
-                                    sinifGenelDogru++;
-                                } else {
-                                    sinifDersIstat[ders].yanlis++;
-                                }
-                            });
-                            // Oran hesapla
-                            Object.keys(sinifDersIstat).forEach(ders => {
-                                const d = sinifDersIstat[ders];
-                                d.oran = d.toplam > 0 ? Math.round((d.dogru / d.toplam) * 100) : 0;
-                            });
-                        }
-                    }
-                } catch (e) {
-                    console.error('[panel] sinif ders istatistik:', e.message);
-                }
-                const sinifGenelOran = sinifGenelToplam > 0
-                    ? Math.round((sinifGenelDogru / sinifGenelToplam) * 100) : 0;
+                // v4.3.22-3.23: Sınıfın ders + konu bazlı ortalama başarısı (helper ile)
+                const sinifOrt = await sinifOrtalamaHesapla(ogrenciler.map(o => o.kullaniciAdi));
 
                 atandigimSiniflar.push({
                     _id:        s._id,
@@ -878,9 +902,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     sube:       s.sube,
                     kurumAdi:   kurumBilgi ? kurumBilgi.ad : '—',
                     ogrenciler: ogrenciler,
-                    dersIstat:  sinifDersIstat,
-                    genelOran:  sinifGenelOran,
-                    genelToplamCevap: sinifGenelToplam
+                    dersIstat:  sinifOrt.dersIstat,
+                    genelOran:  sinifOrt.genelOran,
+                    genelToplamCevap: sinifOrt.genelToplamCevap
                 });
             }
         } catch (e) {

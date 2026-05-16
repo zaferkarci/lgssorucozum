@@ -1,13 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.22 (Modüler Yapı) ---
-// v4.3.22 değişiklikleri (sınıf ortalama başarısı):
-//   • "Atandığım Sınıflar" dashboard'unda her sınıf için ortalama başarı
-//     hesaplanır. Sınıftaki tüm öğrencilerin CevapKaydi'ları toplanır,
-//     ders bazında doğru/yanlış sayılır, doğru oranı (%) çıkarılır.
-//   • Sınıf kartında: genel ortalama başarı yüzdesi (renkli) + her ders
-//     için yatay bar grafiği (oran %, doğru/yanlış sayısı).
-//   • Renk kodu: %60+ yeşil, %40-60 turuncu, %40 altı kırmızı.
-//   • Bireysel öğrenci istatistikleri (önceki sürümlerde vardı) korundu —
-//     bu sürüm sadece sınıf geneli ortalamayı ekler.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.23 (Modüler Yapı) ---
+// v4.3.23 değişiklikleri (sınıf ortalaması — konu bazlı + yönetici görünümü):
+//   • Sınıf ortalama başarısı artık DERS + KONU bazlı. Her dersin altında
+//     o derse ait konular zayıftan güçlüye sıralı listelenir (öğrencinin
+//     bireysel istatistik sayfasındaki mantıkla aynı).
+//   • Ortak yardımcı fonksiyon: sinifOrtalamaHesapla(ogrenciAdlari) —
+//     CevapKaydi'larından ders+konu kırılımlı doğru oranlarını hesaplar.
+//   • Kurum yöneticisi de sınıf ortalamasını görür: sınıf detay sayfasına
+//     (?mod=kurumSinif) "📊 Sınıf Ortalama Başarısı" bölümü eklendi.
+//     Önceden sadece atanan öğretmen "Sınıflarım" sayfasında görüyordu.
+//   • Hem atanan öğretmen hem kurum yöneticisi, ders + konu bazlı başarıyı
+//     görür. Renk kodu: ders %60+/40-60/40- yeşil/turuncu/kırmızı,
+//     konular için açık tonlar.
 
 const mongoose = require('mongoose');
 const express = require('express');
