@@ -188,6 +188,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=davetEdilenler" class="ptopbar-link <%= mod==='davetEdilenler'?'aktif':'' %>">Davet Ettiklerim</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
+      <% if (atandigimSiniflar && atandigimSiniflar.length > 0) { %>
+        <!-- v4.3.21: Atandığım Sınıflar — sadece bir sınıfa atanmış öğretmen/yönetici için -->
+        <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=atandigimSiniflar" class="ptopbar-link <%= mod==='atandigimSiniflar'?'aktif':'' %>">📚 Sınıflarım</a>
+      <% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
@@ -427,6 +431,55 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
   <% } %>
+
+<% } else if (mod === 'atandigimSiniflar') { %>
+  <!-- v4.3.21: Atandığım Sınıflar — öğretmen/yönetici dashboard'u -->
+  <div style="max-width:1100px; margin:24px auto 0; padding:0 16px;">
+    <h2 style="font-size:20px; font-weight:600; color:#37474f; margin-bottom:6px;">📚 Atandığım Sınıflar</h2>
+    <p style="font-size:13px; color:#5f6368; margin-bottom:20px;">Kurum yöneticisi tarafından atandığın sınıflar. Her öğrenciye tıklayarak detaylı istatistiklerini görebilirsin.</p>
+
+    <% if (!atandigimSiniflar || atandigimSiniflar.length === 0) { %>
+      <div style="background:#f8f9fa; border:1px dashed #cfd8dc; border-radius:12px; padding:40px; text-align:center; color:#5f6368;">
+        Henüz bir sınıfa atanmadın.<br>
+        <span style="font-size:12px; color:#9aa0a6;">Kurum yöneticisi seni bir sınıfa atadığında burada görünecek.</span>
+      </div>
+    <% } else { %>
+      <% atandigimSiniflar.forEach(function(s) { %>
+        <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
+          <div style="padding:14px 18px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-bottom:1px solid #90caf9;">
+            <span style="font-size:17px; font-weight:700; color:#0d47a1;"><%= s.sinif %>/<%= s.sube %> Sınıfı</span>
+            <span style="font-size:12px; color:#1565c0; margin-left:8px;"><%= s.kurumAdi %> · <%= s.ogrenciler.length %> öğrenci</span>
+          </div>
+          <% if (s.ogrenciler.length === 0) { %>
+            <div style="padding:24px; text-align:center; color:#5f6368; font-size:13px;">Bu sınıfta henüz öğrenci yok.</div>
+          <% } else { %>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead style="background:#f8f9fa;">
+                <tr>
+                  <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Öğrenci</th>
+                  <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
+                  <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Çözülen</th>
+                  <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Detay</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% s.ogrenciler.forEach(function(o) { %>
+                  <tr style="border-bottom:1px solid #f0f3f7;">
+                    <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                    <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+                    <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
+                    <td style="padding:10px 14px; text-align:right;">
+                      <a href="/takip/ogrenci/<%= encodeURIComponent(o.kullaniciAdi) %>" style="background:#e8f0fe; color:#1a73e8; padding:4px 12px; border-radius:5px; font-size:11px; font-weight:600; text-decoration:none;">İstatistik →</a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
 
 <% } else if (mod === 'kurumSinif') { %>
   <!-- v4.3.18: Sınıf detay sayfası -->

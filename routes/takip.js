@@ -268,8 +268,8 @@ router.get('/api/takip/kabul-edilenler', oturumGerekli, async (req, res) => {
 router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim || benim.rol !== 'ogretmen') {
-            return res.status(403).json({ ok: false, hata: 'Sadece öğretmenler erişebilir.' });
+        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal')) {
+            return res.status(403).json({ ok: false, hata: 'Sadece öğretmenler ve kurum yöneticileri erişebilir.' });
         }
 
         const ogrenciAdi = req.params.ogrenciAdi;
@@ -342,8 +342,8 @@ router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (re
 router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim || benim.rol !== 'ogretmen') {
-            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler görüntüleyebilir.</p></div>');
+        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal')) {
+            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler ve kurum yöneticileri görüntüleyebilir.</p></div>');
         }
 
         const ogrenciAdi = req.params.ogrenciAdi;

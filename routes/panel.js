@@ -808,6 +808,36 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
+    // v4.3.21: Öğretmenin (veya kurumsal yöneticinin) atandığı sınıflar.
+    // Profil "Atandığım Sınıflar" sekmesinde gösterilir. Her sınıf için
+    // o sınıftaki öğrenci listesi de hazırlanır.
+    let atandigimSiniflar = [];
+    if (k.rol === 'ogretmen' || k.rol === 'kurumsal') {
+        try {
+            const siniflar = await KurumSinif.find({
+                atananOgretmenler: k.kullaniciAdi
+            }).sort({ sinif: 1, sube: 1 }).lean();
+            for (const s of siniflar) {
+                const kurumBilgi = await Kurum.findById(s.kurumId).lean();
+                const ogrenciler = await Kullanici.find({
+                    bagliKurumId: s.kurumId,
+                    rol: 'ogrenci',
+                    sinif: s.sinif,
+                    sube: s.sube
+                }, 'kullaniciAdi puan soruIndex').sort({ puan: -1 }).lean();
+                atandigimSiniflar.push({
+                    _id:        s._id,
+                    sinif:      s.sinif,
+                    sube:       s.sube,
+                    kurumAdi:   kurumBilgi ? kurumBilgi.ad : '—',
+                    ogrenciler: ogrenciler
+                });
+            }
+        } catch (e) {
+            console.error('[panel] atandigimSiniflar:', e.message);
+        }
+    }
+
     res.render('panel', {
         k,
         mod,
@@ -847,6 +877,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         oğretmenIstekDurum,
         ogrenciIcinKurum,
         ogrenciIstekDurum,
+        atandigimSiniflar,
         adminGorunum: req.adminGorunum || false
     });
 });

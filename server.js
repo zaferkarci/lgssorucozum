@@ -1,21 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.20 (Modüler Yapı) ---
-// v4.3.20 değişiklikleri (Madde 4 — öğretmen atama akışı):
-//   • TakipIliski'ye 'kaynak' alanı eklendi: 'bireysel' (normal davet) veya
-//     'sinif' (sınıf öğretmeni ataması). Çıkarma sırasında ayrım için.
-//   • Yeni endpoint: POST /kurum/sinif-ogretmen-ata
-//     - Sınıfa öğretmen ekler (KurumSinif.atananOgretmenler).
-//     - O sınıftaki öğrencileri TakipIliski'ye otomatik takibe alır
-//       (durum:'kabul', kaynak:'sinif') — öğrenci onayı gerekmez.
-//     - Atanabilir: kuruma bağlı öğretmen veya kurum yöneticisinin kendisi.
-//   • Yeni endpoint: POST /kurum/sinif-ogretmen-cikar
-//     - Öğretmeni sınıftan çıkarır.
-//     - O sınıfın öğrencileriyle olan 'sinif' kaynaklı takipleri siler.
-//     - 'bireysel' takipler korunur (öğretmen kendi davetiyle takip
-//       ettiyse bozulmaz).
-//   • Sınıf detay sayfasına öğretmen atama formu (dropdown + Ata butonu) +
-//     atanan öğretmen tablosuna "Çıkar" butonu eklendi.
-//   • Atanan öğretmen dashboard'u (sınıf öğrencilerinin detaylı istatistikleri)
-//     bir sonraki sürümde.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.21 (Modüler Yapı) ---
+// v4.3.21 değişiklikleri (Madde 4 son adım — öğretmen dashboard'u):
+//   • Öğretmen/kurumsal kullanıcının üst nav'ında "📚 Sınıflarım" linki
+//     (sadece bir sınıfa atanmışsa görünür).
+//   • Yeni sayfa: ?mod=atandigimSiniflar — atanan kişinin dashboard'u.
+//     Her atandığı sınıf için: sınıf başlığı + öğrenci listesi (puan,
+//     çözülen soru) + her öğrenci için "İstatistik →" linki.
+//   • İstatistik linki mevcut /takip/ogrenci/:ogrenciAdi detay sayfasına
+//     gider (ders başarıları, eksik konular, cevap geçmişi — zaten vardı).
+//   • takip.js: /api/takip/ogrenci-istatistik ve /takip/ogrenci/:ogrenciAdi
+//     endpoint'leri artık kurumsal rolü de kabul ediyor (önceden sadece
+//     öğretmen). Kurum yöneticisi kendini bir sınıfa atayabildiği için bu
+//     gerekli. Yetki yine TakipIliski kabul kaydına bağlı — sınıf ataması
+//     bu kaydı otomatik oluşturuyor.
 
 const mongoose = require('mongoose');
 const express = require('express');
