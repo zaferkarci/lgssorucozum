@@ -301,6 +301,48 @@ router.post('/okul-excel-kaydet', async (req, res) => {
 });
 
 // ── Excel'den Ünite/Konu Yükleme ─────────────────────────────────────────────
+
+// v4.3.26: Ünite/Konu Excel şablonu indir.
+// Tüm kayıtlı üniteler ve konuları, yükleme formatında bir Excel dosyasına
+// yazılır. Boş başlık satırı + her konu ayrı satır.
+// Sütunlar: Sınıf | Ders | Ünite No | Ünite Adı | Konu
+router.get('/unite-sablon-indir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const XLSX = require('xlsx');
+        const uniteler = await Unite.find().sort({ sinif: 1, ders: 1, uniteNo: 1 }).lean();
+        const satirlar = [['Sınıf', 'Ders', 'Ünite No', 'Ünite Adı', 'Konu']];
+        if (uniteler.length === 0) {
+            // Kayıt yoksa örnek bir satır koy ki şablon boş olmasın
+            satirlar.push(['8', 'Matematik', '1', 'Çarpanlar ve Katlar', 'Asal Çarpanlar']);
+        } else {
+            uniteler.forEach(u => {
+                const konular = (u.konular && u.konular.length > 0) ? u.konular : [''];
+                konular.forEach((konu, idx) => {
+                    if (idx === 0) {
+                        // İlk konu satırında ünite bilgileri yazılır
+                        satirlar.push([u.sinif || '', u.ders || '', u.uniteNo || '', u.uniteAdi || '', konu || '']);
+                    } else {
+                        // Aynı ünitenin diğer konuları — ünite sütunları boş (devam eder)
+                        satirlar.push(['', '', '', '', konu || '']);
+                    }
+                });
+            });
+        }
+        const ws = XLSX.utils.aoa_to_sheet(satirlar);
+        ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 10 }, { wch: 32 }, { wch: 36 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Üniteler');
+        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        res.setHeader('Content-Disposition', 'attachment; filename="unite-konu-sablon.xlsx"');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buf);
+    } catch (err) {
+        console.error('[Ünite Şablon İndir Hatası]', err.message);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 router.post('/unite-excel-yukle', uploadExcel.single('excelDosyasi'), async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
@@ -364,6 +406,32 @@ router.post('/unite-sil', async (req, res) => {
         await Unite.findByIdAndDelete(req.body.id);
         res.redirect('/admin?mod=uniteler');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.26: Ünite düzenle — sınıf, ders, ünite no, ünite adı ve konular güncellenir.
+// Konular tek bir metin alanında satır satır veya virgülle ayrılmış gelir.
+router.post('/unite-guncelle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { id, sinif, ders, uniteNo, uniteAdi, konularMetin } = req.body;
+        if (!id) return res.status(400).send('Ünite id eksik.');
+        // Konular: satır sonu veya virgülle ayrılmış → temiz dizi
+        const konular = (konularMetin || '')
+            .split(/[\n,]+/)
+            .map(x => x.trim())
+            .filter(Boolean);
+        await Unite.findByIdAndUpdate(id, {
+            sinif:    (sinif || '').trim(),
+            ders:     (ders || '').trim() || 'Belirtilmedi',
+            uniteNo:  parseInt(uniteNo) || 0,
+            uniteAdi: (uniteAdi || '').trim(),
+            konular:  konular
+        });
+        res.redirect('/admin?mod=uniteler');
+    } catch (err) {
+        console.error('[Ünite Güncelle Hatası]', err.message);
+        res.status(500).send('Hata: ' + err.message);
+    }
 });
 
 // ── Sınıfa göre ünite/konu verisi ────────────────────────────────────────────

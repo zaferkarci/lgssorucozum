@@ -1,19 +1,15 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.25 (Modüler Yapı) ---
-// v4.3.25 değişiklikleri (Veli kullanıcı — Faz 1: rol + kayıt):
-//   • Yeni rol: 'veli'. Kullanici.rol string olduğu için model değişmedi.
-//   • ReferansKodu 'veli' tipini destekler (referansKoduUret + admin geçerli
-//     tipler listesi güncellendi).
-//   • Admin panelinde "👪 Veli linki" davet kodu üretme seçeneği + bekleyen
-//     kod listesinde veli rozeti.
-//   • Kayıt akışı: veli davet kodu ile gelen kayıt formu 'Veli Hesabı Oluştur'
-//     başlığı + turuncu bilgi kutusu gösterir. Sınıf/şube alanları gizli
-//     (öğretmen gibi). İl/ilçe/okul veli için OPSİYONEL (veli okula bağlı
-//     değil).
-//   • /kayit-yap: veli tipi davet kodu → rol='veli', rolListesi=['veli'].
-//   • Veli giriş yapınca panel 'veliPanel' moduna yönlenir — Faz 1 basit
-//     karşılama ekranı. Üst nav veli için minimal (tek "Veli Paneli" etiketi).
-//   • Faz 2'de: veli paneli (çocuk listesi), öğrenci arama/istek, davet
-//     linki üretme, öğrenci istatistik görünümü.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.26 (Modüler Yapı) ---
+// v4.3.26 değişiklikleri (admin ünite/konu yönetimi):
+//   • Yeni endpoint: GET /unite-sablon-indir — tüm kayıtlı üniteler ve
+//     konuları yükleme formatında bir Excel dosyasına yazılır. View'daki
+//     "Excel Şablonunu İndir" linki önceden 404 veriyordu (endpoint yoktu),
+//     artık çalışıyor ve gerçek verileri içeriyor.
+//   • Yeni endpoint: POST /unite-guncelle — ünite düzenleme (sınıf, ders,
+//     ünite no, ünite adı, konular). Konular satır/virgülle ayrılmış metin
+//     olarak alınır, temizlenip diziye çevrilir.
+//   • Ünite tablosunda her satıra "DÜZENLE" butonu eklendi (SİL'in yanına).
+//     Tıklayınca satır altında düzenleme formu açılır (JS ile aç/kapa).
+//   • Veli Faz 2 (panel + çocuk ekleme) v4.3.27'ye kaydı.
 
 const mongoose = require('mongoose');
 const express = require('express');

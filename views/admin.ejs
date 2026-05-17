@@ -1291,10 +1291,45 @@ function escHtml(str) {
             <td><b><%= u.uniteAdi %></b></td>
             <td style="text-align:center;"><%= u.konular.length %></td>
             <td style="font-size:12px; color:#666;"><%= u.konular.join(', ') %></td>
-            <td style="text-align:center;">
+            <td style="text-align:center; white-space:nowrap;">
+              <button type="button" onclick="uniteDuzenleAc('<%= u._id %>')" class="btn" style="background:#1a73e8; color:white; padding:4px 10px; font-size:12px; margin-right:4px;">DÜZENLE</button>
               <form action="/unite-sil" method="POST" style="display:inline;">
                 <input type="hidden" name="id" value="<%= u._id %>">
                 <button onclick="return confirm('Bu ünite silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+          <!-- v4.3.26: Düzenleme satırı (gizli, JS ile açılır) -->
+          <tr id="duzenle-satir-<%= u._id %>" style="display:none; background:#f0f7ff;">
+            <td colspan="7" style="padding:14px 18px;">
+              <form action="/unite-guncelle" method="POST">
+                <input type="hidden" name="id" value="<%= u._id %>">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
+                  <div>
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Sınıf</label>
+                    <input type="text" name="sinif" value="<%= u.sinif||'' %>" class="input-sm" style="width:100%;">
+                  </div>
+                  <div>
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ders</label>
+                    <input type="text" name="ders" value="<%= u.ders||'' %>" class="input-sm" style="width:100%;" required>
+                  </div>
+                  <div>
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite No</label>
+                    <input type="number" name="uniteNo" value="<%= u.uniteNo||0 %>" class="input-sm" style="width:100%;">
+                  </div>
+                  <div style="grid-column:span 2;">
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite Adı</label>
+                    <input type="text" name="uniteAdi" value="<%= u.uniteAdi||'' %>" class="input-sm" style="width:100%;" required>
+                  </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                  <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Konular (her satıra bir konu veya virgülle ayır)</label>
+                  <textarea name="konularMetin" rows="4" class="input-sm" style="width:100%; resize:vertical; font-family:inherit;"><%= (u.konular||[]).join('\n') %></textarea>
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <button type="submit" class="btn btn-success" style="padding:6px 16px; font-size:13px;">💾 Kaydet</button>
+                  <button type="button" onclick="uniteDuzenleKapat('<%= u._id %>')" class="btn" style="background:#eee; color:#666; padding:6px 16px; font-size:13px;">İptal</button>
+                </div>
               </form>
             </td>
           </tr>
@@ -1306,6 +1341,16 @@ function escHtml(str) {
 
 <script>
 var excelOnizlemeVeri = [];
+
+// v4.3.26: Ünite düzenleme satırı aç/kapat
+function uniteDuzenleAc(id) {
+  var satir = document.getElementById('duzenle-satir-' + id);
+  if (satir) satir.style.display = '';
+}
+function uniteDuzenleKapat(id) {
+  var satir = document.getElementById('duzenle-satir-' + id);
+  if (satir) satir.style.display = 'none';
+}
 
 // Drag & Drop
 (function() {
