@@ -386,7 +386,10 @@ router.post('/unite-kaydet', async (req, res) => {
         if (!Array.isArray(uniteler) || uniteler.length === 0)
             return res.status(400).json({ hata: 'Kaydedilecek ünite yok.' });
         if (mod === 'sifirla') await Unite.deleteMany({});
+        // v4.3.27: 'sinif' alanı eklendi — Excel'den okunan sınıf bilgisi
+        // önceki sürümde kaydedilmiyordu (map içinde atlanmıştı).
         const kayitlar = uniteler.map(u => ({
+            sinif: (u.sinif != null ? String(u.sinif).trim() : ''),
             ders: u.ders || 'Belirtilmedi',
             uniteNo: parseInt(u.uniteNo) || 0,
             uniteAdi: u.uniteAdi,

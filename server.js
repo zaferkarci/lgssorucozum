@@ -1,15 +1,11 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.26 (Modüler Yapı) ---
-// v4.3.26 değişiklikleri (admin ünite/konu yönetimi):
-//   • Yeni endpoint: GET /unite-sablon-indir — tüm kayıtlı üniteler ve
-//     konuları yükleme formatında bir Excel dosyasına yazılır. View'daki
-//     "Excel Şablonunu İndir" linki önceden 404 veriyordu (endpoint yoktu),
-//     artık çalışıyor ve gerçek verileri içeriyor.
-//   • Yeni endpoint: POST /unite-guncelle — ünite düzenleme (sınıf, ders,
-//     ünite no, ünite adı, konular). Konular satır/virgülle ayrılmış metin
-//     olarak alınır, temizlenip diziye çevrilir.
-//   • Ünite tablosunda her satıra "DÜZENLE" butonu eklendi (SİL'in yanına).
-//     Tıklayınca satır altında düzenleme formu açılır (JS ile aç/kapa).
-//   • Veli Faz 2 (panel + çocuk ekleme) v4.3.27'ye kaydı.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.27 (Modüler Yapı) ---
+// v4.3.27 değişiklikleri (bug fix — Excel yüklemede sınıf kayboluyordu):
+//   • SORUN: /unite-kaydet endpoint'i kayıt nesnesini oluştururken 'sinif'
+//     alanını atlıyordu. Excel'de sınıf yazılı olsa, önizlemede görünse bile
+//     veritabanına kaydedilmiyordu.
+//   • ÇÖZÜM: kayitlar.map içine sinif alanı eklendi.
+//   • Excel önizleme kartında da sınıf bilgisi gösterilir (kullanıcı
+//     kaydetmeden önce doğruluğunu görebilsin).
 
 const mongoose = require('mongoose');
 const express = require('express');
