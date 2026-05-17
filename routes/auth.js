@@ -107,8 +107,8 @@ router.get('/api/kullaniciadi-oner', async (req, res) => {
 // Benzersiz 10 karakterlik referans kodu üret
 async function referansKoduUret(olusturan, adet, tip) {
     const kodlar = [];
-    // v4.3.2: 'kurumsal' tipi de geçerli
-    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal'];
+    // v4.3.2: 'kurumsal' tipi. v4.3.25: 'veli' tipi de geçerli.
+    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli'];
     const kodTip = gecerliTipler.includes(tip) ? tip : 'ogrenci';
     let deneme = 0;
     while (kodlar.length < adet && deneme < adet * 10) {
@@ -157,6 +157,9 @@ router.get('/kayit', async (req, res) => {
             } else if (ref && ref.tip === 'kurumsal') {
                 // v4.3.4: Kurumsal davet kodu için refTip atanıyor
                 refTip = 'kurumsal';
+            } else if (ref && ref.tip === 'veli') {
+                // v4.3.25: Veli davet kodu için refTip
+                refTip = 'veli';
             }
         } catch (e) { /* yoksay, default ogrenci + boş ön seçim */ }
     }
@@ -198,9 +201,10 @@ router.post('/kayit-yap', async (req, res) => {
         if (!ref) return res.send("<script>alert('Geçersiz veya kullanılmış referans kodu!'); window.history.back();</script>");
 
         // Rol referans kodundan belirleniyor (kullanıcı manipüle edemesin)
-        // v4.3.2: 'kurumsal' tipi de eklendi
+        // v4.3.2: 'kurumsal' tipi. v4.3.25: 'veli' tipi de eklendi.
         const rol = (ref.tip === 'ogretmen') ? 'ogretmen' :
-                    (ref.tip === 'kurumsal') ? 'kurumsal' : 'ogrenci';
+                    (ref.tip === 'kurumsal') ? 'kurumsal' :
+                    (ref.tip === 'veli')     ? 'veli'     : 'ogrenci';
 
         // Kullanıcı adı format ve küfür kontrolü
         const adHata = kullaniciAdiKontrol(kullaniciAdi);

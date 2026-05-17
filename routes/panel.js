@@ -228,7 +228,13 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const gercekRol = k.rol;
     k.rol = k.aktifRol;
 
-    const mod = req.query.mod || 'soru';
+    let mod = req.query.mod || 'soru';
+    // v4.3.25: Veli kullanıcı — Faz 1'de veli paneli henüz tam değil.
+    // Veli her zaman 'veliPanel' moduna yönlendirilir (basit karşılama).
+    // Faz 2'de tam veli paneli (çocuk listesi + istatistik) gelecek.
+    if (k.rol === 'veli') {
+        mod = 'veliPanel';
+    }
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
     const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));

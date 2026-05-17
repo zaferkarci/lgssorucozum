@@ -194,6 +194,9 @@ document.addEventListener('DOMContentLoaded', function() {
       <% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
+    <% } else if (k.rol === 'veli') { %>
+      <!-- v4.3.25: Veli navigasyonu — Faz 1'de tek sayfa (veliPanel). Faz 2'de genişleyecek. -->
+      <span class="ptopbar-link aktif">👪 Veli Paneli</span>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
@@ -431,6 +434,36 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
   <% } %>
+
+<% } else if (mod === 'veliPanel') { %>
+  <!-- v4.3.25: Veli paneli — Faz 1 (basit karşılama). Faz 2'de çocuk listesi + istatistik gelecek. -->
+  <div style="max-width:720px; margin:40px auto 0; padding:0 16px;">
+    <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border:1px solid #ffcc80; border-radius:16px; padding:32px 28px; text-align:center;">
+      <div style="font-size:48px; margin-bottom:12px;">👪</div>
+      <h2 style="font-size:22px; font-weight:700; color:#e65100; margin:0 0 8px;">Hoş geldiniz, <%= k.kullaniciAdi %></h2>
+      <p style="font-size:14px; color:#bf6000; margin:0 0 4px;">Veli hesabınız başarıyla oluşturuldu.</p>
+      <p style="font-size:13px; color:#9e5200; margin:0;">Çocuğunuzun çalışma istatistiklerini bu hesaptan takip edebileceksiniz.</p>
+    </div>
+
+    <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:20px 24px; margin-top:16px;">
+      <h3 style="font-size:15px; font-weight:600; color:#37474f; margin:0 0 12px;">📋 Sırada ne var?</h3>
+      <p style="font-size:13px; color:#5f6368; line-height:1.7; margin:0;">
+        Çocuk ekleme özelliği çok yakında bu panele eklenecek. İki yolla çocuğunuzu takip edebileceksiniz:
+      </p>
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+        <div style="background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:10px 14px; font-size:12px; color:#5f6368;">
+          <b style="color:#1565c0;">Çocuğunuz üyeyse:</b> kullanıcı adıyla arayıp takip isteği göndereceksiniz.
+        </div>
+        <div style="background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:10px 14px; font-size:12px; color:#5f6368;">
+          <b style="color:#2e7d32;">Çocuğunuz üye değilse:</b> davet linki üretip ona vereceksiniz.
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-top:20px;">
+      <a href="/cikis" style="font-size:13px; color:#888; text-decoration:none;">Çıkış Yap</a>
+    </div>
+  </div>
 
 <% } else if (mod === 'atandigimSiniflar') { %>
   <!-- v4.3.21: Atandığım Sınıflar — öğretmen/yönetici dashboard'u -->

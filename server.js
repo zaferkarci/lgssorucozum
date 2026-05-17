@@ -1,18 +1,19 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.24 (Modüler Yapı) ---
-// v4.3.24 değişiklikleri (referans kod sistemi düzeltme):
-//   • SORUN: Otomatik davet kodu üretimi sadece "mod === 'profil'" iken
-//     çalışıyordu. Öğretmen panele girip profile uğramazsa kod hiç
-//     yenilenmiyordu — bazı kullanıcılarda kodlar ertesi gün gelmiyordu.
-//   • ÇÖZÜM: mod kısıtı kaldırıldı. Öğretmen panele hangi sekmeden girerse
-//     girsin kod kontrolü çalışır.
-//   • Yeni kural: kopyalanmamış + kullanılmamış ("taze") kod sayısı 2'nin
-//     altındaysa 2'ye tamamlanır. Kopyalanan kodlar kullanılana kadar
-//     durur, taze sayımına katılmaz.
-//   • Günlük tavan: bir günde en fazla 2 kod üretilir (o gün üretilen kod
-//     sayısı kontrol edilir). Bu, öğretmenin kodları kopyalayıp paneli
-//     yenileyerek sınırsız kod üretmesini engeller.
-//   • Üretim adedi = min(2 - tazeKod, 2 - bugünÜretilen) — iki sınırın
-//     küçüğü kadar.
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.25 (Modüler Yapı) ---
+// v4.3.25 değişiklikleri (Veli kullanıcı — Faz 1: rol + kayıt):
+//   • Yeni rol: 'veli'. Kullanici.rol string olduğu için model değişmedi.
+//   • ReferansKodu 'veli' tipini destekler (referansKoduUret + admin geçerli
+//     tipler listesi güncellendi).
+//   • Admin panelinde "👪 Veli linki" davet kodu üretme seçeneği + bekleyen
+//     kod listesinde veli rozeti.
+//   • Kayıt akışı: veli davet kodu ile gelen kayıt formu 'Veli Hesabı Oluştur'
+//     başlığı + turuncu bilgi kutusu gösterir. Sınıf/şube alanları gizli
+//     (öğretmen gibi). İl/ilçe/okul veli için OPSİYONEL (veli okula bağlı
+//     değil).
+//   • /kayit-yap: veli tipi davet kodu → rol='veli', rolListesi=['veli'].
+//   • Veli giriş yapınca panel 'veliPanel' moduna yönlenir — Faz 1 basit
+//     karşılama ekranı. Üst nav veli için minimal (tek "Veli Paneli" etiketi).
+//   • Faz 2'de: veli paneli (çocuk listesi), öğrenci arama/istek, davet
+//     linki üretme, öğrenci istatistik görünümü.
 
 const mongoose = require('mongoose');
 const express = require('express');
