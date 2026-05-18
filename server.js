@@ -1,4 +1,19 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.31 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.32 (Modüler Yapı) ---
+// v4.3.32 değişiklikleri (cevap sonucu üst bant bildirimi):
+//   • Öğrenci bir soruyu cevaplayınca, yeni soru sayfasının üstünde 5 sn
+//     görünen kayan bant (toast) belirir. Bant kaybolurken arkada yeni
+//     soru zaten hazır — "yeni soru anında gelir".
+//   • Doğru cevap: yeşil bant + beyaz tik (CSS çizim) + "Doğru cevap!" +
+//     sorunun zorluk katsayısı ve seviyesi (örn "3.2 (orta)").
+//   • Yanlış cevap: kırmızı bant + beyaz çarpı (CSS çizim) + "Yanlış
+//     cevap" + zorluk + "Profilinde ders istatistiklerinden bu soruyu
+//     tekrar görebilirsin" bilgisi.
+//   • /cevap route'u sonucu redirect'e ekler: ?sonuc=dogru|yanlis&z=KATSAYI
+//   • Zorluk seviyesi metni zorluk raporundaki bantlarla aynı: 1.0-1.4
+//     çok kolay, 1.5-2.4 kolay, 2.5-3.4 orta, 3.5-4.4 zor, 4.5-5.0 çok zor.
+//   • Bant gösterildikten sonra URL parametreleri temizlenir — sayfa
+//     yenilenince bant tekrar çıkmaz.
+// --- VERSİYON 4.3.31 (Modüler Yapı) ---
 // v4.3.31 değişiklikleri (kurum yöneticisi davet linki üretimi):
 //   • Kurum yöneticisi (kurumsal rol) profil sayfasındaki "Davet linklerin"
 //     bölümünden öğrenci / öğretmen / veli tipinde davet linki üretebilir.

@@ -1108,6 +1108,13 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 sure: T_ogr,
                 kazanilanPuan: kazanilanPuan
             }).save();
+
+            // v4.3.32: Cevap sonucunu yeni soru sayfasına taşı (üst bant pop-up için).
+            // sonuc=dogru|yanlis, z=sorunun güncel zorluk katsayısı.
+            const zDeg = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+            const sonucParam = dogruMu ? 'dogru' : 'yanlis';
+            return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) +
+                '?basla=true&sonuc=' + sonucParam + '&z=' + encodeURIComponent(zDeg.toFixed(1)));
         }
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
