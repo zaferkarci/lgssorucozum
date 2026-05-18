@@ -115,6 +115,7 @@
     var formBaslik = refTip === 'ogretmen' ? 'Öğretmen Hesabı Oluştur'
                    : refTip === 'kurumsal' ? 'Kurumsal Hesap Oluştur'
                    : refTip === 'veli' ? 'Veli Hesabı Oluştur'
+                   : refTip === 'demo' ? 'Demo Hesabı Oluştur'
                    : 'Hesap Oluştur';
   %>
   <div class="kayit-sag">
@@ -138,7 +139,7 @@
       </div>
     <% } %>
     <form action="/kayit-yap" method="POST" id="kayitForm">
-      <input type="hidden" name="rol" value="<%= refTip === 'ogretmen' ? 'ogretmen' : (refTip === 'kurumsal' ? 'kurumsal' : (refTip === 'veli' ? 'veli' : 'ogrenci')) %>">
+      <input type="hidden" name="rol" value="<%= refTip === 'ogretmen' ? 'ogretmen' : (refTip === 'kurumsal' ? 'kurumsal' : (refTip === 'veli' ? 'veli' : (refTip === 'demo' ? 'demo' : 'ogrenci'))) %>">
       <label class="k-label">Referans Kodu</label>
       <input name="refKod" placeholder="Referans Kodu (zorunlu)" required class="input" value="<%= refKod %>" style="font-family:monospace; letter-spacing:2px; text-transform:uppercase;">
       <label class="k-label">Ad ve Soyad</label>

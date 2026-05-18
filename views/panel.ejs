@@ -2819,6 +2819,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <input type="hidden" name="soruId" value="<%= soru._id %>">
               <input type="hidden" name="secilenIndex" value="<%= i %>">
               <input type="hidden" name="gecenSure" id="gs<%= i %>" value="0">
+              <% if (demo) { %><input type="hidden" name="idx" value="<%= modIdx %>"><% } %>
               <% var sadeceGorselB = !sikIcerigi.trim() && soru.secenekler[i].gorsel; %>
               <% if (sadeceGorselB) { %>
                 <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni" style="flex-direction:column; align-items:flex-start;">
@@ -2837,8 +2838,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <% } %>
         </div>
 
-        <% if (moderator) { %>
-        <!-- Moderatör navigasyon çubuğu -->
+        <% if (moderator || demo) { %>
+        <!-- Moderatör/demo navigasyon çubuğu — ileri-geri tek tek geçiş -->
         <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid #f0f0f0;">
           <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&idx=<%= Math.max(0, modIdx-1) %>"
              class="secenek-btn-yeni"

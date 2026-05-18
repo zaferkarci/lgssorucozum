@@ -515,7 +515,7 @@ router.post('/referans-uret', async (req, res) => {
     try {
         const adet = Math.min(parseInt(req.body.adet) || 1, 500);
         // v4.3.2: 'kurumsal' tipi de eklendi. v4.3.25: 'veli' tipi de eklendi.
-        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli'];
+        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo'];
         const tip = gecerliTipler.includes(req.body.tip) ? req.body.tip : 'ogrenci';
         await referansKoduUret('admin', adet, tip);
         res.redirect('/admin?mod=referans');

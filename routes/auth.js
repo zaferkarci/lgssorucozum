@@ -108,7 +108,7 @@ router.get('/api/kullaniciadi-oner', async (req, res) => {
 async function referansKoduUret(olusturan, adet, tip) {
     const kodlar = [];
     // v4.3.2: 'kurumsal' tipi. v4.3.25: 'veli' tipi de geçerli.
-    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli'];
+    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo'];
     const kodTip = gecerliTipler.includes(tip) ? tip : 'ogrenci';
     let deneme = 0;
     while (kodlar.length < adet && deneme < adet * 10) {
@@ -178,6 +178,9 @@ router.get('/kayit', async (req, res) => {
                 } else {
                     refTip = 'veli';
                 }
+            } else if (ref && ref.tip === 'demo') {
+                // v4.3.33: Demo davet kodu — etkisiz öğrenci hesabı
+                refTip = 'demo';
             }
         } catch (e) { /* yoksay, default ogrenci + boş ön seçim */ }
     }
@@ -235,6 +238,7 @@ router.post('/kayit-yap', async (req, res) => {
                 rol = 'veli';
             }
         }
+        else if (ref.tip === 'demo')     rol = 'demo';
         else rol = 'ogrenci';
 
         // Kullanıcı adı format ve küfür kontrolü
@@ -284,7 +288,8 @@ router.post('/kayit-yap', async (req, res) => {
             yeniKullaniciData.rolListesi = [rol];
             yeniKullaniciData.aktifRol = rol;
         }
-        if (rol === 'ogrenci') {
+        if (rol === 'ogrenci' || rol === 'demo') {
+            // v4.3.33: Demo hesabı da sınıf seçer — soruları sınıfına göre görür.
             yeniKullaniciData.sinif = sinif;
             yeniKullaniciData.sube = sube || '';
         }

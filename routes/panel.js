@@ -266,8 +266,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     }
 
     // Moderatör tüm soruları görür, öğrenci sadece çözülmemişleri
+    // v4.3.33: Demo hesabı da moderatör gibi TÜM soruları görür ve ileri-geri
+    // geçer (çözülmüş/çözülmemiş ayrımı yok — demo hiçbir şey kaydetmez).
     const moderator = k.rol === 'moderator';
-    let cozulmemisSorular = (moderator || ogretmen)
+    const demo = k.rol === 'demo';
+    let cozulmemisSorular = (moderator || demo || ogretmen)
         ? yayindaSorular
         : yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
 
@@ -280,10 +283,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     const dersFiltre = (req.query.ders || '').trim();
     const eksikFiltre = (req.query.eksik || '').trim(); // "ders|konu" formatı
 
-    if (dersFiltre && !ogretmen && !moderator) {
+    if (dersFiltre && !ogretmen && !moderator && !demo) {
         cozulmemisSorular = cozulmemisSorular.filter(s => (s.ders || '') === dersFiltre);
     }
-    if (eksikFiltre && !ogretmen && !moderator) {
+    if (eksikFiltre && !ogretmen && !moderator && !demo) {
         const [eDers, eKonu] = eksikFiltre.split('|');
         cozulmemisSorular = cozulmemisSorular.filter(s =>
             (s.ders || '') === eDers && (s.konu || '') === eKonu
@@ -337,10 +340,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         return String(a._id).localeCompare(String(b._id));
     });
 
-    // Moderatör için navigasyon indexi
-    const modIdx = moderator ? Math.max(0, Math.min(parseInt(req.query.idx) || 0, cozulmemisSorular.length - 1)) : 0;
+    // Moderatör/demo için navigasyon indexi (ileri-geri tek tek geçiş)
+    const modIdx = (moderator || demo) ? Math.max(0, Math.min(parseInt(req.query.idx) || 0, cozulmemisSorular.length - 1)) : 0;
     let sorular;
-    if (moderator) {
+    if (moderator || demo) {
+        // Tek soru göster — demo cevap verebilir, moderatör sadece inceler
         sorular = cozulmemisSorular.slice(modIdx, modIdx + 1);
     } else if (ogretmen) {
         // Öğretmene rastgele 1 örnek soru göster (moderator modunda — cevap butonu yok, doğru cevap işaretli)
@@ -610,7 +614,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Sadece öğrencide ve hiçbir filtre yokken hesaplanır.
     let cozulmemisDersDagilim = null;
     let tumDersler = []; // admin Unite tablosundan tanımlı dersler (sınıf seviyesi için)
-    if (!ogretmen && !moderator) {
+    if (!ogretmen && !moderator && !demo) {
         try {
             // Admin'de tanımlı tüm derslerin listesi (öğrencinin sınıfı için)
             const uniteler = await Unite.find({ sinif: String(k.sinif) }, 'ders').lean();
@@ -633,7 +637,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // v4.1.41: "Eksiklerini Kapat" için en zayıf konuyu bul
     // Profildeki "zayıftan güçlüye" mantığı: doğru oranı düşük olan konular önce
     let enZayifKonu = null; // { ders, konu, oran, kalanSoru }
-    if (!ogretmen && !moderator && cozulmemisDersDagilim) {
+    if (!ogretmen && !moderator && !demo && cozulmemisDersDagilim) {
         try {
             // Konu bazında doğru/toplam say
             const konuStat = {}; // anahtar: "ders|konu" → { dogru, toplam }
@@ -994,6 +998,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         tumCevaplar,
         soruBilgiMap,
         moderator,
+        demo,
         ogretmen,
         davetEdilenler,
         modIdx,
@@ -1032,6 +1037,18 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
         // Öğretmen rolündeki kullanıcılar soru çözmesin
         if (k && k.rol === 'ogretmen') {
             return res.status(403).send("<script>alert('Öğretmen hesabı soru çözemez.'); window.history.back();</script>");
+        }
+        // v4.3.33: Demo hesabı — cevap verir, doğru/yanlış bandı görür ama
+        // HİÇBİR ŞEY KAYDEDİLMEZ. CevapKaydi yok, puan yok, süre yok, zorluk
+        // güncellenmez. Aynı soru tekrar tekrar cevaplanabilir.
+        if (k && k.rol === 'demo' && s) {
+            const demoDogru = parseInt(secilenIndex) === s.dogruCevapIndex;
+            const zD = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+            const demoIdx = req.body.idx != null ? req.body.idx : req.query.idx;
+            return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) +
+                '?mod=soru&basla=true&sonuc=' + (demoDogru ? 'dogru' : 'yanlis') +
+                '&z=' + encodeURIComponent(zD.toFixed(1)) +
+                (demoIdx != null ? '&idx=' + encodeURIComponent(demoIdx) : ''));
         }
         if (s && k) {
             const T_ogr = Math.max(parseInt(gecenSure) || 1, 1);

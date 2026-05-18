@@ -1,4 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.32 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.33 (Modüler Yapı) ---
+// v4.3.33 değişiklikleri (demo / etkisiz öğrenci hesabı):
+//   • Yeni rol: 'demo'. Admin "demo" tipi davet kodu üretir, o kodla
+//     açılan hesap etkisiz bir öğrenci hesabıdır.
+//   • Demo hesabı tüm soruları görür, ileri-geri tek tek geçer (moderatör
+//     gibi navigasyon), cevap verebilir ve doğru/yanlış bandını görür.
+//   • ANCAK: demo cevabı HİÇBİR ŞEY KAYDETMEZ. /cevap route'u demo için
+//     erken çıkar — CevapKaydi yok, puan yok, süre yok, zorluk güncellenmez.
+//     Aynı soru tekrar tekrar cevaplanabilir.
+//   • Demo hesabı soru çözmediği için sıralama/puan tablosunda görünmez.
+//   • Demo kayıt formu öğrenci gibi (sınıf seçer) — soruları sınıfına göre
+//     listeler. refTip='demo', rol='demo'.
+//   • gecerliTipler'e 'demo' eklendi (admin + auth).
+// --- VERSİYON 4.3.32 (Modüler Yapı) ---
 // v4.3.32 değişiklikleri (cevap sonucu üst bant bildirimi):
 //   • Öğrenci bir soruyu cevaplayınca, yeni soru sayfasının üstünde 5 sn
 //     görünen kayan bant (toast) belirir. Bant kaybolurken arkada yeni
