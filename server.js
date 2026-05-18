@@ -1,4 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.29 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.30 (Modüler Yapı) ---
+// v4.3.30 değişiklikleri (admin kullanıcı listesi — veli etiketi):
+//   • Admin kullanıcı listesinde veli rolüne 👪 VELİ etiketi eklendi
+//     (öğretmen ve yöneticide olduğu gibi). İsim yanında "👪 VELİ" rozeti,
+//     sınıf hücresinde turuncu "VELİ" kısaltması.
+//   • Veliler artık öğretmen/yönetici gibi listede ayırt edilebiliyor.
+// --- VERSİYON 4.3.29 (Modüler Yapı) ---
 // v4.3.29 değişiklikleri (admin: filtreler ünitelerden beslenir):
 //   • Soru filtreleme (soruListesi) ve Zorluk Raporu filtrelerinin
 //     sınıf/ders/ünite/konu seçenekleri artık Soru koleksiyonu yerine
