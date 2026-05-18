@@ -95,7 +95,31 @@ router.get('/admin', async (req, res) => {
     const adminToken = req.headers.authorization
         ? req.headers.authorization.replace('Basic ', '')
         : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
-    const tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
+    let tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
+    // v4.3.30: tip='veli' kodu çift amaçlı. Bir veli kullanıcının ürettiği
+    // 'veli' kodu aslında ÖĞRENCİ kaydı yaptırır. Listede doğru etiket için
+    // her referansa gercekTip eklenir.
+    if (tumReferanslar.length > 0) {
+        const veliKodOlusturanlar = [...new Set(
+            tumReferanslar.filter(r => r.tip === 'veli' && r.olusturan && r.olusturan !== 'admin')
+                          .map(r => r.olusturan)
+        )];
+        let veliSet = new Set();
+        if (veliKodOlusturanlar.length > 0) {
+            const veliKullanicilar = await Kullanici.find(
+                { kullaniciAdi: { $in: veliKodOlusturanlar }, rol: 'veli' }, 'kullaniciAdi'
+            ).lean();
+            veliSet = new Set(veliKullanicilar.map(v => v.kullaniciAdi));
+        }
+        tumReferanslar = tumReferanslar.map(r => {
+            let gercekTip = r.tip;
+            // Veli'nin ürettiği 'veli' kodu → öğrenci daveti
+            if (r.tip === 'veli' && r.olusturan && veliSet.has(r.olusturan)) {
+                gercekTip = 'ogrenci';
+            }
+            return Object.assign({}, r, { gercekTip });
+        });
+    }
     const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];

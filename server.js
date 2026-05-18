@@ -1,9 +1,13 @@
 // --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.30 (Modüler Yapı) ---
-// v4.3.30 değişiklikleri (admin kullanıcı listesi — veli etiketi):
+// v4.3.30 değişiklikleri (admin: veli etiketi + referans tip düzeltme):
 //   • Admin kullanıcı listesinde veli rolüne 👪 VELİ etiketi eklendi
 //     (öğretmen ve yöneticide olduğu gibi). İsim yanında "👪 VELİ" rozeti,
 //     sınıf hücresinde turuncu "VELİ" kısaltması.
-//   • Veliler artık öğretmen/yönetici gibi listede ayırt edilebiliyor.
+//   • BUG FIX: Veli'nin ürettiği davet linki admin referans listesinde
+//     yanlış "VELİ" etiketi gösteriyordu. tip='veli' kodu çift amaçlı —
+//     admin üretirse veli kaydı, bir veli üretirse ÖĞRENCİ kaydı yaptırır.
+//     Artık her referansa gercekTip hesaplanır: olusturan bir veli
+//     kullanıcıysa etiket "👨‍🎓 ÖĞRENCİ" gösterilir.
 // --- VERSİYON 4.3.29 (Modüler Yapı) ---
 // v4.3.29 değişiklikleri (admin: filtreler ünitelerden beslenir):
 //   • Soru filtreleme (soruListesi) ve Zorluk Raporu filtrelerinin

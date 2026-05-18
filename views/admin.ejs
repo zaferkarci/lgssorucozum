@@ -1949,11 +1949,12 @@ function gosterExcelHata(msg) {
       <div class="admin-soru-item admin-referans-satir" data-kod="<%= r.kod %>">
         <div class="admin-soru-sol">
           <code style="font-size:13px; letter-spacing:2px; color:<%= r.kopyalandi ? '#aaa' : '#1a73e8' %>; font-weight:600;"><%= r.kod %></code>
-          <% if (r.tip === 'kurumsal') { %>
+          <% var refGTip = r.gercekTip || r.tip; %>
+          <% if (refGTip === 'kurumsal') { %>
             <span style="font-size:10px; background:#e0f2f1; color:#00695c; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">🏛️ KURUMSAL</span>
-          <% } else if (r.tip === 'ogretmen') { %>
+          <% } else if (refGTip === 'ogretmen') { %>
             <span style="font-size:10px; background:#e1bee7; color:#6a1b9a; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👩‍🏫 ÖĞRETMEN</span>
-          <% } else if (r.tip === 'veli') { %>
+          <% } else if (refGTip === 'veli') { %>
             <span style="font-size:10px; background:#fff3e0; color:#e65100; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👪 VELİ</span>
           <% } else { %>
             <span style="font-size:10px; background:#e3f2fd; color:#1565c0; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👨‍🎓 ÖĞRENCİ</span>
