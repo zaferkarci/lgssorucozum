@@ -1,20 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.28 (Modüler Yapı) ---
-// v4.3.28 değişiklikleri (Veli kullanıcı — Faz 2: panel + bağlanma):
-//   • Veli paneli tamamlandı: Çocuklarım listesi (takip edilen öğrenciler),
-//     onay bekleyenler, öğrenci arama (Yol A), davet linki üretme (Yol B).
-//   • takip.js: ara / istek-gonder / gelenler / bekleyen-istekler /
-//     kabul-edilenler / ogrenci-istatistik / takip-ogrenci endpoint'leri
-//     'veli' rolünü destekler. Veli TakipIliski'de 'ogretmenAdi' slotunda
-//     durur, isteyenRol='veli' ile öğretmenden ayrılır.
-//   • Yol A: Veli kayıtlı öğrenciyi arar → istek gönderir → öğrenci onaylar.
-//   • Yol B: Veli /veli/davet-uret ile tip='veli' davet kodu üretir. Bu
-//     kodla kaydolan öğrenci, veliyi ONAYSIZ takibe alır (durum='kabul').
-//   • tip='veli' kodu çift amaçlı: admin üretirse veli kaydı, bir veli
-//     üretirse öğrenci kaydı (kayit + kayit-yap olusturan'a göre ayırır).
-//   • Veli davetiyle gelen öğrenci kayıt formunda "Veliniz sizi takip
-//     edecek" bilgisi görür.
-//   • Veli istatistik erişimi: mevcut /takip/ogrenci/:ad detay sayfası
-//     veli için de açık (yetki TakipIliski kabul kaydına bağlı).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.29 (Modüler Yapı) ---
+// v4.3.29 değişiklikleri (admin: filtreler ünitelerden beslenir):
+//   • Soru filtreleme (soruListesi) ve Zorluk Raporu filtrelerinin
+//     sınıf/ders/ünite/konu seçenekleri artık Soru koleksiyonu yerine
+//     Unite koleksiyonundan üretilir. Kademeli: sınıf seçilince o sınıfın
+//     dersleri, ders seçilince üniteleri, ünite seçilince konuları.
+//   • Zorluk Raporuna kendi filtre formu eklendi (önceden "Sorular
+//     sekmesinden filtrele" diyordu, artık sayfa içinde filtre var).
+//   • /api/unite-bilgi artık 'siniflar' listesini de döndürür.
+//   • PDF Yükle sayfası: sınıf ve ders dropdownları statik (1-12 / 6 ders)
+//     yerine ünitelerden gelir. Akış: sınıf seç → dersler yüklenir →
+//     ders seç → üniteler/konular yüklenir.
+//   • Soru Ekle formu: sınıf dropdownı da ünitelerden gelir (ders zaten
+//     öyleydi). editSoru'da kayıtlı sınıf seçili gelir.
 
 const mongoose = require('mongoose');
 const express = require('express');

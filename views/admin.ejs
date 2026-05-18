@@ -247,18 +247,14 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
       <div>
         <label class="form-label">Sınıf</label><br>
-        <select id="pdf_sinif" class="input-sm" onchange="pdfUniteleriYukle()">
-          <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
-            <option value="<%= s %>" <%= s==8?'selected':'' %>><%= s %>. Sınıf</option>
-          <% }); %>
+        <select id="pdf_sinif" class="input-sm" onchange="pdfSinifDegisti()">
+          <option value="">— Yükleniyor… —</option>
         </select>
       </div>
       <div>
         <label class="form-label">Ders</label><br>
         <select id="pdf_ders" class="input-sm" onchange="pdfUniteleriYukle()">
-          <% ["Matematik","Türkçe","Fen Bilimleri","T.C. İnkılâp Tarihi","İngilizce","Din Kültürü"].forEach(function(d) { %>
-            <option value="<%= d %>"><%= d %></option>
-          <% }); %>
+          <option value="">— Önce sınıf seç —</option>
         </select>
       </div>
       <div>
@@ -349,6 +345,48 @@ var analizSonucu = [];
 var _pdfUniteler = []; // Sınıf+Ders'e göre yüklenmiş ünite listesi
 
 // ── Ünite & Konu listeleri yükle (sınıf/ders değişince) ──────────────────
+// v4.3.29: PDF yükle — sınıf ve ders dropdownları da ünitelerden gelir.
+// Akış: sayfa açılır → tüm sınıflar yüklenir → sınıf seç → o sınıfın dersleri
+// yüklenir → ders seç → üniteler/konular yüklenir.
+function pdfSiniflariYukle() {
+  var sinifSelect = document.getElementById('pdf_sinif');
+  fetch('/api/unite-bilgi')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) return;
+      sinifSelect.innerHTML = '<option value="">— Sınıf seç —</option>';
+      (d.siniflar || []).forEach(function(s){
+        var opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s + '. Sınıf';
+        sinifSelect.appendChild(opt);
+      });
+    })
+    .catch(function(){ sinifSelect.innerHTML = '<option value="">— Sınıf yüklenemedi —</option>'; });
+}
+function pdfSinifDegisti() {
+  var sinif = document.getElementById('pdf_sinif').value;
+  var dersSelect = document.getElementById('pdf_ders');
+  var uniteSelect = document.getElementById('pdf_unite');
+  var konuSelect = document.getElementById('pdf_konu_select');
+  dersSelect.innerHTML = '<option value="">— Önce sınıf seç —</option>';
+  uniteSelect.innerHTML = '<option value="">— Ünite seç —</option>';
+  konuSelect.innerHTML = '<option value="">— Konu seç —</option><option value="__yeni__">+ Yeni konu yaz…</option>';
+  if (!sinif) return;
+  fetch('/api/unite-bilgi?sinif=' + encodeURIComponent(sinif))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) return;
+      dersSelect.innerHTML = '<option value="">— Ders seç —</option>';
+      (d.dersler || []).forEach(function(ders){
+        var opt = document.createElement('option');
+        opt.value = ders;
+        opt.textContent = ders;
+        dersSelect.appendChild(opt);
+      });
+    })
+    .catch(function(){});
+}
 function pdfUniteleriYukle() {
   var sinif = document.getElementById('pdf_sinif').value;
   var ders = document.getElementById('pdf_ders').value;
@@ -358,6 +396,7 @@ function pdfUniteleriYukle() {
   konuSelect.innerHTML = '<option value="">— Konu seç —</option><option value="__yeni__">+ Yeni konu yaz…</option>';
   document.getElementById('pdf_konu').style.display = 'none';
   document.getElementById('pdf_konu').value = '';
+  if (!sinif || !ders) { _pdfUniteler = []; return; }
   fetch('/api/unite-bilgi?sinif=' + encodeURIComponent(sinif))
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -369,7 +408,6 @@ function pdfUniteleriYukle() {
         opt.textContent = (u.uniteNo ? u.uniteNo + '. ' : '') + (u.uniteAdi || '');
         uniteSelect.appendChild(opt);
       });
-      // Tüm konuları topla (ünite seçilmemişse hepsi gözüksün)
       pdfKonulariYukle();
     })
     .catch(function(){});
@@ -410,9 +448,9 @@ function pdfKonuSecildi() {
     inp.value = sec;
   }
 }
-// Sayfa açıldığında ilk listeleri yükle
+// Sayfa açıldığında sınıf listesini yükle (sonrası kullanıcı seçimine bağlı)
 document.addEventListener('DOMContentLoaded', function(){
-  if (document.getElementById('pdf_unite')) pdfUniteleriYukle();
+  if (document.getElementById('pdf_sinif')) pdfSiniflariYukle();
 });
 
 // ── Drag & Drop ───────────────────────────────────────────────────────────
@@ -684,9 +722,8 @@ function escHtml(str) {
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
       <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><% } %>
       Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
-        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
-          <option value="<%= s %>" <%= (editSoru ? editSoru.sinif==s : s==8) ? 'selected' : '' %>><%= s %>. Sınıf</option>
-        <% }); %>
+        <% if (editSoru && editSoru.sinif) { %><option value="<%= editSoru.sinif %>" selected><%= editSoru.sinif %>. Sınıf</option><% } %>
+        <option value="">— Yükleniyor… —</option>
       </select>
       Ders: <select name="ders" id="se_ders" class="input-sm" onchange="dersDegisti()">
         <% dersler.forEach(function(d) { %>
@@ -975,9 +1012,30 @@ function escHtml(str) {
   <script>
   var _tumUniteler = [];
   // Düzenleme modunda mevcut değerler — EJS server-side inject
+  var _editSinif = '<%- editSoru ? (editSoru.sinif||"") : "" %>';
   var _editDers  = '<%- editSoru ? (editSoru.ders||"") : "" %>';
   var _editUnite = '<%- editSoru ? (editSoru.unite||"") : "" %>';
   var _editKonu  = '<%- editSoru ? (editSoru.konu||"") : "" %>';
+
+  // v4.3.29: Soru ekle — sınıf dropdownı da ünitelerden gelir.
+  function seSiniflariYukle(seciliSinif, sonraCallback) {
+    var sinifSelect = document.getElementById('se_sinif');
+    fetch('/api/unite-bilgi')
+      .then(function(r){ return r.json(); })
+      .then(function(v){
+        if (!v.ok) return;
+        sinifSelect.innerHTML = '';
+        (v.siniflar || []).forEach(function(s){
+          var opt = document.createElement('option');
+          opt.value = s; opt.textContent = s + '. Sınıf';
+          if (String(s) === String(seciliSinif)) opt.selected = true;
+          sinifSelect.appendChild(opt);
+        });
+        if (!sinifSelect.value && sinifSelect.options.length) sinifSelect.selectedIndex = 0;
+        if (sonraCallback) sonraCallback();
+      })
+      ['catch'](function(){});
+  }
 
   function sinifDegisti(hedefUnite, hedefKonu) {
     var sinif = document.getElementById('se_sinif').value;
@@ -988,9 +1046,7 @@ function escHtml(str) {
         _tumUniteler = v.uniteler;
         var dersSelect = document.getElementById('se_ders');
         var mevcutDers = dersSelect.value;
-        // Ünite verisi varsa ders listesini güncelle
         if (v.dersler.length) {
-          // Koruma sırası: 1) mevcut seçili ders, 2) editSoru dersi, 3) Matematik
           var hedefDers = mevcutDers || _editDers || 'Matematik';
           dersSelect.innerHTML = '';
           v.dersler.forEach(function(d){
@@ -999,7 +1055,6 @@ function escHtml(str) {
             if (d === hedefDers) opt.selected = true;
             dersSelect.appendChild(opt);
           });
-          // Hiçbiri seçilmediyse ilkini seç
           if (!dersSelect.value) dersSelect.selectedIndex = 0;
         }
         dersDegisti(hedefUnite || '', hedefKonu || '');
@@ -1067,7 +1122,11 @@ function escHtml(str) {
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
   }
   window.addEventListener('DOMContentLoaded', function(){
-    sinifDegisti(_editUnite, _editKonu);
+    // v4.3.29: Önce sınıf listesini ünitelerden yükle, sonra zinciri başlat.
+    // editSoru varsa o sınıf seçili gelir, yoksa ilk sınıf.
+    seSiniflariYukle(_editSinif, function(){
+      sinifDegisti(_editUnite, _editKonu);
+    });
   });
 
   function tabloSikOlusturucu() {
@@ -2041,12 +2100,54 @@ function gosterExcelHata(msg) {
       </div>
     </div>
 
-    <!-- Toplam ve filtre uyarısı -->
+    <!-- v4.3.29: Zorluk raporu filtre formu — sınıf/ders/ünite/konu (ünitelerden) -->
+    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; padding:12px; background:#f8f9fb; border:1px solid #eaecf0; border-radius:10px;">
+      <input type="hidden" name="mod" value="zorlukRapor">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Sınıf</label>
+        <select name="filSinif" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:90px;">
+          <option value="">Tümü</option>
+          <% tumSoruSiniflar.forEach(function(s) { %>
+            <option value="<%= s %>" <%= filSinif==s?'selected':'' %>><%= s %>. Sınıf</option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ders</label>
+        <select name="filDers" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruDersler.forEach(function(d) { %>
+            <option value="<%= d %>" <%= filDers==d?'selected':'' %>><%= d %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ünite</label>
+        <select name="filUnite" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruUniteler.forEach(function(u) { %>
+            <option value="<%= u %>" <%= filUnite==u?'selected':'' %>><%= u %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Konu</label>
+        <select name="filKonu" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:160px;">
+          <option value="">Tümü</option>
+          <% tumSoruKonular.forEach(function(k) { %>
+            <option value="<%= k %>" <%= filKonu==k?'selected':'' %>><%= k %></option>
+          <% }); %>
+        </select>
+      </div>
+      <% if (filSinif || filDers || filUnite || filKonu) { %>
+        <a href="/admin?mod=zorlukRapor" style="padding:7px 14px; background:#ffebee; color:#c62828; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; align-self:flex-end;">✕ Filtreyi Temizle</a>
+      <% } %>
+    </form>
+
+    <!-- Toplam -->
     <p style="font-size:12px; color:#666; margin-bottom:10px;">Toplam <b><%= tumSorular.length %></b> soru gösteriliyor.
       <% if (filSinif || filDers || filUnite || filKonu) { %>
-        <span style="color:#1565c0;">Aktif filtre: <%= [filSinif&&(filSinif+'. Sınıf'), filDers, filUnite, filKonu].filter(Boolean).join(' / ') %> · <a href="/admin?mod=zorlukRapor" style="color:#c0392b;">filtreyi temizle</a></span>
-      <% } else { %>
-        <span style="color:#888;">(Filtre uygulamak için Sorular sekmesinden filtreleyip tekrar buraya gel.)</span>
+        <span style="color:#1565c0;">Aktif filtre: <%= [filSinif&&(filSinif+'. Sınıf'), filDers, filUnite, filKonu].filter(Boolean).join(' / ') %></span>
       <% } %>
     </p>
 

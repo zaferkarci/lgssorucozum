@@ -101,11 +101,28 @@ router.get('/admin', async (req, res) => {
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
     // Tüm sekmelerde nav rozeti için okunmamış sayısı
     const okunmamisMesajSayisi = await Mesaj.countDocuments({ okundu: false });
-    // Filtre seçenekleri için mevcut değerler
-    const tumSoruSiniflar = [...new Set((await Soru.find({}, 'sinif').lean()).map(s => s.sinif).filter(Boolean))].sort();
-    const tumSoruDersler  = [...new Set((await Soru.find(filSinif ? {sinif:filSinif} : {}, 'ders').lean()).map(s => s.ders).filter(Boolean))].sort();
-    const tumSoruUniteler = [...new Set((await Soru.find({...(filSinif&&{sinif:filSinif}), ...(filDers&&{ders:filDers})}, 'unite').lean()).map(s => s.unite).filter(Boolean))].sort();
-    const tumSoruKonular  = [...new Set((await Soru.find({...(filSinif&&{sinif:filSinif}), ...(filDers&&{ders:filDers}), ...(filUnite&&{unite:filUnite})}, 'konu').lean()).map(s => s.konu).filter(Boolean))].sort();
+    // v4.3.29: Filtre seçenekleri (sınıf/ders/ünite/konu) artık Unite
+    // koleksiyonundan üretilir — soru filtreleme, zorluk raporu, soru ekle
+    // ve pdf yükle hep aynı ünite kayıtlarından beslenir. Kademeli: sınıf
+    // seçilince o sınıfın dersleri, ders seçilince üniteleri, vb.
+    const tumUniteKayitlari = await Unite.find().lean();
+    const uniteSinifEsle = (u, s) => String(u.sinif || '') === String(s) || !u.sinif;
+    const tumSoruSiniflar = [...new Set(tumUniteKayitlari.map(u => u.sinif).filter(Boolean).map(String))].sort();
+    const tumSoruDersler  = [...new Set(
+        tumUniteKayitlari
+            .filter(u => !filSinif || uniteSinifEsle(u, filSinif))
+            .map(u => u.ders).filter(Boolean)
+    )].sort();
+    const tumSoruUniteler = [...new Set(
+        tumUniteKayitlari
+            .filter(u => (!filSinif || uniteSinifEsle(u, filSinif)) && (!filDers || u.ders === filDers))
+            .map(u => u.uniteAdi).filter(Boolean)
+    )].sort();
+    const tumSoruKonular  = [...new Set(
+        tumUniteKayitlari
+            .filter(u => (!filSinif || uniteSinifEsle(u, filSinif)) && (!filDers || u.ders === filDers) && (!filUnite || u.uniteAdi === filUnite))
+            .flatMap(u => u.konular || []).filter(Boolean)
+    )].sort();
     res.render('admin', {
         mod, editSoru, tumSorular, dersler,
         tumKullanicilar, filtreliKullanicilar,
@@ -441,6 +458,9 @@ router.post('/unite-guncelle', async (req, res) => {
 router.get('/api/unite-bilgi', async (req, res) => {
     try {
         const { sinif } = req.query;
+        // v4.3.29: Tüm ünitelerden sınıf listesi (sınıf/ders dropdownları için)
+        const tumU = await Unite.find({}, 'sinif ders').lean();
+        const siniflar = [...new Set(tumU.map(u => u.sinif).filter(Boolean).map(String))].sort();
         let uniteler;
         if (sinif) {
             uniteler = await Unite.find({
@@ -450,7 +470,7 @@ router.get('/api/unite-bilgi', async (req, res) => {
             uniteler = await Unite.find().sort({ ders:1, uniteNo:1 });
         }
         const dersler = [...new Set(uniteler.map(u => u.ders).filter(Boolean))];
-        res.json({ ok: true, dersler, uniteler });
+        res.json({ ok: true, siniflar, dersler, uniteler });
     } catch (err) {
         res.status(500).json({ ok: false, hata: err.message });
     }
