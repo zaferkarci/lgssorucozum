@@ -1516,6 +1516,28 @@ router.post('/kurum/sinif-ogretmen-cikar', oturumKontrol, async (req, res) => {
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
+// v4.3.31: Kurum yöneticisi davet linki üretir. Kendi seçtiği tipte
+// (öğrenci / öğretmen / veli) sınırsız davet kodu oluşturabilir.
+router.post('/kurum/davet-uret', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, tip } = req.body;
+        const yonetici = await Kullanici.findOne({ kullaniciAdi });
+        // Kurumsal rolü kontrolü — rolListesi'nde 'kurumsal' olmalı
+        const kurumsalMi = yonetici && (
+            yonetici.rol === 'kurumsal' ||
+            (Array.isArray(yonetici.rolListesi) && yonetici.rolListesi.includes('kurumsal'))
+        );
+        if (!kurumsalMi) {
+            return res.status(403).send('Bu işlem için kurum yöneticisi olmalısınız.');
+        }
+        const gecerliTipler = ['ogrenci', 'ogretmen', 'veli'];
+        const secilenTip = gecerliTipler.includes(tip) ? tip : 'ogrenci';
+        const { referansKoduUret } = require('./auth');
+        await referansKoduUret(kullaniciAdi, 1, secilenTip);
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
 // v4.3.28: Veli davet linki üret. Veli "Yeni davet linki üret" butonuna basar,
 // tip:'veli' bir referans kodu oluşur. Bu kodla kaydolan öğrenci, veliyi onaysız
 // takibe alır (kayit-yap içinde işlenir).

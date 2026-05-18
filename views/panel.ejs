@@ -1256,7 +1256,23 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Davet linklerin</p>
           <p style="font-size:12px; color:#888; margin-bottom:12px;">Bu linklerle arkadaşlarını davet edebilirsin. Her link tek kullanımlık.</p>
-          <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
+
+          <% if (k.rol === 'kurumsal') { %>
+          <!-- v4.3.31: Kurum yöneticisi — istediği tipte sınırsız davet linki üretir -->
+          <div style="background:#e0f2f1; border:1px solid #80cbc4; border-radius:8px; padding:12px; margin-bottom:12px;">
+            <p style="font-size:12px; color:#00695c; margin:0 0 8px; font-weight:600;">🏛️ Davet linki oluştur</p>
+            <p style="font-size:11px; color:#00897b; margin:0 0 10px;">Öğrenci, öğretmen veya veli için istediğin kadar davet linki üretebilirsin.</p>
+            <form method="POST" action="/kurum/davet-uret" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+              <select name="tip" style="padding:7px 10px; border:1px solid #b2dfdb; border-radius:6px; font-size:13px; background:#fff;">
+                <option value="ogrenci">👨‍🎓 Öğrenci linki</option>
+                <option value="ogretmen">👩‍🏫 Öğretmen linki</option>
+                <option value="veli">👪 Veli linki</option>
+              </select>
+              <button type="submit" style="background:#00897b; color:white; border:none; padding:7px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">+ Üret</button>
+            </form>
+          </div>
+          <% } else if (k.rol === 'ogretmen') { %>
           <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:9px 12px; margin-bottom:12px; font-size:12px; color:#2e7d32; line-height:1.5;">
             ℹ️ Linklerin <b>kullanıldıkça</b> yenisi gelir. Aktif linkin kalmazsa ertesi gün otomatik <b>2 yeni link</b> üretilir. Birikme olmaz.
           </div>
@@ -1264,6 +1280,16 @@ document.addEventListener('DOMContentLoaded', function() {
           <div id="davet-link-listesi">
           <% (referansKodlari||[]).forEach(function(r) { if (r.kullanildi) return; %>
             <div class="davet-link-satir" data-kod="<%= r.kod %>" style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:10px 12px; background:#f8f9fa; border-radius:8px; border:1px solid #e8edf2;">
+              <% if (k.rol === 'kurumsal') { %>
+                <% var rt = r.tip || 'ogrenci'; %>
+                <% if (rt === 'ogretmen') { %>
+                  <span style="font-size:10px; background:#e1bee7; color:#6a1b9a; padding:2px 7px; border-radius:9px; font-weight:600; white-space:nowrap;">👩‍🏫 ÖĞRETMEN</span>
+                <% } else if (rt === 'veli') { %>
+                  <span style="font-size:10px; background:#fff3e0; color:#e65100; padding:2px 7px; border-radius:9px; font-weight:600; white-space:nowrap;">👪 VELİ</span>
+                <% } else { %>
+                  <span style="font-size:10px; background:#e3f2fd; color:#1565c0; padding:2px 7px; border-radius:9px; font-weight:600; white-space:nowrap;">👨‍🎓 ÖĞRENCİ</span>
+                <% } %>
+              <% } %>
               <code style="flex:1; font-size:12px; color:#1a73e8; letter-spacing:1px;"><%= baseUrl %>/kayit?ref=<%= r.kod %></code>
               <button class="kopyala-btn" onclick="kopyala('<%= baseUrl %>/kayit?ref=<%= r.kod %>', this)" style="background:#1a73e8; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; white-space:nowrap; <%= r.kopyalandi ? 'display:none;' : '' %>">Kopyala</button>
               <span class="kopyalandi-rozet" style="<%= r.kopyalandi ? '' : 'display:none;' %> font-size:11px; color:#639922; font-weight:500; white-space:nowrap;">✓ Kopyalandı</span>
@@ -1272,8 +1298,10 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <% var aktifKodlar = (referansKodlari||[]).filter(function(r){ return !r.kullanildi; }); %>
           <% if (aktifKodlar.length === 0) { %>
-            <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
+            <% if (k.rol === 'ogretmen') { %>
               <p style="font-size:13px; color:#f57c00; padding:10px 12px; background:#fff8e1; border:1px solid #ffe082; border-radius:8px; margin:0;">⏰ Aktif referans kodun yok. <b>Yarın 2 yeni link otomatik üretilecek.</b></p>
+            <% } else if (k.rol === 'kurumsal') { %>
+              <p style="font-size:13px; color:#00897b; padding:10px 12px; background:#e0f2f1; border:1px solid #80cbc4; border-radius:8px; margin:0;">Henüz davet linkin yok. Yukarıdan tip seçip üret.</p>
             <% } else { %>
               <p style="font-size:13px; color:#aaa;">Aktif referans kodun yok.</p>
             <% } %>

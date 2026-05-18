@@ -1,4 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.30 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.31 (Modüler Yapı) ---
+// v4.3.31 değişiklikleri (kurum yöneticisi davet linki üretimi):
+//   • Kurum yöneticisi (kurumsal rol) profil sayfasındaki "Davet linklerin"
+//     bölümünden öğrenci / öğretmen / veli tipinde davet linki üretebilir.
+//   • Tip seçici dropdown + "Üret" butonu. Sınırsız üretim — günlük tavan
+//     veya otomatik yenileme yok, yönetici istediği kadar üretir.
+//   • Üretilen linkler kurumsalın kendi listesinde tip etiketiyle görünür
+//     (👨‍🎓 ÖĞRENCİ / 👩‍🏫 ÖĞRETMEN / 👪 VELİ).
+//   • Yeni endpoint: POST /kurum/davet-uret (rolListesi'nde 'kurumsal'
+//     olan kullanıcı için çalışır).
+//   • Öğretmenlerin mevcut otomatik öğrenci kodu sistemi korundu — bu
+//     özellik yalnızca kurumsal moda ek.
+// --- VERSİYON 4.3.30 (Modüler Yapı) ---
 // v4.3.30 değişiklikleri (admin: veli etiketi + referans tip düzeltme):
 //   • Admin kullanıcı listesinde veli rolüne 👪 VELİ etiketi eklendi
 //     (öğretmen ve yöneticide olduğu gibi). İsim yanında "👪 VELİ" rozeti,
