@@ -933,6 +933,50 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
+    // v4.3.28: Veli paneli verisi — takip ettiği çocuklar + veli davet kodları.
+    let veliCocuklar = [];     // kabul edilmiş takipler (çocuklar)
+    let veliBekleyenler = [];  // veli'nin gönderdiği, henüz onaylanmamış istekler
+    let veliDavetKodlari = []; // veli'nin ürettiği, kullanılmamış davet kodları
+    if (k.rol === 'veli') {
+        try {
+            // Tüm veli takip ilişkileri (ogretmenAdi slotunda veli)
+            const iliskiler = await TakipIliski.find({
+                ogretmenAdi: k.kullaniciAdi,
+                isteyenRol: 'veli'
+            }).sort({ istekTarih: -1 }).lean();
+            const cocukAdlar = iliskiler.map(i => i.ogrenciAdi);
+            const cocukDetay = await Kullanici.find(
+                { kullaniciAdi: { $in: cocukAdlar } },
+                'kullaniciAdi puan soruIndex sinif sube okul'
+            ).lean();
+            const cocukMap = {};
+            cocukDetay.forEach(c => { cocukMap[c.kullaniciAdi] = c; });
+            iliskiler.forEach(i => {
+                const d = cocukMap[i.ogrenciAdi] || {};
+                const kayit = {
+                    iliskiId:   i._id,
+                    ogrenciAdi: i.ogrenciAdi,
+                    durum:      i.durum,
+                    puan:       d.puan || 0,
+                    soruIndex:  d.soruIndex || 0,
+                    sinif:      d.sinif || '',
+                    sube:       d.sube || '',
+                    okul:       d.okul || ''
+                };
+                if (i.durum === 'kabul')      veliCocuklar.push(kayit);
+                else if (i.durum === 'beklemede') veliBekleyenler.push(kayit);
+            });
+            // Veli davet kodları (kullanılmamış)
+            veliDavetKodlari = await ReferansKodu.find({
+                olusturan: k.kullaniciAdi,
+                tip: 'veli',
+                kullanildi: false
+            }).sort({ olusturmaTarih: -1 }).lean();
+        } catch (e) {
+            console.error('[panel] veli verisi:', e.message);
+        }
+    }
+
     res.render('panel', {
         k,
         mod,
@@ -973,6 +1017,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         ogrenciIcinKurum,
         ogrenciIstekDurum,
         atandigimSiniflar,
+        veliCocuklar,
+        veliBekleyenler,
+        veliDavetKodlari,
         adminGorunum: req.adminGorunum || false
     });
 });
@@ -1466,6 +1513,22 @@ router.post('/kurum/sinif-ogretmen-cikar', oturumKontrol, async (req, res) => {
             silinen = sonuc.deletedCount || 0;
         }
         res.send("<script>alert('" + ogretmenAdi + " sınıftan çıkarıldı. " + silinen + " sınıf takibi kaldırıldı.'); window.location.href='" + geri + "';</script>");
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.3.28: Veli davet linki üret. Veli "Yeni davet linki üret" butonuna basar,
+// tip:'veli' bir referans kodu oluşur. Bu kodla kaydolan öğrenci, veliyi onaysız
+// takibe alır (kayit-yap içinde işlenir).
+router.post('/veli/davet-uret', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi } = req.body;
+        const veli = await Kullanici.findOne({ kullaniciAdi });
+        if (!veli || veli.rol !== 'veli') {
+            return res.status(403).send('Yetki yok.');
+        }
+        const { referansKoduUret } = require('./auth');
+        await referansKoduUret(kullaniciAdi, 1, 'veli');
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi));
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 

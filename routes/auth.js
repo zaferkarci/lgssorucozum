@@ -138,6 +138,7 @@ router.get('/kayit', async (req, res) => {
     // v4.1.27: Öğretmen davet linkinde öğretmenin il/ilçe/okul'unu view'a gönder
     // ki form dropdownları pre-fill olsun. Öğrenci farklı okulda ise değiştirebilir.
     let onSecimIl = '', onSecimIlce = '', onSecimOkul = '';
+    let veliDavetAdi = ''; // v4.3.28: veli'nin ürettiği davet kodu ise, velinin adı
     if (refKod) {
         try {
             const ref = await ReferansKodu.findOne({ kod: refKod }).lean();
@@ -158,12 +159,29 @@ router.get('/kayit', async (req, res) => {
                 // v4.3.4: Kurumsal davet kodu için refTip atanıyor
                 refTip = 'kurumsal';
             } else if (ref && ref.tip === 'veli') {
-                // v4.3.25: Veli davet kodu için refTip
-                refTip = 'veli';
+                // v4.3.25/28: tip:'veli' kodu iki amaçlı:
+                //   • olusturan === 'admin' → VELİ kaydı (yeni veli üye olur)
+                //   • olusturan bir veli kullanıcı → ÖĞRENCİ kaydı (Yol B), öğrenci
+                //     o veliyi otomatik takibe alır. Bu durumda refTip='ogrenci'
+                //     ama view'a velinin adı geçilir.
+                if (ref.olusturan && ref.olusturan !== 'admin') {
+                    const olusturanVeli = await Kullanici.findOne(
+                        { kullaniciAdi: ref.olusturan, rol: 'veli' }, 'kullaniciAdi'
+                    ).lean();
+                    if (olusturanVeli) {
+                        refTip = 'ogrenci';
+                        veliDavetAdi = olusturanVeli.kullaniciAdi;
+                    } else {
+                        // olusturan veli değilse (silinmiş vs) admin gibi davran → veli kaydı
+                        refTip = 'veli';
+                    }
+                } else {
+                    refTip = 'veli';
+                }
             }
         } catch (e) { /* yoksay, default ogrenci + boş ön seçim */ }
     }
-    res.render('kayit', { refKod, refTip, onSecimIl, onSecimIlce, onSecimOkul });
+    res.render('kayit', { refKod, refTip, onSecimIl, onSecimIlce, onSecimOkul, veliDavetAdi });
 });
 
 // İletişim formu sayfası (oturum gerekmez, herkese açık)
@@ -201,10 +219,23 @@ router.post('/kayit-yap', async (req, res) => {
         if (!ref) return res.send("<script>alert('Geçersiz veya kullanılmış referans kodu!'); window.history.back();</script>");
 
         // Rol referans kodundan belirleniyor (kullanıcı manipüle edemesin)
-        // v4.3.2: 'kurumsal' tipi. v4.3.25: 'veli' tipi de eklendi.
-        const rol = (ref.tip === 'ogretmen') ? 'ogretmen' :
-                    (ref.tip === 'kurumsal') ? 'kurumsal' :
-                    (ref.tip === 'veli')     ? 'veli'     : 'ogrenci';
+        // v4.3.2: 'kurumsal'. v4.3.25/28: 'veli' tipi iki amaçlı —
+        //   • admin üretti → yeni VELİ kaydı
+        //   • bir veli üretti → ÖĞRENCİ kaydı (Yol B davet linki)
+        let rol;
+        if (ref.tip === 'ogretmen')      rol = 'ogretmen';
+        else if (ref.tip === 'kurumsal') rol = 'kurumsal';
+        else if (ref.tip === 'veli') {
+            if (ref.olusturan && ref.olusturan !== 'admin') {
+                const olusturanVeli = await Kullanici.findOne(
+                    { kullaniciAdi: ref.olusturan, rol: 'veli' }, 'kullaniciAdi'
+                ).lean();
+                rol = olusturanVeli ? 'ogrenci' : 'veli';
+            } else {
+                rol = 'veli';
+            }
+        }
+        else rol = 'ogrenci';
 
         // Kullanıcı adı format ve küfür kontrolü
         const adHata = kullaniciAdiKontrol(kullaniciAdi);
@@ -362,30 +393,32 @@ router.post('/kayit-yap', async (req, res) => {
         // Yeni kullanıcıya 2 adet referans kodu üret (Bölüm 2'de öğretmen için 2+2 olacak)
         await referansKoduUret(kullaniciAdi, 2, 'ogrenci');
 
-        // Yeni kayıt OĞRENCİ ise ve ref kodu bir öğretmen tarafından üretildiyse,
-        // o öğretmenden öğrenciye otomatik takip isteği gönder
+        // Yeni kayıt ÖĞRENCİ ise ve ref kodu bir öğretmen/veli tarafından üretildiyse,
+        // otomatik takip ilişkisi kurulur.
+        //   • Öğretmen daveti → durum 'beklemede' (öğrenci onaylar)
+        //   • Veli daveti     → durum 'kabul' (onaysız — veli zaten çocuğunu davet etti)
         if (rol === 'ogrenci' && ref.olusturan && ref.olusturan !== 'admin') {
             try {
                 const olusturanKullanici = await Kullanici.findOne({ kullaniciAdi: ref.olusturan }).lean();
-                if (olusturanKullanici && olusturanKullanici.rol === 'ogretmen') {
+                if (olusturanKullanici && (olusturanKullanici.rol === 'ogretmen' || olusturanKullanici.rol === 'veli')) {
                     const TakipIliski = require('../models/TakipIliski');
-                    // Mevcut bir kayıt varsa duplicate yaratma
                     const mevcut = await TakipIliski.findOne({
                         ogretmenAdi: ref.olusturan,
                         ogrenciAdi: kullaniciAdi
                     });
                     if (!mevcut) {
+                        const veliMi = (olusturanKullanici.rol === 'veli');
                         await new TakipIliski({
                             ogretmenAdi: ref.olusturan,
                             ogrenciAdi: kullaniciAdi,
-                            isteyenRol: 'ogretmen',
-                            durum: 'beklemede'
+                            isteyenRol: veliMi ? 'veli' : 'ogretmen',
+                            durum: veliMi ? 'kabul' : 'beklemede',
+                            yanitTarih: veliMi ? new Date() : null
                         }).save();
-                        console.log('[kayit-yap] Otomatik takip isteği oluşturuldu: ' + ref.olusturan + ' → ' + kullaniciAdi);
+                        console.log('[kayit-yap] Otomatik takip (' + olusturanKullanici.rol + '): ' + ref.olusturan + ' → ' + kullaniciAdi);
                     }
                 }
             } catch (e) {
-                // Bu işlem başarısız olsa da kayıt başarılı sayılır — sadece log'la
                 console.warn('[kayit-yap] Otomatik takip isteği oluşturulamadı:', e.message);
             }
         }

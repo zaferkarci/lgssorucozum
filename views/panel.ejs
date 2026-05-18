@@ -436,34 +436,148 @@ document.addEventListener('DOMContentLoaded', function() {
   <% } %>
 
 <% } else if (mod === 'veliPanel') { %>
-  <!-- v4.3.25: Veli paneli — Faz 1 (basit karşılama). Faz 2'de çocuk listesi + istatistik gelecek. -->
-  <div style="max-width:720px; margin:40px auto 0; padding:0 16px;">
-    <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border:1px solid #ffcc80; border-radius:16px; padding:32px 28px; text-align:center;">
-      <div style="font-size:48px; margin-bottom:12px;">👪</div>
-      <h2 style="font-size:22px; font-weight:700; color:#e65100; margin:0 0 8px;">Hoş geldiniz, <%= k.kullaniciAdi %></h2>
-      <p style="font-size:14px; color:#bf6000; margin:0 0 4px;">Veli hesabınız başarıyla oluşturuldu.</p>
-      <p style="font-size:13px; color:#9e5200; margin:0;">Çocuğunuzun çalışma istatistiklerini bu hesaptan takip edebileceksiniz.</p>
-    </div>
+  <!-- v4.3.28: Veli paneli — Faz 2: çocuk listesi + öğrenci ekleme + davet linki -->
+  <div style="max-width:860px; margin:28px auto 0; padding:0 16px;">
 
-    <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:20px 24px; margin-top:16px;">
-      <h3 style="font-size:15px; font-weight:600; color:#37474f; margin:0 0 12px;">📋 Sırada ne var?</h3>
-      <p style="font-size:13px; color:#5f6368; line-height:1.7; margin:0;">
-        Çocuk ekleme özelliği çok yakında bu panele eklenecek. İki yolla çocuğunuzu takip edebileceksiniz:
-      </p>
-      <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
-        <div style="background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:10px 14px; font-size:12px; color:#5f6368;">
-          <b style="color:#1565c0;">Çocuğunuz üyeyse:</b> kullanıcı adıyla arayıp takip isteği göndereceksiniz.
-        </div>
-        <div style="background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:10px 14px; font-size:12px; color:#5f6368;">
-          <b style="color:#2e7d32;">Çocuğunuz üye değilse:</b> davet linki üretip ona vereceksiniz.
-        </div>
+    <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border:1px solid #ffcc80; border-radius:14px; padding:20px 24px; margin-bottom:20px; display:flex; align-items:center; gap:14px;">
+      <div style="font-size:36px;">👪</div>
+      <div>
+        <h2 style="font-size:19px; font-weight:700; color:#e65100; margin:0;">Veli Paneli — <%= k.kullaniciAdi %></h2>
+        <p style="font-size:13px; color:#bf6000; margin:3px 0 0;"><%= veliCocuklar.length %> çocuk takip ediliyor<%= veliBekleyenler.length > 0 ? ' · ' + veliBekleyenler.length + ' onay bekliyor' : '' %></p>
       </div>
     </div>
 
-    <div style="text-align:center; margin-top:20px;">
+    <!-- ÇOCUKLARIM -->
+    <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
+      <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
+        <span style="font-size:15px; font-weight:600; color:#37474f;">👨‍🎓 Çocuklarım</span>
+        <span style="font-size:12px; color:#5f6368; margin-left:8px;">(<%= veliCocuklar.length %>)</span>
+      </div>
+      <% if (veliCocuklar.length === 0) { %>
+        <div style="padding:28px; text-align:center; color:#5f6368; font-size:13px;">
+          Henüz takip ettiğiniz bir çocuk yok.<br>
+          <span style="font-size:12px; color:#9aa0a6;">Aşağıdaki yollardan biriyle çocuk ekleyebilirsiniz.</span>
+        </div>
+      <% } else { %>
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead style="background:#f8f9fa;">
+            <tr>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Öğrenci</th>
+              <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Sınıf</th>
+              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
+              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Çözülen</th>
+              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">İstatistik</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% veliCocuklar.forEach(function(c) { %>
+              <tr style="border-bottom:1px solid #f0f3f7;">
+                <td style="padding:10px 14px; font-weight:500;"><%= c.ogrenciAdi %></td>
+                <td style="padding:10px 14px; color:#5f6368;"><%= c.sinif ? c.sinif + (c.sube ? '/'+c.sube : '') : '—' %></td>
+                <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= c.puan %></td>
+                <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= c.soruIndex %></td>
+                <td style="padding:10px 14px; text-align:right;">
+                  <a href="/takip/ogrenci/<%= encodeURIComponent(c.ogrenciAdi) %>" style="background:#e8f0fe; color:#1a73e8; padding:4px 12px; border-radius:5px; font-size:11px; font-weight:600; text-decoration:none;">İstatistik →</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
+    <!-- ONAY BEKLEYENLER -->
+    <% if (veliBekleyenler.length > 0) { %>
+      <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:12px; padding:14px 18px; margin-bottom:20px;">
+        <div style="font-size:14px; font-weight:600; color:#5d4037; margin-bottom:8px;">⏳ Onay Bekleyen İstekler</div>
+        <% veliBekleyenler.forEach(function(b) { %>
+          <div style="font-size:13px; color:#6d4c41; padding:4px 0;"><b><%= b.ogrenciAdi %></b> — öğrencinin onayı bekleniyor</div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <!-- YOL A: KAYITLI ÖĞRENCİ ARA -->
+    <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:18px 22px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:600; color:#37474f; margin-bottom:4px;">🔍 Çocuğum üye — öğrenci ekle</div>
+      <p style="font-size:12px; color:#5f6368; margin:0 0 12px;">Çocuğunuz zaten kayıtlıysa kullanıcı adıyla arayıp takip isteği gönderin. Öğrenci onaylayınca takip başlar.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="veliAramaInput" placeholder="Öğrenci kullanıcı adı" class="input-sm" style="flex:1; min-width:180px;">
+        <button onclick="veliOgrenciAra()" style="background:#1a73e8; color:white; border:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">Ara</button>
+      </div>
+      <div id="veliAramaSonuc" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- YOL B: DAVET LİNKİ -->
+    <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:18px 22px; margin-bottom:20px;">
+      <div style="font-size:14px; font-weight:600; color:#37474f; margin-bottom:4px;">🔗 Çocuğum üye değil — davet linki oluştur</div>
+      <p style="font-size:12px; color:#5f6368; margin:0 0 12px;">Çocuğunuz henüz üye değilse davet linki üretip ona verin. Bu linkle kaydolan öğrenci otomatik olarak takibinize girer (onay gerekmez).</p>
+      <form method="POST" action="/veli/davet-uret" style="margin:0 0 12px;">
+        <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+        <button type="submit" style="background:#43a047; color:white; border:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">+ Yeni davet linki üret</button>
+      </form>
+      <% if (veliDavetKodlari && veliDavetKodlari.length > 0) { %>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <% veliDavetKodlari.forEach(function(kod) { %>
+            <% var link = baseUrl + '/kayit?ref=' + kod.kod; %>
+            <div style="background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">
+              <input type="text" readonly value="<%= link %>" style="flex:1; border:none; background:transparent; font-size:12px; color:#5f6368;" onclick="this.select();">
+              <button onclick="veliKopyala('<%= link %>', this)" style="background:#e8f0fe; color:#1a73e8; border:none; padding:4px 10px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer;">Kopyala</button>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div style="font-size:12px; color:#9aa0a6;">Henüz davet linki üretmediniz.</div>
+      <% } %>
+    </div>
+
+    <div style="text-align:center; margin-bottom:20px;">
       <a href="/cikis" style="font-size:13px; color:#888; text-decoration:none;">Çıkış Yap</a>
     </div>
   </div>
+
+  <script>
+    function veliOgrenciAra() {
+      var q = document.getElementById('veliAramaInput').value.trim();
+      var kutu = document.getElementById('veliAramaSonuc');
+      if (!q) { kutu.innerHTML = ''; return; }
+      kutu.innerHTML = '<span style="font-size:12px; color:#9aa0a6;">Aranıyor...</span>';
+      fetch('/api/takip/ara?q=' + encodeURIComponent(q))
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if (!j.ok || !j.sonuclar || j.sonuclar.length === 0) {
+            kutu.innerHTML = '<span style="font-size:12px; color:#e57373;">Öğrenci bulunamadı.</span>';
+            return;
+          }
+          var html = '';
+          j.sonuclar.forEach(function(s){
+            var durumEt = '';
+            if (s.iliskiDurum === 'kabul') durumEt = '<span style="font-size:11px; color:#43a047;">Zaten takip ediyorsunuz</span>';
+            else if (s.iliskiDurum === 'beklemede') durumEt = '<span style="font-size:11px; color:#fb8c00;">İstek gönderildi</span>';
+            else durumEt = '<button onclick="veliIstekGonder(\'' + s.kullaniciAdi + '\', this)" style="background:#1a73e8; color:white; border:none; padding:4px 12px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer;">İstek Gönder</button>';
+            html += '<div style="display:flex; align-items:center; justify-content:space-between; background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:8px 12px; margin-bottom:6px;">' +
+                    '<span style="font-size:13px; font-weight:500;">' + s.kullaniciAdi + '</span>' + durumEt + '</div>';
+          });
+          kutu.innerHTML = html;
+        })
+        .catch(function(){ kutu.innerHTML = '<span style="font-size:12px; color:#e57373;">Arama hatası.</span>'; });
+    }
+    function veliIstekGonder(ogrenciAdi, btn) {
+      btn.disabled = true; btn.textContent = '...';
+      fetch('/takip/istek-gonder', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ogrenciAdi: ogrenciAdi })
+      }).then(function(r){ return r.json(); }).then(function(j){
+        if (j.ok) { btn.outerHTML = '<span style="font-size:11px; color:#fb8c00;">İstek gönderildi</span>'; }
+        else { btn.disabled = false; btn.textContent = 'İstek Gönder'; alert(j.hata || 'Hata'); }
+      }).catch(function(){ btn.disabled = false; btn.textContent = 'İstek Gönder'; });
+    }
+    function veliKopyala(link, btn) {
+      navigator.clipboard.writeText(link).then(function(){
+        var eski = btn.textContent; btn.textContent = '✓ Kopyalandı';
+        setTimeout(function(){ btn.textContent = eski; }, 1500);
+      });
+    }
+  </script>
 
 <% } else if (mod === 'atandigimSiniflar') { %>
   <!-- v4.3.21: Atandığım Sınıflar — öğretmen/yönetici dashboard'u -->

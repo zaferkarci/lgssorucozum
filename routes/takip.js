@@ -17,7 +17,10 @@ router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Kullanıcı bulunamadı' });
 
-        const aranacakRol = (benim.rol === 'ogretmen') ? 'ogrenci' : 'ogretmen';
+        // v4.3.28: Veli de öğrenci arar (öğretmen gibi). Öğretmen/veli → öğrenci,
+        // öğrenci → öğretmen aranır.
+        const ogrenciArayan = (benim.rol === 'ogretmen' || benim.rol === 'veli');
+        const aranacakRol = ogrenciArayan ? 'ogrenci' : 'ogretmen';
         const filtre = { rol: aranacakRol };
         // Kullanıcı adı zorunlu — diğer alanlar daraltıcı filtre
         const { il, ilce, okul, q } = req.query;
@@ -39,14 +42,14 @@ router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
         // Mevcut takip ilişkilerini de getir (zaten istek gönderilmişleri işaretlemek için)
         const adlar = sonuclar.map(s => s.kullaniciAdi);
         let mevcutIliskiler = [];
-        if (benim.rol === 'ogretmen') {
+        if (ogrenciArayan) {
             mevcutIliskiler = await TakipIliski.find({ ogretmenAdi: benim.kullaniciAdi, ogrenciAdi: { $in: adlar } }).lean();
         } else {
             mevcutIliskiler = await TakipIliski.find({ ogrenciAdi: benim.kullaniciAdi, ogretmenAdi: { $in: adlar } }).lean();
         }
         const iliskiMap = {};
         mevcutIliskiler.forEach(i => {
-            const anahtar = (benim.rol === 'ogretmen') ? i.ogrenciAdi : i.ogretmenAdi;
+            const anahtar = ogrenciArayan ? i.ogrenciAdi : i.ogretmenAdi;
             iliskiMap[anahtar] = i.durum;
         });
 
@@ -75,12 +78,14 @@ router.post('/takip/istek-gonder', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.status(401).json({ ok: false, hata: 'Oturum bulunamadı.' });
-        if (benim.rol !== 'ogretmen' && benim.rol !== 'ogrenci') {
-            return res.status(403).json({ ok: false, hata: 'Sadece öğretmen veya öğrenciler takip isteği gönderebilir.' });
+        if (benim.rol !== 'ogretmen' && benim.rol !== 'ogrenci' && benim.rol !== 'veli') {
+            return res.status(403).json({ ok: false, hata: 'Bu rol takip isteği gönderemez.' });
         }
 
         let ogretmenAdi, ogrenciAdi;
-        if (benim.rol === 'ogretmen') {
+        // v4.3.28: Veli, TakipIliski'de 'ogretmenAdi' slotunda durur (öğrenciyi takip
+        // eden taraf). isteyenRol='veli' ile öğretmenden ayrılır.
+        if (benim.rol === 'ogretmen' || benim.rol === 'veli') {
             ogretmenAdi = benim.kullaniciAdi;
             ogrenciAdi = (req.body.ogrenciAdi || '').trim();
             if (!ogrenciAdi) return res.json({ ok: false, hata: 'Öğrenci adı gerekli.' });
@@ -168,10 +173,12 @@ router.get('/api/takip/bekleyen-istekler', oturumGerekli, async (req, res) => {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.json({ ok: false, sayi: 0 });
 
-        // "Bana gelen" = isteyenRol benim rolümün tersi
-        const filtre = (benim.rol === 'ogretmen')
+        // v4.3.28: Veli öğrenci slotunda istek almaz (hep gönderir). Veli için
+        // "bana gelen istek" yok — sayı 0 döner.
+        const ogrenciArayan = (benim.rol === 'ogretmen' || benim.rol === 'veli');
+        const filtre = ogrenciArayan
             ? { ogretmenAdi: benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogrenci' }
-            : { ogrenciAdi:  benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogretmen' };
+            : { ogrenciAdi:  benim.kullaniciAdi, durum: 'beklemede', isteyenRol: { $in: ['ogretmen', 'veli'] } };
         const sayi = await TakipIliski.countDocuments(filtre);
         res.json({ ok: true, sayi });
     } catch (err) {
@@ -185,18 +192,20 @@ router.get('/api/takip/gelenler', oturumGerekli, async (req, res) => {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Oturum bulunamadı' });
 
-        const filtre = (benim.rol === 'ogretmen')
+        // v4.3.28: Öğrenciye hem öğretmen hem veli isteği gelebilir.
+        const ogrenciArayan = (benim.rol === 'ogretmen' || benim.rol === 'veli');
+        const filtre = ogrenciArayan
             ? { ogretmenAdi: benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogrenci' }
-            : { ogrenciAdi:  benim.kullaniciAdi, durum: 'beklemede', isteyenRol: 'ogretmen' };
+            : { ogrenciAdi:  benim.kullaniciAdi, durum: 'beklemede', isteyenRol: { $in: ['ogretmen', 'veli'] } };
         const istekler = await TakipIliski.find(filtre).sort({ istekTarih: -1 }).lean();
 
-        const adlar = istekler.map(i => benim.rol === 'ogretmen' ? i.ogrenciAdi : i.ogretmenAdi);
+        const adlar = istekler.map(i => ogrenciArayan ? i.ogrenciAdi : i.ogretmenAdi);
         const detaylar = await Kullanici.find({ kullaniciAdi: { $in: adlar } }, 'kullaniciAdi okul il ilce sinif sube rol').lean();
         const detayMap = {};
         detaylar.forEach(d => { detayMap[d.kullaniciAdi] = d; });
 
         const zengin = istekler.map(i => {
-            const karsiAd = (benim.rol === 'ogretmen') ? i.ogrenciAdi : i.ogretmenAdi;
+            const karsiAd = ogrenciArayan ? i.ogrenciAdi : i.ogretmenAdi;
             const d = detayMap[karsiAd] || {};
             return {
                 _id: i._id,
@@ -204,14 +213,16 @@ router.get('/api/takip/gelenler', oturumGerekli, async (req, res) => {
                 ogrenciAdi: i.ogrenciAdi,
                 durum: i.durum,
                 istekTarih: i.istekTarih,
-                ogretmenOkul: (benim.rol === 'ogretmen') ? null : d.okul,
-                ogretmenIl:   (benim.rol === 'ogretmen') ? null : d.il,
-                ogretmenIlce: (benim.rol === 'ogretmen') ? null : d.ilce,
-                ogrenciOkul:  (benim.rol === 'ogretmen') ? d.okul : null,
-                ogrenciIl:    (benim.rol === 'ogretmen') ? d.il : null,
-                ogrenciIlce:  (benim.rol === 'ogretmen') ? d.ilce : null,
-                ogrenciSinif: (benim.rol === 'ogretmen') ? d.sinif : null,
-                ogrenciSube:  (benim.rol === 'ogretmen') ? d.sube : null
+                isteyenRol: i.isteyenRol,
+                ogretmenOkul: ogrenciArayan ? null : d.okul,
+                ogretmenIl:   ogrenciArayan ? null : d.il,
+                ogretmenIlce: ogrenciArayan ? null : d.ilce,
+                ogretmenRol:  ogrenciArayan ? null : d.rol,
+                ogrenciOkul:  ogrenciArayan ? d.okul : null,
+                ogrenciIl:    ogrenciArayan ? d.il : null,
+                ogrenciIlce:  ogrenciArayan ? d.ilce : null,
+                ogrenciSinif: ogrenciArayan ? d.sinif : null,
+                ogrenciSube:  ogrenciArayan ? d.sube : null
             };
         });
         res.json({ ok: true, istekler: zengin });
@@ -227,33 +238,37 @@ router.get('/api/takip/kabul-edilenler', oturumGerekli, async (req, res) => {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Oturum bulunamadı' });
 
-        const filtre = (benim.rol === 'ogretmen')
-            ? { ogretmenAdi: benim.kullaniciAdi, durum: 'kabul' } // bu fazda öğretmen takip ettiklerini görür
-            : { ogrenciAdi: benim.kullaniciAdi, durum: 'kabul' };  // öğrenci beni takip eden öğretmenleri görür
+        // v4.3.28: Veli, öğretmen gibi takip ettiklerini (çocuklarını) görür.
+        const ogrenciArayan = (benim.rol === 'ogretmen' || benim.rol === 'veli');
+        const filtre = ogrenciArayan
+            ? { ogretmenAdi: benim.kullaniciAdi, durum: 'kabul' }
+            : { ogrenciAdi: benim.kullaniciAdi, durum: 'kabul' };
         const iliskiler = await TakipIliski.find(filtre).sort({ yanitTarih: -1 }).lean();
 
-        const adlar = iliskiler.map(i => benim.rol === 'ogretmen' ? i.ogrenciAdi : i.ogretmenAdi);
+        const adlar = iliskiler.map(i => ogrenciArayan ? i.ogrenciAdi : i.ogretmenAdi);
         const detaylar = await Kullanici.find({ kullaniciAdi: { $in: adlar } }, 'kullaniciAdi okul il ilce sinif sube rol puan soruIndex').lean();
         const detayMap = {};
         detaylar.forEach(d => { detayMap[d.kullaniciAdi] = d; });
 
         const zengin = iliskiler.map(i => {
-            const karsiAd = (benim.rol === 'ogretmen') ? i.ogrenciAdi : i.ogretmenAdi;
+            const karsiAd = ogrenciArayan ? i.ogrenciAdi : i.ogretmenAdi;
             const d = detayMap[karsiAd] || {};
             return {
                 _id: i._id,
                 ogretmenAdi: i.ogretmenAdi,
                 ogrenciAdi: i.ogrenciAdi,
-                ogretmenOkul: (benim.rol === 'ogretmen') ? null : d.okul,
-                ogretmenIl: (benim.rol === 'ogretmen') ? null : d.il,
-                ogretmenIlce: (benim.rol === 'ogretmen') ? null : d.ilce,
-                ogrenciOkul: (benim.rol === 'ogretmen') ? d.okul : null,
-                ogrenciIl: (benim.rol === 'ogretmen') ? d.il : null,
-                ogrenciIlce: (benim.rol === 'ogretmen') ? d.ilce : null,
-                ogrenciSinif: (benim.rol === 'ogretmen') ? d.sinif : null,
-                ogrenciSube: (benim.rol === 'ogretmen') ? d.sube : null,
-                ogrenciPuan: (benim.rol === 'ogretmen') ? d.puan : null,
-                ogrenciSoruIndex: (benim.rol === 'ogretmen') ? d.soruIndex : null
+                kaynak: i.kaynak || 'bireysel',
+                ogretmenOkul: ogrenciArayan ? null : d.okul,
+                ogretmenIl: ogrenciArayan ? null : d.il,
+                ogretmenIlce: ogrenciArayan ? null : d.ilce,
+                ogretmenRol: ogrenciArayan ? null : d.rol,
+                ogrenciOkul: ogrenciArayan ? d.okul : null,
+                ogrenciIl: ogrenciArayan ? d.il : null,
+                ogrenciIlce: ogrenciArayan ? d.ilce : null,
+                ogrenciSinif: ogrenciArayan ? d.sinif : null,
+                ogrenciSube: ogrenciArayan ? d.sube : null,
+                ogrenciPuan: ogrenciArayan ? d.puan : null,
+                ogrenciSoruIndex: ogrenciArayan ? d.soruIndex : null
             };
         });
         res.json({ ok: true, takipciler: zengin });
@@ -268,8 +283,8 @@ router.get('/api/takip/kabul-edilenler', oturumGerekli, async (req, res) => {
 router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal')) {
-            return res.status(403).json({ ok: false, hata: 'Sadece öğretmenler ve kurum yöneticileri erişebilir.' });
+        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal' && benim.rol !== 'veli')) {
+            return res.status(403).json({ ok: false, hata: 'Sadece öğretmen, kurum yöneticisi ve veliler erişebilir.' });
         }
 
         const ogrenciAdi = req.params.ogrenciAdi;
@@ -342,8 +357,8 @@ router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (re
 router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
     try {
         const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal')) {
-            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler ve kurum yöneticileri görüntüleyebilir.</p></div>');
+        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal' && benim.rol !== 'veli')) {
+            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler, kurum yöneticileri ve veliler görüntüleyebilir.</p></div>');
         }
 
         const ogrenciAdi = req.params.ogrenciAdi;

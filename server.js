@@ -1,11 +1,20 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.27 (Modüler Yapı) ---
-// v4.3.27 değişiklikleri (bug fix — Excel yüklemede sınıf kayboluyordu):
-//   • SORUN: /unite-kaydet endpoint'i kayıt nesnesini oluştururken 'sinif'
-//     alanını atlıyordu. Excel'de sınıf yazılı olsa, önizlemede görünse bile
-//     veritabanına kaydedilmiyordu.
-//   • ÇÖZÜM: kayitlar.map içine sinif alanı eklendi.
-//   • Excel önizleme kartında da sınıf bilgisi gösterilir (kullanıcı
-//     kaydetmeden önce doğruluğunu görebilsin).
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.28 (Modüler Yapı) ---
+// v4.3.28 değişiklikleri (Veli kullanıcı — Faz 2: panel + bağlanma):
+//   • Veli paneli tamamlandı: Çocuklarım listesi (takip edilen öğrenciler),
+//     onay bekleyenler, öğrenci arama (Yol A), davet linki üretme (Yol B).
+//   • takip.js: ara / istek-gonder / gelenler / bekleyen-istekler /
+//     kabul-edilenler / ogrenci-istatistik / takip-ogrenci endpoint'leri
+//     'veli' rolünü destekler. Veli TakipIliski'de 'ogretmenAdi' slotunda
+//     durur, isteyenRol='veli' ile öğretmenden ayrılır.
+//   • Yol A: Veli kayıtlı öğrenciyi arar → istek gönderir → öğrenci onaylar.
+//   • Yol B: Veli /veli/davet-uret ile tip='veli' davet kodu üretir. Bu
+//     kodla kaydolan öğrenci, veliyi ONAYSIZ takibe alır (durum='kabul').
+//   • tip='veli' kodu çift amaçlı: admin üretirse veli kaydı, bir veli
+//     üretirse öğrenci kaydı (kayit + kayit-yap olusturan'a göre ayırır).
+//   • Veli davetiyle gelen öğrenci kayıt formunda "Veliniz sizi takip
+//     edecek" bilgisi görür.
+//   • Veli istatistik erişimi: mevcut /takip/ogrenci/:ad detay sayfası
+//     veli için de açık (yetki TakipIliski kabul kaydına bağlı).
 
 const mongoose = require('mongoose');
 const express = require('express');

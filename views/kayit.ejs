@@ -132,6 +132,10 @@
       <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#e65100;">
         👪 <b>Veli kaydı.</b> Bu hesapla çocuğunuzun çalışma istatistiklerini takip edebilirsiniz.
       </div>
+    <% } else if (typeof veliDavetAdi !== 'undefined' && veliDavetAdi) { %>
+      <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#e65100;">
+        👪 <b>Veliniz sizi takip edecek.</b> <b><%= veliDavetAdi %></b> adlı veli sizi davet etti. Kaydolduğunuzda çalışma istatistikleriniz bu veliyle paylaşılacak.
+      </div>
     <% } %>
     <form action="/kayit-yap" method="POST" id="kayitForm">
       <input type="hidden" name="rol" value="<%= refTip === 'ogretmen' ? 'ogretmen' : (refTip === 'kurumsal' ? 'kurumsal' : (refTip === 'veli' ? 'veli' : 'ogrenci')) %>">
