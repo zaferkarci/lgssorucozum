@@ -1,4 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.35 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.36 (Modüler Yapı) ---
+// v4.3.36 değişiklikleri (mobil uyumu — Adım 2a: üst bar + soru çözme):
+//   • Panel üst barı mobilde hamburger menüye (☰) dönüşür. ≤760px'de nav
+//     linkleri gizlenir, hamburger butonuna tıklanınca dikey açılır panel
+//     olarak görünür. Dışına tıklayınca kapanır.
+//   • Üst bar mobilde küçülür: logo/avatar/kullanıcı bilgisi kompakt.
+//   • Soru çözme ekranı mobil uyumlu: soru kartı sabit yükseklik yerine
+//     esner, padding'ler küçülür, soru metni ve şıklar dokunmatik için
+//     uygun boyuta gelir.
+//   • Çok dar telefonlar (≤380px) için ek küçültme.
+//   • style.css'e media query eklendi. Masaüstü görünümü değişmedi.
+//   • Sonraki adım (2b): profil, takip, kurum, veli modları.
+// --- VERSİYON 4.3.35 (Modüler Yapı) ---
 // v4.3.35 değişiklikleri (mobil uyumu — Adım 1: giriş + kayıt sayfaları):
 //   • Giriş ve kayıt sayfaları mobil/tablet uyumlu hale getirildi.
 //   • ≤640px (telefon): sol mavi tanıtım paneli ile sağ form alt alta

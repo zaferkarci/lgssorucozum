@@ -176,7 +176,10 @@ document.addEventListener('DOMContentLoaded', function() {
       </script>
     <% } %>
   </div>
-  <div class="ptopbar-nav">
+  <!-- v4.3.36: Mobil hamburger butonu — sadece dar ekranda görünür -->
+  <button type="button" id="hamburgerBtn" onclick="mobilNavToggle()" aria-label="Menü"
+    style="display:none; background:rgba(255,255,255,0.18); color:white; border:none; border-radius:8px; width:38px; height:38px; font-size:20px; cursor:pointer; line-height:1;">☰</button>
+  <div class="ptopbar-nav" id="ptopbarNav">
     <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Örnek Soru</a>
       <% if (k.aktifRol === 'kurumsal') { %>
@@ -211,6 +214,23 @@ document.addEventListener('DOMContentLoaded', function() {
     <% } %>
   </div>
 </div>
+<script>
+  // v4.3.36: Mobil hamburger menü aç/kapat
+  function mobilNavToggle() {
+    var nav = document.getElementById('ptopbarNav');
+    if (nav) nav.classList.toggle('mobil-acik');
+  }
+  // Menü dışına tıklayınca kapat (mobilde)
+  document.addEventListener('click', function(e) {
+    var nav = document.getElementById('ptopbarNav');
+    var btn = document.getElementById('hamburgerBtn');
+    if (!nav || !btn) return;
+    if (nav.classList.contains('mobil-acik') &&
+        !nav.contains(e.target) && e.target !== btn) {
+      nav.classList.remove('mobil-acik');
+    }
+  });
+</script>
 
 <div class="panel-main">
 

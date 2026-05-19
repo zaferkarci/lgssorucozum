@@ -660,3 +660,77 @@ body { font-family: sans-serif; background: #f0f2f5; }
     padding: 28px 22px 36px;
   }
 }
+
+/* ============================================================
+   v4.3.36: Panel mobil/tablet uyumu — Adım 2a
+   Üst bar (hamburger menü) + soru çözme ekranı.
+   ============================================================ */
+@media (max-width: 760px) {
+  /* --- Üst bar --- */
+  .panel-topbar-yeni {
+    padding: 0 12px;
+    height: 52px;
+  }
+  .ptopbar-logo { font-size: 14px; }
+  .ptopbar-ayrac { display: none; }
+  .ptopbar-kullanici {
+    padding: 4px 8px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .ptopbar-avatar { width: 22px; height: 22px; font-size: 10px; }
+  /* Mod değiştirici mobilde alt satıra düşmesin diye gizlenmez ama küçülür */
+  .mod-degistirici { margin-left: 6px !important; }
+  .mod-degistirici button { padding: 5px 8px !important; font-size: 11px !important; }
+
+  /* Hamburger butonu görünür olur */
+  #hamburgerBtn { display: block !important; }
+
+  /* Nav linkleri varsayılan gizli — hamburger ile açılır */
+  .ptopbar-nav {
+    display: none;
+    position: absolute;
+    top: 52px; right: 0;
+    background: #1a73e8;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 200px;
+    padding: 8px;
+    gap: 2px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    border-radius: 0 0 0 12px;
+    z-index: 300;
+  }
+  .ptopbar-nav.mobil-acik { display: flex; }
+  .ptopbar-link {
+    padding: 11px 14px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
+
+  /* --- Soru çözme ekranı --- */
+  .panel-main { padding: 12px; }
+  .soru-kart-yeni {
+    height: auto;
+    min-height: calc(100vh - 76px);
+    border-radius: 12px;
+  }
+  .soru-etiket-bar { padding: 8px 12px; }
+  .ep { padding: 3px 9px; font-size: 10px; }
+  .soru-govde-yeni { padding: 14px 14px; overflow-y: visible; }
+  .soru-metni-yeni { font-size: 16px; margin-bottom: 16px; }
+  .soru-oncul-yeni { font-size: 13px; padding: 10px 12px; }
+  .secenek-btn-yeni {
+    padding: 12px 12px;
+    font-size: 15px;
+    gap: 10px;
+  }
+  .sik-harf-yeni { width: 32px; height: 32px; }
+}
+
+/* Çok dar telefonlar */
+@media (max-width: 380px) {
+  .ptopbar-logo { font-size: 13px; }
+  .ptopbar-kullanici { font-size: 10px; }
+  .soru-metni-yeni { font-size: 15px; }
+}
