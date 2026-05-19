@@ -1,4 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.37 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.38 (Modüler Yapı) ---
+// v4.3.38 değişiklikleri (mobil uyumu — Adım 2b: profil/takip/kurum):
+//   • Profil sayfası ana düzeni (içerik + sağ yan kolon) mobilde alt alta
+//     dizilir. Kurum üyeleri özet kartları (3'lü) ve profil formları tek
+//     kolona iner.
+//   • Takip istatistik panelindeki 4'lü metrik grid mobilde tek kolon,
+//     5'li sıralama grid'i 2 kolon olur.
+//   • Geniş tablolar (kurum üyeleri, takip listeleri — .tablo class'lı)
+//     mobilde yatay kaydırılabilir hale geldi, taşma yok.
+//   • Yeni yardımcı class'lar: mobil-tekkolon, mobil-ikikolon.
+//   • auto-fit/auto-fill minmax grid'lere dokunulmadı (zaten responsive).
+//   • Masaüstü görünümü değişmedi.
+// --- VERSİYON 4.3.37 (Modüler Yapı) ---
 // v4.3.37 değişiklikleri (mobil: şıklar alt alta):
 //   • Telefonda (≤760px) tüm soruların şıkları tek kolona dizilir —
 //     sorunun sikDizilimi 'yatay' (4'lü) veya 'ikili' (2'li) ayarlı olsa

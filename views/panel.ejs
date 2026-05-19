@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
 
       <!-- Özet kartları -->
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:22px;">
+      <div class="mobil-tekkolon" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:22px;">
         <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:18px; text-align:center;">
           <div style="font-size:11px; color:#5f6368; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Toplam Üye</div>
           <div style="font-size:32px; font-weight:700; color:#1a73e8; margin-top:4px;"><%= kurumOgretmenler.length + kurumOgrenciler.length %></div>
@@ -957,7 +957,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   <!-- GENEL SEKMESİ -->
   <div id="sekme-genel" class="sekme-icerik aktif">
-    <div style="display:grid; grid-template-columns:1fr 260px; gap:14px; align-items:start;">
+    <div class="mobil-tekkolon" style="display:grid; grid-template-columns:1fr 260px; gap:14px; align-items:start;">
 
       <div>
         <!-- Kişisel bilgiler -->
@@ -1042,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <% } %>
 
               <!-- Kurum arama formu: il/ilçe ile filtre, okul listesi (kayıt formundaki gibi MEB), istek butonu -->
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+              <div class="mobil-tekkolon" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
                 <div>
                   <label style="font-size:11px; color:#5f6368; font-weight:600; display:block; margin-bottom:3px;">İl</label>
                   <select id="kurumIlSel" class="input-sm" style="width:100%;" onchange="kurumIlDegisti()"></select>
@@ -2296,7 +2296,7 @@ document.addEventListener('DOMContentLoaded', function() {
       html += '<p style="color:#666; font-size:13px; margin-bottom:14px;">' + (o.sinif||'') + '. Sınıf' + (o.sube ? '/' + o.sube : '') + ' · ' + (o.okul||'-') + ' · ' + (o.il||'-') + ' / ' + (o.ilce||'-') + '</p>';
 
       // 4 büyük metrik
-      html += '<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:18px;">';
+      html += '<div class="mobil-tekkolon" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:18px;">';
       html += '<div style="text-align:center; padding:14px; background:#e8f0fe; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#1a73e8;">' + (o.puan||0) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Toplam Puan</div></div>';
       html += '<div style="text-align:center; padding:14px; background:#f0f9f0; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#43a047;">' + (o.soruIndex||0) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Çözülen Soru</div></div>';
       html += '<div style="text-align:center; padding:14px; background:#fff8e1; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#f57c00;">' + dogruOrani + '%</div><div style="font-size:11px; color:#888; margin-top:4px;">Doğru Oranı</div></div>';
@@ -2311,7 +2311,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (sirala.nitelikli === false) {
           html += '<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#795548;">ℹ️ Sıralamada yer alabilmek için en az ' + (sirala.minSoru||10) + ' soru çözmeli. (Şu ana kadar: ' + (sirala.kullaniciSoruSayisi||0) + ')</div>';
         }
-        html += '<div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">';
+        html += '<div class="mobil-ikikolon" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">';
         ['Türkiye','İl','İlçe','Okul','Sınıf'].forEach(function(lbl, idx) {
           const key = ['turkiye','il','ilce','okul','sinif'][idx];
           const totKey = ['toplamKullanici','ilKullanici','ilceKullanici','okulKullanici','sinifKullanici'][idx];

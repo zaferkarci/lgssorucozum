@@ -733,6 +733,23 @@ body { font-family: sans-serif; background: #f0f2f5; }
   .secenekler {
     grid-template-columns: 1fr !important;
   }
+
+  /* v4.3.38: Profil/takip/kurum modlarındaki sabit kolonlu grid'ler.
+     mobil-tekkolon → telefonda tek kolon, mobil-ikikolon → iki kolon. */
+  .mobil-tekkolon {
+    grid-template-columns: 1fr !important;
+  }
+  .mobil-ikikolon {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Geniş tablolar (kurum üyeleri, takip listeleri) yatay kaydırılabilir */
+  .tablo {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
 }
 
 /* Çok dar telefonlar */
