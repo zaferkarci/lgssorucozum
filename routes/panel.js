@@ -270,6 +270,16 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // geçer (çözülmüş/çözülmemiş ayrımı yok — demo hiçbir şey kaydetmez).
     const moderator = k.rol === 'moderator';
     const demo = k.rol === 'demo';
+    // v4.3.34: Demo hesabı için sınıf seçici listesi — Unite koleksiyonundaki
+    // sınıflar (soru/ünite tanımlı sınıflar). Demo ekran üstünden sınıf değiştirir.
+    let demoSiniflar = [];
+    if (demo) {
+        try {
+            const uList = await Unite.find({}, 'sinif').lean();
+            demoSiniflar = [...new Set(uList.map(u => u.sinif).filter(Boolean).map(String))]
+                .sort((a, b) => Number(a) - Number(b));
+        } catch (e) { demoSiniflar = []; }
+    }
     let cozulmemisSorular = (moderator || demo || ogretmen)
         ? yayindaSorular
         : yayindaSorular.filter(s => !cozulenIds.has(String(s._id)));
@@ -999,6 +1009,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         soruBilgiMap,
         moderator,
         demo,
+        demoSiniflar,
         ogretmen,
         davetEdilenler,
         modIdx,
@@ -1579,6 +1590,29 @@ router.post('/veli/davet-uret', oturumKontrol, async (req, res) => {
 });
 
 // Şube güncelleme
+// v4.3.34: Demo hesabı sınıf seviyesini değiştirir. Soru çözme ekranının
+// üstündeki dropdown'dan gelir. Demo o sınıfın sorularını görmeye başlar,
+// soru indexi sıfırlanır (ilk sorudan başlar).
+router.post('/demo/sinif-degistir', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, sinif } = req.body;
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k || k.rol !== 'demo') {
+            return res.status(403).send('Bu işlem yalnızca demo hesabı içindir.');
+        }
+        if (req.session.kullaniciAdi !== kullaniciAdi) {
+            return res.status(403).send('Yetkisiz işlem.');
+        }
+        const yeniSinif = String(sinif || '').trim();
+        if (yeniSinif) {
+            k.sinif = yeniSinif;
+            await k.save();
+        }
+        // Sınıf değişince ilk sorudan başla — idx=0
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=soru&basla=true&idx=0');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
 router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
     try {
         const { kullaniciAdi, sube } = req.body;

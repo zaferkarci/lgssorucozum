@@ -2374,7 +2374,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
   <% if (!sorular.length) { %>
     <div style="text-align:center; margin-top:50px; padding:20px;">
-      <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
+      <% if (demo) { %>
+        <!-- v4.3.34: Demo — seçili sınıfta soru yok, sınıf seçici ile başka sınıfa geçebilsin -->
+        <div style="max-width:520px; margin:0 auto; padding:28px 24px; background:#ede7f6; border:1px solid #b39ddb; border-radius:14px;">
+          <div style="font-size:38px; margin-bottom:8px;">🧪</div>
+          <h2 style="color:#5e35b1; font-size:19px; margin:0 0 8px; font-weight:600;">Bu sınıfta soru yok</h2>
+          <p style="font-size:13px; color:#7e57c2; margin:0 0 16px;"><%= k.sinif %>. sınıf seviyesinde yayında soru bulunmuyor. Başka bir sınıf seç:</p>
+          <form method="POST" action="/demo/sinif-degistir" style="display:flex; gap:8px; align-items:center; justify-content:center; margin:0;">
+            <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+            <select name="sinif" onchange="this.form.submit()" style="padding:8px 12px; border:1px solid #b39ddb; border-radius:7px; font-size:14px; background:#fff;">
+              <% if (!demoSiniflar || demoSiniflar.length === 0) { %>
+                <option value="<%= k.sinif %>"><%= k.sinif %>. Sınıf</option>
+              <% } else { %>
+                <% demoSiniflar.forEach(function(s) { %>
+                  <option value="<%= s %>" <%= String(k.sinif) === String(s) ? 'selected' : '' %>><%= s %>. Sınıf</option>
+                <% }); %>
+              <% } %>
+            </select>
+            <noscript><button type="submit" style="padding:8px 14px; background:#5e35b1; color:#fff; border:none; border-radius:7px; font-size:13px; cursor:pointer;">Değiştir</button></noscript>
+          </form>
+        </div>
+      <% } else if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
         <h2>Henüz örnek soru yok</h2>
         <p>Sistemde yayında soru bulunmuyor.</p>
       <% } else if (k.soruIndex > 0) { %>
@@ -2755,6 +2775,26 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function(){ bant.style.display = 'none'; }, 350);
       }
     </script>
+    <% if (demo) { %>
+    <!-- v4.3.34: Demo sınıf seçici — soru çözme ekranının üstünde -->
+    <div style="max-width:760px; margin:0 auto 12px; background:#ede7f6; border:1px solid #b39ddb; border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span style="font-size:13px; font-weight:600; color:#5e35b1;">🧪 Demo — Sınıf seviyesi:</span>
+      <form method="POST" action="/demo/sinif-degistir" style="display:flex; gap:8px; align-items:center; margin:0;">
+        <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+        <select name="sinif" onchange="this.form.submit()" style="padding:6px 10px; border:1px solid #b39ddb; border-radius:6px; font-size:13px; background:#fff;">
+          <% if (!demoSiniflar || demoSiniflar.length === 0) { %>
+            <option value="<%= k.sinif %>"><%= k.sinif %>. Sınıf</option>
+          <% } else { %>
+            <% demoSiniflar.forEach(function(s) { %>
+              <option value="<%= s %>" <%= String(k.sinif) === String(s) ? 'selected' : '' %>><%= s %>. Sınıf</option>
+            <% }); %>
+          <% } %>
+        </select>
+        <noscript><button type="submit" style="padding:6px 12px; background:#5e35b1; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer;">Değiştir</button></noscript>
+      </form>
+      <span style="font-size:11px; color:#7e57c2;">Seçtiğin sınıfın soruları gösterilir.</span>
+    </div>
+    <% } %>
     <div class="soru-kart-yeni">
       <div class="soru-etiket-bar">
         <span class="ep ep-zorluk">Zorluk: <%= zb.etiket %></span>

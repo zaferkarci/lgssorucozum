@@ -1,4 +1,14 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.33 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.34 (Modüler Yapı) ---
+// v4.3.34 değişiklikleri (demo hesabı sınıf seçici):
+//   • Demo hesabı soru çözme ekranının üstündeki dropdown'dan sınıf
+//     seviyesini değiştirebilir. Sınıf listesi Unite koleksiyonundaki
+//     sınıflardan gelir.
+//   • Yeni endpoint: POST /demo/sinif-degistir — demo'nun sinif alanını
+//     günceller, idx=0'a döner (yeni sınıfın ilk sorusundan başlar).
+//   • Seçili sınıfta soru yoksa, boş ekranda da sınıf seçici gösterilir —
+//     demo başka sınıfa geçebilir, sıkışmaz.
+//   • Yalnızca demo rolü etkilenir, diğer roller dokunulmadı.
+// --- VERSİYON 4.3.33 (Modüler Yapı) ---
 // v4.3.33 değişiklikleri (demo / etkisiz öğrenci hesabı):
 //   • Yeni rol: 'demo'. Admin "demo" tipi davet kodu üretir, o kodla
 //     açılan hesap etkisiz bir öğrenci hesabıdır.
