@@ -1,4 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.38 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.39 (Modüler Yapı) ---
+// v4.3.39 değişiklikleri (mobil uyumu — kalan öğrenci sayfaları):
+//   • Şifremi unuttum / şifre yenile sayfaları: sabit 350px genişlikli
+//     auth-card mobilde tam genişliğe iner, padding küçülür (≤420px).
+//   • İletişim sayfası: üst boşluk ve kart padding'i mobilde küçülür
+//     (≤480px). Kapsayıcı zaten esnekti.
+//   • Öğrenci tarafının tüm sayfaları artık mobil uyumlu (giriş, kayıt,
+//     panel, soru çözme, profil, takip, iletişim, şifre işlemleri).
+//   • Masaüstü görünümü değişmedi.
+// --- VERSİYON 4.3.38 (Modüler Yapı) ---
 // v4.3.38 değişiklikleri (mobil uyumu — Adım 2b: profil/takip/kurum):
 //   • Profil sayfası ana düzeni (içerik + sağ yan kolon) mobilde alt alta
 //     dizilir. Kurum üyeleri özet kartları (3'lü) ve profil formları tek
