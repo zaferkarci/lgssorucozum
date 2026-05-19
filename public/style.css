@@ -628,3 +628,35 @@ body { font-family: sans-serif; background: #f0f2f5; }
   user-drag: none;
   pointer-events: none;
 }
+
+/* ============================================================
+   v4.3.35: Giriş sayfası mobil/tablet uyumu
+   Dar ekranda sol tanıtım paneli + sağ form alt alta dizilir.
+   ============================================================ */
+@media (max-width: 640px) {
+  .giris-body {
+    align-items: flex-start;
+    padding: 0;
+  }
+  .giris-wrap {
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .giris-sol {
+    width: 100%;
+    flex-shrink: 1;
+    padding: 26px 22px 20px;
+  }
+  /* Mobilde tanıtım kartları ve puan kutusu gizlenir — sade giriş ekranı */
+  .giris-sol .k-ozellik,
+  .giris-sol .puan-kutu { display: none; }
+  .giris-sol-alt { margin-bottom: 0; }
+  .giris-sag {
+    width: 100%;
+    flex: 1;
+    padding: 28px 22px 36px;
+  }
+}

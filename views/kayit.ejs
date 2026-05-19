@@ -72,6 +72,38 @@
   display: block; margin-bottom: 4px; margin-top: 8px;
 }
 .k-label:first-of-type { margin-top: 0; }
+
+/* v4.3.35: Mobil/tablet uyumu — iki kolon dar ekranda alt alta dizilir */
+@media (max-width: 900px) {
+  .kayit-wrap { width: 100%; }
+}
+@media (max-width: 640px) {
+  body.kayit-body, .kayit-body {
+    align-items: flex-start !important;
+    padding: 0 !important;
+  }
+  .kayit-wrap {
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .kayit-sol {
+    width: 100%;
+    flex-shrink: 1;
+    padding: 24px 20px 18px;
+    gap: 14px;
+  }
+  /* Mobilde tanıtım özellik kartları ve puan kutusu gizlenir — sade giriş */
+  .kayit-sol .k-ozellik,
+  .kayit-sol .puan-kutu { display: none; }
+  .kayit-sol-alt { margin-bottom: 0; }
+  .kayit-sag {
+    width: 100%;
+    padding: 24px 20px 36px;
+  }
+}
 </style>
 </head>
 <body class="giris-body">

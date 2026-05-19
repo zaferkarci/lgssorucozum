@@ -1,4 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.34 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.35 (Modüler Yapı) ---
+// v4.3.35 değişiklikleri (mobil uyumu — Adım 1: giriş + kayıt sayfaları):
+//   • Giriş ve kayıt sayfaları mobil/tablet uyumlu hale getirildi.
+//   • ≤640px (telefon): sol mavi tanıtım paneli ile sağ form alt alta
+//     dizilir, sayfa tam ekran kaplar (border-radius/gölge kalkar).
+//     Tanıtım özellik kartları ve puan kutusu mobilde gizlenir — sade
+//     giriş/kayıt ekranı.
+//   • ≤900px (tablet): sabit genişlik yerine esnek genişlik.
+//   • Giriş için public/style.css'e, kayıt için kayit.ejs <style> bloğuna
+//     media query eklendi. Masaüstü görünümü değişmedi.
+//   • Sonraki adımlar: panel/soru çözme ekranı, sonra diğer öğrenci
+//     sayfaları.
+// --- VERSİYON 4.3.34 (Modüler Yapı) ---
 // v4.3.34 değişiklikleri (demo hesabı sınıf seçici):
 //   • Demo hesabı soru çözme ekranının üstündeki dropdown'dan sınıf
 //     seviyesini değiştirebilir. Sınıf listesi Unite koleksiyonundaki
