@@ -1,4 +1,14 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.36 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.37 (Modüler Yapı) ---
+// v4.3.37 değişiklikleri (mobil: şıklar alt alta):
+//   • Telefonda (≤760px) tüm soruların şıkları tek kolona dizilir —
+//     sorunun sikDizilimi 'yatay' (4'lü) veya 'ikili' (2'li) ayarlı olsa
+//     bile mobilde alt alta gösterilir.
+//   • .secenekler grid container'ına media query'de grid-template-columns
+//     1fr !important uygulandı (inline style'ı ezmek için).
+//   • Takip/istatistik sayfasındaki JS ile üretilen şık grid'ine de
+//     'secenekler' class'ı eklendi — o da mobilde tek kolon olur.
+//   • Masaüstü görünümü değişmedi.
+// --- VERSİYON 4.3.36 (Modüler Yapı) ---
 // v4.3.36 değişiklikleri (mobil uyumu — Adım 2a: üst bar + soru çözme):
 //   • Panel üst barı mobilde hamburger menüye (☰) dönüşür. ≤760px'de nav
 //     linkleri gizlenir, hamburger butonuna tıklanınca dikey açılır panel

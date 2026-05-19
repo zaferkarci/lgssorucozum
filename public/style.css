@@ -726,6 +726,13 @@ body { font-family: sans-serif; background: #f0f2f5; }
     gap: 10px;
   }
   .sik-harf-yeni { width: 32px; height: 32px; }
+
+  /* v4.3.37: Mobilde tüm soruların şıkları alt alta (tek kolon).
+     sikDizilimi 'yatay'/'ikili' olsa bile telefonda tek kolona iner.
+     Inline grid-template-columns'u ezmek için !important gerekli. */
+  .secenekler {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Çok dar telefonlar */

@@ -1785,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Şıklar
         var gridCols = s.sikDizilimi === 'yatay' ? 'repeat(4,1fr)' : s.sikDizilimi === 'ikili' ? 'repeat(2,1fr)' : '1fr';
-        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
+        html += '<div class="secenekler" style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
         (s.secenekler || []).forEach(function(sik, i) {
           var dogru = i === s.dogruCevapIndex;
           var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
