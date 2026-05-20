@@ -38,6 +38,20 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
 .topbar-admin { background:white; border-bottom:1px solid #e8edf2; padding:0 24px; height:52px; display:flex; align-items:center; gap:16px; }
 .topbar-admin a { color:#1a73e8; text-decoration:none; font-size:13px; }
 .topbar-admin-baslik { font-size:14px; font-weight:600; color:#1a2236; }
+
+/* v4.3.41: admin-kullanici-detay mobil uyumu */
+@media (max-width: 760px) {
+  .detay-wrap { padding: 14px 12px; }
+  .detay-baslik { gap: 10px; margin-bottom: 18px; }
+  .detay-grid { grid-template-columns: 1fr; gap: 12px; }
+  .istat-grid { grid-template-columns: 1fr 1fr; }
+  .d-kart { padding: 14px 16px; }
+  .cevap-tablo th, .cevap-tablo td { padding: 6px 8px; font-size: 11px; }
+  .topbar-admin { padding: 0 12px; font-size: 12px; }
+}
+@media (max-width: 420px) {
+  .istat-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>

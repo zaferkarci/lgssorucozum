@@ -770,3 +770,61 @@ body { font-family: sans-serif; background: #f0f2f5; }
   }
   .auth-body { padding: 14px; }
 }
+
+/* ============================================================
+   v4.3.41: Admin paneli mobil/tablet uyumu
+   ============================================================ */
+@media (max-width: 760px) {
+  /* Üst bar — dikey, esnek yükseklik */
+  .admin-topbar {
+    height: auto;
+    padding: 8px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    position: relative;
+  }
+  .admin-logo-wrap { margin-right: 0; }
+  .admin-logo-text { font-size: 13px; }
+  .admin-logo-sub { font-size: 10px; }
+
+  /* Ana nav (İçerik/Kullanıcılar/İletişim/Sistem) — yatay kaydırılabilir */
+  .admin-nav-grup {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .admin-grup-btn {
+    height: 40px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  /* Sağdaki blok (Hesapla / Merhaba / Çıkış) — alta düşer, küçülür */
+  .admin-nav-right {
+    margin-left: 0 !important;
+    width: 100%;
+    flex-wrap: wrap;
+    font-size: 11px;
+    padding: 4px 0;
+    gap: 8px;
+  }
+  .admin-nav-right button {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    margin-right: 6px !important;
+  }
+  .admin-user-badge { font-size: 11px; }
+
+  /* Ana içerik padding'i küçülür */
+  .admin-main { padding: 14px 12px; }
+
+  /* Admin'de kullanılan inline form/buton satırları sıkı kalmasın */
+  .tablo th, .tablo td { padding: 6px 8px; font-size: 11px; }
+}
+
+@media (max-width: 420px) {
+  .admin-grup-btn { padding: 0 8px; font-size: 11px; }
+  .admin-logo-badge { width: 32px; height: 32px; font-size: 12px; }
+}

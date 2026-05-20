@@ -743,7 +743,7 @@ function escHtml(str) {
       <br><br>
       <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
         <label class="form-label" style="display:block; margin-bottom:6px;">📌 Soru Durumu</label>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+        <div class="mobil-tekkolon" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
           <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
             <input type="radio" name="durum" value="taslak" <%= (!editSoru || !editSoru.durum || editSoru.durum==='taslak') ? 'checked' : '' %>>
             <span style="font-size:13px;">🟡 Taslak</span>
@@ -2078,7 +2078,7 @@ function gosterExcelHata(msg) {
     %>
 
     <!-- Özet kartları -->
-    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin-bottom:16px;">
+    <div class="mobil-ikikolon" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin-bottom:16px;">
       <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:10px; text-align:center;">
         <div style="font-size:11px; color:#2e7d32; font-weight:600;">ÇOK KOLAY</div>
         <div style="font-size:22px; font-weight:700; color:#27ae60;"><%= zSay.cokKolay %></div>
@@ -2478,7 +2478,7 @@ function gosterExcelHata(msg) {
         }
         var dizilim = s.sikDizilimi || 'dikey';
         var gridCols = dizilim === 'yatay' ? '1fr 1fr 1fr 1fr' : dizilim === 'ikili' ? '1fr 1fr' : '1fr';
-        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px;">';
+        html += '<div class="secenekler" style="display:grid; grid-template-columns:' + gridCols + '; gap:8px;">';
         for (var i = 0; i < 4; i++) {
           if (!s.secenekler[i]) continue;
           var sikMetin = (s.secenekler[i].metin || '').trim();

@@ -1,4 +1,19 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.40 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.41 (Modüler Yapı) ---
+// v4.3.41 değişiklikleri (mobil uyumu — admin paneli):
+//   • Admin üst barı mobilde dikey: logo → ana nav (yatay kaydırılabilir)
+//     → sağdaki blok (Hesapla / Merhaba / Çıkış) alta düşer, küçülür.
+//     Üst bar yüksekliği sabit yerine esnek.
+//   • Admin ana içerik padding'i mobilde küçülür.
+//   • Admin'deki sabit kolonlu grid'ler (3'lü kurum istatistik, 5'li
+//     sıralama, modal şıklar) mobilde tek/iki kolona iner.
+//   • Tüm .tablo class'lı tablolar mobilde yatay kaydırılabilir (v4.3.38
+//     kuralı), padding'ler küçülür.
+//   • admin-kullanici-detay sayfası: 340px+1fr ana düzen mobilde alt alta,
+//     istatistik grid'i 3'ten 2'ye (çok dar telefonda 1'e) iner.
+//   • Mevcut 700px media query (admin alt nav) korundu, dokunulmadı.
+//   • Masaüstü görünümü değişmedi.
+//   • Bu mobil uyumlu hale getirme adımları tamamlandı (öğrenci + admin).
+// --- VERSİYON 4.3.40 (Modüler Yapı) ---
 // v4.3.40 değişiklikleri (mobil uyumu — takip-ogrenci-detay):
 //   • Öğrenci istatistik detay sayfası (/takip/ogrenci/:ad) mobil uyumlu.
 //     Bu sayfa veliler için kritik — çocuk istatistiklerine çoğunlukla
