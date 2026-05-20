@@ -967,4 +967,102 @@ router.get('/admin/puan-simulasyon', async (req, res) => {
     }
 });
 
+// ── v4.3.48: Soru puan detayı ─────────────────────────────────────────────
+// En az 1 kez çözülmüş tüm soruların:
+//   - Cron Z'si (formülde kullanılan değer)
+//   - Ham puan (doğru cevap ortalama puanı)
+//   - Puan formülü adım adım (T_ref, hizBileseni faktörü, sigmaSure, GE)
+//   - Çözüm sayısı, doğru sayısı, doğru oranı
+// gösterilir. SALT-OKUNUR.
+router.get('/admin/soru-puan-detay', async (req, res) => {
+    try {
+        if (!adminKontrol(req, res)) return;
+
+        const sorular = await Soru.find({ cozulmeSayisi: { $gt: 0 } },
+            'soruMetni ders unite konu sinif zorlukKatsayisi hamPuan ortalamaSure cozulmeSayisi dogruSayisi cozumSureleriTum'
+        ).lean();
+
+        // Sıralama: zorluğa göre azalan, sonra ham puana göre azalan
+        sorular.sort((a, b) => {
+            const za = a.zorlukKatsayisi || 0, zb = b.zorlukKatsayisi || 0;
+            if (zb !== za) return zb - za;
+            return (b.hamPuan || 0) - (a.hamPuan || 0);
+        });
+
+        // Her soru için puan formülü kırılımı hesapla
+        // ÖRNEK öğrenci süresi = T_ref (ortalama hızda)
+        const tablo = sorular.map(s => {
+            const T_ref = s.ortalamaSure || 60;
+            const T_ogr = T_ref; // örnek: ortalama hızdaki bir öğrenci
+            const T_min = 10;
+            const logHiz = Math.log2(1 + (T_ref / T_ogr));
+            const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
+            const hizBileseni = logMax * Math.tanh(logHiz / logMax);
+            const Z = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+            const sigmaSure = stdSapmaSim(s.cozumSureleriTum || []);
+            const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
+            const ornekPuan = Math.max(Math.round(Z * T_ref * hizBileseni * GE), 1);
+
+            const dogruOrani = s.cozulmeSayisi > 0
+                ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100)
+                : 0;
+
+            // Etiket
+            let etiket = '-';
+            if (Z < 1.5) etiket = 'Çok Kolay';
+            else if (Z < 2.5) etiket = 'Kolay';
+            else if (Z < 3.5) etiket = 'Orta';
+            else if (Z < 4.5) etiket = 'Zor';
+            else etiket = 'Çok Zor';
+
+            return {
+                id: String(s._id),
+                ders: s.ders || '-',
+                sinif: s.sinif || '-',
+                unite: s.unite || '-',
+                konu: s.konu || '-',
+                soruOzet: (s.soruMetni || '').replace(/<[^>]+>/g, '').trim().slice(0, 60),
+                Z: Number(Z.toFixed(2)),
+                etiket,
+                hamPuan: s.hamPuan != null ? Math.round(s.hamPuan * 10) / 10 : null,
+                cozulme: s.cozulmeSayisi || 0,
+                dogru: s.dogruSayisi || 0,
+                dogruOrani,
+                T_ref: Math.round(T_ref),
+                sigmaSure: Math.round(sigmaSure * 10) / 10,
+                hizBileseni: Math.round(hizBileseni * 1000) / 1000,
+                GE: Math.round(GE * 1000) / 1000,
+                ornekPuan, // ortalama hızdaki öğrenci için hesaplanan örnek puan
+                // 50'den az çözüm varsa Z 3'e doğru çekildi (yapışkanlık)
+                yapiskanlik: s.cozulmeSayisi < 50
+            };
+        });
+
+        // Filtreler — ders, sınıf, zorluk aralığı (URL ile)
+        const fDers = (req.query.ders || '').trim();
+        const fSinif = (req.query.sinif || '').trim();
+        const fZorlukMin = parseFloat(req.query.zMin) || 0;
+        const fZorlukMax = parseFloat(req.query.zMax) || 5;
+        let goster = tablo;
+        if (fDers) goster = goster.filter(s => s.ders === fDers);
+        if (fSinif) goster = goster.filter(s => String(s.sinif) === fSinif);
+        goster = goster.filter(s => s.Z >= fZorlukMin && s.Z <= fZorlukMax);
+
+        // Filtre seçenekleri için ders/sınıf listeleri
+        const dersListesi = [...new Set(tablo.map(s => s.ders))].sort();
+        const sinifListesi = [...new Set(tablo.map(s => String(s.sinif)))].sort();
+
+        res.render('admin-soru-puan-detay', {
+            tablo: goster,
+            toplamSoru: tablo.length,
+            gosterilenSoru: goster.length,
+            dersListesi, sinifListesi,
+            fDers, fSinif, fZorlukMin, fZorlukMax
+        });
+    } catch (err) {
+        console.error('[soru-puan-detay] hata:', err);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 module.exports = router;

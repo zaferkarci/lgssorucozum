@@ -1,4 +1,18 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.47 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.48 (Modüler Yapı) ---
+// v4.3.48 değişiklikleri (soru puan detayı sayfası):
+//   • Admin > İçerik > 🔬 Soru Puan Detayı sayfası eklendi.
+//   • En az 1 kez çözülmüş tüm soruları listeler. Her sorunun:
+//     - Cron Z (zorlukKatsayisi), etiket (Kolay/Orta/Zor vs.)
+//     - Ham Puan (gerçekleşmiş ortalama)
+//     - N (çözüm sayısı), D (doğru sayısı), Doğru %
+//     - T_ref (ortalama süre), σ_sure (sürelerin std sapması)
+//     - hizBileseni, GE (puan formülü çarpanları)
+//     - Örnek puan (ortalama hızdaki öğrencinin alacağı puan)
+//   • Yapışkanlık uyarısı: N<50 olan soruların satırı sarı arka planda
+//     gösterilir, Z değeri "3'e yakın çekilmiş olabilir" notuyla.
+//   • Filtreler: ders, sınıf, zorluk aralığı (URL parametreleriyle).
+//   • HİÇBİR VERİYİ DEĞİŞTİRMEZ — salt-okunur.
+// --- VERSİYON 4.3.47 (Modüler Yapı) ---
 // v4.3.47 değişiklikleri (puan simülasyonu — gerçek sıralama mantığı):
 //   • v4.3.45/46'da simülasyon "tüm öğrencileri" toplam puana göre
 //     sıralıyordu. Bu, gerçek Türkiye sıralamasıyla aynı değildi.

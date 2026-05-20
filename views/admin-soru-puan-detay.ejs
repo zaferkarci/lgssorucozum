@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soru Puan Detayı — Admin</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.spd-wrap { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.spd-card { background:#fff; border:1px solid #e8edf2; border-radius:12px; padding:16px 20px; margin-bottom:16px; }
+.spd-baslik { font-size:19px; font-weight:600; color:#1a2236; margin:0 0 4px; }
+.spd-alt { font-size:13px; color:#5f6368; margin:0 0 8px; line-height:1.55; }
+.spd-filtre { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:10px; }
+.spd-filtre label { display:flex; flex-direction:column; font-size:11px; color:#666; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
+.spd-filtre select, .spd-filtre input { padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; margin-top:4px; }
+.spd-filtre button { background:#1a73e8; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; }
+.spd-tablo { width:100%; border-collapse:collapse; font-size:11px; }
+.spd-tablo th { background:#f8f9fa; padding:8px 6px; text-align:left; font-weight:600; color:#666; border-bottom:2px solid #e0e0e0; font-size:10px; text-transform:uppercase; letter-spacing:0.3px; position:sticky; top:0; }
+.spd-tablo td { padding:6px 6px; border-bottom:1px solid #f5f5f5; vertical-align:top; }
+.spd-tablo tr:hover td { background:#fafbff; }
+.spd-tablo td.sayisal { text-align:right; font-variant-numeric:tabular-nums; }
+.spd-bilgi { background:#e3f2fd; border:1px solid #90caf9; border-radius:8px; padding:10px 14px; font-size:12px; color:#0d47a1; margin-bottom:14px; line-height:1.55; }
+.spd-formul { background:#f5f5f5; border-radius:6px; padding:8px 12px; font-family:monospace; font-size:11px; color:#37474f; margin-top:6px; }
+.z-rozet { display:inline-block; padding:2px 7px; border-radius:9px; font-size:10px; font-weight:600; min-width:38px; text-align:center; }
+.z-kolay { background:#c8e6c9; color:#1b5e20; }
+.z-orta { background:#ffe0b2; color:#e65100; }
+.z-zor { background:#ffccbc; color:#bf360c; }
+.z-cokZor { background:#ffcdd2; color:#b71c1c; }
+.z-cokKolay { background:#b3e5fc; color:#01579b; }
+.yapiskan { background:#fff3e0; border-left:3px solid #fb8c00; }
+.yapiskan-rozet { font-size:9px; color:#fb8c00; font-weight:700; }
+.soru-ozet { color:#444; max-width:240px; overflow:hidden; text-overflow:ellipsis; display:block; white-space:nowrap; }
+</style>
+</head>
+<body style="background:#f0f2f5; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; margin:0;">
+
+<div class="topbar-admin">
+  <a href="/admin">← Admin Panel</a>
+  <span class="topbar-admin-baslik" style="margin-left:8px;">🔬 Soru Puan Detayı</span>
+</div>
+
+<div class="spd-wrap">
+
+  <div class="spd-card">
+    <h2 class="spd-baslik">Soru Puan Detayı — Her sorunun puan formülü kırılımı</h2>
+    <p class="spd-alt">
+      En az 1 kez çözülmüş tüm soruların cron zorluk katsayısı (Z), ham puanı ve puan formülünün her bileşeni listelenir.
+      Bu sayfa <b>salt-okunur</b> — hiçbir veri değiştirilmez.
+    </p>
+    <div class="spd-formul">
+      kazanilanPuan = round( Z × T_ref × hizBileseni × GE )<br>
+      &nbsp; hizBileseni = log_max × tanh(log_hiz / log_max) &nbsp;&nbsp; (öğrenci ortalama hızdaysa ≈ 0.96)<br>
+      &nbsp; GE = 0.02 + 0.08 × min(σ_sure / T_ref, 1) &nbsp;&nbsp; (gürültü/bonus, 0.02–0.10 arası)
+    </div>
+  </div>
+
+  <div class="spd-bilgi">
+    💡 <b>Sarı arka planlı satırlar:</b> Çözüm sayısı &lt; 50 — Z değeri "yapışkanlık" etkisi altında, gerçek zorluğa tam oturmamış olabilir (cron formülünde 3'e doğru çekilir).<br>
+    📊 <b>Toplam:</b> <%= toplamSoru %> soru çözülmüş · <b>Filtreyle gösterilen:</b> <%= gosterilenSoru %> soru
+  </div>
+
+  <div class="spd-card">
+    <form method="GET" action="/admin/soru-puan-detay" class="spd-filtre">
+      <label>Ders
+        <select name="ders">
+          <option value="">— tümü —</option>
+          <% dersListesi.forEach(function(d) { %>
+            <option value="<%= d %>" <%= fDers === d ? 'selected' : '' %>><%= d %></option>
+          <% }); %>
+        </select>
+      </label>
+      <label>Sınıf
+        <select name="sinif">
+          <option value="">— tümü —</option>
+          <% sinifListesi.forEach(function(s) { %>
+            <option value="<%= s %>" <%= fSinif === s ? 'selected' : '' %>><%= s %></option>
+          <% }); %>
+        </select>
+      </label>
+      <label>Z min
+        <input type="number" name="zMin" value="<%= fZorlukMin %>" min="1" max="5" step="0.1" style="width:70px;">
+      </label>
+      <label>Z max
+        <input type="number" name="zMax" value="<%= fZorlukMax %>" min="1" max="5" step="0.1" style="width:70px;">
+      </label>
+      <button type="submit">Filtrele</button>
+      <% if (fDers || fSinif || fZorlukMin > 0 || fZorlukMax < 5) { %>
+        <a href="/admin/soru-puan-detay" style="font-size:13px; color:#1a73e8; padding:8px;">temizle</a>
+      <% } %>
+    </form>
+
+    <div style="overflow-x:auto;">
+      <table class="spd-tablo">
+        <thead>
+          <tr>
+            <th>Sınıf</th>
+            <th>Ders</th>
+            <th>Ünite / Konu</th>
+            <th>Soru özeti</th>
+            <th title="Cron zorluk katsayısı">Z</th>
+            <th>Etiket</th>
+            <th title="Doğru cevap ortalama puanı">Ham Puan</th>
+            <th title="Toplam çözüm sayısı">N</th>
+            <th title="Doğru cevap sayısı">D</th>
+            <th>Doğru %</th>
+            <th title="Ortalama süre (sn)">T_ref</th>
+            <th title="Sürelerin standart sapması">σ_sure</th>
+            <th title="Ortalama hızdaki öğrenci için hızBileseni">hızBileseni</th>
+            <th title="Gürültü/bonus çarpanı">GE</th>
+            <th title="Ortalama hızdaki bir öğrencinin alacağı puan">Örnek puan</th>
+          </tr>
+        </thead>
+        <tbody>
+        <% if (!tablo.length) { %>
+          <tr><td colspan="15" style="text-align:center; padding:30px; color:#aaa;">Sonuç yok.</td></tr>
+        <% } %>
+        <% tablo.forEach(function(s) {
+            var zKlas = 'z-orta';
+            if (s.etiket === 'Çok Kolay') zKlas = 'z-cokKolay';
+            else if (s.etiket === 'Kolay') zKlas = 'z-kolay';
+            else if (s.etiket === 'Orta') zKlas = 'z-orta';
+            else if (s.etiket === 'Zor') zKlas = 'z-zor';
+            else if (s.etiket === 'Çok Zor') zKlas = 'z-cokZor';
+        %>
+          <tr class="<%= s.yapiskanlik ? 'yapiskan' : '' %>">
+            <td><%= s.sinif %></td>
+            <td><%= s.ders %></td>
+            <td><b><%= s.unite %></b><br><span style="color:#888; font-size:10px;"><%= s.konu %></span></td>
+            <td><span class="soru-ozet"><%= s.soruOzet %>...</span></td>
+            <td class="sayisal"><span class="z-rozet <%= zKlas %>"><%= s.Z.toFixed(1) %></span><% if (s.yapiskanlik) { %><br><span class="yapiskan-rozet">⚠ az veri</span><% } %></td>
+            <td><%= s.etiket %></td>
+            <td class="sayisal"><b><%= s.hamPuan != null ? s.hamPuan : '-' %></b></td>
+            <td class="sayisal"><%= s.cozulme %></td>
+            <td class="sayisal"><%= s.dogru %></td>
+            <td class="sayisal">%<%= s.dogruOrani %></td>
+            <td class="sayisal"><%= s.T_ref %>sn</td>
+            <td class="sayisal"><%= s.sigmaSure %></td>
+            <td class="sayisal"><%= s.hizBileseni %></td>
+            <td class="sayisal"><%= s.GE %></td>
+            <td class="sayisal"><b><%= s.ornekPuan %></b></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="spd-bilgi" style="margin-top:14px;">
+    <b>Tablo nasıl okunur:</b><br>
+    • <b>Z</b> = cron'un hesapladığı zorluk katsayısı (formülde kullanılan değer). 1=kolay, 5=zor.<br>
+    • <b>Ham Puan</b> = sorunun doğru cevap verenlerinin aldığı puanların ortalaması (gerçekleşmiş).<br>
+    • <b>Örnek Puan</b> = ortalama hızdaki (T_ogr = T_ref) bir öğrencinin v4.3.42 formülüyle alacağı puan. Hızlı çözen daha fazla, yavaş daha az alır.<br>
+    • <b>σ_sure büyükse</b> sorunun süresi çeşitli — bazıları hızlı bazıları yavaş çözüyor → GE bonusu artar.<br>
+    • <b>Ham Puan ile Örnek Puan farklıysa</b>: ya eski formülle hesaplanmıştı (v4.3.42 öncesi cevaplar), ya çözen öğrenciler ortalamadan farklı hızda. v4.3.42 cron çalıştıktan sonra Ham Puan ≈ Örnek Puan'a yaklaşır.
+  </div>
+
+</div>
+</body>
+</html>
