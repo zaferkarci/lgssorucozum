@@ -14,6 +14,35 @@
 .math-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;line-height:1.2;}
 .math-frac-ust{border-bottom:1px solid currentColor;padding:0 2px;}
 .math-frac-alt{padding:0 2px;}
+
+/* v4.3.40: takip-ogrenci-detay sayfası mobil uyumu */
+@media (max-width: 760px) {
+  /* Bu sayfanın üst bar nav'ı gizlenmesin (panel.ejs hamburger kuralından muafiyet).
+     Sadece 2 link var, küçültüp gösteriyoruz. */
+  .ptopbar-nav-detay {
+    display: flex !important;
+    position: static !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    flex-direction: row !important;
+    padding: 0 !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+  }
+  .ptopbar-nav-detay .ptopbar-link {
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+    border-radius: 6px !important;
+  }
+  /* "ÖĞRETMEN GÖRÜNÜMÜ" rozetini mobilde gizle (yer dar) */
+  .ptopbar-nav-detay .ptopbar-link:first-child { display: none; }
+  /* Avatar bilgisini mobilde kısalt */
+  .panel-topbar-yeni .ptopbar-kullanici { font-size: 11px; padding: 4px 8px; }
+
+  /* Soru gör modal mobilde kenarlardan az boşluk + iç padding küçülür */
+  #soruGorModal { padding: 8px !important; }
+  #soruGorIcerik { padding: 14px !important; }
+}
 </style>
 <script>
 window.MathJaxReady = false;
@@ -42,7 +71,7 @@ MathJax = {
       👨‍🎓 <%= k.kullaniciAdi %> · <%= k.puan %> puan
     </div>
   </div>
-  <div class="ptopbar-nav">
+  <div class="ptopbar-nav ptopbar-nav-detay">
     <span class="ptopbar-link" style="background:#f3e5f5; color:#6a1b9a; font-weight:600; cursor:default;">👩‍🏫 ÖĞRETMEN GÖRÜNÜMÜ</span>
     <a href="/panel/<%= encodeURIComponent(ogretmenAdi) %>?mod=takip" class="ptopbar-link cikis">← Takip Sayfasına Dön</a>
   </div>
@@ -411,7 +440,7 @@ MathJax = {
 
         // Şıklar
         var gridCols = s.sikDizilimi === 'yatay' ? 'repeat(4,1fr)' : s.sikDizilimi === 'ikili' ? 'repeat(2,1fr)' : '1fr';
-        html += '<div style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
+        html += '<div class="secenekler" style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
         (s.secenekler || []).forEach(function(sik, i) {
           var dogru = i === s.dogruCevapIndex;
           var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;

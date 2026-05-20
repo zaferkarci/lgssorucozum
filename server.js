@@ -1,4 +1,18 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.39 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.40 (Modüler Yapı) ---
+// v4.3.40 değişiklikleri (mobil uyumu — takip-ogrenci-detay):
+//   • Öğrenci istatistik detay sayfası (/takip/ogrenci/:ad) mobil uyumlu.
+//     Bu sayfa veliler için kritik — çocuk istatistiklerine çoğunlukla
+//     telefondan bakılır.
+//   • Üst barda 2 link var ("ÖĞRETMEN GÖRÜNÜMÜ" rozeti + "Takip'e Dön").
+//     Hamburger kuralından muaf (yeni class: ptopbar-nav-detay). Mobilde
+//     rozet gizlenir, "Takip'e Dön" linki küçültülüp kalır.
+//   • Soru detay modalı mobilde kenarlardan az boşluk, iç padding küçük.
+//   • Modal içi şıklar grid'ine secenekler class'ı eklendi — mobilde
+//     v4.3.37 kuralıyla tek kolona iner.
+//   • Yanlış sorular tablosu zaten overflow-x:auto wrapper içindeydi,
+//     dokunulmadı.
+//   • Masaüstü görünümü değişmedi.
+// --- VERSİYON 4.3.39 (Modüler Yapı) ---
 // v4.3.39 değişiklikleri (mobil uyumu — kalan öğrenci sayfaları):
 //   • Şifremi unuttum / şifre yenile sayfaları: sabit 350px genişlikli
 //     auth-card mobilde tam genişliğe iner, padding küçülür (≤420px).
