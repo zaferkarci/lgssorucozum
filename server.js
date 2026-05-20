@@ -1,4 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.48 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.49 (Modüler Yapı) ---
+// v4.3.49 değişiklikleri (MINIMUM_COZUM 50 → 5):
+//   • Soru zorluk katsayısı (Z) hesabındaki örneklem ağırlığı eşiği 50'den
+//     5'e düşürüldü. Az çözümlü sorularda Z artık 3'e yapışmıyor, 5 çözüm
+//     sonrası gerçek zorluğa kayıyor.
+//   • Etki: Küçük kitlede (şu an 7-8 öğrenci) soruların büyük çoğunluğu
+//     N=5'i aştığı için Z değerleri gerçeği yansıtacak. "106 puan" gibi
+//     az veriden kaynaklı uçurumlar azalır.
+//   • Risk: Çok az veride (N=5-15) Z biraz dalgalanır. Stabilite N büyüdükçe
+//     gelir. Mevcut kitle ölçeğinde bu kabullenilen denge.
+//   • Soru Puan Detayı sayfasındaki "yapışkanlık" uyarısı da 5'e güncellendi.
+//   • Değişen yerler: cronJobs.js (Z hesabı), routes/panel.js (kullanılmayan
+//     zorlukGuncelle fonksiyonu — bütünlük için), routes/admin.js (uyarı eşiği).
+// --- VERSİYON 4.3.48 (Modüler Yapı) ---
 // v4.3.48 değişiklikleri (soru puan detayı sayfası):
 //   • Admin > İçerik > 🔬 Soru Puan Detayı sayfası eklendi.
 //   • En az 1 kez çözülmüş tüm soruları listeler. Her sorunun:

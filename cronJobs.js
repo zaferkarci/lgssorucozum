@@ -29,7 +29,7 @@ function sureKademesi(sure) {
 // --- Adım 1: Soru istatistiklerini CevapKaydi'lardan yeniden hesapla ---
 async function soruIstatistikHesapla() {
     const tumSorular = await Soru.find({});
-    const MINIMUM_COZUM = 50;
+    const MINIMUM_COZUM = 5;
 
     for (const s of tumSorular) {
         const kayitlar = await CevapKaydi.find({ soruId: s._id }).lean();

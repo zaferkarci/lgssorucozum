@@ -33,7 +33,7 @@ function sureKademesi(sure) {
 }
 
 async function zorlukGuncelle(soruId) {
-    const MINIMUM_COZUM = 50;
+    const MINIMUM_COZUM = 5;
     const tumSorular = await Soru.find();
     for (const s of tumSorular) {
         let Z_final = 3;

@@ -1034,7 +1034,8 @@ router.get('/admin/soru-puan-detay', async (req, res) => {
                 GE: Math.round(GE * 1000) / 1000,
                 ornekPuan, // ortalama hızdaki öğrenci için hesaplanan örnek puan
                 // 50'den az çözüm varsa Z 3'e doğru çekildi (yapışkanlık)
-                yapiskanlik: s.cozulmeSayisi < 50
+                // v4.3.49: MINIMUM_COZUM=5'e indirildi — yapışkanlık eşiği de 5
+                yapiskanlik: s.cozulmeSayisi < 5
             };
         });
 
