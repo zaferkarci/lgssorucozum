@@ -862,13 +862,16 @@ function stdSapmaSim(dizi) {
 router.get('/admin/puan-simulasyon', async (req, res) => {
     try {
         // v4.3.46: Yetki kontrolü diğer admin route'larıyla aynı — adminKontrol.
-        // (v4.3.45'teki req.session.kullaniciAdi !== 'admin' kontrolü yanlıştı,
-        // admin Basic Auth ile çalışıyor.)
         if (!adminKontrol(req, res)) return;
+        // v4.3.47: Sıralama gerçek sistemle aynı mantıkta hesaplanıyor:
+        //   - Sadece nitelikli (>=10 doğru cevap) öğrenciler sıralanır
+        //   - Sıralama kriteri "ortToplam" — her dersin (toplamPuan/soruSayisi)
+        //     ortalamasının toplamı. Bu, gerçek Türkiye sıralamasıyla eşleşir.
+        const MIN_SORU = 10;
 
-        const tumOgrenciler = await Kullanici.find({ rol: 'ogrenci' }, 'kullaniciAdi puan il').lean();
+        const tumOgrenciler = await Kullanici.find({ rol: 'ogrenci' }, 'kullaniciAdi puan il dersPuanlari').lean();
 
-        const tumSorular = await Soru.find({}, 'ortalamaSure zorlukKatsayisi cozumSureleriTum').lean();
+        const tumSorular = await Soru.find({}, 'ders ortalamaSure zorlukKatsayisi cozumSureleriTum').lean();
         const soruMap = {};
         tumSorular.forEach(s => { soruMap[String(s._id)] = s; });
 
@@ -878,7 +881,10 @@ router.get('/admin/puan-simulasyon', async (req, res) => {
                 { kullaniciAdi: k.kullaniciAdi, dogruMu: true },
                 'soruId sure'
             ).lean();
-            let yeniPuan = 0;
+
+            // YENİ: ders bazlı toplam puan + soru sayısı
+            const yeniDersMap = {};
+            let yeniToplamPuan = 0;
             for (const kayit of kayitlar) {
                 const s = soruMap[String(kayit.soruId)];
                 if (!s) continue;
@@ -891,19 +897,38 @@ router.get('/admin/puan-simulasyon', async (req, res) => {
                 const Z = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
                 const sigmaSure = stdSapmaSim(s.cozumSureleriTum || []);
                 const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
-                yeniPuan += Math.max(Math.round(Z * T_ref * hizBileseni * GE), 1);
+                const puan = Math.max(Math.round(Z * T_ref * hizBileseni * GE), 1);
+                yeniToplamPuan += puan;
+
+                const ders = s.ders || 'Diğer';
+                if (!yeniDersMap[ders]) yeniDersMap[ders] = { toplamPuan: 0, soruSayisi: 0 };
+                yeniDersMap[ders].toplamPuan += puan;
+                yeniDersMap[ders].soruSayisi += 1;
             }
+
+            // ortToplam — gerçek sistemle aynı: ders ortalamalarının toplamı
+            const eskiOrtToplam = (k.dersPuanlari || []).reduce(
+                (acc, d) => acc + (d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0), 0);
+            const yeniOrtToplam = Object.values(yeniDersMap).reduce(
+                (acc, d) => acc + (d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0), 0);
+            const dogruSayisi = kayitlar.length;
+            const nitelikli = dogruSayisi >= MIN_SORU;
+
             sonuclar.push({
                 kullaniciAdi: k.kullaniciAdi,
                 il: k.il || '-',
                 eskiPuan: k.puan || 0,
-                yeniPuan: yeniPuan,
-                dogruCevapSayisi: kayitlar.length
+                yeniPuan: yeniToplamPuan,
+                eskiOrtToplam,
+                yeniOrtToplam,
+                dogruCevapSayisi: dogruSayisi,
+                nitelikli
             });
         }
 
-        const eskiSiralama = [...sonuclar].sort((a, b) => b.eskiPuan - a.eskiPuan);
-        const yeniSiralama = [...sonuclar].sort((a, b) => b.yeniPuan - a.yeniPuan);
+        // Sıralama: sadece NİTELİKLİ olanlar (gerçek sistem mantığı)
+        const eskiSiralama = sonuclar.filter(s => s.nitelikli).sort((a, b) => b.eskiOrtToplam - a.eskiOrtToplam);
+        const yeniSiralama = sonuclar.filter(s => s.nitelikli).sort((a, b) => b.yeniOrtToplam - a.yeniOrtToplam);
         const eskiSiraMap = {};
         const yeniSiraMap = {};
         eskiSiralama.forEach((s, i) => { eskiSiraMap[s.kullaniciAdi] = i + 1; });
@@ -919,15 +944,21 @@ router.get('/admin/puan-simulasyon', async (req, res) => {
         const tablo = goster
             .map(s => ({
                 ...s,
-                eskiSira: eskiSiraMap[s.kullaniciAdi],
-                yeniSira: yeniSiraMap[s.kullaniciAdi]
+                eskiSira: s.nitelikli ? eskiSiraMap[s.kullaniciAdi] : null,
+                yeniSira: s.nitelikli ? yeniSiraMap[s.kullaniciAdi] : null
             }))
-            .sort((a, b) => a.yeniSira - b.yeniSira);
+            .sort((a, b) => {
+                if (a.nitelikli && b.nitelikli) return a.yeniSira - b.yeniSira;
+                if (a.nitelikli) return -1;
+                if (b.nitelikli) return 1;
+                return b.yeniPuan - a.yeniPuan;
+            });
 
         res.render('admin-puan-simulasyon', {
             tablo,
             filtreStr,
             toplamOgrenci: sonuclar.length,
+            nitelikliSayisi: eskiSiralama.length,
             anaSiralamaTepeEskiYeni: { eski: eskiSiralama.slice(0,5), yeni: yeniSiralama.slice(0,5) }
         });
     } catch (err) {

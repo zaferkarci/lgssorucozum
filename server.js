@@ -1,4 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.46 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.47 (Modüler Yapı) ---
+// v4.3.47 değişiklikleri (puan simülasyonu — gerçek sıralama mantığı):
+//   • v4.3.45/46'da simülasyon "tüm öğrencileri" toplam puana göre
+//     sıralıyordu. Bu, gerçek Türkiye sıralamasıyla aynı değildi.
+//   • Düzeltme:
+//     - Sadece nitelikli (≥10 doğru cevap) öğrenciler sıralanır
+//     - Sıralama kriteri "ortToplam" (ders puanlarının ortalamalarının
+//       toplamı) — cron'daki gerçek mantıkla birebir
+//   • Nitelikli olmayanlar tabloda "NİTELİKSİZ" rozeti ile gösterilir,
+//     sıra hücresi boş (—).
+//   • Simülasyon artık ana sayfadaki "Genel sıralama" ile aynı sayıyı
+//     verir.
+// --- VERSİYON 4.3.46 (Modüler Yapı) ---
 // v4.3.46 değişiklikleri (puan simülasyonu yetki düzeltmesi):
 //   • v4.3.45'te /admin/puan-simulasyon route'unun yetki kontrolü yanlıştı
 //     (req.session.kullaniciAdi !== 'admin' kontrolü ile herkesi reddediyordu).

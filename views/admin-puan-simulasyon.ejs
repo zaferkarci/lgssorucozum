@@ -50,7 +50,8 @@
   <div class="bilgi">
     📋 <b>Mevcut canlı versiyon:</b> v4.3.41 — eski formül (anlık dogruOrani Z'si).<br>
     🔮 <b>Simüle edilen versiyon:</b> v4.3.42 — yeni formül (cron Z'si). Z değerleri şu anki cron Z'sinden geliyor.<br>
-    📊 <b>Toplam öğrenci:</b> <%= toplamOgrenci %> kişiyle hesaplandı (Türkiye geneli sıralama).
+    📊 <b>Toplam öğrenci:</b> <%= toplamOgrenci %> kişi / <b>Nitelikli (≥10 doğru):</b> <%= nitelikliSayisi %> kişi.<br>
+    🎯 <b>Sıralama mantığı:</b> Türkiye geneli — sadece nitelikli öğrenciler, ders ortalamalarının toplamına (ortToplam) göre. Bu, gerçek sistemle birebir aynı.
   </div>
 
   <% if (!filtreStr) { %>
@@ -89,18 +90,19 @@
           <tr><td colspan="9" style="text-align:center; padding:30px; color:#aaa;">Sonuç yok.</td></tr>
         <% } %>
         <% tablo.forEach(function(s) {
-          var siraFark = s.eskiSira - s.yeniSira;
+          var siraFark = (s.eskiSira != null && s.yeniSira != null) ? (s.eskiSira - s.yeniSira) : null;
           var puanFark = s.yeniPuan - s.eskiPuan;
           var puanYuzde = s.eskiPuan > 0 ? (puanFark / s.eskiPuan * 100).toFixed(1) : '-';
         %>
           <tr>
-            <td><b><%= s.kullaniciAdi %></b></td>
+            <td><b><%= s.kullaniciAdi %></b><% if (!s.nitelikli) { %> <span style="font-size:10px; background:#fff3e0; color:#e65100; padding:1px 6px; border-radius:8px; font-weight:600;">NİTELİKSİZ</span><% } %></td>
             <td><%= s.il %></td>
             <td><%= s.dogruCevapSayisi %></td>
-            <td><span class="sira-rozet eski">#<%= s.eskiSira %></span></td>
-            <td><span class="sira-rozet yeni">#<%= s.yeniSira %></span></td>
+            <td><% if (s.eskiSira) { %><span class="sira-rozet eski">#<%= s.eskiSira %></span><% } else { %><span class="no-eq">—</span><% } %></td>
+            <td><% if (s.yeniSira) { %><span class="sira-rozet yeni">#<%= s.yeniSira %></span><% } else { %><span class="no-eq">—</span><% } %></td>
             <td>
-              <% if (siraFark > 0) { %><span class="no-up">▲ <%= siraFark %></span>
+              <% if (siraFark === null) { %><span class="no-eq">—</span>
+              <% } else if (siraFark > 0) { %><span class="no-up">▲ <%= siraFark %></span>
               <% } else if (siraFark < 0) { %><span class="no-dn">▼ <%= Math.abs(siraFark) %></span>
               <% } else { %><span class="no-eq">—</span><% } %>
             </td>
