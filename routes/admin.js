@@ -848,4 +848,91 @@ router.post('/yasakli-sil', async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
+// ── v4.3.45: Puanlama simülasyonu ─────────────────────────────────────────
+// v4.3.42'deki puan formülünü (Z = cron Z) gerçek cevap geçmişine uygular
+// ve eski/yeni puanları karşılaştırır. HİÇBİR ŞEY YAZMAZ — sadece okur.
+// Deploy etmeden önce sonuçları görmek için araç.
+function stdSapmaSim(dizi) {
+    if (!dizi || dizi.length < 2) return 0;
+    const ort = dizi.reduce((a, b) => a + b, 0) / dizi.length;
+    const varyans = dizi.reduce((a, b) => a + Math.pow(b - ort, 2), 0) / dizi.length;
+    return Math.sqrt(varyans);
+}
+
+router.get('/admin/puan-simulasyon', async (req, res) => {
+    try {
+        if (req.session.kullaniciAdi !== 'admin') {
+            return res.status(403).send('Bu sayfa yalnızca admin içindir.');
+        }
+
+        const tumOgrenciler = await Kullanici.find({ rol: 'ogrenci' }, 'kullaniciAdi puan il').lean();
+
+        const tumSorular = await Soru.find({}, 'ortalamaSure zorlukKatsayisi cozumSureleriTum').lean();
+        const soruMap = {};
+        tumSorular.forEach(s => { soruMap[String(s._id)] = s; });
+
+        const sonuclar = [];
+        for (const k of tumOgrenciler) {
+            const kayitlar = await CevapKaydi.find(
+                { kullaniciAdi: k.kullaniciAdi, dogruMu: true },
+                'soruId sure'
+            ).lean();
+            let yeniPuan = 0;
+            for (const kayit of kayitlar) {
+                const s = soruMap[String(kayit.soruId)];
+                if (!s) continue;
+                const T_ref = s.ortalamaSure || 60;
+                const T_ogr = kayit.sure || T_ref;
+                const T_min = 10;
+                const logHiz = Math.log2(1 + (T_ref / T_ogr));
+                const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
+                const hizBileseni = logMax * Math.tanh(logHiz / logMax);
+                const Z = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+                const sigmaSure = stdSapmaSim(s.cozumSureleriTum || []);
+                const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
+                yeniPuan += Math.max(Math.round(Z * T_ref * hizBileseni * GE), 1);
+            }
+            sonuclar.push({
+                kullaniciAdi: k.kullaniciAdi,
+                il: k.il || '-',
+                eskiPuan: k.puan || 0,
+                yeniPuan: yeniPuan,
+                dogruCevapSayisi: kayitlar.length
+            });
+        }
+
+        const eskiSiralama = [...sonuclar].sort((a, b) => b.eskiPuan - a.eskiPuan);
+        const yeniSiralama = [...sonuclar].sort((a, b) => b.yeniPuan - a.yeniPuan);
+        const eskiSiraMap = {};
+        const yeniSiraMap = {};
+        eskiSiralama.forEach((s, i) => { eskiSiraMap[s.kullaniciAdi] = i + 1; });
+        yeniSiralama.forEach((s, i) => { yeniSiraMap[s.kullaniciAdi] = i + 1; });
+
+        const filtreStr = (req.query.kullanici || '').trim();
+        let goster = sonuclar;
+        if (filtreStr) {
+            const filtre = filtreStr.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+            goster = sonuclar.filter(s => filtre.includes(s.kullaniciAdi.toLowerCase()));
+        }
+
+        const tablo = goster
+            .map(s => ({
+                ...s,
+                eskiSira: eskiSiraMap[s.kullaniciAdi],
+                yeniSira: yeniSiraMap[s.kullaniciAdi]
+            }))
+            .sort((a, b) => a.yeniSira - b.yeniSira);
+
+        res.render('admin-puan-simulasyon', {
+            tablo,
+            filtreStr,
+            toplamOgrenci: sonuclar.length,
+            anaSiralamaTepeEskiYeni: { eski: eskiSiralama.slice(0,5), yeni: yeniSiralama.slice(0,5) }
+        });
+    } catch (err) {
+        console.error('[puan-simulasyon] hata:', err);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 module.exports = router;

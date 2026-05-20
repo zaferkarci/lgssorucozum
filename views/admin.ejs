@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <% } %>
     </a>
   <% } else if (aktifGrup === 'sistem') { %>
+    <a href="/admin/puan-simulasyon" class="admin-alt-link <%= mod==='puanSimulasyon'?'active':'' %>">📊 Puan Simülasyonu</a>
     <a href="/admin?mod=sifirla" class="admin-alt-link danger <%= mod==='sifirla'?'active':'' %>">🗑️ Sıfırla</a>
   <% } %>
 </div>

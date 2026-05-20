@@ -1,4 +1,14 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.41 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.45 (Modüler Yapı) ---
+// v4.3.45 — v4.3.41 üstüne sadece "Puan Simülasyonu" eklendi.
+//   • Admin > Sistem > 📊 Puan Simülasyonu sayfası eklendi.
+//   • v4.3.42'deki yeni puan formülünü (Z = cron Z) tüm öğrencilerin
+//     cevap geçmişine uygular, mevcut puanlarıyla kıyaslar.
+//   • SADECE OKUR — hiçbir veri değiştirilmez. CevapKaydi / Kullanici /
+//     Soru hiçbiri yazılmaz, salt simülasyon.
+//   • URL ile filtre: /admin/puan-simulasyon?kullanici=berat,enesaydin27
+//   • Bu versiyon v4.3.42'nin puanlama değişikliklerini İÇERMEZ — sadece
+//     simülasyon aracı. Karar verdikten sonra v4.3.42 ayrı deploy edilir.
+// --- VERSİYON 4.3.41 (Modüler Yapı) ---
 // v4.3.41 değişiklikleri (mobil uyumu — admin paneli):
 //   • Admin üst barı mobilde dikey: logo → ana nav (yatay kaydırılabilir)
 //     → sağdaki blok (Hesapla / Merhaba / Çıkış) alta düşer, küçülür.

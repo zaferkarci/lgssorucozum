@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puanlama Simülasyonu — v4.3.42</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.sim-wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.sim-card { background:#fff; border:1px solid #e8edf2; border-radius:12px; padding:18px 22px; margin-bottom:18px; }
+.sim-baslik { font-size:20px; font-weight:600; color:#1a2236; margin:0 0 4px; }
+.sim-alt { font-size:13px; color:#5f6368; margin:0; line-height:1.6; }
+.uyari { background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 14px; font-size:13px; color:#795548; margin-bottom:16px; }
+.bilgi { background:#e3f2fd; border:1px solid #90caf9; border-radius:8px; padding:10px 14px; font-size:13px; color:#0d47a1; margin-bottom:16px; line-height:1.55; }
+.form-satir { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+.form-satir input[type=text] { flex:1; min-width:240px; padding:8px 12px; border:1px solid #ddd; border-radius:7px; font-size:14px; }
+.form-satir button { background:#1a73e8; color:white; border:none; padding:8px 16px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; }
+.sim-tablo { width:100%; border-collapse:collapse; font-size:13px; }
+.sim-tablo th { background:#f8f9fa; padding:10px 12px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; }
+.sim-tablo td { padding:9px 12px; border-bottom:1px solid #f5f5f5; }
+.sim-tablo tr:hover td { background:#fafbff; }
+.no-up { color:#2e7d32; font-weight:600; }
+.no-dn { color:#c62828; font-weight:600; }
+.no-eq { color:#888; }
+.puan-yuk { color:#2e7d32; }
+.puan-dus { color:#c62828; }
+.sira-rozet { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.sira-rozet.eski { background:#eceff1; color:#455a64; }
+.sira-rozet.yeni { background:#e8f5e9; color:#2e7d32; }
+</style>
+</head>
+<body style="background:#f0f2f5; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; margin:0;">
+
+<div class="topbar-admin">
+  <a href="/admin">← Admin Panel</a>
+  <span class="topbar-admin-baslik" style="margin-left:8px;">📊 Puanlama Simülasyonu</span>
+</div>
+
+<div class="sim-wrap">
+
+  <div class="sim-card">
+    <h2 class="sim-baslik">v4.3.42 Puanlama Simülasyonu</h2>
+    <p class="sim-alt">
+      Bu sayfa <b>v4.3.42'deki yeni puan formülünü</b> (Z = sorunun cron Z'si) tüm öğrencilerin
+      cevap geçmişine uygular ve <b>mevcut puanlarıyla (eski formül)</b> kıyaslar.
+      <b>Hiçbir veri değiştirilmez</b> — sadece hesaplama yapılıp tablo gösterilir.
+    </p>
+  </div>
+
+  <div class="bilgi">
+    📋 <b>Mevcut canlı versiyon:</b> v4.3.41 — eski formül (anlık dogruOrani Z'si).<br>
+    🔮 <b>Simüle edilen versiyon:</b> v4.3.42 — yeni formül (cron Z'si). Z değerleri şu anki cron Z'sinden geliyor.<br>
+    📊 <b>Toplam öğrenci:</b> <%= toplamOgrenci %> kişiyle hesaplandı (Türkiye geneli sıralama).
+  </div>
+
+  <% if (!filtreStr) { %>
+  <div class="uyari">
+    💡 Belirli kullanıcılar için URL'ye <code>?kullanici=ad1,ad2,ad3</code> ekleyebilirsin.
+    Örn: <code>/admin/puan-simulasyon?kullanici=berat,enesaydin27,zeynepduru.onal</code>
+  </div>
+  <% } %>
+
+  <div class="sim-card">
+    <form method="GET" action="/admin/puan-simulasyon" class="form-satir">
+      <input type="text" name="kullanici" value="<%= filtreStr %>" placeholder="kullanıcı adı (virgülle ayır): berat,enesaydin27,zeynepduru.onal">
+      <button type="submit">Filtrele</button>
+      <% if (filtreStr) { %>
+        <a href="/admin/puan-simulasyon" style="font-size:13px; color:#1a73e8;">tümünü göster</a>
+      <% } %>
+    </form>
+
+    <div style="overflow-x:auto;">
+      <table class="sim-tablo">
+        <thead>
+          <tr>
+            <th>Kullanıcı</th>
+            <th>İl</th>
+            <th>Doğru</th>
+            <th>Eski Sıra<br>(v4.3.41)</th>
+            <th>Yeni Sıra<br>(v4.3.42)</th>
+            <th>Sıra Δ</th>
+            <th>Eski Puan</th>
+            <th>Yeni Puan</th>
+            <th>Puan Δ</th>
+          </tr>
+        </thead>
+        <tbody>
+        <% if (!tablo.length) { %>
+          <tr><td colspan="9" style="text-align:center; padding:30px; color:#aaa;">Sonuç yok.</td></tr>
+        <% } %>
+        <% tablo.forEach(function(s) {
+          var siraFark = s.eskiSira - s.yeniSira;
+          var puanFark = s.yeniPuan - s.eskiPuan;
+          var puanYuzde = s.eskiPuan > 0 ? (puanFark / s.eskiPuan * 100).toFixed(1) : '-';
+        %>
+          <tr>
+            <td><b><%= s.kullaniciAdi %></b></td>
+            <td><%= s.il %></td>
+            <td><%= s.dogruCevapSayisi %></td>
+            <td><span class="sira-rozet eski">#<%= s.eskiSira %></span></td>
+            <td><span class="sira-rozet yeni">#<%= s.yeniSira %></span></td>
+            <td>
+              <% if (siraFark > 0) { %><span class="no-up">▲ <%= siraFark %></span>
+              <% } else if (siraFark < 0) { %><span class="no-dn">▼ <%= Math.abs(siraFark) %></span>
+              <% } else { %><span class="no-eq">—</span><% } %>
+            </td>
+            <td><%= s.eskiPuan.toLocaleString('tr-TR') %></td>
+            <td><b><%= s.yeniPuan.toLocaleString('tr-TR') %></b></td>
+            <td>
+              <% if (puanFark > 0) { %><span class="puan-yuk">+<%= puanFark.toLocaleString('tr-TR') %> (+<%= puanYuzde %>%)</span>
+              <% } else if (puanFark < 0) { %><span class="puan-dus"><%= puanFark.toLocaleString('tr-TR') %> (<%= puanYuzde %>%)</span>
+              <% } else { %><span class="no-eq">0</span><% } %>
+            </td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <% if (!filtreStr && anaSiralamaTepeEskiYeni && anaSiralamaTepeEskiYeni.eski.length) { %>
+  <div class="sim-card">
+    <h3 style="font-size:15px; margin:0 0 12px; color:#1a2236;">İlk 5 — Karşılaştırma</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;" class="mobil-tekkolon">
+      <div>
+        <div style="font-size:11px; color:#888; font-weight:600; text-transform:uppercase; margin-bottom:6px;">Eski (v4.3.41)</div>
+        <ol style="margin:0; padding-left:20px; font-size:13px;">
+          <% anaSiralamaTepeEskiYeni.eski.forEach(function(s) { %>
+            <li style="margin:3px 0;"><b><%= s.kullaniciAdi %></b> — <%= s.eskiPuan.toLocaleString('tr-TR') %></li>
+          <% }); %>
+        </ol>
+      </div>
+      <div>
+        <div style="font-size:11px; color:#2e7d32; font-weight:600; text-transform:uppercase; margin-bottom:6px;">Yeni (v4.3.42)</div>
+        <ol style="margin:0; padding-left:20px; font-size:13px;">
+          <% anaSiralamaTepeEskiYeni.yeni.forEach(function(s) { %>
+            <li style="margin:3px 0;"><b><%= s.kullaniciAdi %></b> — <%= s.yeniPuan.toLocaleString('tr-TR') %></li>
+          <% }); %>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+</div>
+</body>
+</html>
