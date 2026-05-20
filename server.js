@@ -1,4 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.45 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.46 (Modüler Yapı) ---
+// v4.3.46 değişiklikleri (puan simülasyonu yetki düzeltmesi):
+//   • v4.3.45'te /admin/puan-simulasyon route'unun yetki kontrolü yanlıştı
+//     (req.session.kullaniciAdi !== 'admin' kontrolü ile herkesi reddediyordu).
+//     Admin paneli Basic Auth kullanıyor — diğer admin route'larıyla aynı
+//     adminKontrol(req, res) çağrısı yapıldı.
+// --- VERSİYON 4.3.45 (Modüler Yapı) ---
 // v4.3.45 — v4.3.41 üstüne sadece "Puan Simülasyonu" eklendi.
 //   • Admin > Sistem > 📊 Puan Simülasyonu sayfası eklendi.
 //   • v4.3.42'deki yeni puan formülünü (Z = cron Z) tüm öğrencilerin

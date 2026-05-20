@@ -861,9 +861,10 @@ function stdSapmaSim(dizi) {
 
 router.get('/admin/puan-simulasyon', async (req, res) => {
     try {
-        if (req.session.kullaniciAdi !== 'admin') {
-            return res.status(403).send('Bu sayfa yalnızca admin içindir.');
-        }
+        // v4.3.46: Yetki kontrolü diğer admin route'larıyla aynı — adminKontrol.
+        // (v4.3.45'teki req.session.kullaniciAdi !== 'admin' kontrolü yanlıştı,
+        // admin Basic Auth ile çalışıyor.)
+        if (!adminKontrol(req, res)) return;
 
         const tumOgrenciler = await Kullanici.find({ rol: 'ogrenci' }, 'kullaniciAdi puan il').lean();
 
