@@ -1067,19 +1067,18 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
             let kazanilanPuan = 0;
 
             if (dogruMu) {
-                const eskiCozulmeSayisi = s.cozulmeSayisi || 0;
-                const eskiDogruSayisi = s.dogruSayisi || 0;
+                // v4.3.50: Anlık puanda Z artık sorunun mevcut cron Z'sinden
+                // gelir (s.zorlukKatsayisi). Dünkü cron'un belirlediği Z bugün
+                // anlık puanda da kullanılır. Yarın 05:10'da Z yenilenince
+                // bütün doğru cevaplar tekrar hesaplanır (kullaniciPuanHesapla).
+                // Böylece ilk-son çözen ayrımı kalkar, tek fark süre.
                 const eskiSureleri = [...(s.cozumSureleriTum || [])];
                 const T_ref = s.ortalamaSure || 60;
                 const T_min = 10;
                 const logHiz = Math.log2(1 + (T_ref / T_ogr));
                 const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
                 const hizBileseni = logMax * Math.tanh(logHiz / logMax);
-                const dogruOrani = eskiCozulmeSayisi > 0 ? eskiDogruSayisi / eskiCozulmeSayisi : 0.5;
-                const sigmaBasari = eskiCozulmeSayisi > 1
-                    ? stdSapma(Array(eskiDogruSayisi).fill(1).concat(Array(eskiCozulmeSayisi - eskiDogruSayisi).fill(0)))
-                    : 0;
-                const Z_katsayi = Math.min(1 + 4 * (1 - dogruOrani) * (1 + sigmaBasari), 5);
+                const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
                 const sigmaSure = stdSapma(eskiSureleri);
                 const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
                 const kazanilanPuanHesap = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);
@@ -1088,7 +1087,7 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
 
                 // Sorunun ham puan ortalamasını güncelle
                 const oncekiHP = s.hamPuan;
-                const oncekiDogru = eskiDogruSayisi;
+                const oncekiDogru = s.dogruSayisi || 0;
                 if (oncekiHP === null || oncekiHP === undefined || oncekiDogru === 0) {
                     s.hamPuan = kazanilanPuan;
                 } else {

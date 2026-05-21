@@ -102,18 +102,18 @@ async function kullaniciPuanHesapla() {
             dersMap[dersAdi].toplamSure += kayit.sure || 0;
 
             if (kayit.dogruMu) {
-                // Puanı YENİ zorluk/süre/istatistiklerle yeniden hesapla
+                // v4.3.50: Puan hesabında Z artık sorunun cron Z'sinden gelir
+                // (s.zorlukKatsayisi). Tüm öğrenciler aynı soruda aynı Z alır,
+                // tek fark süre bileşeni. İlk-son çözen ayrımı kalkar.
+                // Cron her gün Z'yi yeniden hesapladığı için puanlar da o
+                // güncel Z'ye göre yeniden çıkar.
                 const T_ref = s.ortalamaSure || 60;
                 const T_ogr = kayit.sure || T_ref;
                 const T_min = 10;
                 const logHiz = Math.log2(1 + (T_ref / T_ogr));
                 const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
                 const hizBileseni = logMax * Math.tanh(logHiz / logMax);
-                const dogruOrani = s.cozulmeSayisi > 0 ? s.dogruSayisi / s.cozulmeSayisi : 0.5;
-                const sigmaBasari = s.cozulmeSayisi > 1
-                    ? stdSapma(Array(s.dogruSayisi).fill(1).concat(Array(s.cozulmeSayisi - s.dogruSayisi).fill(0)))
-                    : 0;
-                const Z_katsayi = Math.min(1 + 4 * (1 - dogruOrani) * (1 + sigmaBasari), 5);
+                const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
                 const sigmaSure = stdSapma(s.cozumSureleriTum || []);
                 const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
                 const kazanilanPuan = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);

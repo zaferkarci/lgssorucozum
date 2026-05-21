@@ -1,4 +1,19 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.49 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.50 (Modüler Yapı) ---
+// v4.3.50 değişiklikleri (dinamik puanlama: Z = cron Z):
+//   • Puan formülündeki Z artık sorunun cron Z'sinden (s.zorlukKatsayisi)
+//     gelir — hem anlık /cevap'ta hem cron'da. Eski "1 + 4×(1-dogruOrani)
+//     ×(1+sigmaBasari)" formülü kaldırıldı.
+//   • Sonuç: aynı soruda tüm öğrenciler aynı Z alır, tek fark süre
+//     bileşeni (log fonksiyonu korundu). İlk-son çözen ayrımı kalktı.
+//   • Cron her gün Z'yi yeniden hesaplıyor, kullaniciPuanHesapla zaten
+//     tüm doğru cevapları o güncel Z ile yeniden topluyor — yani puanlar
+//     her gece güncellenir.
+//   • Sıralamada görünür değişim olabileceği için profil "Genel sıralama"
+//     kartına bilgi notu eklendi.
+//   • v4.3.49'a kadar olan tüm iyileştirmeler korundu: davet linkleri
+//     sıralama, admin referans sıralama, puan simülasyonu sayfası, soru
+//     puan detayı sayfası, MINIMUM_COZUM=5.
+// --- VERSİYON 4.3.49 (Modüler Yapı) ---
 // v4.3.49 değişiklikleri (MINIMUM_COZUM 50 → 5):
 //   • Soru zorluk katsayısı (Z) hesabındaki örneklem ağırlığı eşiği 50'den
 //     5'e düşürüldü. Az çözümlü sorularda Z artık 3'e yapışmıyor, 5 çözüm
