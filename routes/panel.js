@@ -524,7 +524,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         } catch (e) { console.warn('[panel] Otomatik kod üretimi başarısız:', e.message); }
     }
 
-    const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ kopyalandi: 1, olusturmaTarih: 1 }).lean();
+    // v4.3.51: Davet linkleri sıralama — son oluşturulanlar en üstte,
+    // kopyalananlar (kullanılmamış ama kopyalanmış) en altta.
+    // Kopyalanmamış taze linkler üstte, içinde yeniden eskiye doğru dizilir.
+    const kullanicininKodlari = await ReferansKodu.find({ olusturan: k.kullaniciAdi }).sort({ kopyalandi: 1, olusturmaTarih: -1 }).lean();
     const baseUrl = (process.env.SITE_URL || 'https://' + req.get('host')).replace(/\/$/, '');
 
     // Yeni soru bildirimi

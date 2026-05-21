@@ -1913,13 +1913,26 @@ function gosterExcelHata(msg) {
   <%
     var baseUrlAdmin = (process.env.SITE_URL || 'https://lgssorucozum-4.onrender.com').replace(/\/$/, '');
     var bekleyenler = tumReferanslar.filter(function(r){ return !r.kullanildi; });
+    // v4.3.52: 4 kademeli sıralama
+    //   1) admin + kopyalanmamış   (yeni → eski)
+    //   2) kullanıcı + kopyalanmamış
+    //   3) admin + kopyalanmış
+    //   4) kullanıcı + kopyalanmış
     bekleyenler.sort(function(a, b) {
-      var ak = a.kopyalandi ? 1 : 0;
-      var bk = b.kopyalandi ? 1 : 0;
-      if (ak !== bk) return ak - bk; // önce kopyalanmamışlar
-      return new Date(a.olusturmaTarih) - new Date(b.olusturmaTarih);
+      var aKademe = (a.olusturan === 'admin' ? 0 : 1) + (a.kopyalandi ? 2 : 0);
+      var bKademe = (b.olusturan === 'admin' ? 0 : 1) + (b.kopyalandi ? 2 : 0);
+      if (aKademe !== bKademe) return aKademe - bKademe;
+      // Kademe aynıysa yeni → eski (azalan tarih)
+      return new Date(b.olusturmaTarih) - new Date(a.olusturmaTarih);
     });
     var kullanilanlar = tumReferanslar.filter(function(r){ return r.kullanildi; });
+    // Kullanılanlar: admin önce, içlerinde yeni → eski
+    kullanilanlar.sort(function(a, b) {
+      var aA = a.olusturan === 'admin' ? 0 : 1;
+      var bA = b.olusturan === 'admin' ? 0 : 1;
+      if (aA !== bA) return aA - bA;
+      return new Date(b.olusturmaTarih) - new Date(a.olusturmaTarih);
+    });
   %>
 
   <div class="admin-card">

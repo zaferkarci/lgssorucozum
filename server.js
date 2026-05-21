@@ -1,4 +1,21 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.50 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.52 (Modüler Yapı) ---
+// v4.3.52 değişiklikleri (admin referans 4 kademeli sıralama):
+//   • Admin > Referans menüsünde Bekleyenler bölümü 4 kademede sıralanır:
+//     1) admin + kopyalanmamış (en üstte, yeni → eski)
+//     2) kullanıcı + kopyalanmamış (yeni → eski)
+//     3) admin + kopyalanmış
+//     4) kullanıcı + kopyalanmış (en altta)
+//   • Kullanılanlar bölümü: admin önce, içlerinde yeni → eski.
+//   • Tek dosya: views/admin.ejs içindeki sort fonksiyonu.
+// --- VERSİYON 4.3.51 (Modüler Yapı) ---
+// v4.3.51 değişiklikleri (davet linkleri sıralama — geç düzeltme):
+//   • v4.3.43 ve v4.3.44 değişiklikleri sandbox sıfırlanması sonrası
+//     yeniden inşa edilirken atlanmıştı. Bu versiyonda toparlandı:
+//     - PROFİL davet linkleri: son üretilen üstte (kopyalanmamışlar üstte,
+//       içinde yeni → eski).
+//     - ADMIN referans listesi: bekleyenler ve kullanılanlar yeni → eski.
+//   • Tek değişiklik: sort 'olusturmaTarih' yönü tersine çevrildi.
+// --- VERSİYON 4.3.50 (Modüler Yapı) ---
 // v4.3.50 değişiklikleri (dinamik puanlama: Z = cron Z):
 //   • Puan formülündeki Z artık sorunun cron Z'sinden (s.zorlukKatsayisi)
 //     gelir — hem anlık /cevap'ta hem cron'da. Eski "1 + 4×(1-dogruOrani)
