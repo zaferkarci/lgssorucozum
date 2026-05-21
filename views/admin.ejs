@@ -2472,7 +2472,10 @@ function gosterExcelHata(msg) {
     var modal = document.getElementById('soruOnizlemeModal');
     icerik.innerHTML = 'Yükleniyor...';
     modal.style.display = 'flex';
-    fetch('/api/soru/' + id, { headers: { 'Authorization': 'Basic <%- adminToken %>' } })
+    // v4.3.53: Authorization header kaldırıldı, session kimliği yeterli.
+    // adminToken fallback'i ADMIN_PASSWORD env değişkeni production'da
+    // farklıysa yanlış token üretiyordu — fetch 401 alıyordu.
+    fetch('/api/soru/' + id, { credentials: 'same-origin' })
       .then(function(r){ return r.json(); })
       .then(function(s){
         var harfler = ['A','B','C','D'];

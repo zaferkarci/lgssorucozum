@@ -1,4 +1,29 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.52 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.54 (Modüler Yapı) ---
+// v4.3.54 değişiklikleri (sıralamalar sınıf seviyesine göre filtreli):
+//   • Türkiye, İl, İlçe, Okul, Sınıf-Şube sıralamalarının tamamı artık
+//     SADECE AYNI SINIF SEVİYESİNDEKİ öğrenciler arasında yapılıyor.
+//   • Örnek: Sude (6. sınıf) için Türkiye sıralaması = Türkiye'deki 6.
+//     sınıf öğrencileri arasında. 7. ve 8. sınıflarla aynı listede değil.
+//   • Hem genel sıralama hem ders sıralamaları aynı mantıkta.
+//   • cronJobs.js içinde turkiyeListesi ve dersTurkiyeListeleri tek liste
+//     yerine sınıf seviyesi bazlı sözlüklere dönüştürüldü
+//     (turkiyeListeleriPerSinif). ayniIl/ayniIlce/ayniOkul filtrelerine
+//     'Number(x.u.sinif) === uSinif' eklendi.
+//   • Etki: ertesi sabah 05:10'da cron çalışınca tüm öğrencilerin
+//     sıralamaları yeniden hesaplanır.
+// --- VERSİYON 4.3.53 (Modüler Yapı) ---
+// v4.3.53 değişiklikleri (admin soru önizleme bug fix):
+//   • Admin > Zorluk Raporu / Soru Listesi / vb. sayfalardaki "ÖNİZLE"
+//     butonu çalışmıyordu. Sebep: fetch çağrısı 'Authorization: Basic
+//     <%- adminToken %>' header'ı gönderiyor; adminToken process.env.
+//     ADMIN_PASSWORD'a fallback ediyor; production'da gerçek şifre
+//     farklıysa yanlış token üretiyor → 401 dönüyor.
+//   • Düzeltme: Authorization header tamamen kaldırıldı. /api/soru/:id
+//     endpoint'i zaten session kimliğini (req.session.adminGirisli) kabul
+//     ediyor — Basic Auth header'a gerek yok.
+//   • credentials: 'same-origin' eklendi (session cookie'sinin gönderildiğinden
+//     emin olmak için).
+// --- VERSİYON 4.3.52 (Modüler Yapı) ---
 // v4.3.52 değişiklikleri (admin referans 4 kademeli sıralama):
 //   • Admin > Referans menüsünde Bekleyenler bölümü 4 kademede sıralanır:
 //     1) admin + kopyalanmamış (en üstte, yeni → eski)

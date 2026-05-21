@@ -191,22 +191,45 @@ async function siralamaCacheHesapla() {
         }
     }
 
-    // Genel sıralama listesi — sadece nitelikli (>=10 soru) olanlar
-    const turkiyeListesi = uMap.filter(x => x.nitelikli).sort((a, b) => b.ortTop - a.ortTop);
-    const dersTurkiyeListeleri = {};
+    // v4.3.54: Tüm sıralamalar SINIF SEVİYESİNE göre filtreli.
+    // 8. sınıf öğrencisi 6. sınıflarla aynı listede sıralanmaz.
+    // turkiyeListesi sınıf bazlı — her sınıf için ayrı liste.
+    const turkiyeListeleriPerSinif = {}; // { '6': [...], '7': [...], '8': [...] }
+    uMap.forEach(x => {
+        const s = String(Number(x.u.sinif) || '');
+        if (!turkiyeListeleriPerSinif[s]) turkiyeListeleriPerSinif[s] = [];
+        if (x.nitelikli) turkiyeListeleriPerSinif[s].push(x);
+    });
+    Object.keys(turkiyeListeleriPerSinif).forEach(s => {
+        turkiyeListeleriPerSinif[s].sort((a, b) => b.ortTop - a.ortTop);
+    });
+
+    const dersTurkiyeListeleriPerSinif = {}; // { dersAdi: { '6': [...], '7': [...] } }
     for (const dersAdi of tumDersler) {
-        // Ders sıralaması — o dersten >=10 soru çözmüş olanlar
-        dersTurkiyeListeleri[dersAdi] = uMap.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU)
-                                           .sort((a, b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+        dersTurkiyeListeleriPerSinif[dersAdi] = {};
+        uMap.forEach(x => {
+            const s = String(Number(x.u.sinif) || '');
+            if (!dersTurkiyeListeleriPerSinif[dersAdi][s]) dersTurkiyeListeleriPerSinif[dersAdi][s] = [];
+            if (x.dersSoruSayisi[dersAdi] >= MIN_SORU) {
+                dersTurkiyeListeleriPerSinif[dersAdi][s].push(x);
+            }
+        });
+        Object.keys(dersTurkiyeListeleriPerSinif[dersAdi]).forEach(s => {
+            dersTurkiyeListeleriPerSinif[dersAdi][s].sort((a, b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+        });
     }
 
     // Her kullanıcıya kendi sırasını yaz
     for (const obj of uMap) {
         const u = obj.u;
-        const ayniIl    = uMap.filter(x => x.u.il   === u.il);
-        const ayniIlce  = uMap.filter(x => x.u.ilce === u.ilce);
-        const ayniOkul  = uMap.filter(x => x.u.okul === u.okul);
-        const ayniSinif = uMap.filter(x => x.u.okul === u.okul && Number(x.u.sinif) === Number(u.sinif) && (u.sube ? x.u.sube === u.sube : true));
+        const uSinif = Number(u.sinif);
+        // v4.3.54: Tüm "ayni" filtreleri sınıf seviyesini de içeriyor
+        const ayniIl    = uMap.filter(x => x.u.il   === u.il   && Number(x.u.sinif) === uSinif);
+        const ayniIlce  = uMap.filter(x => x.u.ilce === u.ilce && Number(x.u.sinif) === uSinif);
+        const ayniOkul  = uMap.filter(x => x.u.okul === u.okul && Number(x.u.sinif) === uSinif);
+        const ayniSinif = uMap.filter(x => x.u.okul === u.okul && Number(x.u.sinif) === uSinif && (u.sube ? x.u.sube === u.sube : true));
+
+        const turkiyeListesiSinif = turkiyeListeleriPerSinif[String(uSinif)] || [];
 
         // Genel sıralama listeleri (nitelikli filtreli)
         const ilNitelikli    = ayniIl.filter(x => x.nitelikli);
@@ -215,12 +238,12 @@ async function siralamaCacheHesapla() {
         const sinifNitelikli = ayniSinif.filter(x => x.nitelikli);
 
         const genel = {
-            turkiye: obj.nitelikli ? turkiyeListesi.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            turkiye: obj.nitelikli ? turkiyeListesiSinif.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             il:      obj.nitelikli ? [...ilNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             ilce:    obj.nitelikli ? [...ilceNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             okul:    obj.nitelikli ? [...okulNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             sinif:   obj.nitelikli ? [...sinifNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-            toplamKullanici: turkiyeListesi.length,
+            toplamKullanici: turkiyeListesiSinif.length,
             ilKullanici:     ilNitelikli.length,
             ilceKullanici:   ilceNitelikli.length,
             okulKullanici:   okulNitelikli.length,
@@ -233,7 +256,7 @@ async function siralamaCacheHesapla() {
         const dersSiralamalari = {};
         for (const dersAdi of tumDersler) {
             const kDersNitelikli = obj.dersSoruSayisi[dersAdi] >= MIN_SORU;
-            const dersList     = dersTurkiyeListeleri[dersAdi];
+            const dersList     = dersTurkiyeListeleriPerSinif[dersAdi][String(uSinif)] || [];
             const dersIlList    = ayniIl.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
             const dersIlceList  = ayniIlce.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
             const dersOkulList  = ayniOkul.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
