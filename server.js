@@ -1,12 +1,24 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.55 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.56 (Modüler Yapı) ---
+// v4.3.56 değişiklikleri (admin soru önizleme — GERÇEK SEBEP BULUNDU):
+//   • Asıl bug: soruOnizle() fonksiyonu ve önizleme modal'ı (HTML) mod
+//     === 'soruListesi' bloğunun İÇİNDE tanımlıydı. Sorular sekmesinde
+//     çalışıyordu ama Zorluk Raporu (mod === 'zorlukRapor') vb. başka
+//     mod sayfalarında 'soruOnizle is not defined' hatası sessizce
+//     başarısız oluyordu.
+//   • Düzeltme: Modal HTML + soruOnizle + adminMathRender fonksiyonları
+//     mod kontrolünden BAĞIMSIZ konuma taşındı (mod bloğu kapatıldıktan
+//     SONRA, ana <script> bloklarının arasında). Artık hangi mod açıksa
+//     açık olsun ÖNİZLE her sayfada çalışır.
+//   • TEST: EJS render simülasyonu ile 4 farklı modda (zorlukRapor,
+//     soruListesi, referans, haberler) hem function hem modal'ın
+//     bulunduğu doğrulandı.
+//   • v4.3.53/55'teki Authorization header kaldırma ve status check
+//     iyileştirmeleri korundu — onlar da yerinde değişikliklerdi, ama
+//     asıl sorun fonksiyonun bulunmamasıydı.
+// --- VERSİYON 4.3.55 (Modüler Yapı) ---
 // v4.3.55 değişiklikleri (soru önizleme hata teşhisi):
-//   • Soru ÖNİZLE butonu hâlâ çalışmıyor — sebebi bulmak için fetch'e
-//     response status kontrolü eklendi. r.ok false ise (401/403/404/500),
-//     response body'sini açıklayıcı bir hata mesajı olarak gösteriyor.
-//   • Modal'da "HTTP 401 — Giriş gerekli!" gibi net mesaj çıkacak,
-//     gerçek sebep belli olacak.
-//   • Tek değişiklik: views/admin.ejs içindeki soruOnizle fonksiyonu.
-//   • Sebep bulununca v4.3.56'da kalıcı düzeltme yapılacak.
+//   • Fetch'e response status kontrolü eklendi. r.ok false ise (401/
+//     403/404/500), modal'da açıklayıcı hata mesajı çıkıyor.
 // --- VERSİYON 4.3.54 (Modüler Yapı) ---
 // v4.3.54 değişiklikleri (sıralamalar sınıf seviyesine göre filtreli):
 //   • Türkiye, İl, İlçe, Okul, Sınıf-Şube sıralamalarının tamamı artık
