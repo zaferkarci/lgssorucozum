@@ -2472,11 +2472,17 @@ function gosterExcelHata(msg) {
     var modal = document.getElementById('soruOnizlemeModal');
     icerik.innerHTML = 'Yükleniyor...';
     modal.style.display = 'flex';
-    // v4.3.53: Authorization header kaldırıldı, session kimliği yeterli.
-    // adminToken fallback'i ADMIN_PASSWORD env değişkeni production'da
-    // farklıysa yanlış token üretiyordu — fetch 401 alıyordu.
+    // v4.3.55: Response status kontrolü eklendi — sessiz hata yerine açıklayıcı mesaj.
     fetch('/api/soru/' + id, { credentials: 'same-origin' })
-      .then(function(r){ return r.json(); })
+      .then(function(r){
+        if (!r.ok) {
+          // HTML body olabilir, text al
+          return r.text().then(function(txt){
+            throw new Error('HTTP ' + r.status + ' — ' + (txt.length > 200 ? txt.substring(0,200) + '...' : txt));
+          });
+        }
+        return r.json();
+      })
       .then(function(s){
         var harfler = ['A','B','C','D'];
         var html = '';

@@ -1,4 +1,13 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.54 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.55 (Modüler Yapı) ---
+// v4.3.55 değişiklikleri (soru önizleme hata teşhisi):
+//   • Soru ÖNİZLE butonu hâlâ çalışmıyor — sebebi bulmak için fetch'e
+//     response status kontrolü eklendi. r.ok false ise (401/403/404/500),
+//     response body'sini açıklayıcı bir hata mesajı olarak gösteriyor.
+//   • Modal'da "HTTP 401 — Giriş gerekli!" gibi net mesaj çıkacak,
+//     gerçek sebep belli olacak.
+//   • Tek değişiklik: views/admin.ejs içindeki soruOnizle fonksiyonu.
+//   • Sebep bulununca v4.3.56'da kalıcı düzeltme yapılacak.
+// --- VERSİYON 4.3.54 (Modüler Yapı) ---
 // v4.3.54 değişiklikleri (sıralamalar sınıf seviyesine göre filtreli):
 //   • Türkiye, İl, İlçe, Okul, Sınıf-Şube sıralamalarının tamamı artık
 //     SADECE AYNI SINIF SEVİYESİNDEKİ öğrenciler arasında yapılıyor.
