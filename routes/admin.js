@@ -84,10 +84,15 @@ router.get('/admin', async (req, res) => {
     const filIl = req.query.il || '';
     const filIlce = req.query.ilce || '';
     const filOkul = req.query.okul || '';
-    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif il ilce okul rol');
+    // v4.3.60: Kullanıcı listesi için sınıf seviyesi filtresi (6/7/8)
+    // (NOT: filSinif zaten soru filtresi için kullanılıyor — bu yüzden ayrı bir
+    // parametre adı: filKullaniciSinif)
+    const filKullaniciSinif = req.query.kullaniciSinif || '';
+    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif sube il ilce okul rol rolListesi siralamaCache');
     const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
     const filtreliKullanicilar = tumKullanicilar.filter(k =>
         (!filIl || k.il === filIl) && (!filIlce || k.ilce === filIlce) && (!filOkul || k.okul === filOkul)
+        && (!filKullaniciSinif || (k.rol === 'ogrenci' && String(k.sinif) === String(filKullaniciSinif)))
     );
     const iller = [...new Set(tumKullanicilar.map(k => k.il).filter(Boolean))].sort();
     const ilceler = filIl ? [...new Set(tumKullanicilar.filter(k => k.il === filIl).map(k => k.ilce).filter(Boolean))].sort() : [];
@@ -153,6 +158,7 @@ router.get('/admin', async (req, res) => {
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
         filSinif, filDers, filUnite, filKonu,
+        filKullaniciSinif,
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),

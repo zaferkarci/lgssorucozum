@@ -1209,12 +1209,70 @@ function escHtml(str) {
         <option value="">Tüm Okullar</option>
         <% okullar.forEach(function(okul) { %><option value="<%= okul %>" <%= filOkul===okul?'selected':'' %>><%= okul %></option><% }); %>
       </select>
+      <!-- v4.3.60: Sınıf seviyesi filtresi -->
+      <select name="kullaniciSinif" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm Sınıflar</option>
+        <option value="5" <%= filKullaniciSinif==='5'?'selected':'' %>>5. Sınıf</option>
+        <option value="6" <%= filKullaniciSinif==='6'?'selected':'' %>>6. Sınıf</option>
+        <option value="7" <%= filKullaniciSinif==='7'?'selected':'' %>>7. Sınıf</option>
+        <option value="8" <%= filKullaniciSinif==='8'?'selected':'' %>>8. Sınıf</option>
+      </select>
     </form>
+    <%
+      // v4.3.60: Akıllı sıralama
+      //   • Öğrenciler: Türkiye sırası (1, 2, 3...) → eşit ise il/ilçe alfabetik
+      //   • Niteliksiz öğrenciler (Türkiye sırası 0): puan azalan, sonra il/ilçe
+      //   • Yöneticiler/öğretmenler/veliler: il/ilçe alfabetik
+      //   • Öğrenciler en üstte, sonra yöneticiler/diğerleri
+      function rolGrubu(r) {
+        if (r === 'ogrenci' || r === 'demo') return 0;
+        if (r === 'kurumsal' || r === 'moderator') return 1;
+        if (r === 'ogretmen') return 2;
+        if (r === 'veli') return 3;
+        return 4;
+      }
+      function turkiyeSira(k) {
+        var sc = k.siralamaCache && k.siralamaCache.genel;
+        if (sc && typeof sc.turkiye === 'number' && sc.turkiye > 0) return sc.turkiye;
+        return null;
+      }
+      var siraliKullanicilar = [...filtreliKullanicilar].sort(function(a, b) {
+        // Önce rol grubu (öğrenciler önce)
+        var ga = rolGrubu(a.rol), gb = rolGrubu(b.rol);
+        if (ga !== gb) return ga - gb;
+        // Öğrenci grubu: Türkiye sırası
+        if (ga === 0) {
+          var ta = turkiyeSira(a), tb = turkiyeSira(b);
+          if (ta !== null && tb !== null) {
+            if (ta !== tb) return ta - tb;
+          } else if (ta !== null) return -1;
+          else if (tb !== null) return 1;
+          else {
+            // İkisi de niteliksiz: puana göre azalan
+            var pa = a.puan || 0, pb = b.puan || 0;
+            if (pa !== pb) return pb - pa;
+          }
+        }
+        // Yöneticiler veya öğrenci eşit sırada: il/ilçe alfabetik
+        var ilA = (a.il||'').toLowerCase(), ilB = (b.il||'').toLowerCase();
+        if (ilA !== ilB) return ilA.localeCompare(ilB, 'tr');
+        var ilceA = (a.ilce||'').toLowerCase(), ilceB = (b.ilce||'').toLowerCase();
+        if (ilceA !== ilceB) return ilceA.localeCompare(ilceB, 'tr');
+        return (a.kullaniciAdi||'').localeCompare(b.kullaniciAdi||'', 'tr');
+      });
+    %>
     <table class="tablo">
-      <thead><tr><th>Kullanıcı Adı</th><th>Sınıf</th><th>İl</th><th>İlçe</th><th>Okul</th><th>Çözülen</th><th>Puan</th><th>İşlem</th></tr></thead>
+      <thead><tr><th style="width:40px;">TR#</th><th>Kullanıcı Adı</th><th>Sınıf</th><th>İl</th><th>İlçe</th><th>Okul</th><th>Çözülen</th><th>Puan</th><th>İşlem</th></tr></thead>
       <tbody>
-        <% filtreliKullanicilar.sort(function(a,b){ return b.puan-a.puan; }).forEach(function(k) { %>
+        <% siraliKullanicilar.forEach(function(k) {
+            var ts = turkiyeSira(k);
+        %>
           <tr>
+            <td style="text-align:center; color:#888; font-size:12px; font-weight:600;">
+              <% if (k.rol === 'ogrenci' || k.rol === 'demo') { %>
+                <% if (ts) { %><%= ts %><% } else { %>—<% } %>
+              <% } else { %>—<% } %>
+            </td>
             <td>
               <%= k.kullaniciAdi %>
               <% if (k.rol === 'moderator') { %><span style="background:#e8f0fe; color:#1a73e8; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">MOD</span><% } %>

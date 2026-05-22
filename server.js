@@ -1,4 +1,23 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.59 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.60 (Modüler Yapı) ---
+// v4.3.60 değişiklikleri (admin kullanıcı listesi + veli sınıf görünümü):
+//   1) Davet Ettiklerim tablosu (öğretmen/kurumsal panel) — veli ve diğer
+//      roller için sınıf/şube hücresinde rol rozeti gösterilir:
+//      ÖĞRETMEN / VELİ / YÖNETİCİ / MODERATÖR / 8/A (öğrenci).
+//      Bug: veli kullanıcının sinif alanı şema default'u 8 olarak kalıyor,
+//      eski kod sadece öğretmen kontrolü yapıyordu → veliler "8" görünüyor.
+//   2) Admin > Kullanıcı Listesi sıralaması yeniden düzenlendi:
+//      - Öğrenciler en üstte, Türkiye sırası (1, 2, 3...) artan
+//      - Aynı Türkiye sırasındakiler il/ilçe alfabetik
+//      - Niteliksiz öğrenciler (TR sırası yok) puana göre azalan, sonra
+//        il/ilçe alfabetik
+//      - Sonra: kurumsal/moderatör → öğretmen → veli grupları, her biri
+//        il/ilçe alfabetik
+//      - Yeni "TR#" kolonu: Türkiye sırası küçük etiket olarak
+//   3) Sınıf seviyesi filtresi eklendi (5/6/7/8). URL: ?kullaniciSinif=8
+//      (filSinif zaten soru filtresi olduğu için ayrı param adı kullanıldı)
+//   4) tumKullanicilar sorgusuna 'sube rolListesi siralamaCache' alanları
+//      eklendi (sıralama hesabı için).
+// --- VERSİYON 4.3.59 (Modüler Yapı) ---
 // v4.3.59 değişiklikleri (sıralama eşleşmesi için alan normalizasyonu):
 //   • baharsahin (8/A) "Okul #1/1" olarak görünüyordu — gerçekte aynı
 //     okulda 5+ kişi var. Sebep: u.okul / u.sube alanlarında küçük yazım
