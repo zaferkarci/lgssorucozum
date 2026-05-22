@@ -56,13 +56,35 @@ async function zorlukGuncelle(soruId) {
     }
 }
 
-// Öğrencinin ders ortalamalarının toplamını hesapla
+// v4.3.63: LGS resmi ağırlıklı ortalama (MEB LGS puan formülü)
+//   Mat × 4, Türkçe × 4, Fen × 4, İnkılap × 1, Din × 1, İngilizce × 1 / 15
+//   Çözülmemiş ders 0 ortalamayla katılır → tüm dersleri kapsayan öğrenciyi
+//   ödüllendirir; ana derslerden (Mat/Türkçe/Fen) çözmek 4 katı katkı sağlar.
+// (Fonksiyon adı geriye dönük uyumluluk için 'ortToplamHesapla' kaldı.)
+const LGS_DERS_KATSAYISI_PANEL = {
+    'Matematik':          4,
+    'Türkçe':             4,
+    'Fen Bilimleri':      4,
+    'T.C. İnkılâp Tarihi': 1,
+    'Din Kültürü':        1,
+    'İngilizce':          1
+};
+const LGS_TOPLAM_KATSAYI_PANEL = 15;
+
 function ortToplamHesapla(kullanici) {
     if (!kullanici.dersPuanlari || kullanici.dersPuanlari.length === 0) return 0;
-    return kullanici.dersPuanlari.reduce((toplam, d) => {
-        const ort = d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0;
-        return toplam + ort;
-    }, 0);
+    const dersOrtMap = {};
+    for (const d of kullanici.dersPuanlari) {
+        if (d.soruSayisi > 0) {
+            dersOrtMap[d.ders] = d.toplamPuan / d.soruSayisi;
+        }
+    }
+    let agirlikliToplam = 0;
+    for (const dersAdi in LGS_DERS_KATSAYISI_PANEL) {
+        const ort = dersOrtMap[dersAdi] || 0;
+        agirlikliToplam += ort * LGS_DERS_KATSAYISI_PANEL[dersAdi];
+    }
+    return agirlikliToplam / LGS_TOPLAM_KATSAYI_PANEL;
 }
 
 // Oturum kontrol: session'daki kullanıcı URL'dekiyle eşleşmeli.

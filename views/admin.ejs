@@ -1232,7 +1232,11 @@ function escHtml(str) {
         return 4;
       }
       function turkiyeSira(k) {
-        var sc = k.siralamaCache && k.siralamaCache.genel;
+        // v4.3.61: siralamaCache cron'da { ...genel, dersSiralamalari } olarak
+        // yayılarak yazılıyor — yani turkiye/il/ilce/okul doğrudan üst seviyede,
+        // .genel.turkiye DEĞİL. Eski v4.3.60 kodu .genel.turkiye okuyordu →
+        // her zaman null dönüyordu → TR# hep "—" görünüyordu.
+        var sc = k.siralamaCache;
         if (sc && typeof sc.turkiye === 'number' && sc.turkiye > 0) return sc.turkiye;
         return null;
       }
@@ -2632,6 +2636,12 @@ function adminHesaplaTetikle(e) {
   f.method = 'POST';
   f.action = '/admin/cron-tetikle';
   f.style.display = 'none';
+  // v4.3.61: Tetiklemeden sonra mevcut sayfaya dönmek için hidden input
+  var donus = document.createElement('input');
+  donus.type = 'hidden';
+  donus.name = 'donus';
+  donus.value = window.location.pathname + window.location.search;
+  f.appendChild(donus);
   document.body.appendChild(f);
   f.submit();
 }

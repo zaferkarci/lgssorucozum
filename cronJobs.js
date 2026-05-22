@@ -161,11 +161,43 @@ async function hamPuanHesapla() {
 async function siralamaCacheHesapla() {
     const tumKullanicilar = await Kullanici.find({});
     const MIN_SORU = 10;
+    // v4.3.63: LGS resmi ağırlıklı ortalama formülü
+    // LGS puan formülünde her dersin katsayısı farklı:
+    //   Türkçe, Matematik, Fen Bilimleri: katsayı 4
+    //   T.C. İnkılâp Tarihi, Din Kültürü, İngilizce: katsayı 1
+    // Toplam ağırlık: 4+4+4+1+1+1 = 15.
+    // Formül:
+    //   ortOrtalama = (Mat×4 + Türkçe×4 + Fen×4 + İnkılap×1 + Din×1 + İng×1) / 15
+    // Çözülmemiş ders 0 ortalamayla katılır — tüm dersleri kapsayanı ödüllendirir
+    // ve Mat/Türkçe/Fen ağırlıkları gerçek LGS sınavına paralel.
+    // Kaynak: MEB LGS puan hesaplama kılavuzu (2025).
+    const LGS_DERS_KATSAYISI = {
+        'Matematik':          4,
+        'Türkçe':             4,
+        'Fen Bilimleri':      4,
+        'T.C. İnkılâp Tarihi': 1,
+        'Din Kültürü':        1,
+        'İngilizce':          1
+    };
+    const LGS_TOPLAM_KATSAYI = 15; // 4+4+4+1+1+1
 
-    // ortToplam = ders ortalamalarının toplamı
-    function ortToplam(u) {
+    // ortOrtalama = LGS ağırlıklı ortalama
+    function ortOrtalama(u) {
         const dp = u.dersPuanlari || [];
-        return dp.reduce((acc, d) => acc + (d.soruSayisi > 0 ? d.toplamPuan / d.soruSayisi : 0), 0);
+        // Ders adına göre ortalama hesabı
+        const dersOrtMap = {};
+        for (const d of dp) {
+            if (d.soruSayisi > 0) {
+                dersOrtMap[d.ders] = d.toplamPuan / d.soruSayisi;
+            }
+        }
+        // LGS ağırlıklı toplam
+        let agirlikliToplam = 0;
+        for (const dersAdi in LGS_DERS_KATSAYISI) {
+            const ort = dersOrtMap[dersAdi] || 0; // çözülmemiş ders: 0
+            agirlikliToplam += ort * LGS_DERS_KATSAYISI[dersAdi];
+        }
+        return agirlikliToplam / LGS_TOPLAM_KATSAYI;
     }
     function toplamSoru(u) {
         return (u.dersPuanlari || []).reduce((t,d) => t + (d.soruSayisi||0), 0);
@@ -174,7 +206,9 @@ async function siralamaCacheHesapla() {
     // Her kullanıcı için ortalamaları + nitelik bilgisi önden hesapla (O(n))
     const uMap = tumKullanicilar.map(u => ({
         u,
-        ortTop: ortToplam(u),
+        // v4.3.63: ortTop adı geriye dönük uyumluluk için korundu (kod genelinde
+        // 'ortTop' diye geçiyor), ama içeriği artık LGS ağırlıklı ortalama.
+        ortTop: ortOrtalama(u),
         toplamSoru: toplamSoru(u),
         nitelikli: toplamSoru(u) >= MIN_SORU,
         dersOrt: {},

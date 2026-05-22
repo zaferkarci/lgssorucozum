@@ -399,13 +399,30 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
             dersIstatMap[ders].toplamPuan += (c.kazanilanPuan || 0);
         });
 
-        // ortToplamHesapla — panel.js'teki ile aynı
+        // v4.3.63: LGS resmi ağırlıklı ortalama — panel.js ile birebir aynı
+        const LGS_DERS_KATSAYISI_T = {
+            'Matematik':          4,
+            'Türkçe':             4,
+            'Fen Bilimleri':      4,
+            'T.C. İnkılâp Tarihi': 1,
+            'Din Kültürü':        1,
+            'İngilizce':          1
+        };
+        const LGS_TOPLAM_KATSAYI_T = 15;
         function ortToplamHesapla(kullanici) {
             if (!kullanici.dersPuanlari || kullanici.dersPuanlari.length === 0) return 0;
-            return kullanici.dersPuanlari.reduce((toplam, d) => {
-                if (!d.soruSayisi) return toplam;
-                return toplam + (d.toplamPuan / d.soruSayisi);
-            }, 0);
+            const dersOrtMap = {};
+            for (const d of kullanici.dersPuanlari) {
+                if (d.soruSayisi > 0) {
+                    dersOrtMap[d.ders] = d.toplamPuan / d.soruSayisi;
+                }
+            }
+            let agirlikliToplam = 0;
+            for (const dersAdi in LGS_DERS_KATSAYISI_T) {
+                const ort = dersOrtMap[dersAdi] || 0;
+                agirlikliToplam += ort * LGS_DERS_KATSAYISI_T[dersAdi];
+            }
+            return agirlikliToplam / LGS_TOPLAM_KATSAYI_T;
         }
 
         // v4.3.57: Sayfalama - 30 cevap/sayfa, ?sayfa=N parametresi

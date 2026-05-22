@@ -1,4 +1,53 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.60 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.63 (Modüler Yapı) ---
+// v4.3.63 değişiklikleri (LGS resmi ağırlıklı ortalama):
+//   • Genel ortalama formülü LGS'nin gerçek puan hesabıyla aynı ağırlıkları
+//     kullanır:
+//     - Matematik × 4
+//     - Türkçe × 4
+//     - Fen Bilimleri × 4
+//     - T.C. İnkılâp Tarihi × 1
+//     - Din Kültürü × 1
+//     - İngilizce × 1
+//   • Toplam ağırlık 15 — bölen sabit.
+//     ortOrtalama = (Mat×4 + Türk×4 + Fen×4 + İnk×1 + Din×1 + İng×1) / 15
+//   • v4.3.62'nin "6 sabit dersi eşit say" yaklaşımı LGS gerçekliğine
+//     uymuyordu. Resmi MEB formülü ana dersleri (sayısal+sözel belkemiği)
+//     4 katı ağırlıklı sayıyor.
+//   • Kaynak: MEB LGS Puan Hesaplama Kılavuzu 2025.
+//   • Yanlış cevap cezası (D-Y/4) UYGULANMAZ — platform çalışma odaklı,
+//     öğrenme sürecinde "yanlış yapma cezası" sinyali istenmedi.
+//   • Mantık testi: 4 senaryo, beklenen sıralamayı verdi.
+//   • 3 dosya senkron: cronJobs.js + routes/panel.js + routes/takip.js.
+// --- VERSİYON 4.3.62 (Modüler Yapı) ---
+// v4.3.62 değişiklikleri (genel ortalama = ortToplam / 6):
+//   • Türkiye/il/ilçe/okul/sınıf sıralamalarında kullanılan "genel
+//     ortalama" formülü değişti:
+//     ESKİ: ortToplam = ders ortalamalarının toplamı
+//     YENİ: ortOrtalama = ders ortalamalarının toplamı / 6
+//   • 6 = LGS'deki ders sayısı (sabit). Çözülmemiş ders 0 ortalamayla
+//     katılır, "tüm dersleri açan" avantajlı olur. "Tek dersten yüksek
+//     puan tutturan" 1/6 katsayısıyla baskılanır.
+//   • Şu anki etkisi: sadece Matematik dersli durumda, tüm öğrencilerin
+//     ortalama değeri 1/6'sına iner ama sıralamaları değişmez. Eylülde
+//     6 derse geçildikçe formül fark yaratır.
+//   • Mantık testi (3 senaryo): tek ders → berat #1, çok ders → çok
+//     ders açan #1, dengeli → tüm dersleri açan #1. Sezgiyle uyumlu.
+//   • Değişen 3 dosya: cronJobs.js (cron hesabı), routes/panel.js
+//     (gerçek zamanlı), routes/takip.js (öğretmen panel). Üçü de senkron.
+// --- VERSİYON 4.3.61 (Modüler Yapı) ---
+// v4.3.61 değişiklikleri (TR# kolonu + cron tetikleme yönlendirme):
+//   1) Admin > Kullanıcı Listesi → TR# kolonu hep "—" görünüyordu.
+//      Sebep: v4.3.60 kodu siralamaCache.genel.turkiye okuyordu, ama
+//      cronJobs.js bunu { ...genel, dersSiralamalari } olarak doğrudan
+//      yayıyor — yani siralamaCache.turkiye olmalıydı. Düzeltildi.
+//   2) Admin > Hesaplama butonu — tetikledikten sonra ekran "soru listesi"
+//      moduna dönüyordu (kullanıcı listesinden tetiklenmiş olsa bile).
+//      Sebep: window.location.href="/admin" zorla varsayılan moda atıyor.
+//      Düzeltme: frontend mevcut path+query'i hidden 'donus' alanı olarak
+//      gönderir, server o adrese yönlendirir.
+//   3) Risk: redirect yalnızca '/'  ile başlayan değerlere izin verir
+//      (open-redirect koruması).
+// --- VERSİYON 4.3.60 (Modüler Yapı) ---
 // v4.3.60 değişiklikleri (admin kullanıcı listesi + veli sınıf görünümü):
 //   1) Davet Ettiklerim tablosu (öğretmen/kurumsal panel) — veli ve diğer
 //      roller için sınıf/şube hücresinde rol rozeti gösterilir:
@@ -444,7 +493,15 @@ app.post('/admin/cron-tetikle', async (req, res) => {
     }
     try {
         await gunlukHesapla();
-        res.send('<script>alert("Hesaplama tamamlandı!"); window.location.href="/admin";</script>');
+        // v4.3.61: Eskiden window.location.href="/admin" idi — kullanıcıyı her
+        // zaman soru listesi sayfasına atıyordu. Şimdi frontend'den gelen
+        // 'donus' alanı varsa oraya, yoksa /admin'e.
+        const donus = (req.body && typeof req.body.donus === 'string' && req.body.donus.startsWith('/'))
+            ? req.body.donus
+            : '/admin';
+        // basit JS-escape (tek tırnak ve newline)
+        const donusJs = donus.replace(/'/g, "\\'").replace(/\n/g, '');
+        res.send(`<script>alert("Hesaplama tamamlandı!"); window.location.href='${donusJs}';</script>`);
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
