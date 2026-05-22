@@ -220,14 +220,24 @@ async function siralamaCacheHesapla() {
     }
 
     // Her kullanıcıya kendi sırasını yaz
+    // v4.3.59: Karşılaştırma alanları (il, ilce, okul, sube) ön-normalize edilir
+    // (trim + lowercase + tek boşluk) — küçük harf/boşluk farkları artık eşleşmeyi
+    // engellemiyor. Veritabanı kaydı değiştirilmez, sadece karşılaştırma anında.
+    function normStr(v) {
+        if (v === null || v === undefined) return '';
+        return String(v).trim().toLowerCase().replace(/\s+/g, ' ');
+    }
     for (const obj of uMap) {
         const u = obj.u;
         const uSinif = Number(u.sinif);
-        // v4.3.54: Tüm "ayni" filtreleri sınıf seviyesini de içeriyor
-        const ayniIl    = uMap.filter(x => x.u.il   === u.il   && Number(x.u.sinif) === uSinif);
-        const ayniIlce  = uMap.filter(x => x.u.ilce === u.ilce && Number(x.u.sinif) === uSinif);
-        const ayniOkul  = uMap.filter(x => x.u.okul === u.okul && Number(x.u.sinif) === uSinif);
-        const ayniSinif = uMap.filter(x => x.u.okul === u.okul && Number(x.u.sinif) === uSinif && (u.sube ? x.u.sube === u.sube : true));
+        const uIl    = normStr(u.il);
+        const uIlce  = normStr(u.ilce);
+        const uOkul  = normStr(u.okul);
+        const uSube  = normStr(u.sube);
+        const ayniIl    = uMap.filter(x => normStr(x.u.il)   === uIl   && Number(x.u.sinif) === uSinif);
+        const ayniIlce  = uMap.filter(x => normStr(x.u.ilce) === uIlce && Number(x.u.sinif) === uSinif);
+        const ayniOkul  = uMap.filter(x => normStr(x.u.okul) === uOkul && Number(x.u.sinif) === uSinif);
+        const ayniSinif = uMap.filter(x => normStr(x.u.okul) === uOkul && Number(x.u.sinif) === uSinif && (uSube ? normStr(x.u.sube) === uSube : true));
 
         const turkiyeListesiSinif = turkiyeListeleriPerSinif[String(uSinif)] || [];
 

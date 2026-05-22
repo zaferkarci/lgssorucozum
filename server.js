@@ -1,4 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.58 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.59 (Modüler Yapı) ---
+// v4.3.59 değişiklikleri (sıralama eşleşmesi için alan normalizasyonu):
+//   • baharsahin (8/A) "Okul #1/1" olarak görünüyordu — gerçekte aynı
+//     okulda 5+ kişi var. Sebep: u.okul / u.sube alanlarında küçük yazım
+//     farkları (sondaki boşluk, çift boşluk, büyük/küçük harf) cron'da
+//     katı === karşılaştırmasını başarısız kılıyordu.
+//   • Düzeltme: il/ilce/okul/sube karşılaştırmaları artık normStr() ile
+//     normalize ediliyor (trim + lowercase + tek boşluk). Veritabanı
+//     dokunulmaz, sadece karşılaştırma anında geçici normalize.
+//   • Etki: yarın 05:10'da cron çalışınca baharsahin tipi kullanıcılar
+//     doğru gruba düşer; "Okul 5/5" gibi gerçekçi sıralama görünür.
+//   • Mantık testi: boşluk, büyük/küçük harf, çift boşluk varyasyonları
+//     hepsi aynı gruba eşleşiyor.
+// --- VERSİYON 4.3.58 (Modüler Yapı) ---
 // v4.3.58 değişiklikleri (panel profil sayfa "Çözülen Sorular" gizleme bug):
 //   • ASIL BUG: panel.ejs satır 1622'de <%= %> etiketi HTML escape ettiği
 //     için ' style="display:none;"' çıktısının tırnakları &#34; olarak
