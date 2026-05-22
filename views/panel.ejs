@@ -1619,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var rowSayfa = Math.floor(i / SAYFA_BOYUT) + 1;
                 var ilkSayfa = rowSayfa === 1;
               %>
-              <tr class="cevap-satir" data-sayfa="<%= rowSayfa %>"<%= ilkSayfa ? '' : ' style="display:none;"' %>>
+              <tr class="cevap-satir" data-sayfa="<%= rowSayfa %>"<%- ilkSayfa ? '' : ' style="display:none;"' %>>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= i+1 %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444;"><%= sb.ders||'-' %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= sb.konu||'-' %></td>

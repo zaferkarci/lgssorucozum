@@ -1,4 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.57 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.58 (Modüler Yapı) ---
+// v4.3.58 değişiklikleri (panel profil sayfa "Çözülen Sorular" gizleme bug):
+//   • ASIL BUG: panel.ejs satır 1622'de <%= %> etiketi HTML escape ettiği
+//     için ' style="display:none;"' çıktısının tırnakları &#34; olarak
+//     kaçırılıyordu → tarayıcı style attribute'unu okuyamıyor, satırlar
+//     ASLA gizlenmiyordu. Tüm cevaplar tek sayfada görünüyordu (138 satır
+//     navigasyonsuz).
+//   • Düzeltme: <%= %> yerine <%- %> (escape etmeyen) kullanıldı. Aynı
+//     bug kalıbı başka yerde aranıp temizlendi (panel.ejs+admin.ejs).
+//   • Bu bug v4.1.38'den beri vardı, kullanıcı sayısı az olduğu için fark
+//     edilmemişti. enesaydin27'nin 138 cevabı patlattı.
+//   • v4.3.57'deki sayfalama mantığı doğruydu — sadece HTML üretimi
+//     bozuktu.
+// --- VERSİYON 4.3.57 (Modüler Yapı) ---
 // v4.3.57 değişiklikleri (öğrenci detay sayfası — sayfalama):
 //   • Hem admin > kullanıcı detay (admin-kullanici-detay) hem öğretmen >
 //     takip > öğrenci detay (takip-ogrenci-detay) sayfalarındaki "Çözülen
