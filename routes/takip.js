@@ -408,9 +408,24 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
             }, 0);
         }
 
+        // v4.3.57: Sayfalama - 30 cevap/sayfa, ?sayfa=N parametresi
+        // tumCevaplar tarih sırasına (yeni→eski) göre sıralanır
+        const tumCevaplarSirali = [...tumCevaplar].sort(function(a, b) {
+            return new Date(b.tarih || 0) - new Date(a.tarih || 0);
+        });
+        const SAYFA_BOYUTU = 30;
+        const toplamSayfa = Math.max(1, Math.ceil(tumCevaplarSirali.length / SAYFA_BOYUTU));
+        let sayfa = parseInt(req.query.sayfa) || 1;
+        if (sayfa < 1) sayfa = 1;
+        if (sayfa > toplamSayfa) sayfa = toplamSayfa;
+        const sayfaBasi = (sayfa - 1) * SAYFA_BOYUTU;
+        const sayfaCevaplar = tumCevaplarSirali.slice(sayfaBasi, sayfaBasi + SAYFA_BOYUTU);
+
         res.render('takip-ogrenci-detay', {
             k: ogrenci,
             tumCevaplar,
+            sayfaCevaplar,
+            sayfa, toplamSayfa, sayfaBoyutu: SAYFA_BOYUTU, toplamCevap: tumCevaplarSirali.length,
             soruBilgiMap,
             dersIstatMap,
             ortToplamHesapla,

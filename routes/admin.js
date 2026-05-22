@@ -793,13 +793,27 @@ router.get('/kullanici-detay', async (req, res) => {
         const CevapKaydi = require('../models/CevapKaydi');
         const Soru = require('../models/Soru');
         const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: -1 }).lean();
-        const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
+        // v4.3.57: Sayfalama - 30 cevap/sayfa, ?sayfa=N parametresi
+        const SAYFA_BOYUTU = 30;
+        const toplamSayfa = Math.max(1, Math.ceil(tumCevaplar.length / SAYFA_BOYUTU));
+        let sayfa = parseInt(req.query.sayfa) || 1;
+        if (sayfa < 1) sayfa = 1;
+        if (sayfa > toplamSayfa) sayfa = toplamSayfa;
+        // Sadece görünür sorular için Soru sorgusu yap (performans)
+        const sayfaBasi = (sayfa - 1) * SAYFA_BOYUTU;
+        const sayfaSonu = sayfaBasi + SAYFA_BOYUTU;
+        const sayfaCevaplar = tumCevaplar.slice(sayfaBasi, sayfaSonu);
+        const soruIdleri = [...new Set(sayfaCevaplar.map(c => String(c.soruId)))];
         const sorular = soruIdleri.length > 0 ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu soruMetni _id').lean() : [];
         const soruMap = {};
         sorular.forEach(s => { soruMap[String(s._id)] = s; });
         const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
         const iller = [...new Set(tumOkullar.map(o => o.il).filter(Boolean))].sort();
-        res.render('admin-kullanici-detay', { k, tumCevaplar, soruMap, tumOkullar, iller, adminToken: req.headers.authorization ? req.headers.authorization.replace('Basic ', '') : '' });
+        res.render('admin-kullanici-detay', {
+            k, tumCevaplar, sayfaCevaplar, soruMap, tumOkullar, iller,
+            sayfa, toplamSayfa, sayfaBoyutu: SAYFA_BOYUTU, toplamCevap: tumCevaplar.length,
+            adminToken: req.headers.authorization ? req.headers.authorization.replace('Basic ', '') : ''
+        });
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 

@@ -1,4 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.56 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.57 (Modüler Yapı) ---
+// v4.3.57 değişiklikleri (öğrenci detay sayfası — sayfalama):
+//   • Hem admin > kullanıcı detay (admin-kullanici-detay) hem öğretmen >
+//     takip > öğrenci detay (takip-ogrenci-detay) sayfalarındaki "Çözülen
+//     Sorular" tablosu artık sayfalama destekli.
+//   • Sayfa başına 30 cevap. URL: ?sayfa=N
+//   • Üstte/altta sayfa navigasyonu: « ‹ Önceki [Sayfa X/Y] Sonraki › »
+//   • Toplam cevap sayısı görünür. Sayfa sınır dışındaysa otomatik 1'e
+//     dönülür.
+//   • Eski "slice(0, 50)" mantığı kaldırıldı; mevcut sıralama (yeni→eski)
+//     korundu.
+//   • Performans: admin tarafında artık sadece görünen sayfanın soru
+//     ID'leri için Soru sorgusu yapılır (eskiden hepsi yükleniyordu).
+// --- VERSİYON 4.3.56 (Modüler Yapı) ---
 // v4.3.56 değişiklikleri (admin soru önizleme — GERÇEK SEBEP BULUNDU):
 //   • Asıl bug: soruOnizle() fonksiyonu ve önizleme modal'ı (HTML) mod
 //     === 'soruListesi' bloğunun İÇİNDE tanımlıydı. Sorular sekmesinde
