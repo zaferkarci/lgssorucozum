@@ -1,4 +1,17 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.66 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.67 (Modüler Yapı) ---
+// v4.3.67 değişiklikleri ("Soruyu Gör" yarım düzeltme TAMAMLANDI):
+//   • v4.3.66'da buton koşulu açıldı (sadece yanlış → tüm cevaplar) ama
+//     soruVerileri JS objesini dolduran döngüde 'if (!c.dogruMu)' koşulu
+//     UNUTULMUŞTU. Yani: butona basınca soruVerileri[id] undefined dönüyor,
+//     soruGoster() içindeki 'if (!s) return' sessizce çıkıyordu.
+//   • Sonuç: kullanıcı doğru cevaba bastı ama hiçbir şey olmadı.
+//   • Hem panel.ejs hem takip-ogrenci-detay.ejs'te aynı kalıp. İkisi de
+//     düzeltildi.
+//   • Test: render simülasyonunda s1 (doğru) ve s2 (yanlış) için
+//     soruVerileri['s1'] + soruVerileri['s2'] ikisi de oluşuyor.
+//   • Acı ders: yarım düzeltme = sıfır düzeltme. Bir özelliği açarken iki
+//     yere dokunulması gerekiyorsa ikisini de açmak şart.
+// --- VERSİYON 4.3.66 (Modüler Yapı) ---
 // v4.3.66 değişiklikleri (tüm cevaplar için "Soruyu Gör" butonu):
 //   • Önceden Ders İstatistikleri sekmesindeki "Çözülen Sorular" tablosunda
 //     sadece YANLIŞ cevaplar için "Soruyu Gör" butonu görünüyordu

@@ -1734,8 +1734,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <!-- Soru verisi JS'e gömülüyor -->
       <script>
       var soruVerileri = {};
+      <%# v4.3.67: Önceden 'if (!c.dogruMu)' koşulu vardı → soruVerileri sadece
+          YANLIŞ cevaplar için dolduruluyordu. Doğru cevaba tıklayınca
+          soruVerileri[id] undefined → soruGoster() sessizce çıkıyordu.
+          v4.3.66'da buton koşulu kaldırıldı ama veri tarafı unutuldu — yarım
+          düzeltme. Burası tamamlayan parça. %>
       <% tumC.forEach(function(c) {
-        if (!c.dogruMu) {
           var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]);
           if (sb && sb.soruMetni) { %>
       soruVerileri['<%= String(c.soruId) %>'] = <%- JSON.stringify({
@@ -1754,7 +1758,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ders: sb.ders||'',
         konu: sb.konu||''
       }) %>;
-      <% } } }); %>
+      <% } }); %>
 
       var harfler = ['A','B','C','D'];
 
