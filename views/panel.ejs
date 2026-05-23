@@ -1417,12 +1417,11 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="profil-kart-yeni" style="margin-bottom:14px;">
         <p class="profil-kart-baslik-yeni">Genel İstatistikler</p>
         <%
-          // v4.3.64: Genel ortalama LGS resmi ağırlıklı ortalama formülüne göre.
-          // Mat×4 + Türkçe×4 + Fen×4 + İnkılap×1 + Din×1 + İng×1, toplam 15.
-          // Çözülmemiş ders 0 ortalamayla katılır → tüm dersleri kapsayan
-          // öğrenciyi ödüllendirir.
-          // Min 5 soruluk nitelik şartı korundu — çok az soruyla yüksek
-          // ortalama yapan dersler hesaba katılmaz.
+          // v4.3.65: Bu formül services/lgsOrtalama.js ile aynı mantığı izler.
+          //   Bir yeri değiştirirsen iki yeri de güncellemelisin.
+          //   (EJS şablonu sunucudaki modülü import edemediği için inline duruyor.)
+          // Formül: (Mat×4 + Türk×4 + Fen×4 + İnk×1 + Din×1 + İng×1) / 15
+          // Min 5 soru ders bazlı nitelik şartı — services'tekiyle aynı eşik.
           var GENEL_ORT_MIN_SORU = 5;
           var LGS_KATSAYI = {
             'Matematik': 4, 'Türkçe': 4, 'Fen Bilimleri': 4,

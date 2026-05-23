@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Kullanici = require('../models/Kullanici');
 const TakipIliski = require('../models/TakipIliski');
+const { lgsAgirlikliOrtalama } = require('../services/lgsOrtalama');
 
 // Oturum kontrolü helper - panel.js'tekiyle uyumlu
 function oturumGerekli(req, res, next) {
@@ -399,30 +400,9 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
             dersIstatMap[ders].toplamPuan += (c.kazanilanPuan || 0);
         });
 
-        // v4.3.63: LGS resmi ağırlıklı ortalama — panel.js ile birebir aynı
-        const LGS_DERS_KATSAYISI_T = {
-            'Matematik':          4,
-            'Türkçe':             4,
-            'Fen Bilimleri':      4,
-            'T.C. İnkılâp Tarihi': 1,
-            'Din Kültürü':        1,
-            'İngilizce':          1
-        };
-        const LGS_TOPLAM_KATSAYI_T = 15;
+        // v4.3.65: services/lgsOrtalama.js'e taşındı, geriye dönük uyumluluk için sarmal
         function ortToplamHesapla(kullanici) {
-            if (!kullanici.dersPuanlari || kullanici.dersPuanlari.length === 0) return 0;
-            const dersOrtMap = {};
-            for (const d of kullanici.dersPuanlari) {
-                if (d.soruSayisi > 0) {
-                    dersOrtMap[d.ders] = d.toplamPuan / d.soruSayisi;
-                }
-            }
-            let agirlikliToplam = 0;
-            for (const dersAdi in LGS_DERS_KATSAYISI_T) {
-                const ort = dersOrtMap[dersAdi] || 0;
-                agirlikliToplam += ort * LGS_DERS_KATSAYISI_T[dersAdi];
-            }
-            return agirlikliToplam / LGS_TOPLAM_KATSAYI_T;
+            return lgsAgirlikliOrtalama(kullanici.dersPuanlari || []);
         }
 
         // v4.3.57: Sayfalama - 30 cevap/sayfa, ?sayfa=N parametresi

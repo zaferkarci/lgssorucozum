@@ -126,7 +126,9 @@ MathJax = {
       <div class="profil-kart-yeni" style="margin-bottom:14px;">
         <p class="profil-kart-baslik-yeni">Genel İstatistikler</p>
         <%
-          // v4.3.64: Genel ortalama LGS resmi ağırlıklı (panel.ejs ile birebir aynı)
+          // v4.3.65: Bu formül services/lgsOrtalama.js ile aynı mantığı izler.
+          //   Bir yeri değiştirirsen iki yeri de güncellemelisin.
+          //   (EJS şablonu sunucudaki modülü import edemediği için inline duruyor.)
           var GENEL_ORT_MIN_SORU = 5;
           var LGS_KATSAYI = {
             'Matematik': 4, 'Türkçe': 4, 'Fen Bilimleri': 4,

@@ -1,4 +1,20 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.64 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.65 (Modüler Yapı) ---
+// v4.3.65 değişiklikleri (LGS ortalama formülü services'e taşındı + cron 5 soru şartı):
+//   • LGS ağırlıklı ortalama hesabı yeni services/lgsOrtalama.js dosyasında
+//     TEK KAYNAK olarak duruyor. Önceden cronJobs.js + routes/panel.js +
+//     routes/takip.js içinde kopyala-yapıştır 3 yerdeydi; biri unutulunca
+//     veri tutarsızlığı oluyordu.
+//   • Cron formülü artık ders bazlı 5 soru nitelik şartını uyguluyor —
+//     panel/takip ile birebir aynı sonucu üretir. Eski cron 1 soruluk
+//     ortalamaları bile sıralamaya katıyordu, artık katmıyor.
+//   • Profil EJS şablonları (panel.ejs, takip-ogrenci-detay.ejs) hâlâ
+//     inline hesap yapıyor (EJS module import edemez) ama services ile
+//     birebir aynı formül. Yorum eklendi: değiştirirsen iki yeri de
+//     güncelle.
+//   • Bu, services/ klasörünün ilk modülü. İlerideki scoring.js, ranking.js
+//     gibi modüller için zemin hazır.
+//   • Test: 7 senaryoluk birim test geçti.
+// --- VERSİYON 4.3.64 (Modüler Yapı) ---
 // v4.3.64 değişiklikleri (profil "Genel ortalama" kartı LGS ağırlıklı):
 //   • v4.3.63'te cronJobs + panel.js + takip.js'i LGS ağırlıklı formüle
 //     çevirdik ama PROFİL EJS şablonlarındaki "Genel ortalama" kartı
