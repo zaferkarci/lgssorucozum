@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tekrar Eden Sorular — Admin</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.dup-wrap { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.dup-card { background:#fff; border:1px solid #e8edf2; border-radius:12px; padding:16px 20px; margin-bottom:16px; }
+.dup-baslik { font-size:19px; font-weight:600; color:#1a2236; margin:0 0 4px; }
+.dup-alt { font-size:13px; color:#5f6368; margin:0 0 8px; line-height:1.55; }
+.dup-filtre { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:10px; }
+.dup-filtre label { display:flex; flex-direction:column; font-size:11px; color:#666; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
+.dup-filtre select, .dup-filtre input { padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; margin-top:4px; }
+.dup-filtre button { background:#1a73e8; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; }
+.dup-bilgi { background:#fff3e0; border:1px solid #ffcc80; border-radius:8px; padding:10px 14px; font-size:12px; color:#e65100; margin-bottom:14px; line-height:1.55; }
+.dup-cift { background:#fff; border:1px solid #e8edf2; border-radius:10px; padding:14px; margin-bottom:12px; }
+.dup-cift-baslik { display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.dup-tip-rozet { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+.dup-tip-tam { background:#ffebee; color:#c62828; }
+.dup-tip-metin { background:#fff3e0; color:#e65100; }
+.dup-tip-secenekler { background:#e3f2fd; color:#1565c0; }
+.dup-tip-benzer { background:#f3e5f5; color:#6a1b9a; }
+.dup-sen-rozet { display:inline-block; padding:3px 10px; border-radius:12px; font-size:10px; font-weight:600; }
+.dup-sen-cakisma { background:#ffebee; color:#c62828; }
+.dup-sen-ayri_kullanicilar { background:#fff8e1; color:#f57f17; }
+.dup-sen-biri_bos { background:#e8f5e9; color:#2e7d32; }
+.dup-sen-ikisi_de_bos { background:#eceff1; color:#455a64; }
+.dup-soru-cifti { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px; }
+.dup-soru-kutu { border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; background:#fafbff; }
+.dup-soru-kutu h4 { margin:0 0 6px; font-size:13px; font-weight:700; color:#1a73e8; }
+.dup-soru-kutu .meta { font-size:11px; color:#888; margin-bottom:6px; }
+.dup-soru-kutu .metin { font-size:13px; color:#202124; line-height:1.5; margin-bottom:8px; }
+.dup-soru-kutu .secenekler { font-size:11px; color:#555; }
+.dup-soru-kutu .sik { padding:2px 0; }
+.dup-istatistik { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; margin-top:8px; padding-top:8px; border-top:1px dashed #e0e0e0; }
+.dup-istatistik div { color:#666; }
+.dup-istatistik b { color:#1a2236; }
+.dup-cakisma-uyari { background:#ffebee; color:#c62828; padding:6px 10px; border-radius:6px; font-size:11px; font-weight:600; margin-top:8px; }
+.dup-no-content { padding:40px 20px; text-align:center; color:#999; font-style:italic; }
+@media (max-width: 768px) {
+  .dup-soru-cifti { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body style="background:#f0f2f5; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; margin:0;">
+
+<div class="topbar-admin">
+  <a href="/admin">← Admin Panel</a>
+  <span class="topbar-admin-baslik" style="margin-left:8px;">🔍 Tekrar Eden Sorular</span>
+</div>
+
+<div class="dup-wrap">
+
+  <div class="dup-card">
+    <h2 class="dup-baslik">Tekrar Eden Sorular — Tespit Aracı (Salt-okunur)</h2>
+    <p class="dup-alt">
+      Toplam <%= toplamSoru %> soru içinde olası duplicate çiftler.
+      <b>Hiçbir değişiklik yapılmaz</b> — sadece liste. Silme/birleştirme bir sonraki versiyonda.
+    </p>
+    <div class="dup-bilgi">
+      <b>Tipler:</b>
+      &nbsp;<span class="dup-tip-rozet dup-tip-tam">TAM</span> metin + seçenekler aynı &nbsp;|&nbsp;
+      <span class="dup-tip-rozet dup-tip-metin">METİN</span> sadece metin aynı &nbsp;|&nbsp;
+      <span class="dup-tip-rozet dup-tip-secenekler">ŞIKLAR</span> sadece seçenekler aynı &nbsp;|&nbsp;
+      <span class="dup-tip-rozet dup-tip-benzer">BENZER</span> %<%= Math.round(benzerlikEsigi*100) %>+ metin benzerliği
+      <br><br>
+      <b>Senaryolar:</b>
+      &nbsp;<span class="dup-sen-rozet dup-sen-cakisma">ÇAKIŞMA</span> aynı kullanıcı ikisini de çözmüş — birleştirme zor &nbsp;|&nbsp;
+      <span class="dup-sen-rozet dup-sen-ayri_kullanicilar">AYRI</span> farklı kullanıcılar çözmüş — birleştirme kolay &nbsp;|&nbsp;
+      <span class="dup-sen-rozet dup-sen-biri_bos">BİRİ BOŞ</span> sadece birini çözmüş varsa — diğeri silinebilir &nbsp;|&nbsp;
+      <span class="dup-sen-rozet dup-sen-ikisi_de_bos">İKİSİ DE BOŞ</span> hiç çözülmemiş — biri silinebilir
+    </div>
+
+    <form method="GET" action="/admin/duplicate-sorular" class="dup-filtre">
+      <label>Ders
+        <select name="ders">
+          <option value="">Tüm Dersler</option>
+          <% tumDersler.forEach(function(d) { %>
+            <option value="<%= d %>" <%= filDers===d?'selected':'' %>><%= d %></option>
+          <% }); %>
+        </select>
+      </label>
+      <label>Benzerlik Eşiği
+        <input type="number" name="esik" step="0.05" min="0.5" max="1" value="<%= benzerlikEsigi %>">
+      </label>
+      <button type="submit">Filtrele</button>
+    </form>
+  </div>
+
+  <div class="dup-card">
+    <h3 style="margin:0 0 14px; font-size:15px; color:#1a2236;">
+      <%= ciftler.length %> olası duplicate çift bulundu
+    </h3>
+
+    <% if (ciftler.length === 0) { %>
+      <div class="dup-no-content">
+        🎉 Hiç duplicate aday bulunamadı. Soru havuzunuz temiz görünüyor.
+      </div>
+    <% } %>
+
+    <% ciftler.forEach(function(c) { %>
+      <div class="dup-cift">
+        <div class="dup-cift-baslik">
+          <span class="dup-tip-rozet dup-tip-<%= c.tip %>"><%= c.tip.toUpperCase() %></span>
+          <% if (c.benzerlik < 100) { %>
+            <span style="font-size:11px; color:#888;">%<%= c.benzerlik %> benzerlik</span>
+          <% } %>
+          <span class="dup-sen-rozet dup-sen-<%= c.senaryo %>">
+            <% if (c.senaryo === 'cakisma') { %>⚠️ ÇAKIŞMA (<%= c.cakisanSayi %> kişi ikisini de çözmüş)<% } %>
+            <% if (c.senaryo === 'ayri_kullanicilar') { %>🟡 AYRI KULLANICILAR<% } %>
+            <% if (c.senaryo === 'biri_bos') { %>🟢 BİRİ BOŞ<% } %>
+            <% if (c.senaryo === 'ikisi_de_bos') { %>⚪ İKİSİ DE BOŞ<% } %>
+          </span>
+        </div>
+
+        <div class="dup-soru-cifti">
+          <% [c.a, c.b].forEach(function(s, i) {
+            var aMi = i === 0;
+            var kullaniciSayi = aMi ? c.aKullaniciSayisi : c.bKullaniciSayisi;
+          %>
+            <div class="dup-soru-kutu">
+              <h4>Soru #<%= s.soruNo || '?' %> <span style="color:#888; font-weight:400; font-size:11px;">(<%= s._id %>)</span></h4>
+              <div class="meta">
+                <%= s.sinif||'?' %>. Sınıf · <%= s.ders||'-' %><% if (s.unite) { %> · <%= s.unite %><% } %><% if (s.konu) { %> · <%= s.konu %><% } %>
+                · <b><%= kullaniciSayi %> kullanıcı çözmüş</b>
+              </div>
+              <div class="metin"><%= (s.soruMetni||'').substring(0,250) %><% if ((s.soruMetni||'').length > 250) { %>...<% } %></div>
+              <div class="secenekler">
+                <% (s.secenekler||[]).forEach(function(sik, j) { %>
+                  <div class="sik"><b><%= ['A','B','C','D'][j] %>)</b> <%= (sik.metin||'').substring(0,80) %><% if ((sik.metin||'').length > 80) { %>...<% } %></div>
+                <% }); %>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+
+        <% if (c.senaryo === 'cakisma') { %>
+          <div class="dup-cakisma-uyari">
+            ⚠️ <b><%= c.cakisanSayi %> öğrenci</b> bu iki soruyu da çözmüş. Birleştirme yapılırsa veri çakışması yaşanır — el yordamıyla karar verilmesi gerek.
+          </div>
+        <% } %>
+
+        <div class="dup-istatistik">
+          <div>A çözen: <b><%= c.aKullaniciSayisi %></b></div>
+          <div>B çözen: <b><%= c.bKullaniciSayisi %></b></div>
+          <div>Çakışan (ikisini de): <b><%= c.cakisanSayi %></b></div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+
+  <div class="dup-card" style="background:#e8f5e9; border-color:#a5d6a7;">
+    <p style="margin:0; font-size:12px; color:#2e7d32; line-height:1.6;">
+      <b>v4.3.68:</b> Bu sayfa salt-okunur. Silme/birleştirme bir sonraki versiyonda eklenecek.
+      Şimdilik gerçek duplicate çiftleri görüp doğru karar verme stratejimizi belirleyelim.
+    </p>
+  </div>
+
+</div>
+
+</body>
+</html>

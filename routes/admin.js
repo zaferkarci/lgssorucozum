@@ -1086,4 +1086,83 @@ router.get('/admin/soru-puan-detay', async (req, res) => {
     }
 });
 
+// v4.3.68: Duplicate soru tespiti (SADECE OKUMA, sil/birleştir yok)
+router.get('/admin/duplicate-sorular', async (req, res) => {
+    try {
+        if (!adminKontrol(req, res)) return;
+        const { duplicateBul } = require('../services/duplicateTespit');
+
+        // Filtre opsiyonları (URL parametresi)
+        const filDers = req.query.ders || '';
+        const benzerlikEsigi = Math.max(0.5, Math.min(1, parseFloat(req.query.esik) || 0.85));
+
+        const sorular = await Soru.find({},
+            'soruMetni secenekler ders unite konu sinif soruNo'
+        ).lean();
+
+        const filtreliSorular = filDers
+            ? sorular.filter(s => s.ders === filDers)
+            : sorular;
+
+        const ciftler = duplicateBul(filtreliSorular, { benzerlikEsigi });
+
+        // Her çift için: kaç kullanıcı a'yı, kaç b'yi, kaçı ikisini de çözmüş
+        const tumSoruIdleri = [];
+        ciftler.forEach(c => {
+            tumSoruIdleri.push(String(c.a._id));
+            tumSoruIdleri.push(String(c.b._id));
+        });
+        const benzersizIdler = [...new Set(tumSoruIdleri)];
+
+        // O sorulardaki tüm cevap kayıtlarını çek
+        const cevaplar = benzersizIdler.length > 0
+            ? await CevapKaydi.find({ soruId: { $in: benzersizIdler } }, 'soruId kullaniciAdi dogruMu').lean()
+            : [];
+
+        // Soru ID → kullaniciAdi set
+        const soruKullaniciMap = {};
+        cevaplar.forEach(cv => {
+            const sid = String(cv.soruId);
+            if (!soruKullaniciMap[sid]) soruKullaniciMap[sid] = new Set();
+            soruKullaniciMap[sid].add(cv.kullaniciAdi);
+        });
+
+        // Her çift için cevap istatistiği
+        const ciftlerZenginlestirilmis = ciftler.map(c => {
+            const idA = String(c.a._id);
+            const idB = String(c.b._id);
+            const usersA = soruKullaniciMap[idA] || new Set();
+            const usersB = soruKullaniciMap[idB] || new Set();
+            let cakisan = 0;
+            usersA.forEach(u => { if (usersB.has(u)) cakisan++; });
+            return {
+                ...c,
+                aKullaniciSayisi: usersA.size,
+                bKullaniciSayisi: usersB.size,
+                cakisanSayi: cakisan,
+                // Senaryo tespiti
+                senaryo: cakisan > 0 ? 'cakisma'
+                       : (usersA.size === 0 && usersB.size === 0) ? 'ikisi_de_bos'
+                       : (usersA.size === 0 || usersB.size === 0) ? 'biri_bos'
+                       : 'ayri_kullanicilar'
+            };
+        });
+
+        // Ders listesi filtre için
+        const tumDersler = [...new Set(sorular.map(s => s.ders).filter(Boolean))].sort();
+
+        res.render('admin-duplicate-sorular', {
+            ciftler: ciftlerZenginlestirilmis,
+            toplamSoru: sorular.length,
+            tumDersler,
+            filDers,
+            benzerlikEsigi,
+            kullaniciAdi: req.session && req.session.kullaniciAdi || 'admin'
+        });
+    } catch (err) {
+        console.error('[duplicate-sorular] hata:', err);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 module.exports = router;

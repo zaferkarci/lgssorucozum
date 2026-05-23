@@ -1,4 +1,24 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.67 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.68 (Modüler Yapı) ---
+// v4.3.68 değişiklikleri (Tekrar Eden Sorular tespit aracı — Aşama 1):
+//   • Yeni admin sayfası: /admin/duplicate-sorular
+//   • Yeni service: services/duplicateTespit.js
+//     - normalize(s): metin temizleme (boşluk, noktalama, çevirme)
+//     - metinBenzerlik(a,b): bigram Dice katsayısı, 0-1 arası
+//     - duplicateBul(sorular, options): 4 tipte tespit:
+//       * 'tam'        — metin + seçenekler birebir aynı
+//       * 'metin'      — sadece metin aynı, seçenekler farklı
+//       * 'secenekler' — sadece seçenekler aynı, metin farklı
+//       * 'benzer'     — %85+ metin benzerliği (varsayılan)
+//   • Her çift için CevapKaydi'ndan kullanıcı sayıları hesaplanır:
+//     A çözen, B çözen, ikisini de çözen ("çakışma" senaryosu)
+//   • 4 senaryo etiketi:
+//     - ÇAKIŞMA       — aynı kullanıcı ikisini de çözmüş, birleştirme zor
+//     - AYRI          — farklı kullanıcılar, birleştirme kolay
+//     - BİRİ BOŞ      — birini kimse çözmemiş, diğeri silinebilir
+//     - İKİSİ DE BOŞ  — hiç çözülmemiş, sade silme
+//   • SADECE TESPİT VE GÖSTERİM — sil/birleştir butonu yok. v4.3.69'da.
+//   • Birim test: 5 sahte soru, 4 doğru tip eşleşmesi.
+// --- VERSİYON 4.3.67 (Modüler Yapı) ---
 // v4.3.67 değişiklikleri ("Soruyu Gör" yarım düzeltme TAMAMLANDI):
 //   • v4.3.66'da buton koşulu açıldı (sadece yanlış → tüm cevaplar) ama
 //     soruVerileri JS objesini dolduran döngüde 'if (!c.dogruMu)' koşulu
