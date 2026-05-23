@@ -1,4 +1,16 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.65 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.66 (Modüler Yapı) ---
+// v4.3.66 değişiklikleri (tüm cevaplar için "Soruyu Gör" butonu):
+//   • Önceden Ders İstatistikleri sekmesindeki "Çözülen Sorular" tablosunda
+//     sadece YANLIŞ cevaplar için "Soruyu Gör" butonu görünüyordu
+//     (`if (!c.dogruMu && sb.soruMetni)`).
+//   • Doğru cevaplı sorulara da erişmek istenildi: koşul `if (sb.soruMetni)`
+//     olarak değiştirildi. Doğru-yanlış fark etmez, tüm cevaplar için
+//     buton görünür.
+//   • Etki: hem öğrenci kendi profili (panel.ejs), hem öğretmen takip
+//     sayfası (takip-ogrenci-detay.ejs). Öğrenci/öğretmen/veli/kurumsal
+//     herkesin paneli aynı şablonu kullanır.
+//   • "Hatalı" butonu da olduğu yerde duruyor.
+// --- VERSİYON 4.3.65 (Modüler Yapı) ---
 // v4.3.65 değişiklikleri (LGS ortalama formülü services'e taşındı + cron 5 soru şartı):
 //   • LGS ağırlıklı ortalama hesabı yeni services/lgsOrtalama.js dosyasında
 //     TEK KAYNAK olarak duruyor. Önceden cronJobs.js + routes/panel.js +
