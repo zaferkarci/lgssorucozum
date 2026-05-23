@@ -1,4 +1,18 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.63 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.64 (Modüler Yapı) ---
+// v4.3.64 değişiklikleri (profil "Genel ortalama" kartı LGS ağırlıklı):
+//   • v4.3.63'te cronJobs + panel.js + takip.js'i LGS ağırlıklı formüle
+//     çevirdik ama PROFİL EJS şablonlarındaki "Genel ortalama" kartı
+//     kendi içinde ayrı bir hesap yapıyordu (nitelikli derslerin düz
+//     ortalamasının düz ortalaması).
+//   • Sonuç: berat profili "16.72" gösteriyordu (Matematik dersOrt'u
+//     direkt yansıyordu, tek ders olduğu için bölünmüyordu). LGS ağırlıklı
+//     değeri 4.46 olmalı.
+//   • Düzeltme: hem panel.ejs hem takip-ogrenci-detay.ejs içindeki "Genel
+//     ortalama" hesabı LGS katsayıları (4-4-4-1-1-1, toplam 15) ile yapılır.
+//   • Min 5 soru nitelik şartı korundu — çok az soruluk dersler hesaba
+//     katılmaz (profil tarafında; cron'da bu şart yok, küçük fark olabilir).
+//   • Karta küçük açıklayıcı not: "LGS ağırlıklı"
+// --- VERSİYON 4.3.63 (Modüler Yapı) ---
 // v4.3.63 değişiklikleri (LGS resmi ağırlıklı ortalama):
 //   • Genel ortalama formülü LGS'nin gerçek puan hesabıyla aynı ağırlıkları
 //     kullanır:
