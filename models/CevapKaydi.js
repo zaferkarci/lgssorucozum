@@ -6,7 +6,15 @@ const CevapKaydiSchema = new mongoose.Schema({
     dogruMu: Boolean,
     sure: Number,
     kazanilanPuan: { type: Number, default: 0 },
-    tarih: { type: Date, default: Date.now }
+    tarih: { type: Date, default: Date.now },
+    // v4.4.0: Soru daha önce "Geç" ile atlanmıştı, şimdi tekrar geliyor.
+    //   true ise: kazanılanPuan zaten 1/5'e indirilmiştir, ama daha önemlisi
+    //   bu cevap sorunun istatistiklerine (ortSure, dogruOrani, σ_sure, Z)
+    //   ETKİ ETMEZ. Cron bu flag'li kayıtları soru istatistiği hesabı
+    //   sırasında dışlar. Öğrencinin puan/dersOrt hesabına ise normal katılır.
+    //   Soru 3+. kez geliyorsa kazanılanPuan = 0 olur (yine de kayıt açılır
+    //   ki "geçmişten gelen 0 puan" görünsün).
+    ikinciKezMi: { type: Boolean, default: false }
 });
 
 // Compound index — ham puan hesabı için (soruId + dogruMu)

@@ -1,4 +1,56 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.69 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.4.1 (Modüler Yapı) ---
+// v4.4.1 değişiklikleri (Geç butonu — sınırsız 1/5^n + ortalamalarda 4 basamak):
+//   • v4.4.0'da 3. ve sonraki çözümler 0 puan alıyordu. Kullanıcı isteği:
+//     1/5'in katları halinde SINIRSIZ azalsın, ortalamaya hep dahil olsun.
+//   • Yeni formül: puan / 5^gecisSayisi
+//     - 1. çözüm (g=0): tam puan
+//     - 2. çözüm (g=1): puan/5
+//     - 3. çözüm (g=2): puan/25
+//     - 4. çözüm (g=3): puan/125
+//     - n. çözüm: puan/5^(n-1)
+//   • Yuvarlama: DB'de ham (ondalıklı) saklanır.
+//   • Görüntüleme:
+//     - Toplam puan: Math.round ile tam sayı (eskisi gibi, sade)
+//     - dersOrt ve genelOrt: .toFixed(4) — 4 basamak ondalık
+//   • Etkilenen 5 görüntüleme yeri:
+//     - panel.ejs: genel ortalama kart (1460), ders ortalama kart (1571)
+//     - takip-ogrenci-detay.ejs: aynı 2 yer
+//   • Cron tarafında ikinciKezMi kayıtların kazanilanPuan'ı yeniden
+//     hesaplanmaz, /cevap anında doğru yazıldığı için aynen tutulur.
+//     (gecisSayisi bilgisi /gec'te tüketilip silindiği için cron yeniden
+//     hesaplayamaz — kayıttaki değere güvenir.)
+// --- VERSİYON 4.4.0 (Modüler Yapı) ---
+// v4.4.0 değişiklikleri (Geç butonu — soru atlama):
+//   • Soru çözme ekranına "⏭️ Geç" butonu eklendi. Öğrenci 5dk beklemeden
+//     soruyu atlayabilir. Konfirmasyon ile.
+//   • Yeni endpoint: POST /gec — kullanıcının gecilenSorular array'ine
+//     ekler, hiçbir CevapKaydı oluşturmaz, hiçbir istatistiği değiştirmez.
+//   • Sıralama mantığı: geçilen soru aynı ders/ünite/konu içinde EN SONA
+//     itilir (zorluk artanından sonra). Aynı ünite içinde en zor sorudan
+//     sonra gelir.
+//   • Yeni şema alanları:
+//     - Kullanici.gecilenSorular: [{soruId, gecisSayisi, sonGecisTarihi}]
+//     - CevapKaydi.ikinciKezMi: bool (cron istatistik dışlar)
+//   • Soru 2. kez gelip çözülürse:
+//     - kazanılanPuan = normal_puan / 5 (öğrenci için)
+//     - kayıtta ikinciKezMi: true → cron sorunun istatistik hesabından
+//       dışlar (ezber etkisi sorunun gerçek zorluğunu çarpıtmasın)
+//     - gecilenSorular listesinden silinir (döngü tamamlandı)
+//   • Soru 3. ve sonraki kezlerde çözülürse:
+//     - kazanılanPuan = 0
+//     - aynı ikinciKezMi: true → istatistik etkisi yok
+//   • Öğrencinin toplam puanı ve dersOrt'una 1/5 puan KATILIR (X seçeneği).
+//   • Cron 3 yerde ikinciKezMi: { $ne: true } filtresi ekledi:
+//     - soruIstatistikHesapla (line ~36)
+//     - hamPuanHesapla (line ~162)
+//     - kullaniciPuanHesapla'da 1/5 katsayısı yeniden uygulanır
+//   • Tasarım gerekçesi: 2. kez gören öğrenci sorunun "gerçek" zorluğunu
+//     yansıtmaz (ezber etkisi). Bu kayıtlar Z/ortSure hesabına girerse
+//     soru yapay olarak "kolay" sayılır → puan formülü bozulur. Senin
+//     "ikinci defa görülen sorunun sistemdeki güvenirliliği bozmasını
+//     istemiyorum" isteğin birebir uygulandı.
+//   • Test: 4 senaryo, sıralama 1 senaryo. Hepsi beklenen sonuç.
+// --- VERSİYON 4.3.69 (Modüler Yapı) ---
 // v4.3.69 değişiklikleri (Bugünün aktivite özeti — admin/öğretmen/veli):
 //   • Yeni service: services/aktivite.js
 //     - bugunBaslangic(): Europe/Istanbul 00:00 zaman damgası

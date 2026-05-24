@@ -36,7 +36,19 @@ const KullaniciSchema = new mongoose.Schema({
     emailDogrulamaKodu: { type: String, default: '' },     // 6 haneli kod (hash'li değil, kısa ömürlü)
     emailDogrulamaSonGecerli: { type: Date, default: null }, // Kod son geçerlilik tarihi (15 dk)
     // v4.3.69: Login zaman damgası — "bugün aktif" tespiti için
-    sonGiris: { type: Date, default: null }
+    sonGiris: { type: Date, default: null },
+    // v4.4.0: Geçilen sorular — öğrenci "Geç" butonuna basıp soruyu atladığında
+    //   buraya eklenir. Sıralamada bu soru o ders/ünite/konu'nun en sonuna
+    //   itilir. Soru 2. kez çözüldüğünde puan = kazanılan/5 olur (3+ ise 0).
+    //   CevapKaydı oluşmaz "geç" eyleminde; sadece bu liste güncellenir.
+    //   Soru çözüldüğünde bu listeden silinmez — gecisSayisi 1 olarak kalır,
+    //   ileride aynı soru tekrar gelse de (cron yeniden hesaplarsa) 2. kez
+    //   sayılır.
+    gecilenSorular: [{
+        soruId:          { type: mongoose.Schema.Types.ObjectId, ref: 'Soru' },
+        gecisSayisi:     { type: Number, default: 1 }, // kaç kere geçildi
+        sonGecisTarihi:  { type: Date, default: Date.now }
+    }]
 });
 
 // Compound indexes — sıralama filtreleri için

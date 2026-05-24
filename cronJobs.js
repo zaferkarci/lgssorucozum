@@ -33,7 +33,10 @@ async function soruIstatistikHesapla() {
     const MINIMUM_COZUM = 5;
 
     for (const s of tumSorular) {
-        const kayitlar = await CevapKaydi.find({ soruId: s._id }).lean();
+        // v4.4.0: ikinciKezMi true olan kayıtlar (geçilip sonra çözülmüş)
+        // sorunun istatistiklerini bozar (ezber etkisi: daha hızlı, daha doğru).
+        // Bu yüzden soru istatistik hesabında dışlanır.
+        const kayitlar = await CevapKaydi.find({ soruId: s._id, ikinciKezMi: { $ne: true } }).lean();
 
         if (kayitlar.length === 0) {
             s.cozulmeSayisi = 0;
@@ -103,21 +106,33 @@ async function kullaniciPuanHesapla() {
             dersMap[dersAdi].toplamSure += kayit.sure || 0;
 
             if (kayit.dogruMu) {
-                // v4.3.50: Puan hesabında Z artık sorunun cron Z'sinden gelir
-                // (s.zorlukKatsayisi). Tüm öğrenciler aynı soruda aynı Z alır,
-                // tek fark süre bileşeni. İlk-son çözen ayrımı kalkar.
-                // Cron her gün Z'yi yeniden hesapladığı için puanlar da o
-                // güncel Z'ye göre yeniden çıkar.
-                const T_ref = s.ortalamaSure || 60;
-                const T_ogr = kayit.sure || T_ref;
-                const T_min = 10;
-                const logHiz = Math.log2(1 + (T_ref / T_ogr));
-                const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
-                const hizBileseni = logMax * Math.tanh(logHiz / logMax);
-                const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
-                const sigmaSure = stdSapma(s.cozumSureleriTum || []);
-                const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
-                const kazanilanPuan = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);
+                let kazanilanPuan;
+                // v4.4.1: ikinciKezMi olan kayıtlar /cevap anında doğru
+                // hesaplanmıştır (1/5^gecisSayisi formülüyle). Cron bunları
+                // yeniden hesaplamaz, kayıttaki değeri kullanır.
+                // Yeniden hesaplasaydı gecisSayisi bilgisi gerekirdi ama o
+                // bilgi /gec endpoint'inde anlık tüketilip silindi.
+                if (kayit.ikinciKezMi) {
+                    kazanilanPuan = kayit.kazanilanPuan || 0;
+                } else {
+                    // v4.3.50: Puan hesabında Z artık sorunun cron Z'sinden gelir
+                    // (s.zorlukKatsayisi). Tüm öğrenciler aynı soruda aynı Z alır,
+                    // tek fark süre bileşeni. İlk-son çözen ayrımı kalkar.
+                    // Cron her gün Z'yi yeniden hesapladığı için puanlar da o
+                    // güncel Z'ye göre yeniden çıkar.
+                    const T_ref = s.ortalamaSure || 60;
+                    const T_ogr = kayit.sure || T_ref;
+                    const T_min = 10;
+                    const logHiz = Math.log2(1 + (T_ref / T_ogr));
+                    const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
+                    const hizBileseni = logMax * Math.tanh(logHiz / logMax);
+                    const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+                    const sigmaSure = stdSapma(s.cozumSureleriTum || []);
+                    const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
+                    kazanilanPuan = Math.max(Z_katsayi * T_ref * hizBileseni * GE, 0);
+                    // v4.4.1: 4 basamağa yuvarla, yuvarlama yok yerine
+                    kazanilanPuan = Math.round(kazanilanPuan * 10000) / 10000;
+                }
 
                 toplamPuan += kazanilanPuan;
                 dersMap[dersAdi].toplamPuan += kazanilanPuan;
@@ -147,7 +162,8 @@ async function kullaniciPuanHesapla() {
 async function hamPuanHesapla() {
     const tumSorular = await Soru.find({});
     for (const s of tumSorular) {
-        const dogruKayitlar = await CevapKaydi.find({ soruId: s._id, dogruMu: true }).lean();
+        // v4.4.0: ikinciKezMi olan kayıtlar sorunun ham puanına etki etmez
+        const dogruKayitlar = await CevapKaydi.find({ soruId: s._id, dogruMu: true, ikinciKezMi: { $ne: true } }).lean();
         if (dogruKayitlar.length === 0) {
             s.hamPuan = null;
         } else {

@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+ şeklinde kullanılır.
+%>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
@@ -1442,7 +1444,7 @@ document.addEventListener('DOMContentLoaded', function() {
         %>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:10px; margin-bottom:14px;">
           <div style="background:#f3e5f5; border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:22px; font-weight:700; color:#6a1b9a;"><%= genelOrtPuan.toFixed(2) %></div>
+            <div style="font-size:22px; font-weight:700; color:#6a1b9a;"><%= genelOrtPuan.toFixed(4) %></div>
             <div style="font-size:11px; color:#888; margin-top:3px;">Genel ortalama</div>
             <div style="font-size:9px; color:#aaa; margin-top:2px;">LGS ağırlıklı</div>
           </div>
@@ -1553,7 +1555,7 @@ document.addEventListener('DOMContentLoaded', function() {
         %>
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:8px; margin-bottom:14px;">
           <div style="background:#fff3e0; border-radius:8px; padding:10px; text-align:center;">
-            <div style="font-size:18px; font-weight:600; color:#e65100;"><%= dOrtPuan.toFixed(2) %></div>
+            <div style="font-size:18px; font-weight:600; color:#e65100;"><%= dOrtPuan.toFixed(4) %></div>
             <div style="font-size:11px; color:#ffab91;">Ort. puan</div>
           </div>
           <div style="background:#e8f0fe; border-radius:8px; padding:10px; text-align:center;">
@@ -3033,6 +3035,30 @@ document.addEventListener('DOMContentLoaded', function() {
             <% } %>
           <% } %>
         </div>
+
+        <%# v4.4.0: "Geç" butonu — sadece öğrenci için, moderatör/demo'da yok %>
+        <% if (!moderator && !demo && k.rol === 'ogrenci') {
+             var gecisSayisiOnceki = 0;
+             if (k.gecilenSorular) {
+               var g = k.gecilenSorular.find(function(x){ return String(x.soruId) === String(soru._id); });
+               if (g) gecisSayisiOnceki = g.gecisSayisi || 1;
+             }
+        %>
+        <div style="margin-top:12px; display:flex; justify-content:center;">
+          <form method="POST" action="/gec" style="margin:0;">
+            <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+            <input type="hidden" name="soruId" value="<%= soru._id %>">
+            <button type="submit"
+                    onclick="return confirm('Bu soruyu \u015fimdilik atlamak istedi\u011fini onayl\u0131yor musun?\\n\\nNot: Soru \u00fcnitenin sonuna at\u0131l\u0131r, tekrar geldi\u011finde \u00e7\u00f6zersen puan\u0131n 1/5 olur (3. kez gelirse 0 puan).');"
+                    style="background:#fff8e1; color:#c77800; border:1.5px solid #ffd54f; border-radius:8px; padding:8px 22px; font-size:13px; font-weight:600; cursor:pointer;">
+              ⏭️ Geç
+              <% if (gecisSayisiOnceki > 0) { %>
+                <span style="font-size:10px; color:#999;">(<%= gecisSayisiOnceki+1 %>. atlama olur)</span>
+              <% } %>
+            </button>
+          </form>
+        </div>
+        <% } %>
 
         <% if (moderator || demo) { %>
         <!-- Moderatör/demo navigasyon çubuğu — ileri-geri tek tek geçiş -->

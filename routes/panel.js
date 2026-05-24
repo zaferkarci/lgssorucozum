@@ -319,6 +319,15 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         } catch (e) { /* tablo boşsa fallback alfabetik kalır */ }
     }
 
+    // v4.4.0: Geçilen soruları sıralamada en sona itmek için harita oluştur
+    // Anahtar: String(soruId), değer: gecisSayisi (1 ise 2. kez, 2+ ise 3+. kez)
+    const gecilenSoruMap = {};
+    if (!ogretmen && !moderator && !demo && k.gecilenSorular) {
+        k.gecilenSorular.forEach(g => {
+            if (g && g.soruId) gecilenSoruMap[String(g.soruId)] = g.gecisSayisi || 1;
+        });
+    }
+
     cozulmemisSorular.sort((a, b) => {
         // 1) Ders alfabetik (ders filtreli mod'da bu hiç tetiklenmez)
         const dersA = a.ders || '';
@@ -340,7 +349,14 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         const konuSiraB = uB && uB.konuSiraMap[b.konu] !== undefined ? uB.konuSiraMap[b.konu] : 9999;
         if (konuSiraA !== konuSiraB) return konuSiraA - konuSiraB;
 
-        // 4) Zorluk artan
+        // v4.4.0: Geçilen sorular ders/ünite/konu içinde EN SONA itilir.
+        //   gecisSayisi=0 (geçilmemiş): normal akışta zorluğa göre artan
+        //   gecisSayisi>=1: o konunun son zor sorusundan sonra, gecisSayisi'na göre
+        const gecA = gecilenSoruMap[String(a._id)] || 0;
+        const gecB = gecilenSoruMap[String(b._id)] || 0;
+        if (gecA !== gecB) return gecA - gecB; // 0 → 1 → 2... azalan öncelikte
+
+        // 4) Zorluk artan (geçilmemişler için)
         const za = a.zorlukKatsayisi != null ? a.zorlukKatsayisi : 3;
         const zb = b.zorlukKatsayisi != null ? b.zorlukKatsayisi : 3;
         if (za !== zb) return za - zb;
@@ -1068,6 +1084,20 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
             const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
             let kazanilanPuan = 0;
 
+            // v4.4.0: Bu soru daha önce geçilmiş mi? Eğer evetse:
+            //   - puanı 1/5'e indir (2. çözüm)
+            //   - 3. ve sonraki çözümlerde 0 (gecisSayisi >= 2 olunca)
+            //   - kayıtta ikinciKezMi=true bayrağı → cron istatistik dışlar
+            let ikinciKezMi = false;
+            let gecisSayisi = 0;
+            if (k.gecilenSorular && k.gecilenSorular.length > 0) {
+                const gecKayit = k.gecilenSorular.find(g => String(g.soruId) === String(s._id));
+                if (gecKayit) {
+                    ikinciKezMi = true;
+                    gecisSayisi = gecKayit.gecisSayisi || 1;
+                }
+            }
+
             if (dogruMu) {
                 // v4.3.50: Anlık puanda Z artık sorunun mevcut cron Z'sinden
                 // gelir (s.zorlukKatsayisi). Dünkü cron'un belirlediği Z bugün
@@ -1083,29 +1113,52 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
                 const sigmaSure = stdSapma(eskiSureleri);
                 const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
-                const kazanilanPuanHesap = Math.max(Math.round(Z_katsayi * T_ref * hizBileseni * GE), 1);
+                const kazanilanPuanHesap = Math.max(Z_katsayi * T_ref * hizBileseni * GE, 0);
                 kazanilanPuan = kazanilanPuanHesap;
+
+                // v4.4.0: ikinciKezMi ise puanı azalt
+                // v4.4.1: Sınırsız 1/5^gecisSayisi formülü. Yuvarlama yok,
+                //   tam ondalıklı saklanır. (EJS otomatik toString eder.)
+                //   2. çözüm  (gecisSayisi=1): puan / 5
+                //   3. çözüm  (gecisSayisi=2): puan / 25
+                //   4. çözüm  (gecisSayisi=3): puan / 125
+                //   n. çözüm  (gecisSayisi=n-1): puan / 5^(n-1)
+                if (ikinciKezMi && gecisSayisi >= 1) {
+                    kazanilanPuan = kazanilanPuan / Math.pow(5, gecisSayisi);
+                }
+                // 4 basamağa yuvarla (saklama optimizasyonu, görüntüde de
+                // 4 basamağa kadar olur)
+                kazanilanPuan = Math.round(kazanilanPuan * 10000) / 10000;
+
                 k.puan += kazanilanPuan;
 
-                // Sorunun ham puan ortalamasını güncelle
-                const oncekiHP = s.hamPuan;
-                const oncekiDogru = s.dogruSayisi || 0;
-                if (oncekiHP === null || oncekiHP === undefined || oncekiDogru === 0) {
-                    s.hamPuan = kazanilanPuan;
-                } else {
-                    s.hamPuan = ((oncekiHP * oncekiDogru) + kazanilanPuan) / (oncekiDogru + 1);
+                // v4.4.0: ikinciKezMi olan cevap sorunun istatistiklerine
+                // (hamPuan, ortSure, dogruOrani) etki etmez. Bu blok atlanır.
+                if (!ikinciKezMi) {
+                    // Sorunun ham puan ortalamasını güncelle
+                    const oncekiHP = s.hamPuan;
+                    const oncekiDogru = s.dogruSayisi || 0;
+                    if (oncekiHP === null || oncekiHP === undefined || oncekiDogru === 0) {
+                        s.hamPuan = kazanilanPuan;
+                    } else {
+                        s.hamPuan = ((oncekiHP * oncekiDogru) + kazanilanPuan) / (oncekiDogru + 1);
+                    }
                 }
             }
 
-            s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;
-            if (dogruMu) s.dogruSayisi = (s.dogruSayisi || 0) + 1;
-            const eskiSureToplami = (s.ortalamaSure || 0) * (s.cozulmeSayisi - 1);
-            s.ortalamaSure = (eskiSureToplami + T_ogr) / s.cozulmeSayisi;
-            s.cozumSureleriTum = s.cozumSureleriTum || [];
-            s.cozumSureleriTum.push(T_ogr);
-            if (dogruMu) {
-                s.dogruCevapSureleri = s.dogruCevapSureleri || [];
-                s.dogruCevapSureleri.push(T_ogr);
+            // v4.4.0: ikinciKezMi olan cevap sorunun ortalama süre/doğru sayısına
+            // da etki etmez — bu blok da atlanır.
+            if (!ikinciKezMi) {
+                s.cozulmeSayisi = (s.cozulmeSayisi || 0) + 1;
+                if (dogruMu) s.dogruSayisi = (s.dogruSayisi || 0) + 1;
+                const eskiSureToplami = (s.ortalamaSure || 0) * (s.cozulmeSayisi - 1);
+                s.ortalamaSure = (eskiSureToplami + T_ogr) / s.cozulmeSayisi;
+                s.cozumSureleriTum = s.cozumSureleriTum || [];
+                s.cozumSureleriTum.push(T_ogr);
+                if (dogruMu) {
+                    s.dogruCevapSureleri = s.dogruCevapSureleri || [];
+                    s.dogruCevapSureleri.push(T_ogr);
+                }
             }
             await s.save();
 
@@ -1130,13 +1183,28 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
             // await zorlukGuncelle(soruId);
 
             // Cevap kaydını tut (günlük istatistik için)
+            // v4.4.0: ikinciKezMi flag'i — cron istatistik dışında tutar
             await new CevapKaydi({
                 soruId: soruId,
                 kullaniciAdi: kullaniciAdi,
                 dogruMu: dogruMu,
                 sure: T_ogr,
-                kazanilanPuan: kazanilanPuan
+                kazanilanPuan: kazanilanPuan,
+                ikinciKezMi: ikinciKezMi
             }).save();
+
+            // v4.4.0: Soru çözüldüyse gecilenSorular listesinden sil
+            // (geçti, çözdü, döngü tamamlandı). gecisSayisi=1 ise 2. çözümde silinir,
+            // gecisSayisi>=2 ise hâlâ 0 puan alır ama listeden de silinmez —
+            // çünkü öğrenci hâlâ "geçilmiş soru" olarak bunu tekrar yapabilir
+            // ve cron'da hâlâ ikinciKezMi olarak işaretli kalır.
+            // En sade davranış: 2+ çözümde sil. Aşağıdaki kullaniciKayitGuncelle
+            // bloğunda yapılır.
+            if (ikinciKezMi) {
+                k.gecilenSorular = (k.gecilenSorular || []).filter(g => String(g.soruId) !== String(s._id));
+                k.markModified('gecilenSorular');
+                await k.save();
+            }
 
             // v4.3.32: Cevap sonucunu yeni soru sayfasına taşı (üst bant pop-up için).
             // sonuc=dogru|yanlis, z=sorunun güncel zorluk katsayısı.
@@ -1147,6 +1215,43 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
         }
         res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// v4.4.0: Soru atlama endpoint'i. Hiçbir cevap kaydı oluşturmaz, hiçbir istatistik
+// değişmez. Sadece Kullanici.gecilenSorular listesi güncellenir, soru bir
+// sonraki sıralamada o ders/ünite/konu'nun en sonuna iter. 2. çözümde puan /5,
+// 3+ çözümde 0 puan.
+router.post('/gec', oturumKontrol, async (req, res) => {
+    try {
+        const { kullaniciAdi, soruId } = req.body;
+        if (!kullaniciAdi || !soruId) {
+            return res.status(400).send("<script>alert('Eksik veri'); window.history.back();</script>");
+        }
+        const k = await Kullanici.findOne({ kullaniciAdi });
+        if (!k) return res.status(404).send("<script>alert('Kullanıcı bulunamadı'); window.history.back();</script>");
+        // Öğretmen/moderatör/demo soru geçmez (zaten soru çözmez)
+        if (k.rol !== 'ogrenci') {
+            return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true');
+        }
+        if (!k.gecilenSorular) k.gecilenSorular = [];
+        const mevcut = k.gecilenSorular.find(g => String(g.soruId) === String(soruId));
+        if (mevcut) {
+            mevcut.gecisSayisi = (mevcut.gecisSayisi || 1) + 1;
+            mevcut.sonGecisTarihi = new Date();
+        } else {
+            k.gecilenSorular.push({
+                soruId: soruId,
+                gecisSayisi: 1,
+                sonGecisTarihi: new Date()
+            });
+        }
+        k.markModified('gecilenSorular');
+        await k.save();
+        return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?basla=true&gec=1');
+    } catch (err) {
+        console.error('[/gec] hata:', err);
+        res.status(500).send("Hata: " + err.message);
+    }
 });
 
 // v4.3.5: Çoklu rol — kurumsal kullanıcının "Kurum Modu" ↔ "Öğretmen Modu" geçişi.
