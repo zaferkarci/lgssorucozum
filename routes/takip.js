@@ -435,4 +435,36 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
     }
 });
 
+// v4.3.69: Aktivite özeti API — takip ettiği öğrencilerin bugünkü hareketleri.
+// Öğretmen, kurumsal, veli için.
+router.get('/takip/aktivite-bugun', oturumGerekli, async (req, res) => {
+    try {
+        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi });
+        if (!benim) return res.status(404).json({ ok: false, hata: 'Kullanici bulunamadi' });
+        if (!['ogretmen', 'kurumsal', 'veli'].includes(benim.rol)) {
+            return res.status(403).json({ ok: false, hata: 'Yetkisiz' });
+        }
+
+        // Bu kişi takip ettiği öğrencileri bul (durum: kabul)
+        const iliskiler = await TakipIliski.find({
+            ogretmenAdi: benim.kullaniciAdi,
+            durum: 'kabul'
+        }, 'ogrenciAdi').lean();
+        const ogrAdlari = iliskiler.map(i => i.ogrenciAdi);
+
+        const { takipEdilenAktivite } = require('../services/aktivite');
+        const aktivite = await takipEdilenAktivite(ogrAdlari);
+
+        res.json({
+            ok: true,
+            rol: benim.rol,
+            takipEdilenSayisi: ogrAdlari.length,
+            ...aktivite
+        });
+    } catch (err) {
+        console.error('[takip/aktivite-bugun] hata:', err.message);
+        res.status(500).json({ ok: false, hata: err.message });
+    }
+});
+
 module.exports = router;

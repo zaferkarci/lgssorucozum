@@ -88,7 +88,7 @@ router.get('/admin', async (req, res) => {
     // (NOT: filSinif zaten soru filtresi için kullanılıyor — bu yüzden ayrı bir
     // parametre adı: filKullaniciSinif)
     const filKullaniciSinif = req.query.kullaniciSinif || '';
-    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif sube il ilce okul rol rolListesi siralamaCache');
+    const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif sube il ilce okul rol rolListesi siralamaCache sonGiris');
     const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
     const filtreliKullanicilar = tumKullanicilar.filter(k =>
         (!filIl || k.il === filIl) && (!filIlce || k.ilce === filIlce) && (!filOkul || k.okul === filOkul)
@@ -152,6 +152,16 @@ router.get('/admin', async (req, res) => {
             .filter(u => (!filSinif || uniteSinifEsle(u, filSinif)) && (!filDers || u.ders === filDers) && (!filUnite || u.uniteAdi === filUnite))
             .flatMap(u => u.konular || []).filter(Boolean)
     )].sort();
+    // v4.3.69: Bugünün aktivite özeti (yalnızca kullanicilar mod'unda hesapla)
+    let aktiviteOzetiData = null;
+    if (mod === 'kullanicilar') {
+        try {
+            const { aktiviteOzeti, bugunBaslangic } = require('../services/aktivite');
+            aktiviteOzetiData = await aktiviteOzeti(tumKullanicilar, bugunBaslangic());
+        } catch (e) {
+            console.warn('[admin] aktivite ozeti hesaplanamadi:', e.message);
+        }
+    }
     res.render('admin', {
         mod, editSoru, tumSorular, dersler,
         tumKullanicilar, filtreliKullanicilar,
@@ -162,7 +172,8 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi,
+        aktiviteOzetiData
     });
     } catch (err) {
         console.error('[/admin] HATA:', err);

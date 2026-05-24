@@ -34,7 +34,9 @@ const KullaniciSchema = new mongoose.Schema({
     // v4.2.5: Mail değiştirme doğrulama akışı için geçici alanlar
     yeniEmailBekleyen: { type: String, default: '' },      // Kullanıcının değiştirmek istediği yeni mail
     emailDogrulamaKodu: { type: String, default: '' },     // 6 haneli kod (hash'li değil, kısa ömürlü)
-    emailDogrulamaSonGecerli: { type: Date, default: null } // Kod son geçerlilik tarihi (15 dk)
+    emailDogrulamaSonGecerli: { type: Date, default: null }, // Kod son geçerlilik tarihi (15 dk)
+    // v4.3.69: Login zaman damgası — "bugün aktif" tespiti için
+    sonGiris: { type: Date, default: null }
 });
 
 // Compound indexes — sıralama filtreleri için

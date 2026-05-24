@@ -1,4 +1,23 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.68 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.3.69 (Modüler Yapı) ---
+// v4.3.69 değişiklikleri (Bugünün aktivite özeti — admin/öğretmen/veli):
+//   • Yeni service: services/aktivite.js
+//     - bugunBaslangic(): Europe/Istanbul 00:00 zaman damgası
+//     - aktiviteOzeti(kullanicilar, bugun): sınıf bazlı özet + detay liste
+//     - takipEdilenAktivite(adlar): öğretmen/veli için takip edilenlere göre
+//   • Kullanici şemasına sonGiris alanı eklendi (Date, default null)
+//   • Login akışı (POST /giris) — login'de sonGiris güncellenir
+//     (await beklemez, oturum açılışını yavaşlatmaz)
+//   • Admin > Kullanıcılar mod'unun başına "Bugünün Aktivitesi" kartı:
+//     - Toplam giriş + toplam çözüm
+//     - Sınıf bazlı kartlar (5/6/7/8): "X/Y giriş, Z kişi · W soru"
+//     - Detay tablo (collapse): ilk 100 aktif öğrenci
+//   • Panel > Takip sekmesinin başına aynı kart (öğretmen/kurumsal/veli için)
+//     - Veri /takip/aktivite-bugun endpoint'inden fetch ile gelir
+//     - TakipIliski.durum='kabul' olanlar için filtrelenir
+//   • "Aktif" = bugün giriş yaptı VEYA bugün en az 1 soru çözdü
+//   • Detay listesi soru sayısına göre azalan sıralı
+//   • Test: izole birim test geçti — sınıf filtre, giriş saymayı doğru yapıyor
+// --- VERSİYON 4.3.68 (Modüler Yapı) ---
 // v4.3.68 değişiklikleri (Tekrar Eden Sorular tespit aracı — Aşama 1):
 //   • Yeni admin sayfası: /admin/duplicate-sorular
 //   • Yeni service: services/duplicateTespit.js

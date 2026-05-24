@@ -2002,6 +2002,99 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <% } else if (mod === 'takip') { %>
 
+  <!-- v4.3.69: Bugünün aktivite özeti (öğretmen/kurumsal/veli) -->
+  <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal' || k.rol === 'veli') { %>
+  <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto 16px auto; background:#f0f7ff; border-color:#b3d7ff;">
+    <p class="profil-kart-baslik-yeni" style="margin-bottom:6px;">📊 Bugünün Aktivitesi</p>
+    <div id="aktivite-yukleniyor" style="font-size:13px; color:#666;">Yükleniyor...</div>
+    <div id="aktivite-icerik" style="display:none;">
+      <p style="margin:0 0 12px; font-size:13px; color:#555;">
+        Takip ettiğin <span id="ak-takip-toplam">0</span> öğrenciden
+        <b id="ak-toplam-giris" style="color:#1a73e8;">0</b> tanesi sisteme girdi,
+        toplam <b id="ak-toplam-cozum" style="color:#43a047;">0</b> soru çözüldü.
+      </p>
+      <div id="ak-sinif-ozeti" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+      <details style="margin-top:14px;" id="ak-detay-wrap">
+        <summary style="cursor:pointer; font-size:13px; color:#1a73e8; font-weight:600;">
+          📋 Aktif öğrenci listesi (<span id="ak-detay-sayi">0</span> kişi)
+        </summary>
+        <div style="max-height:400px; overflow-y:auto; margin-top:10px; background:#fff; border:1px solid #e0e0e0; border-radius:8px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead style="background:#f8f9fa; position:sticky; top:0;">
+              <tr>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">#</th>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Kullanıcı</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Sınıf</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Giriş</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Çözüm</th>
+              </tr>
+            </thead>
+            <tbody id="ak-detay-tablo"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </div>
+  <script>
+    (function() {
+      // v4.3.69: Aktivite verisini fetch ile yükle
+      fetch('/takip/aktivite-bugun', { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+          if (!d || !d.ok) {
+            document.getElementById('aktivite-yukleniyor').textContent = 'Aktivite yüklenemedi.';
+            return;
+          }
+          document.getElementById('aktivite-yukleniyor').style.display = 'none';
+          document.getElementById('aktivite-icerik').style.display = 'block';
+          document.getElementById('ak-takip-toplam').textContent = d.takipEdilenSayisi || 0;
+          document.getElementById('ak-toplam-giris').textContent = d.toplamGiris || 0;
+          document.getElementById('ak-toplam-cozum').textContent = d.toplamCozum || 0;
+
+          // Sınıf özeti kartları
+          var ozetDiv = document.getElementById('ak-sinif-ozeti');
+          var sinifAnahtarlari = Object.keys(d.sinifOzeti || {}).sort();
+          if (sinifAnahtarlari.length === 0) {
+            ozetDiv.innerHTML = '<p style="color:#999; font-style:italic; margin:0; font-size:13px;">Takip ettiğin öğrenci yok veya hiçbiri aktif değil.</p>';
+          } else {
+            sinifAnahtarlari.forEach(function(sinif) {
+              var s = d.sinifOzeti[sinif];
+              var kart = document.createElement('div');
+              kart.style.cssText = 'background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; min-width:160px;';
+              kart.innerHTML =
+                '<div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;">' + sinif + '. Sınıf</div>' +
+                '<div style="font-size:13px; color:#333; margin-top:4px;"><b style="color:#1a73e8;">' + s.girisYapan + '</b>/' + s.toplam + ' giriş</div>' +
+                '<div style="font-size:13px; color:#333;"><b style="color:#43a047;">' + s.cozumYapan + '</b> kişi · <b>' + s.toplamCozum + '</b> soru</div>';
+              ozetDiv.appendChild(kart);
+            });
+          }
+
+          // Detay tablo
+          var tbody = document.getElementById('ak-detay-tablo');
+          document.getElementById('ak-detay-sayi').textContent = (d.detayListe || []).length;
+          if (!d.detayListe || d.detayListe.length === 0) {
+            document.getElementById('ak-detay-wrap').style.display = 'none';
+          } else {
+            (d.detayListe.slice(0, 100)).forEach(function(it, i) {
+              var tr = document.createElement('tr');
+              tr.style.cssText = 'border-bottom:1px solid #f0f0f0;';
+              tr.innerHTML =
+                '<td style="padding:6px 10px; color:#999;">' + (i+1) + '</td>' +
+                '<td style="padding:6px 10px;">' + it.kullaniciAdi + '</td>' +
+                '<td style="padding:6px 10px; text-align:center;">' + it.sinif + (it.sube ? '/'+it.sube : '') + '</td>' +
+                '<td style="padding:6px 10px; text-align:center;">' + (it.girisYaptiMi ? '✓' : '—') + '</td>' +
+                '<td style="padding:6px 10px; text-align:center; font-weight:600; color:' + (it.cozumSayisi > 0 ? '#43a047' : '#999') + ';">' + it.cozumSayisi + '</td>';
+              tbody.appendChild(tr);
+            });
+          }
+        })
+        .catch(e => {
+          document.getElementById('aktivite-yukleniyor').textContent = 'Aktivite yüklenirken hata: ' + e.message;
+        });
+    })();
+  </script>
+  <% } %>
+
   <!-- Takip Sekmesi (Öğretmen ve Öğrenci için ayrı görünüm) -->
   <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
     <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto 16px auto;">

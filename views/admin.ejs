@@ -1194,6 +1194,76 @@ function escHtml(str) {
   </script>
 
 <% } else if (mod === 'kullanicilar') { %>
+
+  <!-- v4.3.69: Bugünün aktivite özeti -->
+  <% if (aktiviteOzetiData) {
+       var bugunStr = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day:'numeric', month:'long', year:'numeric' });
+       var sinifAnahtarlari = Object.keys(aktiviteOzetiData.sinifOzeti).sort();
+  %>
+  <div class="card" style="background:#f0f7ff; border:1px solid #b3d7ff;">
+    <h3 style="margin:0 0 6px; font-size:16px;">📊 Bugünün Aktivitesi <span style="font-size:12px; color:#666; font-weight:400;">— <%= bugunStr %></span></h3>
+    <p style="margin:0 0 14px; font-size:13px; color:#555;">
+      Toplam <b><%= aktiviteOzetiData.toplamGiris %></b> öğrenci sisteme girdi · <b><%= aktiviteOzetiData.toplamCozum %></b> soru çözüldü
+    </p>
+    <% if (sinifAnahtarlari.length > 0) { %>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <% sinifAnahtarlari.forEach(function(sinif) {
+           var s = aktiviteOzetiData.sinifOzeti[sinif];
+      %>
+        <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; min-width:160px;">
+          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;"><%= sinif %>. Sınıf</div>
+          <div style="font-size:13px; color:#333; margin-top:4px;">
+            <b style="color:#1a73e8;"><%= s.girisYapan %></b>/<%= s.toplam %> giriş
+          </div>
+          <div style="font-size:13px; color:#333;">
+            <b style="color:#43a047;"><%= s.cozumYapan %></b> kişi · <b><%= s.toplamCozum %></b> soru
+          </div>
+        </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+      <p style="margin:0; color:#999; font-style:italic; font-size:13px;">Bugün henüz aktif öğrenci yok.</p>
+    <% } %>
+
+    <% if (aktiviteOzetiData.detayListe.length > 0) { %>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; font-size:13px; color:#1a73e8; font-weight:600;">
+          📋 Aktif öğrenci listesi (<%= aktiviteOzetiData.detayListe.length %> kişi)
+        </summary>
+        <div style="max-height:400px; overflow-y:auto; margin-top:10px; background:#fff; border:1px solid #e0e0e0; border-radius:8px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead style="background:#f8f9fa; position:sticky; top:0;">
+              <tr>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">#</th>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Kullanıcı</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Sınıf</th>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Okul</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Giriş</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Çözüm</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% aktiviteOzetiData.detayListe.slice(0, 100).forEach(function(d, i) { %>
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                  <td style="padding:6px 10px; color:#999;"><%= i+1 %></td>
+                  <td style="padding:6px 10px;"><a href="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(d.kullaniciAdi) %>" style="color:#1a73e8; text-decoration:none;"><%= d.kullaniciAdi %></a></td>
+                  <td style="padding:6px 10px; text-align:center;"><%= d.sinif %><%= d.sube ? '/'+d.sube : '' %></td>
+                  <td style="padding:6px 10px; color:#666; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= d.okul %></td>
+                  <td style="padding:6px 10px; text-align:center;"><%= d.girisYaptiMi ? '✓' : '—' %></td>
+                  <td style="padding:6px 10px; text-align:center; font-weight:600; color:<%= d.cozumSayisi > 0 ? '#43a047' : '#999' %>;"><%= d.cozumSayisi %></td>
+                </tr>
+              <% }); %>
+              <% if (aktiviteOzetiData.detayListe.length > 100) { %>
+                <tr><td colspan="6" style="padding:8px; text-align:center; color:#999; font-style:italic;">... ve <%= aktiviteOzetiData.detayListe.length - 100 %> kişi daha</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    <% } %>
+  </div>
+  <% } %>
+
   <div class="card">
     <h3>Kullanıcı Listesi (Toplam: <%= filtreliKullanicilar.length %>)</h3>
     <form method="GET" action="/admin" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">

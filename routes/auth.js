@@ -439,6 +439,11 @@ router.post('/giris', async (req, res) => {
         const eslesti = await bcrypt.compare(req.body.sifre, k.sifre);
         if (!eslesti) return res.send("<script>alert('Hata!'); window.history.back();</script>");
         req.session.kullaniciAdi = k.kullaniciAdi;
+        // v4.3.69: Login zaman damgası — "bugün aktif" tespiti için
+        // (await beklemiyoruz, çünkü oturum açılışı bunu beklememeli)
+        Kullanici.updateOne({ _id: k._id }, { $set: { sonGiris: new Date() } }).catch(e =>
+            console.warn('[auth] sonGiris guncellenmedi:', e.message)
+        );
         res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi));
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
