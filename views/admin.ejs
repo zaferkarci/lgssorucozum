@@ -1361,7 +1361,7 @@ function escHtml(str) {
             <td><%= k.ilce||'-' %></td>
             <td><%= k.okul||'-' %></td>
             <td style="text-align:center;"><%= k.soruIndex %></td>
-            <td style="text-align:center; font-weight:bold; color:#1a73e8;"><%= k.puan %></td>
+            <td style="text-align:center; font-weight:bold; color:#1a73e8;"><%= puanFmt(k.puan) %></td>
             <td style="text-align:center; display:flex; gap:4px; flex-wrap:wrap; justify-content:center;">
               <a href="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(k.kullaniciAdi) %>" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">📊 Detay</a>
               <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="admin-btn admin-btn-duzenle" style="font-size:10px; padding:3px 8px;">👁️ Profil</a>

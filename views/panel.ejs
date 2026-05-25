@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="ptopbar-ayrac"></div>
     <div class="ptopbar-kullanici">
       <div class="ptopbar-avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
-      <%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> · 👩‍🏫 Öğretmen<% } else if (k.rol === 'kurumsal') { %> · 🏛️ Kurumsal<% } else { %> · <%= k.puan %> puan<% } %>
+      <%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> · 👩‍🏫 Öğretmen<% } else if (k.rol === 'kurumsal') { %> · 🏛️ Kurumsal<% } else { %> · <%= puanFmt(k.puan) %> puan<% } %>
     </div>
     <% if (Array.isArray(k.rolListesi) && k.rolListesi.length >= 2) { %>
       <!-- v4.3.5: Mod değiştirici — sadece çoklu role sahip kullanıcılarda -->
@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
                   <td style="padding:10px 14px; color:#5f6368;"><%= o.sinif || '—' %><%= o.sube ? '/' + o.sube : '' %></td>
                   <td style="padding:10px 14px; color:#5f6368;"><%= o.okul || '—' %></td>
-                  <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+                  <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(o.puan) %></td>
                   <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
                   <td style="padding:10px 14px; text-align:right;">
                     <form method="POST" action="/kurum/uye-cikar" style="display:inline; margin:0;" onsubmit="return confirm('<%= o.kullaniciAdi %> kurumdan çıkarılsın mı?');">
@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <tr style="border-bottom:1px solid #f0f3f7;">
                 <td style="padding:10px 14px; font-weight:500;"><%= c.ogrenciAdi %></td>
                 <td style="padding:10px 14px; color:#5f6368;"><%= c.sinif ? c.sinif + (c.sube ? '/'+c.sube : '') : '—' %></td>
-                <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= c.puan %></td>
+                <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(c.puan) %></td>
                 <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= c.soruIndex %></td>
                 <td style="padding:10px 14px; text-align:right;">
                   <a href="/takip/ogrenci/<%= encodeURIComponent(c.ogrenciAdi) %>" style="background:#e8f0fe; color:#1a73e8; padding:4px 12px; border-radius:5px; font-size:11px; font-weight:600; text-decoration:none;">İstatistik →</a>
@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <% s.ogrenciler.forEach(function(o) { %>
                   <tr style="border-bottom:1px solid #f0f3f7;">
                     <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
-                    <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+                    <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(o.puan) %></td>
                     <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
                     <td style="padding:10px 14px; text-align:right;">
                       <a href="/takip/ogrenci/<%= encodeURIComponent(o.kullaniciAdi) %>" style="background:#e8f0fe; color:#1a73e8; padding:4px 12px; border-radius:5px; font-size:11px; font-weight:600; text-decoration:none;">İstatistik →</a>
@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <% kurumSinifDetay.ogrenciler.forEach(function(o) { %>
                 <tr style="border-bottom:1px solid #f0f3f7;">
                   <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
-                  <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+                  <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(o.puan) %></td>
                   <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
                 </tr>
               <% }); %>
@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') { %>
     <div class="profil-banner-sag">
       <div class="profil-banner-stat">
-        <div class="profil-banner-no"><%= k.puan %></div>
+        <div class="profil-banner-no"><%= puanFmt(k.puan) %></div>
         <div class="profil-banner-label">Toplam puan</div>
       </div>
       <div class="profil-banner-sep"></div>
@@ -1449,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div style="font-size:9px; color:#aaa; margin-top:2px;">LGS ağırlıklı</div>
           </div>
           <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= k.puan %></div>
+            <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= puanFmt(k.puan) %></div>
             <div style="font-size:11px; color:#999; margin-top:3px;">Toplam puan</div>
           </div>
           <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
@@ -2420,7 +2420,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // 4 büyük metrik
       html += '<div class="mobil-tekkolon" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:18px;">';
-      html += '<div style="text-align:center; padding:14px; background:#e8f0fe; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#1a73e8;">' + (o.puan||0) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Toplam Puan</div></div>';
+      html += '<div style="text-align:center; padding:14px; background:#e8f0fe; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#1a73e8;">' + (Math.round((o.puan||0)*10000)/10000) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Toplam Puan</div></div>';
       html += '<div style="text-align:center; padding:14px; background:#f0f9f0; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#43a047;">' + (o.soruIndex||0) + '</div><div style="font-size:11px; color:#888; margin-top:4px;">Çözülen Soru</div></div>';
       html += '<div style="text-align:center; padding:14px; background:#fff8e1; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#f57c00;">' + dogruOrani + '%</div><div style="font-size:11px; color:#888; margin-top:4px;">Doğru Oranı</div></div>';
       html += '<div style="text-align:center; padding:14px; background:#fce4ec; border-radius:10px;"><div style="font-size:24px; font-weight:700; color:#c2185b;">' + (ist.ortSure||0) + 'sn</div><div style="font-size:11px; color:#888; margin-top:4px;">Ort. Süre</div></div>';
@@ -2518,7 +2518,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <td style="padding:10px;"><%- sinifHucre %></td>
               <td style="padding:10px;"><%= o.okul || '-' %></td>
               <td style="padding:10px;"><%= o.il || '-' %> / <%= o.ilce || '-' %></td>
-              <td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;"><%= o.puan || 0 %></td>
+              <td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(o.puan) %></td>
               <td style="padding:10px; text-align:right; color:#666;"><%= o.soruIndex || 0 %></td>
             </tr>
           <% }); %>

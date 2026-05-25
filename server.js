@@ -1,4 +1,23 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.4.1 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.4.2 (Modüler Yapı) ---
+// v4.4.2 değişiklikleri (Toplam puan görüntüleme — 4 basamak ondalık):
+//   • v4.4.1'den sonra DB'de uzun ondalıklı puanlar oluşmuştu (15+ basamak)
+//     çünkü 1/5^n bölümleri tam sayı vermiyor.
+//   • Sorun: kullanıcı arayüzünde "1920.123456789012345" gibi okunmaz puanlar.
+//   • Çözüm: server.js app.locals.puanFmt helper'ı eklendi.
+//     - DB'de değer değişmez (ham saklanır)
+//     - Görüntüde en fazla 4 basamak ondalık: 1920.1235
+//     - Tam sayıysa ondalık yazılmaz: 1920
+//   • app.locals olduğu için TÜM EJS sayfalarında otomatik erişilebilir
+//     (Express'in res.render çağrıları app.locals'ı geçirir).
+//   • Değişen sayfalar (14 yer):
+//     - admin.ejs (kullanıcı listesi)
+//     - admin-kullanici-detay.ejs (öğrenci detay)
+//     - panel.ejs (9 yer: profil banner, davet listeleri, takip listesi, ...)
+//     - takip-ogrenci-detay.ejs (3 yer: top bar, banner, istatistik)
+//   • Bir client-side JS bloğunda (panel.ejs:2423) puanFmt server helper
+//     olduğu için inline Math.round(*10000)/10000 kullanıldı.
+//   • Admin, kurumsal, öğretmen, veli, öğrenci — tüm roller için tutarlı.
+// --- VERSİYON 4.4.1 (Modüler Yapı) ---
 // v4.4.1 değişiklikleri (Geç butonu — sınırsız 1/5^n + ortalamalarda 4 basamak):
 //   • v4.4.0'da 3. ve sonraki çözümler 0 puan alıyordu. Kullanıcı isteği:
 //     1/5'in katları halinde SINIRSIZ azalsın, ortalamaya hep dahil olsun.
@@ -578,6 +597,21 @@ function oturumKontrol(req, res, next) {
     next();
 }
 app.locals.oturumKontrol = oturumKontrol;
+
+// v4.4.2: Toplam puan görüntüleme helper'ı — tüm EJS sayfalarında kullanılır.
+// DB'de uzun ondalıklı saklanan puanları en fazla 4 basamak ondalıkla gösterir.
+// Tam sayılarda ondalık kısım yazılmaz: 1920 → "1920", 1920.4500 → "1920.45",
+// 1920.43215 → "1920.4322" (4 basamağa yuvarlanır).
+// Kullanım: <%= puanFmt(k.puan) %> veya <%= puanFmt(o.puan) %>
+app.locals.puanFmt = function(p) {
+    if (p === null || p === undefined) return '0';
+    const num = Number(p);
+    if (isNaN(num)) return '0';
+    // 4 basamağa yuvarla
+    const yuvarlanmis = Math.round(num * 10000) / 10000;
+    if (yuvarlanmis === Math.floor(yuvarlanmis)) return String(Math.floor(yuvarlanmis));
+    return String(yuvarlanmis);
+};
 
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/panel'));

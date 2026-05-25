@@ -68,7 +68,7 @@ MathJax = {
     <div class="ptopbar-ayrac"></div>
     <div class="ptopbar-kullanici">
       <div class="ptopbar-avatar"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
-      👨‍🎓 <%= k.kullaniciAdi %> · <%= k.puan %> puan
+      👨‍🎓 <%= k.kullaniciAdi %> · <%= puanFmt(k.puan) %> puan
     </div>
   </div>
   <div class="ptopbar-nav ptopbar-nav-detay">
@@ -90,7 +90,7 @@ MathJax = {
     </div>
     <div class="profil-banner-sag">
       <div class="profil-banner-stat">
-        <div class="profil-banner-no"><%= k.puan %></div>
+        <div class="profil-banner-no"><%= puanFmt(k.puan) %></div>
         <div class="profil-banner-label">Toplam puan</div>
       </div>
       <div class="profil-banner-sep"></div>
@@ -154,7 +154,7 @@ MathJax = {
             <div style="font-size:9px; color:#aaa; margin-top:2px;">LGS ağırlıklı</div>
           </div>
           <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">
-            <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= k.puan %></div>
+            <div style="font-size:22px; font-weight:700; color:#1a73e8;"><%= puanFmt(k.puan) %></div>
             <div style="font-size:11px; color:#999; margin-top:3px;">Toplam puan</div>
           </div>
           <div style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:center;">

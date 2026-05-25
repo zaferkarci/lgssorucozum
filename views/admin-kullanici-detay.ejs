@@ -164,7 +164,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
       <div class="d-kart">
         <p class="d-kart-baslik">Genel İstatistikler</p>
         <div class="istat-grid">
-          <div class="istat-item"><div class="istat-no"><%= k.puan %></div><div class="istat-label">Toplam puan</div></div>
+          <div class="istat-item"><div class="istat-no"><%= puanFmt(k.puan) %></div><div class="istat-label">Toplam puan</div></div>
           <div class="istat-item"><div class="istat-no"><%= toplamSoru %></div><div class="istat-label">Çözülen soru</div></div>
           <div class="istat-item"><div class="istat-no" style="color:<%= dogruOran>=70?'#2e7d32':dogruOran>=40?'#e65100':'#c62828' %>"><%= dogruOran %>%</div><div class="istat-label">Doğru oranı</div></div>
           <div class="istat-item"><div class="istat-no" style="color:#2e7d32;"><%= toplamDogru %></div><div class="istat-label">Doğru</div></div>
