@@ -1,4 +1,10 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.4.2 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.4.3 (Modüler Yapı) ---
+// v4.4.3 değişiklikleri (kurumsal bilgilendirme metni güncelleme):
+//   • Kurumsal kullanıcı panelindeki "Sonraki sürümlerde gelecek" uyarısından
+//     "üye istatistik detayları" kısmı kaldırıldı.
+//   • Sebep: v4.3.69'da "Bugünün Aktivitesi" kartı eklendi → bu artık var.
+//   • Tek dosya, tek satır değişikliği.
+// --- VERSİYON 4.4.2 (Modüler Yapı) ---
 // v4.4.2 değişiklikleri (Toplam puan görüntüleme — 4 basamak ondalık):
 //   • v4.4.1'den sonra DB'de uzun ondalıklı puanlar oluşmuştu (15+ basamak)
 //     çünkü 1/5^n bölümleri tam sayı vermiyor.
