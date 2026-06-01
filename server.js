@@ -1,4 +1,21 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.1 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.2 (Modüler Yapı) ---
+// v4.5.2 değişiklikleri (Günlük hedef kartı panele girince görünür):
+//   • v4.5.0/v4.5.1'de günlük hedef kartı sadece "Profil" sekmesinde
+//     görünüyordu. Öğrenci panele girer girmez kartı görmeli — profil
+//     sekmesine geçmesi gerekmemeli.
+//   • routes/panel.js:
+//     - Eskiden: if (mod === 'profil' && k.rol === 'ogrenci') gunlukHedefHesap()
+//     - Şimdi: if (k.rol === 'ogrenci' || demo) — her mod için hesaplanır
+//   • views/panel.ejs:
+//     - Kart bloğu eskiden "<% } else if (mod === 'profil') %>" bloğunun
+//       içindeydi (903-1066. satırlar).
+//     - Komple blok panel-main divinin BAŞINA taşındı (239. satır).
+//     - Artık mod ne olursa olsun (soru, profil, takip, vs.) öğrenciye
+//       görünür. Kart kendi if-koşuluna sahip — sadece öğrenci/demo için.
+//   • Toast ve modal mantığı aynı (kart bloğuyla birlikte taşındı).
+//   • takip-ogrenci-detay.ejs (v4.5.1'de eklenen) zaten doğru yerde,
+//     dokunulmadı.
+// --- VERSİYON 4.5.1 (Modüler Yapı) ---
 // v4.5.1 değişiklikleri (Günlük hedef kartı takip sayfasında):
 //   • Mevcut v4.5.0 hedef kartı sadece öğrencinin kendi panelinde görünüyordu
 //     (panel.js /panel/:kullaniciAdi route'u kendi profili için).

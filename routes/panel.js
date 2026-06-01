@@ -502,9 +502,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.5.0: Ders bazlı günlük hedef — sadece öğrenci/demo için profil sayfasında
+    // v4.5.2: Ders bazlı günlük hedef — öğrenci/demo için her modda hesaplanır
+    //   (v4.5.0'da yalnızca mod === 'profil' iken hesaplanıyordu, ama kart
+    //   panele girer girmez görünmeli, profil sekmesine geçmeye gerek yok).
     let gunlukHedefData = null;
-    if (mod === 'profil' && (k.rol === 'ogrenci' || k.rol === 'demo')) {
+    if (k.rol === 'ogrenci' || k.rol === 'demo') {
         try {
             const { gunlukHedefHesap } = require('../services/gunlukHedef');
             gunlukHedefData = await gunlukHedefHesap(k.kullaniciAdi);
