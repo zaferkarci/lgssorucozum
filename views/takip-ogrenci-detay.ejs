@@ -79,6 +79,80 @@ MathJax = {
 
 <div class="panel-main">
 
+  <%# v4.5.1: Günlük hedef kartı — takip eden öğretmen/veli/kurumsal için
+      görüntüleme amaçlı. panel.ejs'tekiyle aynı tasarım ama
+      modal ve toast YOK (öğretmen "tamamladın" bildirimi almamalı). %>
+  <% if (gunlukHedefData && (k.rol === 'ogrenci' || k.rol === 'demo')) { %>
+    <%
+      var ghd = gunlukHedefData;
+      var dersKisaltma = {
+        'Matematik': 'Matematik',
+        'Türkçe': 'Türkçe',
+        'Fen Bilimleri': 'Fen Bilimleri',
+        'T.C. İnkılâp Tarihi': 'İnkılap',
+        'Din Kültürü': 'Din Kültürü',
+        'İngilizce': 'İngilizce'
+      };
+      var toplamIlerleme = ghd.toplamHedef > 0 ? Math.min(100, Math.round((ghd.toplamBugun / ghd.toplamHedef) * 100)) : 0;
+      var anaRenk = ghd.toplamTamamlandi ? '#43a047' : '#1976d2';
+    %>
+    <div style="background:#fff; border:1px solid #e0e6ec; border-radius:14px; padding:20px 24px; margin-bottom:18px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:22px;">🎯</span>
+          <div>
+            <div style="font-size:16px; font-weight:600; color:#1a2236;"><%= k.kullaniciAdi %> · Bugünkü hedefi</div>
+            <div style="font-size:12px; color:#777;">Son 30 günlük ortalamasına göre</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:24px; font-weight:600; color:<%= anaRenk %>;"><%= ghd.toplamBugun %>/<%= ghd.toplamHedef %></div>
+          <div style="font-size:11px; color:#888;">soru çözüldü</div>
+        </div>
+      </div>
+
+      <div style="height:6px; background:#f0f2f5; border-radius:3px; overflow:hidden; margin-bottom:20px;">
+        <div style="height:100%; width:<%= toplamIlerleme %>%; background:<%= anaRenk %>;"></div>
+      </div>
+
+      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.4px; font-weight:600; margin-bottom:10px;">Ders ders ilerleme</div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <% ghd.dersler.forEach(function(d) {
+          var rozetRenk = d.katsayi === 4 ? { bg: '#dbeafe', fg: '#1e40af' } : { bg: '#e5e7eb', fg: '#374151' };
+          var ilerlemeRenk = d.tamamlandi ? '#43a047' : '#1976d2';
+          var dersAdi = dersKisaltma[d.ders] || d.ders;
+        %>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 12px; background:#f8f9fa; border-radius:8px; flex-wrap:wrap;">
+            <span style="display:inline-flex; align-items:center; padding:2px 8px; border-radius:6px; background:<%= rozetRenk.bg %>; color:<%= rozetRenk.fg %>; font-size:11px; font-weight:600; min-width:30px; justify-content:center;">×<%= d.katsayi %></span>
+            <span style="flex:1; min-width:90px; font-size:14px; color:#1a2236;"><%= dersAdi %></span>
+            <div style="flex:1.5; min-width:80px; height:5px; background:#fff; border-radius:3px; overflow:hidden;">
+              <div style="height:100%; width:<%= d.ilerleme %>%; background:<%= ilerlemeRenk %>;"></div>
+            </div>
+            <span style="font-size:13px; min-width:48px; text-align:right; color:<%= d.tamamlandi ? '#43a047' : '#555' %>; font-weight:<%= d.tamamlandi ? '600' : '400' %>;">
+              <%= d.bugunCozulen %>/<%= d.hedef %><% if (d.tamamlandi) { %> ✓<% } %>
+            </span>
+          </div>
+        <% }); %>
+      </div>
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:12px; color:#777;">
+          30 günlük ortalaması: <b style="color:#1a2236;"><%= ghd.genelOrtalama %></b> soru/gün
+        </div>
+        <div style="font-size:12px; color:#777;">
+          <% if (ghd.toplamTamamlandi) { %>
+            <b style="color:#43a047;">✓ Bugünkü hedefini tamamladı!</b>
+          <% } else { %>
+            Kalan: <b style="color:#1a2236;"><%= ghd.toplamHedef - ghd.toplamBugun %></b> soru
+          <% } %>
+        </div>
+      </div>
+
+    </div>
+  <% } %>
+
   <!-- Profil banner (kompakt) -->
   <div class="profil-banner">
     <div class="profil-banner-sol">

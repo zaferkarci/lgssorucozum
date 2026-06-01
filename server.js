@@ -1,4 +1,20 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.0 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.1 (Modüler Yapı) ---
+// v4.5.1 değişiklikleri (Günlük hedef kartı takip sayfasında):
+//   • Mevcut v4.5.0 hedef kartı sadece öğrencinin kendi panelinde görünüyordu
+//     (panel.js /panel/:kullaniciAdi route'u kendi profili için).
+//   • Öğretmen/veli/kurumsal yönetici takip ettiği öğrencinin günlük
+//     hedef ilerlemesini de görmek istiyor.
+//   • takip-ogrenci-detay.ejs (URL: /takip-ogrenci-detay/:kullaniciAdi)
+//     sayfasının başına aynı kart eklendi.
+//   • Erişim kontrolü mevcut: TakipIliski kontrolü zaten /takip route'unda
+//     yapılıyor (takip eden kişi sadece kendi öğrencisini görür).
+//   • Tasarım: panel.ejs ile aynı ama:
+//     - Başlık: "<öğrenciAdı> · Bugünkü hedefi" (3. tekil şahıs)
+//     - Alt metin: "30 günlük ortalaması", "Hedefini tamamladı"
+//     - Modal ve toast YOK — sadece görüntüleme
+//     - localStorage'a dokunulmaz
+//   • Yeniden kullanılan services/gunlukHedef.js — değişmedi.
+// --- VERSİYON 4.5.0 (Modüler Yapı) ---
 // v4.5.0 değişiklikleri (Günlük Hedef Sistemi — ders bazlı):
 //   • Yeni service: services/gunlukHedef.js
 //     - gunlukHedefHesap(kullaniciAdi) → her ders için hedef + ilerleme döner

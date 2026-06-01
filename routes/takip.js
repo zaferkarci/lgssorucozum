@@ -418,6 +418,18 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
         const sayfaBasi = (sayfa - 1) * SAYFA_BOYUTU;
         const sayfaCevaplar = tumCevaplarSirali.slice(sayfaBasi, sayfaBasi + SAYFA_BOYUTU);
 
+        // v4.5.1: Görüntülenen öğrencinin günlük hedef verisi
+        // (öğretmen/veli/kurumsal panelden takip ediyorsa öğrencinin durumunu görsün)
+        let gunlukHedefData = null;
+        try {
+            if (ogrenci.rol === 'ogrenci' || ogrenci.rol === 'demo') {
+                const { gunlukHedefHesap } = require('../services/gunlukHedef');
+                gunlukHedefData = await gunlukHedefHesap(ogrenci.kullaniciAdi);
+            }
+        } catch (e) {
+            console.warn('[takip-ogrenci-detay] gunlukHedef hesaplanamadi:', e.message);
+        }
+
         res.render('takip-ogrenci-detay', {
             k: ogrenci,
             tumCevaplar,
@@ -427,6 +439,7 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
             dersIstatMap,
             ortToplamHesapla,
             ogretmenAdi: benim.kullaniciAdi,
+            gunlukHedefData,
             encodeURIComponent
         });
     } catch (err) {
