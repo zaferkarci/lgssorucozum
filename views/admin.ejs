@@ -2371,6 +2371,16 @@ function gosterExcelHata(msg) {
             <td style="padding:8px; text-align:center; white-space:nowrap;">
               <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">ÖNİZLE</button>
               <a href="/admin?duzenle=<%= s._id %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
+              <%# v4.5.3: "Çözenler" butonu — alttaki gizli satırı aç/kapat %>
+              <button type="button" onclick="cozumlerAcKapa('<%= s._id %>', this)" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#43a047; color:white;">▼ ÇÖZENLER</button>
+            </td>
+          </tr>
+          <%# v4.5.3: Açılır iç tablo — varsayılan gizli, JS ile yüklenir %>
+          <tr id="cozenler-row-<%= s._id %>" style="display:none; background:#f0f7ff;">
+            <td colspan="12" style="padding:0;">
+              <div id="cozenler-icerik-<%= s._id %>" style="padding:12px 20px; font-size:12px;">
+                <span style="color:#888; font-style:italic;">Yükleniyor...</span>
+              </div>
             </td>
           </tr>
           <% }); %>
@@ -2384,6 +2394,73 @@ function gosterExcelHata(msg) {
   </div>
 
   <script>
+    // v4.5.3: Sorunun çözüm detaylarını aç/kapat
+    var cozumlerYuklendi = {}; // {soruId: true} → bir kez yüklendi
+    function cozumlerAcKapa(soruId, btn) {
+      var satir = document.getElementById('cozenler-row-' + soruId);
+      var icerik = document.getElementById('cozenler-icerik-' + soruId);
+      if (!satir || !icerik) return;
+      var acik = satir.style.display !== 'none';
+      if (acik) {
+        satir.style.display = 'none';
+        if (btn) btn.innerHTML = '▼ ÇÖZENLER';
+        return;
+      }
+      satir.style.display = '';
+      if (btn) btn.innerHTML = '▲ KAPAT';
+      if (cozumlerYuklendi[soruId]) return; // tekrar fetch etme
+      fetch('/admin/soru-cozumler/' + encodeURIComponent(soruId), { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+          if (!d || !d.ok) {
+            icerik.innerHTML = '<span style="color:#c62828;">Hata: ' + ((d && d.hata) || 'veri yüklenemedi') + '</span>';
+            return;
+          }
+          if (d.cozumSayisi === 0) {
+            icerik.innerHTML = '<p style="color:#888; font-style:italic; margin:0;">Bu soruyu henüz kimse doğru çözmedi.</p>';
+            cozumlerYuklendi[soruId] = true;
+            return;
+          }
+          var ortSure = d.soru.ortalamaSure ? Math.round(d.soru.ortalamaSure) + 'sn' : '—';
+          var html = '<div style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap; padding-bottom:8px; border-bottom:1px solid #d0e3ff;">' +
+            '<b style="color:#1a73e8;">' + d.cozumSayisi + ' doğru çözüm</b>' +
+            '<span style="color:#666;">Ortalama süre: <b>' + ortSure + '</b></span>' +
+            '<span style="color:#666;">Z: <b>' + (d.soru.zorlukKatsayisi||0).toFixed(2) + '</b></span>' +
+            '</div>';
+          html += '<table style="width:100%; border-collapse:collapse; font-size:12px;"><thead><tr style="background:#e8f0fe;">' +
+            '<th style="text-align:left; padding:6px 8px;">#</th>' +
+            '<th style="text-align:left; padding:6px 8px;">Kullanıcı</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Sınıf</th>' +
+            '<th style="text-align:left; padding:6px 8px;">Okul</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Süre</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Puan</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Tarih</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Not</th>' +
+            '</tr></thead><tbody>';
+          d.cozumler.forEach(function(c, i) {
+            var t = c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR', { day:'numeric', month:'short', year:'numeric', timeZone:'Europe/Istanbul' }) : '—';
+            var puan = (Math.round((c.kazanilanPuan||0) * 10000) / 10000);
+            var not = c.ikinciKezMi ? '<span style="color:#e65100; font-size:10px;">2.kez (1/5^n)</span>' : '';
+            html += '<tr style="border-bottom:1px solid #e0e6ec;">' +
+              '<td style="padding:5px 8px; color:#999;">' + (i+1) + '</td>' +
+              '<td style="padding:5px 8px;"><a href="/kullanici-detay?kullaniciAdi=' + encodeURIComponent(c.kullaniciAdi) + '" style="color:#1a73e8; text-decoration:none;">' + c.kullaniciAdi + '</a></td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + c.sinif + (c.sube ? '/'+c.sube : '') + '</td>' +
+              '<td style="padding:5px 8px; color:#666; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (c.okul || '—') + '</td>' +
+              '<td style="padding:5px 8px; text-align:center; font-weight:600; color:#1a73e8;">' + c.sure + 'sn</td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + puan + '</td>' +
+              '<td style="padding:5px 8px; text-align:center; color:#666;">' + t + '</td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + not + '</td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
+          icerik.innerHTML = html;
+          cozumlerYuklendi[soruId] = true;
+        })
+        .catch(e => {
+          icerik.innerHTML = '<span style="color:#c62828;">İstek hatası: ' + e.message + '</span>';
+        });
+    }
+
     // v4.1.36: Tablo sıralaması — başlığa tıkla, aynı başlığa tekrar tıklarsan yön değişir
     (function() {
       var tablo = document.getElementById('zorlukTablo');
@@ -2416,9 +2493,11 @@ function gosterExcelHata(msg) {
         var ic = th.querySelector('.sort-icon');
         if (ic) ic.textContent = yon === 'asc' ? '▲' : '▼';
 
-        // Satırları sırala
-        var satirlar = Array.from(tbody.querySelectorAll('tr'));
-        satirlar.sort(function(a, b) {
+        // Satırları sırala — v4.5.3: yalnızca ana soru satırları (data-soruno olanlar)
+        // sıralanır; "çözenler" alt satırları parent satırın HEMEN ARDINDA
+        // tutulur.
+        var anaSatirlar = Array.from(tbody.querySelectorAll('tr[data-soruno]'));
+        anaSatirlar.sort(function(a, b) {
           var av = a.getAttribute('data-' + alan.toLowerCase());
           var bv = b.getAttribute('data-' + alan.toLowerCase());
           if (tip === 'num') {
@@ -2432,9 +2511,24 @@ function gosterExcelHata(msg) {
             return yon === 'asc' ? c : -c;
           }
         });
-        // Yeniden ekle
+        // Yeniden ekle — her ana satırdan sonra ilgili cozenler satırı
+        // (DOM'dan koparmadan önce eşlemeyi yap, sonra frag'a sırayla ekle)
+        var anaSatirlarSiraIle = anaSatirlar.slice();
         var frag = document.createDocumentFragment();
-        satirlar.forEach(function(r){ frag.appendChild(r); });
+        anaSatirlarSiraIle.forEach(function(r){
+          // İlgili cozenler tr'sini onclick içindeki ID'den çıkar
+          var btn = r.querySelector('button[onclick^="cozumlerAcKapa"]');
+          var soruId = null;
+          if (btn) {
+            var m = btn.getAttribute('onclick').match(/cozumlerAcKapa\('([^']+)'/);
+            if (m) soruId = m[1];
+          }
+          frag.appendChild(r);
+          if (soruId) {
+            var cz = document.getElementById('cozenler-row-' + soruId);
+            if (cz) frag.appendChild(cz);
+          }
+        });
         tbody.appendChild(frag);
       });
     })();

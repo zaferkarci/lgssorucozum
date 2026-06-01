@@ -1176,4 +1176,66 @@ router.get('/admin/duplicate-sorular', async (req, res) => {
     }
 });
 
+// v4.5.3: Bir sorunun çözüm detayları — kim, ne zaman, kaç saniyede çözmüş.
+// Zorluk Raporu ve Soru Puan Detayı sayfalarındaki "açılır iç tablo"
+// için JSON döner. Sadece DOĞRU cevaplar listelenir.
+router.get('/admin/soru-cozumler/:soruId', async (req, res) => {
+    try {
+        if (!adminKontrol(req, res)) return;
+        const soruId = req.params.soruId;
+        if (!soruId) return res.status(400).json({ ok: false, hata: 'soruId gerekli' });
+
+        const soru = await Soru.findById(soruId, 'soruMetni ders unite konu soruNo ortalamaSure zorlukKatsayisi').lean();
+        if (!soru) return res.status(404).json({ ok: false, hata: 'Soru bulunamadi' });
+
+        // Doğru cevaplar — kullanıcı bilgileriyle birlikte
+        const cevaplar = await CevapKaydi.find(
+            { soruId, dogruMu: true },
+            'kullaniciAdi sure tarih kazanilanPuan ikinciKezMi'
+        ).sort({ sure: 1 }).lean(); // hızlıdan yavaşa
+
+        // Kullanıcıların sınıf/okul bilgisi
+        const adlar = [...new Set(cevaplar.map(c => c.kullaniciAdi))];
+        const kullanicilar = await Kullanici.find(
+            { kullaniciAdi: { $in: adlar } },
+            'kullaniciAdi sinif sube okul il ilce'
+        ).lean();
+        const kMap = {};
+        kullanicilar.forEach(k => { kMap[k.kullaniciAdi] = k; });
+
+        const liste = cevaplar.map(c => {
+            const k = kMap[c.kullaniciAdi] || {};
+            return {
+                kullaniciAdi: c.kullaniciAdi,
+                sinif: k.sinif || '?',
+                sube: k.sube || '',
+                okul: k.okul || '',
+                il: k.il || '',
+                ilce: k.ilce || '',
+                sure: c.sure || 0,
+                tarih: c.tarih,
+                kazanilanPuan: c.kazanilanPuan || 0,
+                ikinciKezMi: !!c.ikinciKezMi
+            };
+        });
+
+        res.json({
+            ok: true,
+            soru: {
+                _id: soru._id,
+                soruNo: soru.soruNo,
+                ders: soru.ders,
+                konu: soru.konu,
+                ortalamaSure: soru.ortalamaSure || 0,
+                zorlukKatsayisi: soru.zorlukKatsayisi || 0
+            },
+            cozumSayisi: liste.length,
+            cozumler: liste
+        });
+    } catch (err) {
+        console.error('[soru-cozumler] hata:', err.message);
+        res.status(500).json({ ok: false, hata: err.message });
+    }
+});
+
 module.exports = router;

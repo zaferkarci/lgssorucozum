@@ -1,4 +1,24 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.2 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.3 (Modüler Yapı) ---
+// v4.5.3 değişiklikleri (Soru çözenler aç-kapa tablosu):
+//   • Yeni endpoint: GET /admin/soru-cozumler/:soruId
+//     - JSON döner: doğru cevaplı kullanıcı listesi (ad, sınıf, okul, süre,
+//       puan, tarih, ikinciKezMi flag)
+//     - Süreye göre artan sıralı (hızlıdan yavaşa)
+//   • Zorluk Raporu (admin.ejs mod === 'zorlukRapor'):
+//     - Her satıra "▼ ÇÖZENLER" butonu (yeşil)
+//     - Tıklayınca alt satır açılır, fetch ile veriler yüklenir
+//     - localStorage YOK — her açılışta bir kere yüklenir (cache JS objesinde)
+//     - Tablo sıralaması güncellendi: ana satır + cozenler satırı birlikte
+//       taşınır (parent-child eşlemeli)
+//   • Soru Puan Detayı (admin-soru-puan-detay.ejs):
+//     - Aynı buton + iç tablo (cozumlerAcKapaSPD fonksiyonu)
+//     - Ayrı state (spdCozumlerYuklendi) — sayfalar bağımsız çalışır
+//   • İç tablo formatı:
+//     - Üstte: doğru çözüm sayısı + ortalama süre + Z
+//     - Tablo: # | Kullanıcı (linkli) | Sınıf | Okul | Süre | Puan | Tarih | Not
+//     - "ikinciKezMi" olanlar turuncu "2.kez (1/5^n)" etiketiyle işaretli
+//   • Sadece admin görür — adminKontrol kontrolü endpoint başında.
+// --- VERSİYON 4.5.2 (Modüler Yapı) ---
 // v4.5.2 değişiklikleri (Günlük hedef kartı panele girince görünür):
 //   • v4.5.0/v4.5.1'de günlük hedef kartı sadece "Profil" sekmesinde
 //     görünüyordu. Öğrenci panele girer girmez kartı görmeli — profil

@@ -126,7 +126,11 @@
             <td><%= s.sinif %></td>
             <td><%= s.ders %></td>
             <td><b><%= s.unite %></b><br><span style="color:#888; font-size:10px;"><%= s.konu %></span></td>
-            <td><span class="soru-ozet"><%= s.soruOzet %>...</span></td>
+            <td>
+              <span class="soru-ozet"><%= s.soruOzet %>...</span>
+              <%# v4.5.3: Çözenler butonu — alt satırı aç/kapat %>
+              <br><button type="button" onclick="cozumlerAcKapaSPD('<%= s.id %>', this)" style="margin-top:4px; font-size:10px; padding:2px 8px; background:#43a047; color:#fff; border:none; border-radius:4px; cursor:pointer;">▼ ÇÖZENLER</button>
+            </td>
             <td class="sayisal"><span class="z-rozet <%= zKlas %>"><%= s.Z.toFixed(1) %></span><% if (s.yapiskanlik) { %><br><span class="yapiskan-rozet">⚠ az veri</span><% } %></td>
             <td><%= s.etiket %></td>
             <td class="sayisal"><b><%= s.hamPuan != null ? s.hamPuan : '-' %></b></td>
@@ -138,6 +142,14 @@
             <td class="sayisal"><%= s.hizBileseni %></td>
             <td class="sayisal"><%= s.GE %></td>
             <td class="sayisal"><b><%= s.ornekPuan %></b></td>
+          </tr>
+          <%# v4.5.3: Açılır iç tablo %>
+          <tr id="spd-cozenler-row-<%= s.id %>" style="display:none; background:#f0f7ff;">
+            <td colspan="15" style="padding:0;">
+              <div id="spd-cozenler-icerik-<%= s.id %>" style="padding:12px 20px; font-size:12px;">
+                <span style="color:#888; font-style:italic;">Yükleniyor...</span>
+              </div>
+            </td>
           </tr>
         <% }); %>
         </tbody>
@@ -153,6 +165,75 @@
     • <b>σ_sure büyükse</b> sorunun süresi çeşitli — bazıları hızlı bazıları yavaş çözüyor → GE bonusu artar.<br>
     • <b>Ham Puan ile Örnek Puan farklıysa</b>: ya eski formülle hesaplanmıştı (v4.3.42 öncesi cevaplar), ya çözen öğrenciler ortalamadan farklı hızda. v4.3.42 cron çalıştıktan sonra Ham Puan ≈ Örnek Puan'a yaklaşır.
   </div>
+
+  <%# v4.5.3: Soru çözenler aç/kapat — admin.ejs'tekiyle aynı mantık %>
+  <script>
+    var spdCozumlerYuklendi = {};
+    function cozumlerAcKapaSPD(soruId, btn) {
+      var satir = document.getElementById('spd-cozenler-row-' + soruId);
+      var icerik = document.getElementById('spd-cozenler-icerik-' + soruId);
+      if (!satir || !icerik) return;
+      var acik = satir.style.display !== 'none';
+      if (acik) {
+        satir.style.display = 'none';
+        if (btn) btn.innerHTML = '▼ ÇÖZENLER';
+        return;
+      }
+      satir.style.display = '';
+      if (btn) btn.innerHTML = '▲ KAPAT';
+      if (spdCozumlerYuklendi[soruId]) return;
+      fetch('/admin/soru-cozumler/' + encodeURIComponent(soruId), { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+          if (!d || !d.ok) {
+            icerik.innerHTML = '<span style="color:#c62828;">Hata: ' + ((d && d.hata) || 'veri yüklenemedi') + '</span>';
+            return;
+          }
+          if (d.cozumSayisi === 0) {
+            icerik.innerHTML = '<p style="color:#888; font-style:italic; margin:0;">Bu soruyu henüz kimse doğru çözmedi.</p>';
+            spdCozumlerYuklendi[soruId] = true;
+            return;
+          }
+          var ortSure = d.soru.ortalamaSure ? Math.round(d.soru.ortalamaSure) + 'sn' : '—';
+          var html = '<div style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap; padding-bottom:8px; border-bottom:1px solid #d0e3ff;">' +
+            '<b style="color:#1a73e8;">' + d.cozumSayisi + ' doğru çözüm</b>' +
+            '<span style="color:#666;">Ortalama süre: <b>' + ortSure + '</b></span>' +
+            '<span style="color:#666;">Z: <b>' + (d.soru.zorlukKatsayisi||0).toFixed(2) + '</b></span>' +
+            '</div>';
+          html += '<table style="width:100%; border-collapse:collapse; font-size:12px;"><thead><tr style="background:#e8f0fe;">' +
+            '<th style="text-align:left; padding:6px 8px;">#</th>' +
+            '<th style="text-align:left; padding:6px 8px;">Kullanıcı</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Sınıf</th>' +
+            '<th style="text-align:left; padding:6px 8px;">Okul</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Süre</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Puan</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Tarih</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Not</th>' +
+            '</tr></thead><tbody>';
+          d.cozumler.forEach(function(c, i) {
+            var t = c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR', { day:'numeric', month:'short', year:'numeric', timeZone:'Europe/Istanbul' }) : '—';
+            var puan = (Math.round((c.kazanilanPuan||0) * 10000) / 10000);
+            var not = c.ikinciKezMi ? '<span style="color:#e65100; font-size:10px;">2.kez (1/5^n)</span>' : '';
+            html += '<tr style="border-bottom:1px solid #e0e6ec;">' +
+              '<td style="padding:5px 8px; color:#999;">' + (i+1) + '</td>' +
+              '<td style="padding:5px 8px;"><a href="/kullanici-detay?kullaniciAdi=' + encodeURIComponent(c.kullaniciAdi) + '" style="color:#1a73e8; text-decoration:none;">' + c.kullaniciAdi + '</a></td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + c.sinif + (c.sube ? '/'+c.sube : '') + '</td>' +
+              '<td style="padding:5px 8px; color:#666; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (c.okul || '—') + '</td>' +
+              '<td style="padding:5px 8px; text-align:center; font-weight:600; color:#1a73e8;">' + c.sure + 'sn</td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + puan + '</td>' +
+              '<td style="padding:5px 8px; text-align:center; color:#666;">' + t + '</td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + not + '</td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
+          icerik.innerHTML = html;
+          spdCozumlerYuklendi[soruId] = true;
+        })
+        .catch(e => {
+          icerik.innerHTML = '<span style="color:#c62828;">İstek hatası: ' + e.message + '</span>';
+        });
+    }
+  </script>
 
 </div>
 </body>
