@@ -1,0 +1,146 @@
+// services/gunlukHedef.js
+// v4.5.0: Ders bazlı günlük hedef hesabı.
+//
+// Tasarım kararları (kullanıcı isteği):
+//   - Aralık: Son 30 gün
+//   - Her ders min hedef: 2 soru → toplam 12
+//   - Ders hedef formülü: max(2, ceil(son 30 gün ortalama))
+//   - 6 ders sabit: Mat, Türkçe, Fen, İnkılap, Din, İngilizce
+//   - "Bugün" başlangıcı: Europe/Istanbul 00:00 (services/aktivite.js'tekiyle aynı)
+
+const CevapKaydi = require('../models/CevapKaydi');
+const { bugunBaslangic } = require('./aktivite');
+
+// LGS dersleri sabiti — services/lgsOrtalama.js ile aynı isim sırası
+const LGS_DERSLER = [
+    'Matematik',
+    'Türkçe',
+    'Fen Bilimleri',
+    'T.C. İnkılâp Tarihi',
+    'Din Kültürü',
+    'İngilizce'
+];
+
+const LGS_KATSAYI = {
+    'Matematik':          4,
+    'Türkçe':             4,
+    'Fen Bilimleri':      4,
+    'T.C. İnkılâp Tarihi': 1,
+    'Din Kültürü':        1,
+    'İngilizce':          1
+};
+
+const MIN_DERS_HEDEF = 2;       // Her ders en az 2 soru
+const ARALIK_GUN = 30;          // Son 30 gün
+
+/**
+ * Son N gün başlangıç tarihi (Istanbul saatine göre N gün öncesi 00:00).
+ */
+function aralikBaslangic(gun = ARALIK_GUN) {
+    const bugun = bugunBaslangic();
+    return new Date(bugun.getTime() - gun * 24 * 60 * 60 * 1000);
+}
+
+/**
+ * Bir kullanıcı için ders bazlı günlük hedef hesabı.
+ *
+ * @param {String} kullaniciAdi
+ * @returns {Promise<Object>} {
+ *   dersler: [{
+ *     ders: 'Matematik',
+ *     katsayi: 4,
+ *     son30GunSayisi: 60,      // son 30 günde çözülen soru
+ *     ortalama: 2.0,            // soru/gün
+ *     hedef: 2,                 // bugünkü hedef (min 2)
+ *     bugunCozulen: 1,          // bugün çözülen soru
+ *     kalan: 1,                 // hedef - bugünCozulen (0+ olabilir)
+ *     tamamlandi: false,        // bugünCozulen >= hedef
+ *     ilerleme: 50              // yüzde 0-100
+ *   }, ...],
+ *   toplamHedef: 12,
+ *   toplamBugun: 8,
+ *   toplamTamamlandi: false,
+ *   genelOrtalama: 8.4          // son 30 gün toplam / 30
+ * }
+ */
+async function gunlukHedefHesap(kullaniciAdi) {
+    if (!kullaniciAdi) {
+        return { dersler: [], toplamHedef: 0, toplamBugun: 0, toplamTamamlandi: false, genelOrtalama: 0 };
+    }
+
+    const bugun = bugunBaslangic();
+    const aralikBas = aralikBaslangic(ARALIK_GUN);
+
+    // Tek aggregate ile hem son 30 gün hem bugün hesabı için ham veri çek
+    // — sonra JS'de filtreyle ayırırız (1 sorgu, 2 amaç)
+    const kayitlar = await CevapKaydi.find(
+        {
+            kullaniciAdi,
+            tarih: { $gte: aralikBas }
+            // Not: ikinciKezMi olan kayıtlar BURADA da hesaba dahil edilir —
+            // öğrenci "çözüm yaptı", görev açısından önemli. Sorunun
+            // istatistiklerini bozmaz ama günlük hedefe sayılır.
+        },
+        'soruId tarih'
+    ).populate('soruId', 'ders').lean();
+
+    // Ders → { son30: N, bugun: M }
+    const sayim = {};
+    LGS_DERSLER.forEach(d => { sayim[d] = { son30: 0, bugun: 0 }; });
+
+    let toplamSon30 = 0;
+    kayitlar.forEach(k => {
+        const ders = k.soruId && k.soruId.ders;
+        if (!ders || !sayim[ders]) return; // LGS dersi değilse atla
+        sayim[ders].son30++;
+        toplamSon30++;
+        if (k.tarih && new Date(k.tarih) >= bugun) {
+            sayim[ders].bugun++;
+        }
+    });
+
+    // Her ders için hedef + ilerleme hesabı
+    const dersler = LGS_DERSLER.map(ders => {
+        const son30Sayisi = sayim[ders].son30;
+        const bugunCozulen = sayim[ders].bugun;
+        const ortalama = son30Sayisi / ARALIK_GUN;
+        // Hedef: max(2, ceil(ortalama)) — örn ortalama 0 → 2; ortalama 2.0 → 2;
+        // ortalama 2.0001 → 3
+        const hedef = Math.max(MIN_DERS_HEDEF, Math.ceil(ortalama));
+        const kalan = Math.max(0, hedef - bugunCozulen);
+        const tamamlandi = bugunCozulen >= hedef;
+        const ilerleme = hedef > 0 ? Math.min(100, Math.round((bugunCozulen / hedef) * 100)) : 0;
+        return {
+            ders,
+            katsayi: LGS_KATSAYI[ders] || 1,
+            son30GunSayisi: son30Sayisi,
+            ortalama: Math.round(ortalama * 100) / 100, // 2 basamak
+            hedef,
+            bugunCozulen,
+            kalan,
+            tamamlandi,
+            ilerleme
+        };
+    });
+
+    const toplamHedef = dersler.reduce((t, d) => t + d.hedef, 0);
+    const toplamBugun = dersler.reduce((t, d) => t + d.bugunCozulen, 0);
+    const toplamTamamlandi = dersler.every(d => d.tamamlandi);
+    const genelOrtalama = Math.round((toplamSon30 / ARALIK_GUN) * 10) / 10;
+
+    return {
+        dersler,
+        toplamHedef,
+        toplamBugun,
+        toplamTamamlandi,
+        genelOrtalama
+    };
+}
+
+module.exports = {
+    gunlukHedefHesap,
+    LGS_DERSLER,
+    LGS_KATSAYI,
+    MIN_DERS_HEDEF,
+    ARALIK_GUN
+};

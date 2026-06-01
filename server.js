@@ -1,4 +1,25 @@
-// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.4.3 (Modüler Yapı) ---
+// --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.0 (Modüler Yapı) ---
+// v4.5.0 değişiklikleri (Günlük Hedef Sistemi — ders bazlı):
+//   • Yeni service: services/gunlukHedef.js
+//     - gunlukHedefHesap(kullaniciAdi) → her ders için hedef + ilerleme döner
+//     - Formül: ders_hedef = max(2, ceil(son 30 gün ortalama))
+//     - 6 ders sabit: Mat, Türkçe, Fen (×4); İnkılap, Din, İng (×1)
+//     - Standart günlük: 12 soru (6 × 2)
+//     - Yoğun çalışan için artar: ortalama 3.03 → hedef 4, ortalama 15 → hedef 15
+//     - Tek CevapKaydi.find().populate('soruId','ders') sorgusu
+//   • Profil sayfasının en üstünde yeni kart:
+//     - Üst: "🎯 Bugünkü hedefin" + sayaç (8/12) + progress bar
+//     - Ders ders ilerleme: 6 satır, katsayı rozeti, ders adı, mini progress, X/Y
+//     - Alt: 30 günlük ortalaman + kalan soru sayısı
+//     - Tamamlanan ders yeşil (✓), tamamlanmayan mavi
+//   • Bildirim sistemi:
+//     - Her ders bitince: sağ-alt köşede yeşil toast (3.5sn, animasyonlu)
+//     - Tüm hedef bitince: ortada modal "Tebrikler! Devam etmek ister misin?"
+//       butonları: "Yeter, dinleneceğim" + "Devam et 🚀" (soruya yönlendirir)
+//     - localStorage ile aynı gün tekrar göstermez (toast/modal)
+//   • Yalnızca öğrenci/demo görür. Öğretmen/veli/kurumsal görmez.
+//   • Test: 11 senaryoluk birim test geçti.
+// --- VERSİYON 4.4.3 (Modüler Yapı) ---
 // v4.4.3 değişiklikleri (kurumsal bilgilendirme metni güncelleme):
 //   • Kurumsal kullanıcı panelindeki "Sonraki sürümlerde gelecek" uyarısından
 //     "üye istatistik detayları" kısmı kaldırıldı.

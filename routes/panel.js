@@ -502,6 +502,17 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
+    // v4.5.0: Ders bazlı günlük hedef — sadece öğrenci/demo için profil sayfasında
+    let gunlukHedefData = null;
+    if (mod === 'profil' && (k.rol === 'ogrenci' || k.rol === 'demo')) {
+        try {
+            const { gunlukHedefHesap } = require('../services/gunlukHedef');
+            gunlukHedefData = await gunlukHedefHesap(k.kullaniciAdi);
+        } catch (e) {
+            console.warn('[panel] gunlukHedef hesaplanamadi:', e.message);
+        }
+    }
+
     // v4.1.28 / v4.3.24: Öğretmen için otomatik günlük davet kodu yenileme.
     // v4.3.24 değişiklikleri:
     //   • Eski "mod === 'profil'" kısıtı kaldırıldı — öğretmen panele hangi
@@ -1031,6 +1042,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         ogretmen,
         davetEdilenler,
         modIdx,
+        gunlukHedefData,
         toplamSoru: cozulmemisSorular.length,
         landingStats,
         digerSinifSoruSayilari,
