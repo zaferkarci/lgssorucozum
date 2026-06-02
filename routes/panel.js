@@ -1121,7 +1121,13 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 const eskiSureleri = [...(s.cozumSureleriTum || [])];
                 const T_ref = s.ortalamaSure || 60;
                 const T_min = 10;
-                const logHiz = Math.log2(1 + (T_ref / T_ogr));
+                // v4.5.4: Alt sınır clamp. T_min bir alt sınırdır: 10 sn ve
+                // altında çözen herkes 10 sn'de çözmüş sayılır (tavan puan).
+                // Önceden T_min yalnız logMax'i belirliyordu, T_ogr'ye
+                // uygulanmıyordu; 2 sn'de basan, 10 sn'de çözenden fazla puan
+                // alıyordu. Şimdi efektif süre en az T_min.
+                const T_ogr_eff = Math.max(T_ogr, T_min);
+                const logHiz = Math.log2(1 + (T_ref / T_ogr_eff));
                 const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
                 const hizBileseni = logMax * Math.tanh(logHiz / logMax);
                 const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;

@@ -922,7 +922,9 @@ router.get('/admin/puan-simulasyon', async (req, res) => {
                 const T_ref = s.ortalamaSure || 60;
                 const T_ogr = kayit.sure || T_ref;
                 const T_min = 10;
-                const logHiz = Math.log2(1 + (T_ref / T_ogr));
+                // v4.5.4: Alt sınır clamp (gerçek puanla aynı olsun).
+                const T_ogr_eff = Math.max(T_ogr, T_min);
+                const logHiz = Math.log2(1 + (T_ref / T_ogr_eff));
                 const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
                 const hizBileseni = logMax * Math.tanh(logHiz / logMax);
                 const Z = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
@@ -1026,7 +1028,10 @@ router.get('/admin/soru-puan-detay', async (req, res) => {
             const T_ref = s.ortalamaSure || 60;
             const T_ogr = T_ref; // örnek: ortalama hızdaki bir öğrenci
             const T_min = 10;
-            const logHiz = Math.log2(1 + (T_ref / T_ogr));
+            // v4.5.4: Alt sınır clamp (formül tüm kod tabanında tek-tip kalsın
+            // diye eklendi; burada T_ogr=T_ref≥60 olduğundan davranış değişmez).
+            const T_ogr_eff = Math.max(T_ogr, T_min);
+            const logHiz = Math.log2(1 + (T_ref / T_ogr_eff));
             const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
             const hizBileseni = logMax * Math.tanh(logHiz / logMax);
             const Z = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
