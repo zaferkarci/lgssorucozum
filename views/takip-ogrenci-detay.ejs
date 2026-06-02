@@ -494,7 +494,7 @@ MathJax = {
         sikDizilimi: sb.sikDizilimi||'dikey',
         ders: sb.ders||'',
         konu: sb.konu||''
-      }) %>;
+      }).replace(/</g, '\\u003c') %>;
       <% } }); %>
 
       var harfler = ['A','B','C','D'];
@@ -568,12 +568,18 @@ MathJax = {
         var dogCevap = s.secenekler && s.secenekler[s.dogruCevapIndex];
         html += '<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; font-size:13px; color:#2e7d32; font-weight:500;">✓ Doğru cevap: <b>' + harfler[s.dogruCevapIndex] + '</b> şıkkı</div>';
 
-        document.getElementById('soruGorIcerik').innerHTML = html;
-        mathRenderSonra(document.getElementById('soruGorIcerik'));
-        if (window.MathJax) MathJax.typesetPromise([document.getElementById('soruGorIcerik')]);
+        // v4.5.8: Önce içeriği yaz ve modalı AÇ; matematik render'ı sonra ve
+        // try/catch içinde yap — render hatası modalın açılmasını engellemesin.
+        var icerikEl = document.getElementById('soruGorIcerik');
+        if (icerikEl) icerikEl.innerHTML = html;
         var modal = document.getElementById('soruGorModal');
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
+        if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+        try {
+          if (icerikEl) {
+            mathRenderSonra(icerikEl);
+            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([icerikEl]).catch(function(){});
+          }
+        } catch (e) { /* math render hatası modalı engellemez */ }
       }
 
       function soruKapat() {
