@@ -17,7 +17,10 @@ function oturumGerekli(req, res, next) {
 // panel.js'teki oturumKontrol ile aynı admin bypass mantığını uygular.
 // Normal kullanıcı → req.adminGorunum=false; admin → true.
 function oturumVeyaAdmin(req, res, next) {
-    if (req.session && req.session.kullaniciAdi) { req.adminGorunum = false; return next(); }
+    // v4.5.6: Admin kontrolü kullaniciAdi'den ÖNCE. Aksi halde admin oturumunda
+    // bir kullaniciAdi da varsa (örn. admin panelden gezerken) admin, normal
+    // kullanıcı sanılıp takip-ilişkisi duvarına çarpıyordu. adminGirisli yalnızca
+    // admin kimlik doğrulamasıyla set edilir; normal kullanıcıya sızmaz.
     if (req.session && req.session.adminGirisli === true) { req.adminGorunum = true; return next(); }
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Basic ')) {
@@ -31,6 +34,7 @@ function oturumVeyaAdmin(req, res, next) {
             }
         } catch (e) { /* yoksay */ }
     }
+    if (req.session && req.session.kullaniciAdi) { req.adminGorunum = false; return next(); }
     return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
 }
 
