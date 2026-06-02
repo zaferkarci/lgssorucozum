@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Kullanici = require('../models/Kullanici');
 const TakipIliski = require('../models/TakipIliski');
+const KurumSinif = require('../models/KurumSinif');
 const { lgsAgirlikliOrtalama } = require('../services/lgsOrtalama');
 
 // Oturum kontrolü helper - panel.js'tekiyle uyumlu
@@ -410,8 +411,26 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
                 ogrenciAdi,
                 durum: 'kabul'
             });
-            if (!iliski) {
-                return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu öğrenciyle henüz onaylanmış bir takip ilişkin yok.</p><a href="/panel/' + encodeURIComponent(benim.kullaniciAdi) + '?mod=takip" style="color:#1a73e8;">← Takip Sayfasına Dön</a></div>');
+            let erisimVar = !!iliski;
+
+            // v4.5.7: Sınıf-bazlı erişim. Öğretmen/kurumsal, öğrencinin bağlı olduğu
+            // kuruma ait sinif+sube sınıfına atanmışsa (KurumSinif.atananOgretmenler)
+            // takip ilişkisi şart değildir.
+            if (!erisimVar && (benim.rol === 'ogretmen' || benim.rol === 'kurumsal')) {
+                const ob = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }, 'bagliKurumId sinif sube').lean();
+                if (ob && ob.bagliKurumId && ob.sinif != null && ob.sube) {
+                    const sinifKaydi = await KurumSinif.findOne({
+                        kurumId: ob.bagliKurumId,
+                        sinif: ob.sinif,
+                        sube: ob.sube,
+                        atananOgretmenler: benim.kullaniciAdi
+                    }).lean();
+                    if (sinifKaydi) erisimVar = true;
+                }
+            }
+
+            if (!erisimVar) {
+                return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu öğrenciyle onaylanmış bir takip ilişkin yok ve atandığın bir sınıfta da değil.</p><a href="/panel/' + encodeURIComponent(benim.kullaniciAdi) + '?mod=takip" style="color:#1a73e8;">← Takip Sayfasına Dön</a></div>');
             }
         }
         // v4.5.5: Admin görünümünde rol/ilişki şartı atlanır — admin tüm öğrencileri görebilir.

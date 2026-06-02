@@ -423,8 +423,8 @@ MathJax = {
                 </td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : '-' %></td>
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5;">
-                  <%# v4.3.66: Önceden sadece yanlış cevaplar için butondaydı. Tüm cevaplar. %>
-                  <% if (sb.soruMetni) { %>
+                  <%# v4.5.7: Metinli + görselli + şıklı tüm sorularda buton görünür. %>
+                  <% if (sb.soruMetni || sb.soruResmi || (sb.secenekler && sb.secenekler.length)) { %>
                     <button onclick="soruGoster('<%= String(c.soruId) %>')"
                       style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">
                       Soruyu Gör
@@ -474,14 +474,13 @@ MathJax = {
       <!-- Soru verisi JS'e gömülüyor -->
       <script>
       var soruVerileri = {};
-      <%# v4.3.67: panel.ejs ile aynı bug — soruVerileri sadece yanlış cevaplar için
-          dolduruluyordu. v4.3.66 sadece buton koşulunu açtı ama veri tarafı eksikti.
-          Burası tamamlayan parça. %>
+      <%# v4.5.7: soruVerileri artık metinli + görselli + şıklı tüm sorular için dolar
+          (eskiden sadece soruMetni dolu olanlar gömülüyordu, görsel-only sorular boştu). %>
       <% tumC.forEach(function(c) {
           var sb = (soruBilgiMap && soruBilgiMap[String(c.soruId)]);
-          if (sb && sb.soruMetni) { %>
+          if (sb && (sb.soruMetni || sb.soruResmi || (sb.secenekler && sb.secenekler.length))) { %>
       soruVerileri['<%= String(c.soruId) %>'] = <%- JSON.stringify({
-        soruMetni: sb.soruMetni,
+        soruMetni: sb.soruMetni||'',
         soruOnculu1: sb.soruOnculu1||'',
         soruOnculu1Resmi: sb.soruOnculu1Resmi||'',
         soruOnculu2: sb.soruOnculu2||'',
@@ -534,8 +533,8 @@ MathJax = {
         html += oncul(s.soruOnculu2, s.soruOnculu2Resmi);
         html += oncul(s.soruOnculu3, s.soruOnculu3Resmi);
 
-        // Soru metni
-        html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:12px;">' + s.soruMetni + '</div>';
+        // Soru metni (görsel-only sorularda boş olabilir)
+        if (s.soruMetni) html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:12px;">' + s.soruMetni + '</div>';
 
         // Soru görseli
         if (s.soruResmi) html += gorselHtml(s.soruResmi);
