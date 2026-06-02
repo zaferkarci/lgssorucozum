@@ -11,6 +11,39 @@ function oturumGerekli(req, res, next) {
     next();
 }
 
+// v4.5.5: Admin, bir öğretmenin panelinden gelerek öğrenci istatistiğini de
+// görüntüleyebilmeli. oturumGerekli'yi global değiştirmemek için (onu ~10 route
+// kullanıyor) yalnızca öğrenci-detay route'una özel bu admin-duyarlı gate var.
+// panel.js'teki oturumKontrol ile aynı admin bypass mantığını uygular.
+// Normal kullanıcı → req.adminGorunum=false; admin → true.
+function oturumVeyaAdmin(req, res, next) {
+    if (req.session && req.session.kullaniciAdi) { req.adminGorunum = false; return next(); }
+    if (req.session && req.session.adminGirisli === true) { req.adminGorunum = true; return next(); }
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Basic ')) {
+        try {
+            const cred = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
+            const [u, p] = cred.split(':');
+            if (u === (process.env.ADMIN_USER || 'admin') && p === (process.env.ADMIN_PASSWORD || '1234')) {
+                req.adminGorunum = true;
+                if (req.session) req.session.adminGirisli = true; // tutarlılık için işaretle
+                return next();
+            }
+        } catch (e) { /* yoksay */ }
+    }
+    return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+}
+
+// v4.5.5: Admin görünümünde "← Takip Sayfasına Dön" linkinin döneceği öğretmen
+// adını belirler. Öncelik: ?ogretmen= query paramı, sonra Referer'daki /panel/<ad>.
+function adminOgretmenAdiBul(req) {
+    if (req.query && req.query.ogretmen) return String(req.query.ogretmen);
+    const ref = req.headers.referer || '';
+    const m = ref.match(/\/panel\/([^/?#]+)/);
+    if (m) { try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; } }
+    return '';
+}
+
 // Arama yapanın oturumdaki rolü (öğretmen ise öğrenci arar, öğrenci ise öğretmen arar).
 // Filtreler: il, ilçe, okul, kullaniciAdi (kısmi eşleşme)
 router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
@@ -355,22 +388,29 @@ router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (re
 // Öğretmen için: takip ettiği öğrencinin tam istatistik sayfası (ayrı HTML view)
 // Erişim: yalnızca kabul edilmiş takip ilişkisi varsa
 // Veriler: panel.js'in istatistik sekmesi mantığıyla bire bir aynı şekilde hesaplanır
-router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
+router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal' && benim.rol !== 'veli')) {
-            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler, kurum yöneticileri ve veliler görüntüleyebilir.</p></div>');
-        }
-
         const ogrenciAdi = req.params.ogrenciAdi;
-        const iliski = await TakipIliski.findOne({
-            ogretmenAdi: benim.kullaniciAdi,
-            ogrenciAdi,
-            durum: 'kabul'
-        });
-        if (!iliski) {
-            return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu öğrenciyle henüz onaylanmış bir takip ilişkin yok.</p><a href="/panel/' + encodeURIComponent(benim.kullaniciAdi) + '?mod=takip" style="color:#1a73e8;">← Takip Sayfasına Dön</a></div>');
+        const adminGorunum = req.adminGorunum === true;
+        let benim = null;
+
+        if (!adminGorunum) {
+            // Normal akış (öğretmen/veli/kurumsal): rol + onaylı takip ilişkisi şart.
+            benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+            if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal' && benim.rol !== 'veli')) {
+                return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler, kurum yöneticileri ve veliler görüntüleyebilir.</p></div>');
+            }
+
+            const iliski = await TakipIliski.findOne({
+                ogretmenAdi: benim.kullaniciAdi,
+                ogrenciAdi,
+                durum: 'kabul'
+            });
+            if (!iliski) {
+                return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu öğrenciyle henüz onaylanmış bir takip ilişkin yok.</p><a href="/panel/' + encodeURIComponent(benim.kullaniciAdi) + '?mod=takip" style="color:#1a73e8;">← Takip Sayfasına Dön</a></div>');
+            }
         }
+        // v4.5.5: Admin görünümünde rol/ilişki şartı atlanır — admin tüm öğrencileri görebilir.
 
         const ogrenci = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }).lean();
         if (!ogrenci) return res.status(404).send('Öğrenci bulunamadı.');
@@ -438,7 +478,7 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumGerekli, async (req, res) => {
             soruBilgiMap,
             dersIstatMap,
             ortToplamHesapla,
-            ogretmenAdi: benim.kullaniciAdi,
+            ogretmenAdi: benim ? benim.kullaniciAdi : adminOgretmenAdiBul(req),
             gunlukHedefData,
             encodeURIComponent
         });
