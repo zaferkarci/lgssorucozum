@@ -198,8 +198,8 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else if (k.rol === 'veli') { %>
-      <!-- v4.3.25: Veli navigasyonu — Faz 1'de tek sayfa (veliPanel). Faz 2'de genişleyecek. -->
-      <span class="ptopbar-link aktif">👪 Veli Paneli</span>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=veliPanel" class="ptopbar-link <%= mod==='veliPanel'?'aktif':'' %>">👪 Veli Paneli</a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
@@ -654,7 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Öğrenci</th>
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Sınıf</th>
               <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
-              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Çözülen</th>
+              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Toplam</th>
+              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Bugün</th>
               <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">İstatistik</th>
             </tr>
           </thead>
@@ -665,6 +666,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td style="padding:10px 14px; color:#5f6368;"><%= c.sinif ? c.sinif + (c.sube ? '/'+c.sube : '') : '—' %></td>
                 <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(c.puan) %></td>
                 <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= c.soruIndex %></td>
+                <td style="padding:10px 14px; text-align:right;">
+                  <% var _va = veliAktiviteMap[c.ogrenciAdi]; %>
+                  <% if (_va && _va.cozumSayisi > 0) { %>
+                    <span style="color:#2e7d32; font-weight:600;"><%= _va.cozumSayisi %> soru</span>
+                  <% } else if (_va && _va.girisYaptiMi) { %>
+                    <span style="color:#f57c00; font-size:12px;">Giriş yaptı</span>
+                  <% } else { %>
+                    <span style="color:#bdbdbd;">—</span>
+                  <% } %>
+                </td>
                 <td style="padding:10px 14px; text-align:right;">
                   <a href="/takip/ogrenci/<%= encodeURIComponent(c.ogrenciAdi) %>" style="background:#e8f0fe; color:#1a73e8; padding:4px 12px; border-radius:5px; font-size:11px; font-weight:600; text-decoration:none;">İstatistik →</a>
                 </td>

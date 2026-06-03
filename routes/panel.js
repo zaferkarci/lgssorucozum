@@ -228,10 +228,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     k.rol = k.aktifRol;
 
     let mod = req.query.mod || 'soru';
-    // v4.3.25: Veli kullanıcı — Faz 1'de veli paneli henüz tam değil.
-    // Veli her zaman 'veliPanel' moduna yönlendirilir (basit karşılama).
-    // Faz 2'de tam veli paneli (çocuk listesi + istatistik) gelecek.
-    if (k.rol === 'veli') {
+    // v4.6.0: Veli kullanıcı — veliPanel ve profil sekmelerine erişebilir.
+    if (k.rol === 'veli' && mod !== 'profil') {
         mod = 'veliPanel';
     }
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
@@ -979,9 +977,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     }
 
     // v4.3.28: Veli paneli verisi — takip ettiği çocuklar + veli davet kodları.
-    let veliCocuklar = [];     // kabul edilmiş takipler (çocuklar)
-    let veliBekleyenler = [];  // veli'nin gönderdiği, henüz onaylanmamış istekler
-    let veliDavetKodlari = []; // veli'nin ürettiği, kullanılmamış davet kodları
+    let veliCocuklar = [];
+    let veliBekleyenler = [];
+    let veliDavetKodlari = [];
+    let veliAktiviteMap = {}; // v4.6.0: { ogrenciAdi: { cozumSayisi, girisYaptiMi } }
     if (k.rol === 'veli') {
         try {
             // Tüm veli takip ilişkileri (ogretmenAdi slotunda veli)
@@ -992,21 +991,22 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             const cocukAdlar = iliskiler.map(i => i.ogrenciAdi);
             const cocukDetay = await Kullanici.find(
                 { kullaniciAdi: { $in: cocukAdlar } },
-                'kullaniciAdi puan soruIndex sinif sube okul'
+                'kullaniciAdi puan soruIndex sinif sube okul sonGiris dersPuanlari'
             ).lean();
             const cocukMap = {};
             cocukDetay.forEach(c => { cocukMap[c.kullaniciAdi] = c; });
             iliskiler.forEach(i => {
                 const d = cocukMap[i.ogrenciAdi] || {};
                 const kayit = {
-                    iliskiId:   i._id,
-                    ogrenciAdi: i.ogrenciAdi,
-                    durum:      i.durum,
-                    puan:       d.puan || 0,
-                    soruIndex:  d.soruIndex || 0,
-                    sinif:      d.sinif || '',
-                    sube:       d.sube || '',
-                    okul:       d.okul || ''
+                    iliskiId:    i._id,
+                    ogrenciAdi:  i.ogrenciAdi,
+                    durum:       i.durum,
+                    puan:        d.puan || 0,
+                    soruIndex:   d.soruIndex || 0,
+                    sinif:       d.sinif || '',
+                    sube:        d.sube || '',
+                    okul:        d.okul || '',
+                    dersPuanlari: d.dersPuanlari || []
                 };
                 if (i.durum === 'kabul')      veliCocuklar.push(kayit);
                 else if (i.durum === 'beklemede') veliBekleyenler.push(kayit);
@@ -1017,6 +1017,12 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 tip: 'veli',
                 kullanildi: false
             }).sort({ olusturmaTarih: -1 }).lean();
+            // v4.6.0: Bugünkü aktivite — her çocuk için kaç soru çözdü, aktif mi?
+            if (veliCocuklar.length > 0) {
+                const { takipEdilenAktivite } = require('../services/aktivite');
+                const akt = await takipEdilenAktivite(veliCocuklar.map(c => c.ogrenciAdi));
+                akt.detayListe.forEach(d => { veliAktiviteMap[d.kullaniciAdi] = d; });
+            }
         } catch (e) {
             console.error('[panel] veli verisi:', e.message);
         }
@@ -1068,6 +1074,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         veliCocuklar,
         veliBekleyenler,
         veliDavetKodlari,
+        veliAktiviteMap,
         adminGorunum: req.adminGorunum || false
     });
 });
