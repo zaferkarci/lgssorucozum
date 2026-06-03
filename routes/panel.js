@@ -981,6 +981,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     let veliBekleyenler = [];
     let veliDavetKodlari = [];
     let veliAktiviteMap = {}; // v4.6.0: { ogrenciAdi: { cozumSayisi, girisYaptiMi } }
+    let veliHedefMap = {};   // v4.6.1: { ogrenciAdi: { toplamBugun, toplamHedef, toplamTamamlandi } }
     if (k.rol === 'veli') {
         try {
             // Tüm veli takip ilişkileri (ogretmenAdi slotunda veli)
@@ -1018,10 +1019,18 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 kullanildi: false
             }).sort({ olusturmaTarih: -1 }).lean();
             // v4.6.0: Bugünkü aktivite — her çocuk için kaç soru çözdü, aktif mi?
+            // v4.6.1: Günlük hedef ilerlemesi — her çocuk için toplamBugun/toplamHedef
             if (veliCocuklar.length > 0) {
                 const { takipEdilenAktivite } = require('../services/aktivite');
+                const { gunlukHedefHesap } = require('../services/gunlukHedef');
                 const akt = await takipEdilenAktivite(veliCocuklar.map(c => c.ogrenciAdi));
                 akt.detayListe.forEach(d => { veliAktiviteMap[d.kullaniciAdi] = d; });
+                for (const c of veliCocuklar) {
+                    try {
+                        const hd = await gunlukHedefHesap(c.ogrenciAdi);
+                        veliHedefMap[c.ogrenciAdi] = { toplamBugun: hd.toplamBugun, toplamHedef: hd.toplamHedef, toplamTamamlandi: hd.toplamTamamlandi };
+                    } catch (e2) { /* hedef yüklenemezse boş bırak */ }
+                }
             }
         } catch (e) {
             console.error('[panel] veli verisi:', e.message);
@@ -1075,6 +1084,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         veliBekleyenler,
         veliDavetKodlari,
         veliAktiviteMap,
+        veliHedefMap,
         adminGorunum: req.adminGorunum || false
     });
 });

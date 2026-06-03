@@ -636,6 +636,46 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     </div>
 
+    <!-- v4.6.1: Bugünün Aktivitesi kartı — öğretmen takip tabındakiyle aynı -->
+    <div class="profil-kart-yeni" style="background:#f0f7ff; border-color:#b3d7ff; margin-bottom:16px;">
+      <p class="profil-kart-baslik-yeni" style="margin-bottom:6px;">📊 Bugünün Aktivitesi</p>
+      <div id="veli-aktivite-yukleniyor" style="font-size:13px; color:#666;">Yükleniyor...</div>
+      <div id="veli-aktivite-icerik" style="display:none;">
+        <p style="margin:0 0 10px; font-size:13px; color:#555;">
+          <b id="veli-ak-giris" style="color:#1a73e8;">0</b> çocuk sisteme girdi,
+          toplam <b id="veli-ak-cozum" style="color:#43a047;">0</b> soru çözüldü.
+        </p>
+        <div id="veli-ak-detay" style="display:flex; gap:10px; flex-wrap:wrap;"></div>
+      </div>
+    </div>
+    <script>
+      (function() {
+        fetch('/takip/aktivite-bugun', { credentials: 'same-origin' })
+          .then(function(r){ return r.json(); })
+          .then(function(d) {
+            document.getElementById('veli-aktivite-yukleniyor').style.display = 'none';
+            if (!d || !d.ok) return;
+            document.getElementById('veli-aktivite-icerik').style.display = 'block';
+            document.getElementById('veli-ak-giris').textContent = d.toplamGiris || 0;
+            document.getElementById('veli-ak-cozum').textContent = d.toplamCozum || 0;
+            var div = document.getElementById('veli-ak-detay');
+            if (!d.detayListe || d.detayListe.length === 0) {
+              div.innerHTML = '<p style="color:#999; font-size:13px; margin:0;">Henüz aktif öğrenci yok.</p>';
+            } else {
+              d.detayListe.forEach(function(it) {
+                var kart = document.createElement('div');
+                kart.style.cssText = 'background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; min-width:150px;';
+                kart.innerHTML =
+                  '<div style="font-size:13px; font-weight:600; color:#1a2236;">' + it.kullaniciAdi + '</div>' +
+                  '<div style="font-size:12px; color:#555; margin-top:3px;">Giriş: ' + (it.girisYaptiMi ? '<b style="color:#1a73e8;">✓</b>' : '—') + '&nbsp; Çözüm: <b style="color:#43a047;">' + it.cozumSayisi + '</b> soru</div>';
+                div.appendChild(kart);
+              });
+            }
+          })
+          .catch(function(){ document.getElementById('veli-aktivite-yukleniyor').textContent = 'Yüklenemedi.'; });
+      })();
+    </script>
+
     <!-- ÇOCUKLARIM -->
     <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; overflow:hidden; margin-bottom:20px;">
       <div style="padding:14px 18px; background:#fafbfd; border-bottom:1px solid #e0e7ff;">
@@ -655,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <th style="padding:10px 14px; text-align:left; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Sınıf</th>
               <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Puan</th>
               <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Toplam</th>
-              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Bugün</th>
+              <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">Bugünkü Hedef</th>
               <th style="padding:10px 14px; text-align:right; font-weight:600; color:#5f6368; border-bottom:1px solid #e0e7ff;">İstatistik</th>
             </tr>
           </thead>
@@ -666,14 +706,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td style="padding:10px 14px; color:#5f6368;"><%= c.sinif ? c.sinif + (c.sube ? '/'+c.sube : '') : '—' %></td>
                 <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(c.puan) %></td>
                 <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= c.soruIndex %></td>
-                <td style="padding:10px 14px; text-align:right;">
-                  <% var _va = veliAktiviteMap[c.ogrenciAdi]; %>
-                  <% if (_va && _va.cozumSayisi > 0) { %>
-                    <span style="color:#2e7d32; font-weight:600;"><%= _va.cozumSayisi %> soru</span>
-                  <% } else if (_va && _va.girisYaptiMi) { %>
-                    <span style="color:#f57c00; font-size:12px;">Giriş yaptı</span>
+                <td style="padding:10px 14px; text-align:right; min-width:110px;">
+                  <% var _vh = veliHedefMap[c.ogrenciAdi]; %>
+                  <% if (_vh && _vh.toplamHedef > 0) {
+                       var _ilerleme = Math.min(100, Math.round((_vh.toplamBugun / _vh.toplamHedef) * 100));
+                       var _renk = _vh.toplamTamamlandi ? '#43a047' : '#1976d2';
+                  %>
+                    <div style="font-size:12px; font-weight:600; color:<%= _renk %>; margin-bottom:3px;"><%= _vh.toplamBugun %>/<%= _vh.toplamHedef %></div>
+                    <div style="height:5px; background:#f0f2f5; border-radius:3px; overflow:hidden;">
+                      <div style="height:100%; width:<%= _ilerleme %>%; background:<%= _renk %>;"></div>
+                    </div>
                   <% } else { %>
-                    <span style="color:#bdbdbd;">—</span>
+                    <span style="color:#bdbdbd; font-size:12px;">—</span>
                   <% } %>
                 </td>
                 <td style="padding:10px 14px; text-align:right;">
