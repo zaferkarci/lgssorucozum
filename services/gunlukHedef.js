@@ -9,6 +9,7 @@
 //   - "Bugün" başlangıcı: Europe/Istanbul 00:00 (services/aktivite.js'tekiyle aynı)
 
 const CevapKaydi = require('../models/CevapKaydi');
+const Unite = require('../models/Unite');
 const { bugunBaslangic } = require('./aktivite');
 
 // LGS dersleri sabiti — services/lgsOrtalama.js ile aynı isim sırası
@@ -84,9 +85,29 @@ async function gunlukHedefHesap(kullaniciAdi) {
         'soruId tarih'
     ).populate('soruId', 'ders').lean();
 
+    // v4.6.4: Hedef dersleri artık admin > Üniteler'de tanımlı derslerle sınırlı.
+    //   - Üniteye ders eklendikçe hedefe de otomatik eklenir (her çağrıda DB'den okunur).
+    //   - Bilinen LGS dersleri doğru sıra+katsayı ile önce gelir; ünitede olan
+    //     diğer (özel) dersler sona eklenir (katsayı varsayılan 1).
+    //   - Hiç ünite yoksa (uç durum) eski 6 LGS dersine güvenli geri dönüş.
+    let aktifDersler;
+    try {
+        const uniteDersleri = await Unite.distinct('ders');
+        if (uniteDersleri && uniteDersleri.length > 0) {
+            const bilinen = LGS_DERSLER.filter(d => uniteDersleri.includes(d));
+            const ekstra = uniteDersleri.filter(d => d && !LGS_DERSLER.includes(d));
+            aktifDersler = bilinen.concat(ekstra);
+        } else {
+            aktifDersler = LGS_DERSLER.slice();
+        }
+    } catch (e) {
+        aktifDersler = LGS_DERSLER.slice(); // hata olursa güvenli varsayılan
+    }
+    if (!aktifDersler || aktifDersler.length === 0) aktifDersler = LGS_DERSLER.slice();
+
     // Ders → { son30: N, bugun: M }
     const sayim = {};
-    LGS_DERSLER.forEach(d => { sayim[d] = { son30: 0, bugun: 0 }; });
+    aktifDersler.forEach(d => { sayim[d] = { son30: 0, bugun: 0 }; });
 
     let toplamSon30 = 0;
     kayitlar.forEach(k => {
@@ -100,7 +121,7 @@ async function gunlukHedefHesap(kullaniciAdi) {
     });
 
     // Her ders için hedef + ilerleme hesabı
-    const dersler = LGS_DERSLER.map(ders => {
+    const dersler = aktifDersler.map(ders => {
         const son30Sayisi = sayim[ders].son30;
         const bugunCozulen = sayim[ders].bugun;
         const ortalama = son30Sayisi / ARALIK_GUN;
