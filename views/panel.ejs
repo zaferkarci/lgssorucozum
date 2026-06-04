@@ -1498,6 +1498,9 @@ document.addEventListener('DOMContentLoaded', function() {
         <% } %>
 
         <!-- Davet linkleri -->
+        <!-- v4.6.3: Öğrenci rolünde davet linkleri kartı tamamen gizlendi.
+             Öğretmen / kurumsal / veli için aynen korunur. -->
+        <% if (k.rol !== 'ogrenci') { %>
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Davet linklerin</p>
           <p style="font-size:12px; color:#888; margin-bottom:12px;">Bu linklerle arkadaşlarını davet edebilirsin. Her link tek kullanımlık.</p>
@@ -1552,6 +1555,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <% } %>
           <% } %>
         </div>
+        <% } %>
       </div>
 
       <!-- Sağ: Sıralamalar (öğrenci için; öğretmen için davet listesi linki) -->
