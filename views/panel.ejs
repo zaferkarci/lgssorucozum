@@ -2938,10 +2938,10 @@ document.addEventListener('DOMContentLoaded', function() {
           <div style="font-size:30px;">🎯</div>
           <div style="flex:1;">
             <div style="font-size:16px; font-weight:600; color:#f57c00; margin-bottom:4px;">
-              Eksiklerini Kapat
+              <% if (enZayifKonu.gercektenEnZayif) { %>Eksiklerini Kapat<% } else { %>Pratiğe Devam Et<% } %>
               <span style="background:#fff; color:#f57c00; font-size:10px; padding:2px 8px; border-radius:10px; font-weight:500; margin-left:6px;">ÖNERİLEN</span>
             </div>
-            <div style="font-size:13px; color:#795548; line-height:1.5;">En zayıf olduğun konudan başla. Sistem otomatik seçti.</div>
+            <div style="font-size:13px; color:#795548; line-height:1.5;"><% if (enZayifKonu.gercektenEnZayif) { %>En zayıf olduğun konudan başla. Sistem otomatik seçti.<% } else { %>Zayıf konularındaki tüm soruları çözdün 👏 Bu konudaki yeni sorularla pratiğe devam et.<% } %></div>
             <div style="font-size:12px; color:#a16626; margin-top:6px;">
               Şu an: <b><%= enZayifKonu.ders %> · <%= enZayifKonu.konu %></b>
               <% if (enZayifKonu.oran > 0) { %>(%<%= enZayifKonu.oran %> doğru)<% } %>

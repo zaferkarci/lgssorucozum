@@ -700,15 +700,16 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 oran: kk.toplam > 0 ? Math.round((kk.dogru / kk.toplam) * 100) : 0,
                 toplam: kk.toplam
             }))
-            // v4.6.5: Sadece GERÇEK eksik konular önerilir (%100 başarılı konu
-            // "eksik" sayılmaz). Böylece en az başarılı (en zayıf) konu seçilir;
-            // uygun konu kalmazsa enZayifKonu null → "Eksiklerini Kapat" kartı gizlenir.
-            .filter(kk => kk.oran < 100)
+            // v4.6.6: Tüm konular adaydır — sorusu kalan en zayıf konu önerilir
+            // (%100 olsa bile). Zayıftan güçlüye sıralanır.
             .sort((a, b) => {
                 if (a.oran !== b.oran) return a.oran - b.oran;
                 return b.toplam - a.toplam;
             });
-            // Sırayla geç, çözülmemiş sorusu olan ilk konuyu bul
+            // Sırayla (zayıftan güçlüye) geç, çözülmemiş sorusu olan ilk konuyu bul.
+            // v4.6.6: Daha zayıf bir konu (sorusu bittiği için) atlandıysa, önerilen
+            // konu "gerçekten en zayıf" değildir → kart metni buna göre dürüst yazılır.
+            let dahaZayifAtlandi = false;
             for (const kn of konuListesi) {
                 const kalanSoru = yayindaSorular.filter(s =>
                     !cozulenIds.has(String(s._id)) &&
@@ -716,9 +717,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                     (s.konu || '') === kn.konu
                 ).length;
                 if (kalanSoru > 0) {
-                    enZayifKonu = { ders: kn.ders, konu: kn.konu, oran: kn.oran, kalanSoru };
+                    enZayifKonu = { ders: kn.ders, konu: kn.konu, oran: kn.oran, kalanSoru, gercektenEnZayif: !dahaZayifAtlandi };
                     break;
                 }
+                dahaZayifAtlandi = true;
             }
         } catch (e) { enZayifKonu = null; }
     }
