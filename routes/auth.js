@@ -396,7 +396,12 @@ router.post('/kayit-yap', async (req, res) => {
         await ref.save();
 
         // Yeni kullanıcıya 2 adet referans kodu üret (Bölüm 2'de öğretmen için 2+2 olacak)
-        await referansKoduUret(kullaniciAdi, 2, 'ogrenci');
+        // v4.6.2: Öğrenci kullanıcılar için referans kodu üretimi durduruldu.
+        //         Yalnızca 'ogrenci' rolü atlanır; öğretmen vb. roller eski
+        //         davranışını aynen korur.
+        if (rol !== 'ogrenci') {
+            await referansKoduUret(kullaniciAdi, 2, 'ogrenci');
+        }
 
         // Yeni kayıt ÖĞRENCİ ise ve ref kodu bir öğretmen/veli tarafından üretildiyse,
         // otomatik takip ilişkisi kurulur.
