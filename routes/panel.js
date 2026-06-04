@@ -699,7 +699,12 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 ders: kk.ders, konu: kk.konu,
                 oran: kk.toplam > 0 ? Math.round((kk.dogru / kk.toplam) * 100) : 0,
                 toplam: kk.toplam
-            })).sort((a, b) => {
+            }))
+            // v4.6.5: Sadece GERÇEK eksik konular önerilir (%100 başarılı konu
+            // "eksik" sayılmaz). Böylece en az başarılı (en zayıf) konu seçilir;
+            // uygun konu kalmazsa enZayifKonu null → "Eksiklerini Kapat" kartı gizlenir.
+            .filter(kk => kk.oran < 100)
+            .sort((a, b) => {
                 if (a.oran !== b.oran) return a.oran - b.oran;
                 return b.toplam - a.toplam;
             });
