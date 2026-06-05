@@ -39,6 +39,20 @@ function oturumVeyaAdmin(req, res, next) {
     return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
 }
 
+// v4.6.9: Takip API'leri için hedef kullanıcıyı çözer (admin görünümü desteği).
+//   • Normal kullanıcı: HER ZAMAN kendi oturumu kullanılır. Güvenlik gereği
+//     ?kullanici parametresi yok sayılır — kimse başkasının verisini göremez/işleyemez.
+//   • Admin görünümü (adminGirisli): görüntülenen kullanıcı ?kullanici (GET) veya
+//     body.kullanici (POST) parametresinden alınır.
+function hedefKullaniciCoz(req) {
+    if (req.session && req.session.kullaniciAdi) return req.session.kullaniciAdi;
+    if (req.adminGorunum) {
+        const ad = (req.query && req.query.kullanici) || (req.body && req.body.kullanici);
+        return ad ? String(ad).trim() : null;
+    }
+    return null;
+}
+
 // v4.5.5: Admin görünümünde "← Takip Sayfasına Dön" linkinin döneceği öğretmen
 // adını belirler. Öncelik: ?ogretmen= query paramı, sonra Referer'daki /panel/<ad>.
 function adminOgretmenAdiBul(req) {
@@ -51,9 +65,11 @@ function adminOgretmenAdiBul(req) {
 
 // Arama yapanın oturumdaki rolü (öğretmen ise öğrenci arar, öğrenci ise öğretmen arar).
 // Filtreler: il, ilçe, okul, kullaniciAdi (kısmi eşleşme)
-router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
+router.get('/api/takip/ara', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Kullanıcı bulunamadı' });
 
         // v4.3.28: Veli de öğrenci arar (öğretmen gibi). Öğretmen/veli → öğrenci,
@@ -113,10 +129,12 @@ router.get('/api/takip/ara', oturumGerekli, async (req, res) => {
 // Takip isteği gönderir
 // - Öğretmen → öğrenciAdi belirtir (req.body.ogrenciAdi)
 // - Öğrenci  → ogretmenAdi belirtir (req.body.ogretmenAdi)
-router.post('/takip/istek-gonder', oturumGerekli, async (req, res) => {
+router.post('/takip/istek-gonder', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim) return res.status(401).json({ ok: false, hata: 'Oturum bulunamadı.' });
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd }).lean();
+        if (!benim) return res.status(401).json({ ok: false, hata: 'Kullanıcı bulunamadı.' });
         if (benim.rol !== 'ogretmen' && benim.rol !== 'ogrenci' && benim.rol !== 'veli') {
             return res.status(403).json({ ok: false, hata: 'Bu rol takip isteği gönderemez.' });
         }
@@ -167,10 +185,12 @@ router.post('/takip/istek-gonder', oturumGerekli, async (req, res) => {
 
 // Bekleyen takip isteğine yanıt verir (kabul/red)
 // İsteyen değilim, alıcıyım — tek kontrol bu
-router.post('/takip/yanitla', oturumGerekli, async (req, res) => {
+router.post('/takip/yanitla', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-        if (!benim) return res.status(401).json({ ok: false, hata: 'Oturum bulunamadı.' });
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd }).lean();
+        if (!benim) return res.status(401).json({ ok: false, hata: 'Kullanıcı bulunamadı.' });
 
         const { iliskiId, yanit } = req.body;
         if (!['kabul', 'red'].includes(yanit)) {
@@ -207,9 +227,11 @@ router.post('/takip/yanitla', oturumGerekli, async (req, res) => {
 });
 
 // Bekleyen istek sayısı (her iki rol için, üst menü rozetinde gösterilir)
-router.get('/api/takip/bekleyen-istekler', oturumGerekli, async (req, res) => {
+router.get('/api/takip/bekleyen-istekler', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.json({ ok: false, sayi: 0 });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd }).lean();
         if (!benim) return res.json({ ok: false, sayi: 0 });
 
         // v4.3.28: Veli öğrenci slotunda istek almaz (hep gönderir). Veli için
@@ -226,9 +248,11 @@ router.get('/api/takip/bekleyen-istekler', oturumGerekli, async (req, res) => {
 });
 
 // Bana gelen bekleyen istekler (kim gönderdiyse karşı rolü ile detay)
-router.get('/api/takip/gelenler', oturumGerekli, async (req, res) => {
+router.get('/api/takip/gelenler', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Oturum bulunamadı' });
 
         // v4.3.28: Öğrenciye hem öğretmen hem veli isteği gelebilir.
@@ -272,9 +296,11 @@ router.get('/api/takip/gelenler', oturumGerekli, async (req, res) => {
 });
 
 // Öğrencinin kabul ettiği öğretmenler (beni takip edenler)
-router.get('/api/takip/kabul-edilenler', oturumGerekli, async (req, res) => {
+router.get('/api/takip/kabul-edilenler', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd }).lean();
         if (!benim) return res.json({ ok: false, hata: 'Oturum bulunamadı' });
 
         // v4.3.28: Veli, öğretmen gibi takip ettiklerini (çocuklarını) görür.

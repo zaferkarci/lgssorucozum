@@ -20,6 +20,9 @@ mjx-container[jax="CHTML"] { line-height: 1.5; }
 </style>
 <script>
 window.MathJaxReady = false;
+// v4.6.9: Admin görünümünde takip API'lerine görüntülenen kullanıcıyı bildirmek için.
+// Normal kullanıcıda backend bu değeri yok sayar (kendi oturumunu kullanır).
+window.GORUNEN_KULLANICI = <%- JSON.stringify(k.kullaniciAdi) %>;
 MathJax = {
   tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
   options: { skipHtmlTags: ['script','style','textarea','pre'] },
@@ -785,7 +788,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var kutu = document.getElementById('veliAramaSonuc');
       if (!q) { kutu.innerHTML = ''; return; }
       kutu.innerHTML = '<span style="font-size:12px; color:#9aa0a6;">Aranıyor...</span>';
-      fetch('/api/takip/ara?q=' + encodeURIComponent(q))
+      fetch('/api/takip/ara?q=' + encodeURIComponent(q) + '&kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI))
         .then(function(r){ return r.json(); })
         .then(function(j){
           if (!j.ok || !j.sonuclar || j.sonuclar.length === 0) {
@@ -809,7 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
       btn.disabled = true; btn.textContent = '...';
       fetch('/takip/istek-gonder', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ogrenciAdi: ogrenciAdi })
+        body: JSON.stringify({ ogrenciAdi: ogrenciAdi, kullanici: window.GORUNEN_KULLANICI })
       }).then(function(r){ return r.json(); }).then(function(j){
         if (j.ok) { btn.outerHTML = '<span style="font-size:11px; color:#fb8c00;">İstek gönderildi</span>'; }
         else { btn.disabled = false; btn.textContent = 'İstek Gönder'; alert(j.hata || 'Hata'); }
@@ -2493,7 +2496,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     document.getElementById('takipSonucIcerik').innerHTML = 'Aranıyor…';
     try {
-      const params = new URLSearchParams({ il, ilce, okul, q });
+      const params = new URLSearchParams({ il, ilce, okul, q, kullanici: window.GORUNEN_KULLANICI });
       const r = await fetch('/api/takip/ara?' + params.toString());
       const d = await r.json();
       if (!d.ok) {
@@ -2543,7 +2546,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const r = await fetch('/takip/istek-gonder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: alan + '=' + encodeURIComponent(karsiAd)
+        body: alan + '=' + encodeURIComponent(karsiAd) + '&kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI)
       });
       const d = await r.json();
       if (d.ok) {
@@ -2563,7 +2566,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const liste = document.getElementById('bekleyenIstekListesi');
     if (!liste) return;
     try {
-      const r2 = await fetch('/api/takip/gelenler');
+      const r2 = await fetch('/api/takip/gelenler?kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI));
       const d2 = await r2.json();
       if (!d2.ok) { liste.innerHTML = '<span style="color:#c0392b;">Hata: ' + (d2.hata||'bilinmeyen') + '</span>'; return; }
       if (d2.istekler.length === 0) { liste.innerHTML = '<span style="color:#888;">Bekleyen istek yok.</span>'; return; }
@@ -2586,7 +2589,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const liste = document.getElementById('aktifTakipciler');
     if (!liste) return;
     try {
-      const r = await fetch('/api/takip/kabul-edilenler');
+      const r = await fetch('/api/takip/kabul-edilenler?kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI));
       const d = await r.json();
       if (!d.ok) { liste.innerHTML = '<span style="color:#c0392b;">Hata</span>'; return; }
       if (d.takipciler.length === 0) {
@@ -2618,7 +2621,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const r = await fetch('/takip/yanitla', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'iliskiId=' + encodeURIComponent(iliskiId) + '&yanit=' + encodeURIComponent(yanit)
+        body: 'iliskiId=' + encodeURIComponent(iliskiId) + '&yanit=' + encodeURIComponent(yanit) + '&kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI)
       });
       const d = await r.json();
       if (d.ok) {
@@ -3448,7 +3451,7 @@ window.addEventListener('DOMContentLoaded', davetLinkBaslangicSirala);
 window.addEventListener('DOMContentLoaded', function() {
     var badge = document.getElementById('bekleyenBadge');
     if (!badge) return;
-    fetch('/api/takip/bekleyen-istekler')
+    fetch('/api/takip/bekleyen-istekler?kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI))
         .then(function(r){ return r.json(); })
         .then(function(d){
             if (d.ok && d.sayi > 0) {
