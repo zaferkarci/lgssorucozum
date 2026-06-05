@@ -1191,6 +1191,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <!-- Kişisel bilgiler -->
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Kişisel bilgiler</p>
+          <% if (k.rol !== 'veli') { %>
           <div class="info-row">
             <span class="info-label"><%= k.rol === 'ogretmen' ? 'Görev yaptığınız okul' : (k.rol === 'kurumsal' ? 'Yönettiğiniz kurum' : 'Okul') %></span>
             <span class="info-val">
@@ -1201,6 +1202,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <% } %>
             </span>
           </div>
+          <% } %>
           <div class="info-row"><span class="info-label">İl / İlçe</span><span class="info-val"><%= k.il %> / <%= k.ilce %></span></div>
           <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
             <!-- Öğretmen: sınıf/şube yok, ek alan da yok -->
