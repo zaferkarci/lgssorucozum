@@ -1139,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (k.rol === 'ogretmen' && oğretmenIstekDurum && oğretmenIstekDurum !== 'kabul') beyanGizle = true;
           if (k.rol === 'ogrenci' && ogrenciIstekDurum && ogrenciIstekDurum !== 'kabul') beyanGizle = true;
         %>
-        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && k.rol !== 'veli') { %><% if (!beyanGizle) { %><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <% } %><% } %><% if (beyanGizle) { %><span style="color:#999; font-style:italic;">— (kurum onayı bekleniyor)</span> · <%= k.il %> / <%= k.ilce %><% } else { %><%= k.okul %> · <%= k.il %> / <%= k.ilce %><% } %></div>
+        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && k.rol !== 'veli') { %><% if (!beyanGizle) { %><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <% } %><% } %><% if (beyanGizle) { %><span style="color:#999; font-style:italic;">— (kurum onayı bekleniyor)</span> · <%= k.il %> / <%= k.ilce %><% } else { %><% if (k.okul) { %><%= k.okul %> · <% } %><%= k.il %> / <%= k.ilce %><% } %></div>
       </div>
     </div>
     <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') { %>

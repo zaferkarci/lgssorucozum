@@ -292,6 +292,10 @@ router.post('/kayit-yap', async (req, res) => {
             // v4.3.33: Demo hesabı da sınıf seçer — soruları sınıfına göre görür.
             yeniKullaniciData.sinif = sinif;
             yeniKullaniciData.sube = sube || '';
+        } else if (rol === 'veli') {
+            // v4.6.11: Velinin sınıfı yoktur; şema varsayılanı (8) yerine boş bırakılır.
+            yeniKullaniciData.sinif = null;
+            yeniKullaniciData.sube = '';
         }
         // Öğretmen için: sinif default 8 olarak kalır şemada (geriye dönük uyumluluk),
         // ama view'larda rol kontrolü ile gizlenir
