@@ -395,11 +395,12 @@ router.post('/kayit-yap', async (req, res) => {
         ref.kullanimTarih = new Date();
         await ref.save();
 
-        // Yeni kullanıcıya 2 adet referans kodu üret (Bölüm 2'de öğretmen için 2+2 olacak)
+        // Yeni kullanıcıya 2 adet referans kodu üret.
         // v4.6.2: Öğrenci kullanıcılar için referans kodu üretimi durduruldu.
-        //         Yalnızca 'ogrenci' rolü atlanır; öğretmen vb. roller eski
-        //         davranışını aynen korur.
-        if (rol !== 'ogrenci') {
+        // v4.6.8: Öğretmen kullanıcılar için de durduruldu (otomatik link üretimi
+        //         kaldırıldı). 'ogrenci' ve 'ogretmen' atlanır; kurumsal/veli/demo
+        //         eski davranışını aynen korur.
+        if (rol !== 'ogrenci' && rol !== 'ogretmen') {
             await referansKoduUret(kullaniciAdi, 2, 'ogrenci');
         }
 

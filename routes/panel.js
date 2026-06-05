@@ -513,42 +513,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.1.28 / v4.3.24: Öğretmen için otomatik günlük davet kodu yenileme.
-    // v4.3.24 değişiklikleri:
-    //   • Eski "mod === 'profil'" kısıtı kaldırıldı — öğretmen panele hangi
-    //     sekmeden girerse girsin kontrol çalışır.
-    //   • Yeni kural: kopyalanmamış + kullanılmamış kod sayısı 2'nin altındaysa
-    //     2'ye tamamlanır.
-    //   • Günlük tavan: bir günde en fazla 2 kod üretilir. Bu, öğretmenin
-    //     kodları kopyalayıp paneli yenileyerek sınırsız kod üretmesini engeller.
-    //   • Kopyalanan kodlar kullanılana kadar durur, taze sayımına katılmaz.
-    if (k.rol === 'ogretmen') {
-        try {
-            const bugunBasi = new Date(); bugunBasi.setHours(0, 0, 0, 0);
-            // Bugün üretilmiş kod sayısı (günlük tavan kontrolü)
-            const bugunUretilen = await ReferansKodu.countDocuments({
-                olusturan: k.kullaniciAdi,
-                olusturmaTarih: { $gte: bugunBasi }
-            });
-            if (bugunUretilen < 2) {
-                // Kopyalanmamış + kullanılmamış aktif kod sayısı
-                const tazeKodSayisi = await ReferansKodu.countDocuments({
-                    olusturan: k.kullaniciAdi,
-                    kullanildi: false,
-                    kopyalandi: { $ne: true }
-                });
-                if (tazeKodSayisi < 2) {
-                    // Hem "2'ye tamamla" hem "günde en fazla 2" — ikisinin küçüğü kadar üret
-                    const eksik = Math.min(2 - tazeKodSayisi, 2 - bugunUretilen);
-                    if (eksik > 0) {
-                        const { referansKoduUret } = require('./auth');
-                        await referansKoduUret(k.kullaniciAdi, eksik, 'ogrenci');
-                        console.log('[panel] ' + eksik + ' davet kodu uretildi: ' + k.kullaniciAdi);
-                    }
-                }
-            }
-        } catch (e) { console.warn('[panel] Otomatik kod üretimi başarısız:', e.message); }
-    }
+    // v4.6.8: Öğretmen için otomatik günlük davet kodu üretimi tamamen kaldırıldı.
+    //         (Önceki "kopyalanmamış taze kod 2'nin altındaysa 2'ye tamamla + günlük
+    //         tavan 2" mantığı çıkarıldı.) Öğretmenler artık otomatik link almaz;
+    //         mevcut kodları aşağıda yalnızca gösterilir.
 
     // v4.3.51: Davet linkleri sıralama — son oluşturulanlar en üstte,
     // kopyalananlar (kullanılmamış ama kopyalanmış) en altta.

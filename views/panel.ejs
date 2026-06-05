@@ -1521,9 +1521,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </form>
           </div>
           <% } else if (k.rol === 'ogretmen') { %>
-          <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:9px 12px; margin-bottom:12px; font-size:12px; color:#2e7d32; line-height:1.5;">
-            ℹ️ Linklerin <b>kullanıldıkça</b> yenisi gelir. Aktif linkin kalmazsa ertesi gün otomatik <b>2 yeni link</b> üretilir. Birikme olmaz.
-          </div>
+          <%# v4.6.8: Öğretmen otomatik link üretimi kaldırıldı; bilgilendirme metni de kaldırıldı. %>
           <% } %>
           <div id="davet-link-listesi">
           <% (referansKodlari||[]).forEach(function(r) { if (r.kullanildi) return; %>
@@ -1547,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <% var aktifKodlar = (referansKodlari||[]).filter(function(r){ return !r.kullanildi; }); %>
           <% if (aktifKodlar.length === 0) { %>
             <% if (k.rol === 'ogretmen') { %>
-              <p style="font-size:13px; color:#f57c00; padding:10px 12px; background:#fff8e1; border:1px solid #ffe082; border-radius:8px; margin:0;">⏰ Aktif referans kodun yok. <b>Yarın 2 yeni link otomatik üretilecek.</b></p>
+              <%# v4.6.8: Öğretmene otomatik üretim sözü veren metin kaldırıldı. %>
             <% } else if (k.rol === 'kurumsal') { %>
               <p style="font-size:13px; color:#00897b; padding:10px 12px; background:#e0f2f1; border:1px solid #80cbc4; border-radius:8px; margin:0;">Henüz davet linkin yok. Yukarıdan tip seçip üret.</p>
             <% } else { %>
@@ -3372,12 +3370,9 @@ function kopyala(metin, btn) {
                 console.warn('referans-kopyalandi bildirimi başarısız:', e);
                 davetLinkSunucuHatasiGoster(satir, 'Ağ hatası');
             });
-            // v4.1.28: Öğretmen için bilgilendirme toast'ı
-            if (typeof KULLANICI_ROL !== 'undefined' && KULLANICI_ROL === 'ogretmen') {
-                gosterDavetToast('✓ Link kopyalandı! Yarın 2 yeni linkin otomatik gelecek.', 4500);
-            } else {
-                gosterDavetToast('✓ Link kopyalandı', 2500);
-            }
+            // v4.6.8: Öğretmen otomatik link üretimi kaldırıldığı için "yarın 2 yeni
+            // link" sözü veren toast kaldırıldı; tüm roller için tek tip onay.
+            gosterDavetToast('✓ Link kopyalandı', 2500);
         } else {
             // Davet linki dışı kullanım için geçici geri bildirim
             var eski = btn.innerText;
