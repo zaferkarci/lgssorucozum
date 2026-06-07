@@ -181,6 +181,7 @@ function analizBaslat(){
       document.getElementById('yukleniyor').style.display='none';
       if(!v.ok||v.hata){ document.getElementById('adim1').style.display='block'; gosterHata('Analiz hatası: '+(v.hata||'bilinmeyen')); return; }
       sorular=v.sorular||[];
+      gorselAlanlariniNormalizeEt();
       // pdf.js belgesini de hazırla (kırpma için)
       _pdfFile.arrayBuffer().then(function(buf){
         pdfjsLib.getDocument({data:buf}).promise.then(function(doc){ _pdfDoc=doc; });
@@ -197,6 +198,21 @@ function analizBaslat(){
 
 // ─── Önizleme ─────────────────────────────────────────────────────────────
 function gorselliMi(deger){ return deger===GORSEL_MARKER; }
+function urlMu(v){ v=String(v==null?'':v).trim(); return /^https?:\/\//i.test(v) || v.charAt(0)==='/'; }
+function htmlMi(v){ return String(v==null?'':v).trim().charAt(0)==='<'; }
+
+// Gemini tablo/HTML'i bazen GÖRSEL alanına koyuyor → ilgili METİN alanına taşı, görsel alanını boşalt.
+function gorselAlanlariniNormalizeEt(){
+  var esles={ soruResmi:'soruMetni', soruOnculu1Resmi:'soruOnculu1', soruOnculu2Resmi:'soruOnculu2', soruOnculu3Resmi:'soruOnculu3' };
+  sorular.forEach(function(s){
+    Object.keys(esles).forEach(function(imgAlan){
+      if(htmlMi(s[imgAlan])){ var t=esles[imgAlan]; s[t]=((s[t]||'').trim()? s[t]+'\n':'')+s[imgAlan]; s[imgAlan]=''; }
+    });
+    (s.secenekler||[]).forEach(function(se){
+      if(htmlMi(se.gorsel)){ se.metin=((se.metin||'').trim()? se.metin+' ':'')+se.gorsel; se.gorsel=''; }
+    });
+  });
+}
 
 function onizleme(){
   document.getElementById('toplamSoru').textContent=sorular.length;
@@ -275,13 +291,15 @@ function gorselSlotlariCiz(i){
     deger = deger||'';
     var rozet, thumb='';
     if(gorselliMi(deger)){ rozet='<span class="gp-badge gp-bekliyor">📌 Görsel bekliyor</span>'; }
-    else if(deger){ rozet='<span class="gp-badge gp-yuklendi">✓ Yüklendi</span>'; thumb='<img src="'+escHtml(deger)+'" class="gp-thumb">'; }
+    else if(urlMu(deger)){ rozet='<span class="gp-badge gp-yuklendi">✓ Yüklendi</span>'; thumb='<img src="'+escHtml(deger)+'" class="gp-thumb">'; }
+    else if(deger){ rozet='<span class="gp-badge gp-bekliyor">⚠️ görsel değil — kontrol et</span>'; }
     else { rozet='<span class="gp-badge gp-bos">boş</span>'; }
+    var kutuDeger = (gorselliMi(deger)||urlMu(deger)) ? (urlMu(deger)?deger:'') : deger;
     return '<div class="gp-slot">'+
       '<b>'+sl.ad+'</b>'+ rozet + thumb +
       '<button onclick="kirpAc('+i+',\''+sl.alan+'\')" class="btn" style="background:#1a73e8; color:#fff; padding:4px 12px; font-size:12px;">🖼️ Kırp</button>'+
       '<button onclick="slotTemizle('+i+',\''+sl.alan+'\')" class="btn" style="background:#eee; color:#666; padding:4px 10px; font-size:12px;">Temizle</button>'+
-      '<input value="'+escHtml(gorselliMi(deger)?'':deger)+'" onchange="slotYaz('+i+',\''+sl.alan+'\',this.value)" placeholder="veya URL yapıştır" style="flex:1; min-width:140px; font-size:12px; border:1px solid #ddd; border-radius:6px; padding:4px 8px;">'+
+      '<input value="'+escHtml(kutuDeger)+'" onchange="slotYaz('+i+',\''+sl.alan+'\',this.value)" placeholder="veya URL yapıştır" style="flex:1; min-width:140px; font-size:12px; border:1px solid #ddd; border-radius:6px; padding:4px 8px;">'+
     '</div>';
   }).join('');
 }
@@ -392,11 +410,12 @@ function kaydet(){
   if(!secili.length){ alert('En az bir soru seç.'); return; }
 
   // kırpılmamış [GÖRSEL VAR] kalmış mı? uyar ve temizle (literal marker URL olarak kaydedilmesin)
+  // görsel alanında URL olmayan (kırpılmamış "[GÖRSEL VAR]" ya da stray metin) ne varsa boşalt
   var eksik=[];
   secili.forEach(function(i){
     var s=sorular[i];
-    ['soruResmi','soruOnculu1Resmi','soruOnculu2Resmi','soruOnculu3Resmi'].forEach(function(a){ if(gorselliMi(s[a])){ eksik.push((i+1)+'/'+a); s[a]=''; } });
-    s.secenekler.forEach(function(se,si){ if(gorselliMi(se.gorsel)){ eksik.push((i+1)+'/Şık'+si); se.gorsel=''; } });
+    ['soruResmi','soruOnculu1Resmi','soruOnculu2Resmi','soruOnculu3Resmi'].forEach(function(a){ if(s[a] && !urlMu(s[a])){ eksik.push((i+1)+'/'+a); s[a]=''; } });
+    s.secenekler.forEach(function(se,si){ if(se.gorsel && !urlMu(se.gorsel)){ eksik.push((i+1)+'/Şık'+si); se.gorsel=''; } });
   });
   if(eksik.length){
     if(!confirm('Şu alanlarda görsel kırpılmadı, boş kaydedilecek:\n'+eksik.join(', ')+'\n\nYine de kaydedeyim mi?')) { secili.forEach(gorselSlotlariCiz); return; }
