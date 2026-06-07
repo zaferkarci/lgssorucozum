@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Görselli PDF Yükle — Admin</title>
+<link rel="stylesheet" href="/style.css">
+<!-- pdf.js (tarayıcıda PDF sayfası çizimi; kırpma için) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  body { padding:20px; max-width:1100px; margin:0 auto; }
+  .gp-slot { display:flex; align-items:center; gap:8px; padding:6px 8px; border:1px solid #eee; border-radius:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .gp-slot b { min-width:120px; font-size:12px; color:#555; }
+  .gp-thumb { max-height:48px; border:1px solid #ddd; border-radius:4px; }
+  .gp-badge { font-size:11px; padding:2px 8px; border-radius:10px; }
+  .gp-bekliyor { background:#fff3cd; color:#856404; }
+  .gp-yuklendi { background:#d4edda; color:#155724; }
+  .gp-bos { background:#f1f1f1; color:#999; }
+  #cropModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; }
+  #cropModalIc { background:#fff; border-radius:12px; max-width:95vw; max-height:92vh; width:900px; margin:3vh auto; padding:18px; overflow:auto; }
+  .crop-sayfa { position:relative; display:inline-block; margin:0 auto 14px; max-width:100%; }
+  .crop-sayfa canvas { display:block; max-width:100%; height:auto; cursor:crosshair; }
+  .crop-kutu { position:absolute; border:2px solid #1a73e8; background:rgba(26,115,232,.15); pointer-events:none; }
+</style>
+</head>
+<body>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+  <h2 style="margin:0;">🖼️ Görselli PDF Yükle</h2>
+  <a href="/admin?mod=pdfYukle" class="btn" style="background:#888; color:#fff; padding:8px 14px; font-size:13px; text-decoration:none;">← Normal PDF Yükle</a>
+</div>
+
+<!-- ADIM 1 -->
+<div id="adim1" class="card">
+  <p style="color:#666; font-size:13px; margin-top:0;">
+    PDF'i yükle → yapay zeka soruları çıkarır → görseli olan her alanı PDF sayfasından kırpıp Cloudinary'ye yüklersin.
+    Kaydetme ve metin çıkarımı, normal "PDF Yükle" ile aynı motoru kullanır.
+  </p>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
+    <div>
+      <label class="form-label">Sınıf</label><br>
+      <select id="f_sinif" class="input-sm"></select>
+    </div>
+    <div>
+      <label class="form-label">Ders</label><br>
+      <select id="f_ders" class="input-sm"></select>
+    </div>
+    <div>
+      <label class="form-label">Ünite (opsiyonel)</label><br>
+      <input id="f_unite" class="input-sm" placeholder="ör: Çember">
+    </div>
+    <div>
+      <label class="form-label">Konu (opsiyonel)</label><br>
+      <input id="f_konu" class="input-sm" placeholder="ör: Çember ve Daire">
+    </div>
+  </div>
+
+  <div id="dropZone" style="border:2px dashed #1a73e8; border-radius:10px; padding:36px; text-align:center; cursor:pointer; background:#f8f9ff;">
+    <div style="font-size:34px;">📄</div>
+    <div style="color:#1a73e8; font-weight:bold; margin-top:6px;">PDF'i buraya sürükle veya tıkla</div>
+    <div style="color:#888; font-size:13px;">Maksimum 20 MB · Tek PDF</div>
+    <input type="file" id="pdfInput" accept=".pdf" style="display:none;">
+  </div>
+
+  <div id="secilenDosya" style="display:none; margin-top:10px; padding:10px 14px; background:#e8f5e9; border-radius:8px;">
+    ✅ <span id="secilenAd" style="font-weight:500;"></span> <span id="secilenBoyut" style="color:#666; font-size:12px;"></span>
+  </div>
+
+  <button id="analizBtn" onclick="analizBaslat()" class="btn btn-success" style="margin-top:14px; display:none;">🤖 Yapay Zeka ile Analiz Et</button>
+  <div id="hataKutu" style="display:none; margin-top:14px; padding:14px; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; color:#c62828;"></div>
+</div>
+
+<!-- YÜKLENİYOR -->
+<div id="yukleniyor" class="card" style="display:none; text-align:center; padding:36px 0;">
+  <div style="font-size:38px;">⏳</div>
+  <div style="font-weight:bold; color:#1a73e8; margin-top:8px;">Sorular analiz ediliyor...</div>
+  <div id="yukProg" style="color:#888; font-size:12px; margin-top:8px;"></div>
+</div>
+
+<!-- ADIM 2: önizleme -->
+<div id="adim2" style="display:none;">
+  <div class="card" style="background:#e8f5e9; border-color:#a5d6a7; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <b style="color:#2e7d32;">✅ <span id="toplamSoru"></span> soru bulundu. Görselleri kırpıp kaydet.</b>
+    <div style="display:flex; gap:8px;">
+      <button onclick="kaydet()" class="btn btn-success" style="padding:8px 20px;">💾 Seçilenleri Kaydet</button>
+      <button onclick="yenidenBaslat()" class="btn" style="background:#888; color:#fff; padding:8px 16px;">↩ Yeni PDF</button>
+    </div>
+  </div>
+  <div id="liste"></div>
+  <div style="text-align:center; margin:18px 0;">
+    <button onclick="kaydet()" class="btn btn-success" style="padding:12px 40px; font-size:16px;">💾 Veritabanına Kaydet</button>
+  </div>
+</div>
+
+<!-- ADIM 3: başarı -->
+<div id="adim3" class="card" style="display:none; text-align:center; padding:30px;">
+  <div style="font-size:46px;">🎉</div>
+  <div style="font-size:20px; font-weight:bold; color:#2e7d32; margin:8px 0;"><span id="kaydedilen"></span> soru eklendi!</div>
+  <button onclick="yenidenBaslat()" class="btn btn-success" style="padding:10px 24px;">📄 Yeni PDF Yükle</button>
+</div>
+
+<!-- KIRPMA MODALI -->
+<div id="cropModal">
+  <div id="cropModalIc">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <b id="cropBaslik">Görseli kırp</b>
+      <button onclick="cropKapat()" class="btn" style="background:#888; color:#fff; padding:6px 12px;">✕ Kapat</button>
+    </div>
+    <p style="color:#666; font-size:13px; margin-top:0;">İlgili sayfada şeklin üstüne <b>fareyle bir dikdörtgen çiz</b>, sonra "Kes ve Yükle"ye bas.</p>
+    <div id="cropSayfalar" style="text-align:center;"></div>
+    <div style="text-align:center; margin-top:12px;">
+      <button id="cropKesBtn" onclick="cropKesVeYukle()" class="btn btn-success" style="padding:10px 26px;" disabled>✂️ Kes ve Yükle</button>
+      <span id="cropDurum" style="margin-left:10px; color:#666; font-size:13px;"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Durum ───────────────────────────────────────────────────────────────
+var sorular = [];          // analiz sonucu (düzenlenebilir)
+var _pdfFile = null;       // seçilen PDF (File)
+var _pdfDoc = null;        // pdf.js belge nesnesi (kırpma için)
+var _aktifSlot = null;     // { soruIdx, alan }  ->  şu an kırpılan slot
+var _cizim = null;         // { pageIdx, x, y, w, h, canvas, kutuEl } çizilen kutu
+
+var DERSLER  = ["Matematik","Türkçe","Fen Bilimleri","T.C. İnkılâp Tarihi","İngilizce","Din Kültürü"];
+var SINIFLAR = [1,2,3,4,5,6,7,8,9,10,11,12];
+var GORSEL_MARKER = "[GÖRSEL VAR]";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function gosterHata(m){ var h=document.getElementById('hataKutu'); h.textContent=m; h.style.display='block'; }
+
+// ─── Form dropdownları ──────────────────────────────────────────────────
+(function(){
+  var s=document.getElementById('f_sinif');
+  SINIFLAR.forEach(function(n){ var o=document.createElement('option'); o.value=n; o.textContent=n+'. Sınıf'; if(n===8)o.selected=true; s.appendChild(o); });
+  var d=document.getElementById('f_ders');
+  DERSLER.forEach(function(x){ var o=document.createElement('option'); o.value=x; o.textContent=x; d.appendChild(o); });
+
+  var dz=document.getElementById('dropZone'), inp=document.getElementById('pdfInput');
+  dz.addEventListener('click',function(){ inp.click(); });
+  inp.addEventListener('change',function(e){ if(e.target.files[0]) dosyaSec(e.target.files[0]); });
+  dz.addEventListener('dragover',function(e){ e.preventDefault(); dz.style.background='#eef'; });
+  dz.addEventListener('dragleave',function(){ dz.style.background='#f8f9ff'; });
+  dz.addEventListener('drop',function(e){ e.preventDefault(); dz.style.background='#f8f9ff'; if(e.dataTransfer.files[0]) dosyaSec(e.dataTransfer.files[0]); });
+})();
+
+function dosyaSec(f){
+  if(f.type!=='application/pdf'){ gosterHata('Lütfen PDF seçin.'); return; }
+  if(f.size>20*1024*1024){ gosterHata('Dosya 20 MB\'ı aşıyor.'); return; }
+  _pdfFile=f;
+  document.getElementById('secilenAd').textContent=f.name;
+  document.getElementById('secilenBoyut').textContent='('+(f.size/1024).toFixed(0)+' KB)';
+  document.getElementById('secilenDosya').style.display='block';
+  document.getElementById('analizBtn').style.display='inline-block';
+  document.getElementById('hataKutu').style.display='none';
+}
+
+// ─── Analiz (mevcut /pdf-analiz endpoint'i) ───────────────────────────────
+function analizBaslat(){
+  if(!_pdfFile){ gosterHata('Önce PDF seç.'); return; }
+  document.getElementById('adim1').style.display='none';
+  document.getElementById('yukleniyor').style.display='block';
+  var msgs=['PDF okunuyor...','Sorular ayrıştırılıyor...','Şıklar tespit ediliyor...','Son işlemler...'];
+  var mi=0, prog=document.getElementById('yukProg');
+  var iv=setInterval(function(){ prog.textContent=msgs[mi++%msgs.length]; },1800);
+
+  var fd=new FormData();
+  fd.append('pdfDosyasi',_pdfFile);
+  fd.append('sinif',document.getElementById('f_sinif').value);
+  fd.append('ders',document.getElementById('f_ders').value);
+  fd.append('unite',document.getElementById('f_unite').value||'');
+  fd.append('konu',document.getElementById('f_konu').value||'');
+
+  fetch('/pdf-analiz',{ method:'POST', credentials:'same-origin', body:fd })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      clearInterval(iv);
+      document.getElementById('yukleniyor').style.display='none';
+      if(!v.ok||v.hata){ document.getElementById('adim1').style.display='block'; gosterHata('Analiz hatası: '+(v.hata||'bilinmeyen')); return; }
+      sorular=v.sorular||[];
+      // pdf.js belgesini de hazırla (kırpma için)
+      _pdfFile.arrayBuffer().then(function(buf){
+        pdfjsLib.getDocument({data:buf}).promise.then(function(doc){ _pdfDoc=doc; });
+      });
+      onizleme();
+    })
+    .catch(function(e){
+      clearInterval(iv);
+      document.getElementById('yukleniyor').style.display='none';
+      document.getElementById('adim1').style.display='block';
+      gosterHata('Sunucu hatası: '+e.message);
+    });
+}
+
+// ─── Önizleme ─────────────────────────────────────────────────────────────
+function gorselliMi(deger){ return deger===GORSEL_MARKER; }
+
+function onizleme(){
+  document.getElementById('toplamSoru').textContent=sorular.length;
+  var k=document.getElementById('liste'); k.innerHTML='';
+  document.getElementById('adim2').style.display='block';
+
+  sorular.forEach(function(s,i){
+    if(!s.secenekler) s.secenekler=[{metin:'',gorsel:''},{metin:'',gorsel:''},{metin:'',gorsel:''},{metin:'',gorsel:''}];
+    var div=document.createElement('div');
+    div.className='card'; div.style.cssText='margin-bottom:12px; border-left:4px solid #1a73e8;';
+
+    // başlık + meta
+    var html =
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; margin-bottom:10px;">'+
+        '<label style="font-weight:bold; color:#1a73e8;"><input type="checkbox" data-sec="'+i+'" checked style="margin-right:6px;">Soru '+(i+1)+'</label>'+
+        '<div style="display:flex; gap:6px; flex-wrap:wrap;">'+
+          '<select onchange="alanGuncelle('+i+',\'sinif\',this.value)" class="input-sm">'+
+            SINIFLAR.map(function(n){ return '<option value="'+n+'"'+(n==s.sinif?' selected':'')+'>'+n+'. Sınıf</option>'; }).join('')+
+          '</select>'+
+          '<select onchange="alanGuncelle('+i+',\'ders\',this.value)" class="input-sm">'+
+            DERSLER.map(function(d){ return '<option value="'+escHtml(d)+'"'+(d===s.ders?' selected':'')+'>'+escHtml(d)+'</option>'; }).join('')+
+          '</select>'+
+          '<input value="'+escHtml(s.konu||'')+'" onchange="alanGuncelle('+i+',\'konu\',this.value)" class="input-sm" placeholder="Konu">'+
+        '</div>'+
+      '</div>';
+
+    // öncüller (metni varsa göster)
+    [1,2,3].forEach(function(n){
+      var t=s['soruOnculu'+n];
+      if(t && t.length){
+        html+='<div style="margin-bottom:8px;"><b style="font-size:11px; color:#888;">ÖNCÜL '+n+'</b>'+
+          '<textarea onchange="alanGuncelle('+i+',\'soruOnculu'+n+'\',this.value)" rows="2" style="width:100%; border:1px solid #eee; border-radius:6px; padding:6px; font-size:13px;">'+escHtml(t)+'</textarea></div>';
+      }
+    });
+
+    // soru metni
+    html+='<div style="margin-bottom:8px;"><b style="font-size:11px; color:#888;">SORU METNİ</b>'+
+      '<textarea onchange="alanGuncelle('+i+',\'soruMetni\',this.value)" rows="3" style="width:100%; border:1px solid #eee; border-radius:6px; padding:6px; font-size:14px;">'+escHtml(s.soruMetni||'')+'</textarea></div>';
+
+    // şıklar
+    html+='<div style="margin-bottom:8px;"><b style="font-size:11px; color:#888;">ŞIKLAR</b>';
+    var harf=['A','B','C','D'];
+    for(var si=0; si<4; si++){
+      var se=s.secenekler[si]||{metin:'',gorsel:''};
+      var dogru=(si===s.dogruCevapIndex);
+      html+='<div style="display:flex; align-items:center; gap:8px; background:'+(dogru?'#e8f5e9':'#fff')+'; border:'+(dogru?'2px solid #34a853':'1px solid #eee')+'; border-radius:8px; padding:6px 10px; margin-bottom:5px;">'+
+        '<b style="min-width:18px; color:#666;">'+harf[si]+'</b>'+
+        '<input value="'+escHtml(se.metin||'')+'" onchange="sikMetin('+i+','+si+',this.value)" style="flex:1; border:none; background:transparent; font-size:14px;" placeholder="(metin)">'+
+        '<label style="font-size:12px; color:#666;"><input type="radio" name="dogru_'+i+'" '+(dogru?'checked':'')+' onchange="dogruSec('+i+','+si+')"> ✓</label>'+
+      '</div>';
+    }
+    html+='</div>';
+
+    // ── GÖRSEL SLOTLARI ──
+    html+='<div style="margin-top:10px; padding:10px; background:#fafafe; border-radius:8px;"><b style="font-size:11px; color:#888;">GÖRSELLER</b><div id="gorseller_'+i+'"></div></div>';
+
+    div.innerHTML=html;
+    k.appendChild(div);
+    gorselSlotlariCiz(i);
+  });
+  window.scrollTo(0,0);
+}
+
+// Görsel slotlarını (soru resmi + öncül resimleri + şık görselleri) çiz
+function gorselSlotlariCiz(i){
+  var s=sorular[i];
+  var hedef=document.getElementById('gorseller_'+i);
+  var slotlar=[{alan:'soruResmi', ad:'Soru Resmi'}];
+  [1,2,3].forEach(function(n){
+    if(s['soruOnculu'+n] && s['soruOnculu'+n].length) slotlar.push({alan:'soruOnculu'+n+'Resmi', ad:'Öncül '+n+' Resmi'});
+  });
+  ['A','B','C','D'].forEach(function(h,si){ slotlar.push({alan:'sik'+si, ad:'Şık '+h+' Görseli'}); });
+
+  hedef.innerHTML = slotlar.map(function(sl){
+    var deger = (sl.alan.indexOf('sik')===0) ? (s.secenekler[+sl.alan.slice(3)]||{}).gorsel : s[sl.alan];
+    deger = deger||'';
+    var rozet, thumb='';
+    if(gorselliMi(deger)){ rozet='<span class="gp-badge gp-bekliyor">📌 Görsel bekliyor</span>'; }
+    else if(deger){ rozet='<span class="gp-badge gp-yuklendi">✓ Yüklendi</span>'; thumb='<img src="'+escHtml(deger)+'" class="gp-thumb">'; }
+    else { rozet='<span class="gp-badge gp-bos">boş</span>'; }
+    return '<div class="gp-slot">'+
+      '<b>'+sl.ad+'</b>'+ rozet + thumb +
+      '<button onclick="kirpAc('+i+',\''+sl.alan+'\')" class="btn" style="background:#1a73e8; color:#fff; padding:4px 12px; font-size:12px;">🖼️ Kırp</button>'+
+      '<button onclick="slotTemizle('+i+',\''+sl.alan+'\')" class="btn" style="background:#eee; color:#666; padding:4px 10px; font-size:12px;">Temizle</button>'+
+      '<input value="'+escHtml(gorselliMi(deger)?'':deger)+'" onchange="slotYaz('+i+',\''+sl.alan+'\',this.value)" placeholder="veya URL yapıştır" style="flex:1; min-width:140px; font-size:12px; border:1px solid #ddd; border-radius:6px; padding:4px 8px;">'+
+    '</div>';
+  }).join('');
+}
+
+// ─── Alan güncelleyiciler ──────────────────────────────────────────────────
+function alanGuncelle(i,alan,v){ sorular[i][alan]=v; }
+function sikMetin(i,si,v){ sorular[i].secenekler[si].metin=v; }
+function dogruSec(i,si){ sorular[i].dogruCevapIndex=si; }
+function slotYaz(i,alan,v){ slotaDeger(i,alan,v); gorselSlotlariCiz(i); }
+function slotTemizle(i,alan){ slotaDeger(i,alan,''); gorselSlotlariCiz(i); }
+function slotaDeger(i,alan,v){
+  if(alan.indexOf('sik')===0){ sorular[i].secenekler[+alan.slice(3)].gorsel=v; }
+  else { sorular[i][alan]=v; }
+}
+
+// ─── Kırpma modalı (pdf.js) ────────────────────────────────────────────────
+function kirpAc(i,alan){
+  if(!_pdfDoc){ alert('PDF henüz hazır değil, birkaç saniye sonra tekrar dene.'); return; }
+  _aktifSlot={ soruIdx:i, alan:alan }; _cizim=null;
+  document.getElementById('cropBaslik').textContent='Soru '+(i+1)+' — kırpılacak alan: '+alan;
+  document.getElementById('cropDurum').textContent='';
+  document.getElementById('cropKesBtn').disabled=true;
+  document.getElementById('cropModal').style.display='block';
+  var kap=document.getElementById('cropSayfalar'); kap.innerHTML='Sayfalar çiziliyor…';
+
+  var parcalar=[];
+  var n=_pdfDoc.numPages;
+  var sira=Promise.resolve();
+  kap.innerHTML='';
+  for(var p=1;p<=n;p++){ (function(pageNo){
+    sira=sira.then(function(){ return sayfaCiz(pageNo,kap); });
+  })(p); }
+}
+
+function sayfaCiz(pageNo,kap){
+  return _pdfDoc.getPage(pageNo).then(function(page){
+    var vp=page.getViewport({scale:1.6});
+    var wrap=document.createElement('div'); wrap.className='crop-sayfa';
+    var canvas=document.createElement('canvas');
+    canvas.width=vp.width; canvas.height=vp.height;
+    wrap.appendChild(canvas); kap.appendChild(wrap);
+    kutuCizimBagla(wrap,canvas,pageNo-1);
+    return page.render({ canvasContext:canvas.getContext('2d'), viewport:vp }).promise;
+  });
+}
+
+// Bir sayfaya fare ile dikdörtgen çizme
+function kutuCizimBagla(wrap,canvas,pageIdx){
+  var bas=null, kutuEl=null;
+  function noktaCSS(e){ var r=canvas.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top, r:r }; }
+  canvas.addEventListener('mousedown',function(e){
+    // eski kutuları temizle
+    document.querySelectorAll('.crop-kutu').forEach(function(el){ el.remove(); });
+    var n=noktaCSS(e); bas=n;
+    kutuEl=document.createElement('div'); kutuEl.className='crop-kutu';
+    kutuEl.style.left=n.x+'px'; kutuEl.style.top=n.y+'px'; kutuEl.style.width='0px'; kutuEl.style.height='0px';
+    wrap.appendChild(kutuEl);
+  });
+  canvas.addEventListener('mousemove',function(e){
+    if(!bas||!kutuEl) return;
+    var n=noktaCSS(e);
+    var x=Math.min(bas.x,n.x), y=Math.min(bas.y,n.y), w=Math.abs(n.x-bas.x), h=Math.abs(n.y-bas.y);
+    kutuEl.style.left=x+'px'; kutuEl.style.top=y+'px'; kutuEl.style.width=w+'px'; kutuEl.style.height=h+'px';
+  });
+  canvas.addEventListener('mouseup',function(e){
+    if(!bas||!kutuEl){ return; }
+    var n=noktaCSS(e);
+    var x=Math.min(bas.x,n.x), y=Math.min(bas.y,n.y), w=Math.abs(n.x-bas.x), h=Math.abs(n.y-bas.y);
+    bas=null;
+    if(w<5||h<5){ kutuEl.remove(); kutuEl=null; return; }
+    // CSS px -> canvas px oranı (canvas CSS ile ölçeklenmiş olabilir)
+    var oran=canvas.width / n.r.width;
+    _cizim={ pageIdx:pageIdx, canvas:canvas, sx:x*oran, sy:y*oran, sw:w*oran, sh:h*oran };
+    document.getElementById('cropKesBtn').disabled=false;
+    document.getElementById('cropDurum').textContent='Kutu hazır, kesebilirsin.';
+  });
+}
+
+function cropKesVeYukle(){
+  if(!_cizim){ return; }
+  var c=document.createElement('canvas'); c.width=Math.round(_cizim.sw); c.height=Math.round(_cizim.sh);
+  c.getContext('2d').drawImage(_cizim.canvas, _cizim.sx,_cizim.sy,_cizim.sw,_cizim.sh, 0,0,c.width,c.height);
+  var dataUri=c.toDataURL('image/png');
+  document.getElementById('cropKesBtn').disabled=true;
+  document.getElementById('cropDurum').textContent='Cloudinary\'ye yükleniyor…';
+
+  fetch('/gorselli-gorsel-yukle',{ method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ gorsel:dataUri }) })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      if(!v.ok||v.hata){ document.getElementById('cropDurum').textContent='Hata: '+(v.hata||'bilinmeyen'); document.getElementById('cropKesBtn').disabled=false; return; }
+      slotaDeger(_aktifSlot.soruIdx, _aktifSlot.alan, v.url);
+      gorselSlotlariCiz(_aktifSlot.soruIdx);
+      cropKapat();
+    })
+    .catch(function(e){ document.getElementById('cropDurum').textContent='Sunucu hatası: '+e.message; document.getElementById('cropKesBtn').disabled=false; });
+}
+
+function cropKapat(){ document.getElementById('cropModal').style.display='none'; _aktifSlot=null; _cizim=null; }
+
+// ─── Kaydet (mevcut /pdf-sorulari-kaydet endpoint'i) ─────────────────────────
+function kaydet(){
+  // seçili soruları topla
+  var secili=[];
+  document.querySelectorAll('[data-sec]').forEach(function(cb){ if(cb.checked) secili.push(+cb.getAttribute('data-sec')); });
+  if(!secili.length){ alert('En az bir soru seç.'); return; }
+
+  // kırpılmamış [GÖRSEL VAR] kalmış mı? uyar ve temizle (literal marker URL olarak kaydedilmesin)
+  var eksik=[];
+  secili.forEach(function(i){
+    var s=sorular[i];
+    ['soruResmi','soruOnculu1Resmi','soruOnculu2Resmi','soruOnculu3Resmi'].forEach(function(a){ if(gorselliMi(s[a])){ eksik.push((i+1)+'/'+a); s[a]=''; } });
+    s.secenekler.forEach(function(se,si){ if(gorselliMi(se.gorsel)){ eksik.push((i+1)+'/Şık'+si); se.gorsel=''; } });
+  });
+  if(eksik.length){
+    if(!confirm('Şu alanlarda görsel kırpılmadı, boş kaydedilecek:\n'+eksik.join(', ')+'\n\nYine de kaydedeyim mi?')) { secili.forEach(gorselSlotlariCiz); return; }
+  }
+
+  var gonder=secili.map(function(i){ return sorular[i]; });
+  fetch('/pdf-sorulari-kaydet',{ method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sorular:gonder }) })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      if(!v.ok||v.hata){ alert('Kayıt hatası: '+(v.hata||'bilinmeyen')); return; }
+      document.getElementById('adim2').style.display='none';
+      document.getElementById('kaydedilen').textContent=v.kaydedilen;
+      document.getElementById('adim3').style.display='block';
+      window.scrollTo(0,0);
+    })
+    .catch(function(e){ alert('Sunucu hatası: '+e.message); });
+}
+
+function yenidenBaslat(){
+  sorular=[]; _pdfFile=null; _pdfDoc=null;
+  document.getElementById('adim2').style.display='none';
+  document.getElementById('adim3').style.display='none';
+  document.getElementById('secilenDosya').style.display='none';
+  document.getElementById('analizBtn').style.display='none';
+  document.getElementById('hataKutu').style.display='none';
+  document.getElementById('pdfInput').value='';
+  document.getElementById('adim1').style.display='block';
+}
+</script>
+</body>
+</html>

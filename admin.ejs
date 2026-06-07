@@ -1,0 +1,2833 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGS Hazırlık - Admin</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+.sqrt{display:inline-flex;align-items:center;}
+.sqrt-sembol{font-size:1.15em;line-height:1;margin-right:1px;}
+.sqrt-icerik{border-top:1.5px solid currentColor;padding:0 2px;display:inline-block;}
+.math-sup{vertical-align:super;font-size:.75em;}
+.math-sub{vertical-align:sub;font-size:.75em;}
+.math-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;line-height:1.2;}
+.math-frac-ust{border-bottom:1px solid currentColor;padding:0 2px;}
+.math-frac-alt{padding:0 2px;}
+/* v4.2.4: MathJax inline matematiği biraz büyüt — şıklarda $\hat{A}$ gibi gösterimler küçük kalmasın */
+mjx-container[jax="CHTML"][display="false"] { font-size: 1.08em !important; }
+mjx-container[jax="CHTML"] { line-height: 1.5; }
+</style>
+<script>
+window.MathJaxReady = false;
+MathJax = {
+  tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+  options: { skipHtmlTags: ['script','style','textarea','pre'] },
+  startup: {
+    ready() {
+      // v4.1.33: Eski sorularda "\\le" gibi çift backslash ile kaydedilmiş matematik
+      // metinleri MathJax otomatik typeset etmeden ÖNCE normalize et.
+      try {
+        if (typeof ciftBackslashNormalize === 'function') {
+          ciftBackslashNormalize(document.body);
+        }
+      } catch(e) {}
+      MathJax.startup.defaultReady();
+      window.MathJaxReady = true;
+    }
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<script>
+// v4.1.33: Bazı eski sorularda metin "\\le" gibi çift backslash ile kaydedilmiş.
+// LaTeX'te "\\" yeni satır demektir, "\le" değil. Render etmeden önce sadece
+// $...$ matematik blokları içindeki çift backslash'ları tek backslash'a indirgiyoruz.
+function ciftBackslashNormalize(el) {
+  if (!el) return;
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function(node) {
+    var t = node.textContent;
+    if (t.indexOf('\\\\') === -1) return;
+    if (!t.match(/\$[^$]*\\\\[^$]*\$/)) return;
+    var yeni = t.replace(/\$([^$]+)\$/g, function(tam, ic) {
+      return '$' + ic.replace(/\\\\/g, '\\') + '$';
+    });
+    if (yeni !== t) node.textContent = yeni;
+  });
+}
+function mathRenderSonra(el) {
+  if (!el) return;
+  ciftBackslashNormalize(el);
+  if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([el]).catch(function(){});
+  } else if (window.MathJax && MathJax.typesetPromise) {
+    setTimeout(function(){ MathJax.typesetPromise([el]).catch(function(){}); }, 500);
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  try { ciftBackslashNormalize(document.body); } catch(e) {}
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([document.body]).catch(function(){});
+  }
+});
+</script>
+</head>
+<body class="panel-body">
+
+<div class="admin-topbar">
+  <a href="/admin" class="admin-logo-wrap">
+    <div class="admin-logo-badge">LGS</div>
+    <div>
+      <div class="admin-logo-text">LGS Hazırlık</div>
+      <div class="admin-logo-sub">Admin Paneli</div>
+    </div>
+  </a>
+
+  <%
+    // v4.2.2: Admin nav iki seviyeli gruplandırma.
+    // Her grup, içindeki mod'lara göre aktiflik durumu hesaplar.
+    var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler'];
+    var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
+    var iletisimModlari    = ['haberler', 'mesajlar'];
+    var sistemModlari      = ['sifirla'];
+
+    var aktifGrup = 'icerik';
+    if (kullaniciModlari.indexOf(mod) !== -1) aktifGrup = 'kullanicilar';
+    else if (iletisimModlari.indexOf(mod) !== -1) aktifGrup = 'iletisim';
+    else if (sistemModlari.indexOf(mod) !== -1) aktifGrup = 'sistem';
+  %>
+
+  <div class="admin-nav-grup">
+    <a href="/admin?mod=soruListesi" class="admin-grup-btn <%= aktifGrup==='icerik'?'active':'' %>">📚 İçerik</a>
+    <a href="/admin?mod=kullanicilar" class="admin-grup-btn <%= aktifGrup==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+    <a href="/admin?mod=haberler" class="admin-grup-btn <%= aktifGrup==='iletisim'?'active':'' %>" style="position:relative;">
+      📢 İletişim
+      <% if (okunmamisMesajSayisi > 0) { %>
+        <span style="position:absolute; top:-3px; right:-6px; background:#e24b4a; color:white; font-size:10px; font-weight:700; padding:2px 6px; border-radius:9px; line-height:1.2; min-width:14px; text-align:center;"><%= okunmamisMesajSayisi %></span>
+      <% } %>
+    </a>
+    <a href="/admin?mod=sifirla" class="admin-grup-btn <%= aktifGrup==='sistem'?'active':'' %>">⚙️ Sistem</a>
+    <div class="admin-nav-right">
+      <!-- v4.2.3: Hesaplama butonu üst sağa taşındı — her sayfadan tek tıkla erişim -->
+      <button type="button" onclick="adminHesaplaTetikle(event)" id="adminHesaplaBtn" title="Günlük hesaplamayı şimdi çalıştır" style="background:#e8f0fe; color:#1a73e8; border:1px solid #1a73e8; border-radius:6px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; margin-right:14px; white-space:nowrap; transition:background 0.15s;"
+        onmouseover="this.style.background='#d2e3fc'" onmouseout="this.style.background='#e8f0fe'">
+        ⏰ Hesapla
+      </button>
+      Merhaba <span class="admin-user-badge"><%= process.env.ADMIN_USER||'admin' %></span> · <a href="#" onclick="adminCikisYap(event)" class="admin-nav-link" style="color:#999; font-size:12px;">Çıkış</a>
+    </div>
+  </div>
+</div>
+
+<!-- v4.2.2: Alt sekme satırı — aktif gruba göre o grubun sekmeleri -->
+<!-- v4.2.3: Sol başında grup etiketi (örn. "İÇERİK") — hangi grupta olduğunu netleştirir -->
+<%
+  var grupAdiMap = {
+    'icerik':       'İÇERİK',
+    'kullanicilar': 'KULLANICILAR',
+    'iletisim':     'İLETİŞİM',
+    'sistem':       'SİSTEM'
+  };
+  var grupAdi = grupAdiMap[aktifGrup] || '';
+%>
+<div class="admin-alt-nav">
+  <span class="admin-grup-etiket"><%= grupAdi %></span>
+  <% if (aktifGrup === 'icerik') { %>
+    <a href="/admin?mod=soruListesi" class="admin-alt-link <%= mod==='soruListesi'?'active':'' %>">📋 Sorular</a>
+    <a href="/admin?mod=zorlukRapor" class="admin-alt-link <%= mod==='zorlukRapor'?'active':'' %>">📊 Zorluk Raporu</a>
+    <a href="/admin/soru-puan-detay" class="admin-alt-link">🔬 Soru Puan Detayı</a>
+    <a href="/admin/duplicate-sorular" class="admin-alt-link">🔍 Tekrar Eden Sorular</a>
+    <a href="/admin?mod=soruEkle" class="admin-alt-link <%= mod==='soruEkle'?'active':'' %>">➕ Yeni Soru</a>
+    <a href="/admin?mod=pdfYukle" class="admin-alt-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
+    <a href="/admin/gorselli-pdf-yukle" class="admin-alt-link">🖼️ Görselli PDF Yükle</a>
+    <a href="/admin?mod=uniteler" class="admin-alt-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
+  <% } else if (aktifGrup === 'kullanicilar') { %>
+    <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
+    <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
+    <a href="/admin?mod=okullar" class="admin-alt-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
+  <% } else if (aktifGrup === 'iletisim') { %>
+    <a href="/admin?mod=haberler" class="admin-alt-link <%= mod==='haberler'?'active':'' %>">📰 Haberler</a>
+    <a href="/admin?mod=mesajlar" class="admin-alt-link <%= mod==='mesajlar'?'active':'' %>" style="position:relative;">
+      💬 Mesajlar
+      <% if (okunmamisMesajSayisi > 0) { %>
+        <span style="position:absolute; top:-3px; right:-6px; background:#e24b4a; color:white; font-size:10px; font-weight:700; padding:2px 6px; border-radius:9px; line-height:1.2; min-width:14px; text-align:center;"><%= okunmamisMesajSayisi %></span>
+      <% } %>
+    </a>
+  <% } else if (aktifGrup === 'sistem') { %>
+    <a href="/admin/puan-simulasyon" class="admin-alt-link <%= mod==='puanSimulasyon'?'active':'' %>">📊 Puan Simülasyonu</a>
+    <a href="/admin?mod=sifirla" class="admin-alt-link danger <%= mod==='sifirla'?'active':'' %>">🗑️ Sıfırla</a>
+  <% } %>
+</div>
+
+<style>
+  /* v4.2.2: İki seviyeli admin nav */
+  /* v4.2.3: Renk paleti beyaz header için düzeltildi — eskiden header'ı mavi
+     varsayıp beyaz metin koymuştum, ama header beyaz olduğu için metin
+     görünmüyordu. Mevcut .admin-nav-link gri-mavi paletine uyumlu. */
+  .admin-nav-grup { display:flex; flex:1; align-items:center; gap:2px; flex-wrap:wrap; }
+  .admin-grup-btn {
+    color: #6b7a99;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 0 16px;
+    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .admin-grup-btn:hover { color: #0c447c; background: #f7f9fc; }
+  .admin-grup-btn.active { color: #0c447c; border-bottom-color: #0c447c; font-weight: 600; }
+
+  /* v4.2.3: Grup etiketi — alt nav satırının solunda küçük kategori adı.
+     Minimal stil: arka plan yok, sadece koyu mavi yazı + üstte ince çizgi. */
+  .admin-grup-etiket {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: #1a73e8;
+    padding: 4px 12px 4px 4px;
+    margin-right: 4px;
+    border-right: 2px solid #c2d4f0;
+    text-transform: uppercase;
+    user-select: none;
+  }
+
+  .admin-alt-nav {
+    background: #f0f4f9;
+    padding: 10px 24px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #1a73e8;
+    align-items: center;
+  }
+  .admin-alt-link {
+    color: #37474f;
+    font-size: 13px;
+    text-decoration: none;
+    padding: 6px 14px;
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+  .admin-alt-link:hover { border-color: #1a73e8; color: #1a73e8; }
+  .admin-alt-link.active { color: #1a73e8; border-color: #1a73e8; font-weight: 600; }
+  .admin-alt-link.danger { color: #c62828; border-color: #f5c6cb; }
+  .admin-alt-link.danger.active { background: #fde8e8; border-color: #c62828; color: #c62828; }
+  .admin-alt-link.danger:hover { border-color: #c62828; }
+
+  @media (max-width: 700px) {
+    .admin-grup-btn { padding: 0 10px; font-size: 13px; }
+    .admin-grup-etiket { font-size: 10px; padding: 3px 9px 3px 3px; letter-spacing: 1px; }
+    .admin-alt-nav { padding: 8px 14px; overflow-x: auto; flex-wrap: nowrap; }
+    .admin-alt-link { font-size: 12px; padding: 5px 10px; }
+  }
+</style>
+
+<div class="admin-main">
+
+<% if (mod === 'pdfYukle') { %>
+<!-- ═══════════════════════════════════════════════════════════════════
+     PDF'DEN TOPLU SORU YÜKLEME  —  v3.0.0
+     Tasarım mevcut admin stiliyle uyumludur.
+═══════════════════════════════════════════════════════════════════ -->
+<div class="card">
+  <h3>📄 PDF'den Toplu Soru Yükleme</h3>
+  <p style="color:#666; font-size:13px; margin-bottom:16px;">
+    PDF dosyanızı yükleyin. Yapay zeka soruları otomatik olarak analiz eder,
+    önizleme ekranında kontrol edip onaylayın.
+  </p>
+
+  <!-- Adım 1: Yükleme Formu -->
+  <div id="adim1">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
+      <div>
+        <label class="form-label">Sınıf</label><br>
+        <select id="pdf_sinif" class="input-sm" onchange="pdfSinifDegisti()">
+          <option value="">— Yükleniyor… —</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Ders</label><br>
+        <select id="pdf_ders" class="input-sm" onchange="pdfUniteleriYukle()">
+          <option value="">— Önce sınıf seç —</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Ünite (opsiyonel)</label><br>
+        <select id="pdf_unite" class="input-sm" onchange="pdfKonulariYukle()" style="min-width:200px;">
+          <option value="">— Ünite seç —</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Konu (opsiyonel)</label><br>
+        <select id="pdf_konu_select" class="input-sm" onchange="pdfKonuSecildi()" style="min-width:160px;">
+          <option value="">— Konu seç —</option>
+          <option value="__yeni__">+ Yeni konu yaz…</option>
+        </select>
+        <input id="pdf_konu" class="input-sm" placeholder="ör: Kesirler" style="min-width:160px; display:none; margin-top:6px;">
+      </div>
+    </div>
+
+    <div id="pdfDropZone" style="border:2px dashed #1a73e8; border-radius:10px; padding:40px; text-align:center; cursor:pointer; background:#f8f9ff; transition:background .2s;">
+      <div style="font-size:36px; margin-bottom:8px;">📄</div>
+      <div style="color:#1a73e8; font-weight:bold; margin-bottom:4px;">PDF dosyasını buraya sürükleyin veya tıklayın</div>
+      <div style="color:#888; font-size:13px;">Maksimum 20 MB · Tek PDF</div>
+      <input type="file" id="pdfInput" accept=".pdf" style="display:none;">
+    </div>
+
+    <div id="secilenDosya" style="display:none; margin-top:10px; padding:10px 14px; background:#e8f5e9; border-radius:8px; display:flex; align-items:center; gap:10px;">
+      <span style="font-size:20px;">✅</span>
+      <span id="secilenDosyaAd" style="font-weight:500;"></span>
+      <span id="secilenDosyaBoyut" style="color:#666; font-size:12px;"></span>
+    </div>
+
+    <button id="analizBtn" onclick="pdfAnalizBaslat()" class="btn btn-success" style="margin-top:14px; display:none;">
+      🤖 Yapay Zeka ile Analiz Et
+    </button>
+  </div>
+
+  <!-- Yükleniyor -->
+  <div id="yukleniyor" style="display:none; text-align:center; padding:40px 0;">
+    <div style="font-size:40px; margin-bottom:12px;">⏳</div>
+    <div style="font-weight:bold; color:#1a73e8; font-size:16px; margin-bottom:6px;">Sorular analiz ediliyor...</div>
+    <div style="color:#666; font-size:13px;">PDF içeriği okunuyor ve sorular ayrıştırılıyor. Lütfen bekleyin.</div>
+    <div id="yukleniyor_ilerleme" style="margin-top:16px; color:#888; font-size:12px;"></div>
+  </div>
+
+  <!-- Hata -->
+  <div id="hataKutu" style="display:none; margin-top:14px; padding:14px; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; color:#c62828;"></div>
+</div>
+
+<!-- Adım 2: Önizleme + Onay -->
+<div id="adim2" style="display:none;">
+  <div class="card" style="background:#e8f5e9; border-color:#a5d6a7;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <b style="color:#2e7d32; font-size:16px;">✅ <span id="toplamSoru"></span> soru bulundu!</b>
+        <p style="color:#555; font-size:13px; margin-top:4px;">Soruları kontrol edin, gerekiyorsa düzenleyin, ardından kaydedin.</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button onclick="tumunuSec(true)" class="btn" style="background:#1a73e8; color:white; padding:8px 16px; font-size:13px;">Tümünü Seç</button>
+        <button onclick="tumunuSec(false)" class="btn" style="background:#888; color:white; padding:8px 16px; font-size:13px;">Seçimi Kaldır</button>
+        <button onclick="secilenlerKaydet()" class="btn btn-success" style="padding:8px 20px;">💾 Seçilenleri Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sorularListesi"></div>
+
+  <div style="text-align:center; margin:20px 0;">
+    <button onclick="secilenlerKaydet()" class="btn btn-success" style="padding:12px 40px; font-size:16px;">💾 Seçilenleri Veritabanına Kaydet</button>
+    <button onclick="yenidenBaslat()" class="btn" style="background:#888; color:white; padding:12px 24px; margin-left:10px;">↩ Yeni PDF Yükle</button>
+  </div>
+</div>
+
+<!-- Adım 3: Başarı -->
+<div id="adim3" style="display:none;" class="card" style="text-align:center;">
+  <div style="text-align:center; padding:30px 0;">
+    <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+    <div style="font-size:20px; font-weight:bold; color:#2e7d32; margin-bottom:8px;"><span id="kaydedilenSayi"></span> soru veritabanına eklendi!</div>
+    <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+      <a href="/admin?mod=soruListesi" class="btn btn-success">📋 Soruları Görüntüle</a>
+      <button onclick="yenidenBaslat()" class="btn" style="background:#1a73e8; color:white;">📄 Yeni PDF Yükle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Değişkenler ────────────────────────────────────────────────────────────
+var analizSonucu = [];
+var _pdfUniteler = []; // Sınıf+Ders'e göre yüklenmiş ünite listesi
+
+// ── Ünite & Konu listeleri yükle (sınıf/ders değişince) ──────────────────
+// v4.3.29: PDF yükle — sınıf ve ders dropdownları da ünitelerden gelir.
+// Akış: sayfa açılır → tüm sınıflar yüklenir → sınıf seç → o sınıfın dersleri
+// yüklenir → ders seç → üniteler/konular yüklenir.
+function pdfSiniflariYukle() {
+  var sinifSelect = document.getElementById('pdf_sinif');
+  fetch('/api/unite-bilgi')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) return;
+      sinifSelect.innerHTML = '<option value="">— Sınıf seç —</option>';
+      (d.siniflar || []).forEach(function(s){
+        var opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s + '. Sınıf';
+        sinifSelect.appendChild(opt);
+      });
+    })
+    .catch(function(){ sinifSelect.innerHTML = '<option value="">— Sınıf yüklenemedi —</option>'; });
+}
+function pdfSinifDegisti() {
+  var sinif = document.getElementById('pdf_sinif').value;
+  var dersSelect = document.getElementById('pdf_ders');
+  var uniteSelect = document.getElementById('pdf_unite');
+  var konuSelect = document.getElementById('pdf_konu_select');
+  dersSelect.innerHTML = '<option value="">— Önce sınıf seç —</option>';
+  uniteSelect.innerHTML = '<option value="">— Ünite seç —</option>';
+  konuSelect.innerHTML = '<option value="">— Konu seç —</option><option value="__yeni__">+ Yeni konu yaz…</option>';
+  if (!sinif) return;
+  fetch('/api/unite-bilgi?sinif=' + encodeURIComponent(sinif))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) return;
+      dersSelect.innerHTML = '<option value="">— Ders seç —</option>';
+      (d.dersler || []).forEach(function(ders){
+        var opt = document.createElement('option');
+        opt.value = ders;
+        opt.textContent = ders;
+        dersSelect.appendChild(opt);
+      });
+    })
+    .catch(function(){});
+}
+function pdfUniteleriYukle() {
+  var sinif = document.getElementById('pdf_sinif').value;
+  var ders = document.getElementById('pdf_ders').value;
+  var uniteSelect = document.getElementById('pdf_unite');
+  var konuSelect = document.getElementById('pdf_konu_select');
+  uniteSelect.innerHTML = '<option value="">— Ünite seç —</option>';
+  konuSelect.innerHTML = '<option value="">— Konu seç —</option><option value="__yeni__">+ Yeni konu yaz…</option>';
+  document.getElementById('pdf_konu').style.display = 'none';
+  document.getElementById('pdf_konu').value = '';
+  if (!sinif || !ders) { _pdfUniteler = []; return; }
+  fetch('/api/unite-bilgi?sinif=' + encodeURIComponent(sinif))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) return;
+      _pdfUniteler = (d.uniteler || []).filter(function(u){ return u.ders === ders; });
+      _pdfUniteler.forEach(function(u){
+        var opt = document.createElement('option');
+        opt.value = u.uniteAdi || (u.uniteNo + '. Ünite');
+        opt.textContent = (u.uniteNo ? u.uniteNo + '. ' : '') + (u.uniteAdi || '');
+        uniteSelect.appendChild(opt);
+      });
+      pdfKonulariYukle();
+    })
+    .catch(function(){});
+}
+function pdfKonulariYukle() {
+  var konuSelect = document.getElementById('pdf_konu_select');
+  var seciliUnite = document.getElementById('pdf_unite').value;
+  var konular = [];
+  if (seciliUnite) {
+    var u = _pdfUniteler.find(function(x){ return (x.uniteAdi || (x.uniteNo + '. Ünite')) === seciliUnite; });
+    konular = (u && u.konular) ? u.konular.slice() : [];
+  } else {
+    // Hiç ünite seçilmediyse tüm derste tanımlı konuları göster
+    _pdfUniteler.forEach(function(u){ (u.konular||[]).forEach(function(k){ if (konular.indexOf(k) === -1) konular.push(k); }); });
+  }
+  konuSelect.innerHTML = '<option value="">— Konu seç —</option>';
+  konular.sort().forEach(function(k){
+    var opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k;
+    konuSelect.appendChild(opt);
+  });
+  var yeniOpt = document.createElement('option');
+  yeniOpt.value = '__yeni__';
+  yeniOpt.textContent = '+ Yeni konu yaz…';
+  konuSelect.appendChild(yeniOpt);
+  document.getElementById('pdf_konu').style.display = 'none';
+  document.getElementById('pdf_konu').value = '';
+}
+function pdfKonuSecildi() {
+  var sec = document.getElementById('pdf_konu_select').value;
+  var inp = document.getElementById('pdf_konu');
+  if (sec === '__yeni__') {
+    inp.style.display = '';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = sec;
+  }
+}
+// Sayfa açıldığında sınıf listesini yükle (sonrası kullanıcı seçimine bağlı)
+document.addEventListener('DOMContentLoaded', function(){
+  if (document.getElementById('pdf_sinif')) pdfSiniflariYukle();
+});
+
+// ── Drag & Drop ───────────────────────────────────────────────────────────
+(function() {
+  var zone = document.getElementById('pdfDropZone');
+  var input = document.getElementById('pdfInput');
+
+  zone.addEventListener('click', function() { input.click(); });
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.style.background = '#e3f2fd';
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.style.background = '#f8f9ff';
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.style.background = '#f8f9ff';
+    var f = e.dataTransfer.files[0];
+    if (f) dosyaSec(f);
+  });
+  input.addEventListener('change', function() {
+    if (input.files[0]) dosyaSec(input.files[0]);
+  });
+})();
+
+function dosyaSec(f) {
+  if (f.type !== 'application/pdf') {
+    gosterHata('Lütfen yalnızca PDF dosyası seçin.');
+    return;
+  }
+  if (f.size > 20 * 1024 * 1024) {
+    gosterHata('Dosya boyutu 20 MB\'ı aşıyor.');
+    return;
+  }
+  document.getElementById('secilenDosyaAd').textContent = f.name;
+  document.getElementById('secilenDosyaBoyut').textContent = '(' + (f.size / 1024).toFixed(0) + ' KB)';
+  document.getElementById('secilenDosya').style.display = 'flex';
+  document.getElementById('analizBtn').style.display = 'inline-block';
+  document.getElementById('hataKutu').style.display = 'none';
+  // dosyayı global tut
+  window._seciliPdf = f;
+}
+
+// ── Analiz başlat ─────────────────────────────────────────────────────────
+function pdfAnalizBaslat() {
+  if (!window._seciliPdf) { gosterHata('Önce bir PDF seçin.'); return; }
+
+  document.getElementById('adim1').style.display = 'none';
+  document.getElementById('adim2').style.display = 'none';
+  document.getElementById('adim3').style.display = 'none';
+  document.getElementById('hataKutu').style.display = 'none';
+  document.getElementById('yukleniyor').style.display = 'block';
+
+  // İlerleme mesajları
+  var mesajlar = [
+    'PDF içeriği okunuyor...',
+    'Soru kökleri tespit ediliyor...',
+    'Şıklar ayrıştırılıyor...',
+    'Cevap anahtarı kontrol ediliyor...',
+    'Son işlemler yapılıyor...'
+  ];
+  var mi = 0;
+  var prog = document.getElementById('yukleniyor_ilerleme');
+  var ilerlemeInterval = setInterval(function() {
+    prog.textContent = mesajlar[mi % mesajlar.length];
+    mi++;
+  }, 2000);
+
+  var formData = new FormData();
+  formData.append('pdfDosyasi', window._seciliPdf);
+  formData.append('sinif', document.getElementById('pdf_sinif').value);
+  formData.append('ders', document.getElementById('pdf_ders').value);
+  // Ünite ve konu: select varsa onlar, "Yeni konu yaz" seçildiyse text input
+  var seciliKonu = document.getElementById('pdf_konu_select').value;
+  var konuDeger = (seciliKonu === '__yeni__') ? document.getElementById('pdf_konu').value : (seciliKonu || '');
+  formData.append('konu', konuDeger);
+  formData.append('unite', document.getElementById('pdf_unite').value || '');
+
+  fetch('/pdf-analiz', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic <%- adminToken %>'
+    },
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(veri) {
+    clearInterval(ilerlemeInterval);
+    document.getElementById('yukleniyor').style.display = 'none';
+
+    if (!veri.ok || veri.hata) {
+      document.getElementById('adim1').style.display = 'block';
+      gosterHata('Analiz hatası: ' + (veri.hata || 'Bilinmeyen hata'));
+      return;
+    }
+    analizSonucu = veri.sorular;
+    onizlemeOlustur(veri.sorular);
+  })
+  ['catch'](function(err) {
+    clearInterval(ilerlemeInterval);
+    document.getElementById('yukleniyor').style.display = 'none';
+    document.getElementById('adim1').style.display = 'block';
+    gosterHata('Sunucu hatası: ' + err.message);
+  });
+}
+
+// ── Önizleme ──────────────────────────────────────────────────────────────
+function onizlemeOlustur(sorular) {
+  document.getElementById('toplamSoru').textContent = sorular.length;
+  var kapsayici = document.getElementById('sorularListesi');
+  kapsayici.innerHTML = '';
+
+  var dersler = ["Matematik","Türkçe","Fen Bilimleri","T.C. İnkılâp Tarihi","İngilizce","Din Kültürü"];
+  var siniflar = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+  sorular.forEach(function(s, i) {
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.style.cssText = 'margin-bottom:12px; border-left:4px solid #1a73e8;';
+
+    // Şık HTML
+    var siklHtml = '';
+    var harfler = ['A','B','C','D'];
+    (s.secenekler||[]).forEach(function(se, si) {
+      var renk = si === s.dogruCevapIndex ? '#e8f5e9' : 'white';
+      var kenar = si === s.dogruCevapIndex ? '2px solid #34a853' : '1px solid #eee';
+      siklHtml += '<div style="background:'+renk+'; border:'+kenar+'; border-radius:8px; padding:8px 12px; margin-bottom:6px; display:flex; align-items:center; gap:8px;">' +
+        '<b style="color:#666; min-width:20px;">' + harfler[si] + ':</b>' +
+        '<input value="' + escHtml(se.metin) + '" data-soru="'+i+'" data-sik="'+si+'" onchange="sikGuncelle(this)" style="flex:1; border:none; background:transparent; font-size:14px;">' +
+        '<label style="font-size:12px; color:#666; cursor:pointer;">' +
+          '<input type="radio" name="dogru_'+i+'" value="'+si+'" ' + (si===s.dogruCevapIndex?'checked':'') + ' onchange="dogruDegistir(this,'+i+')" style="margin-right:4px;">' +
+          '✓ Doğru' +
+        '</label>' +
+      '</div>';
+    });
+
+    div.innerHTML =
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">' +
+        '<label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold;">' +
+          '<input type="checkbox" data-soru-idx="'+i+'" checked style="width:16px; height:16px;">' +
+          '<span style="color:#1a73e8;">Soru ' + (i+1) + '</span>' +
+        '</label>' +
+        '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+          '<select data-soru="'+i+'" data-alan="sinif" onchange="soruAlanGuncelle(this)" class="input-sm">' +
+            siniflar.map(function(s2){ return '<option value="'+s2+'"'+(s2==s.sinif?' selected':'')+'>'+s2+'. Sınıf</option>'; }).join('') +
+          '</select>' +
+          '<select data-soru="'+i+'" data-alan="ders" onchange="soruAlanGuncelle(this)" class="input-sm">' +
+            dersler.map(function(d){ return '<option value="'+d+'"'+(d===s.ders?' selected':'')+'>'+d+'</option>'; }).join('') +
+          '</select>' +
+          '<input value="' + escHtml(s.konu||'') + '" data-soru="'+i+'" data-alan="konu" onchange="soruAlanGuncelle(this)" class="input-sm" placeholder="Konu">' +
+        '</div>' +
+      '</div>' +
+
+      // Öncül
+      (s.soruOnculu ? '<div style="background:transparent; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px;">' +
+        '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Öncül</b>' +
+        '<textarea data-soru="'+i+'" data-alan="soruOnculu" onchange="soruAlanGuncelle(this)" rows="2" style="width:100%; border:none; background:transparent; font-size:13px; resize:vertical; margin-top:4px;">' + escHtml(s.soruOnculu) + '</textarea>' +
+      '</div>' : '') +
+
+      // Soru metni
+      '<div style="margin-bottom:12px;">' +
+        '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Soru Metni</b>' +
+        '<textarea data-soru="'+i+'" data-alan="soruMetni" onchange="soruAlanGuncelle(this)" rows="3" style="width:100%; border:1px solid #eee; border-radius:6px; padding:8px; font-size:14px; margin-top:4px; resize:vertical;">' + escHtml(s.soruMetni) + '</textarea>' +
+      '</div>' +
+
+      // Şıklar
+      '<div>' +
+        '<b style="color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Şıklar (Yeşil = Doğru Cevap)</b>' +
+        '<div style="margin-top:6px;">' + siklHtml + '</div>' +
+      '</div>';
+
+    kapsayici.appendChild(div);
+  });
+
+  document.getElementById('adim2').style.display = 'block';
+}
+
+// ── Düzenleme yardımcıları ─────────────────────────────────────────────────
+function soruAlanGuncelle(el) {
+  var idx = parseInt(el.getAttribute('data-soru'));
+  var alan = el.getAttribute('data-alan');
+  analizSonucu[idx][alan] = el.value;
+}
+function sikGuncelle(el) {
+  var soruIdx = parseInt(el.getAttribute('data-soru'));
+  var sikIdx = parseInt(el.getAttribute('data-sik'));
+  analizSonucu[soruIdx].secenekler[sikIdx].metin = el.value;
+}
+function dogruDegistir(el, soruIdx) {
+  analizSonucu[soruIdx].dogruCevapIndex = parseInt(el.value);
+  // Arka plan renklerini güncelle
+  var satirlar = el.closest('div').parentElement.querySelectorAll('div');
+  satirlar.forEach(function(d, i) {
+    d.style.background = (i === analizSonucu[soruIdx].dogruCevapIndex) ? '#e8f5e9' : 'white';
+    d.style.border = (i === analizSonucu[soruIdx].dogruCevapIndex) ? '2px solid #34a853' : '1px solid #eee';
+  });
+}
+function tumunuSec(durum) {
+  document.querySelectorAll('[data-soru-idx]').forEach(function(cb) { cb.checked = durum; });
+}
+
+// ── Kaydet ────────────────────────────────────────────────────────────────
+function secilenlerKaydet() {
+  var secili = [];
+  document.querySelectorAll('[data-soru-idx]:checked').forEach(function(cb) {
+    secili.push(analizSonucu[parseInt(cb.getAttribute('data-soru-idx'))]);
+  });
+
+  if (secili.length === 0) {
+    alert('Kaydedilecek en az bir soru seçin.');
+    return;
+  }
+
+  if (!confirm(secili.length + ' soruyu veritabanına kaydetmek istiyor musunuz?')) return;
+
+  // Admin kimlik bilgisi — server tarafından inject edildi
+  var kimlik = '<%- adminToken %>';
+
+  fetch('/pdf-sorulari-kaydet', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + kimlik
+    },
+    body: JSON.stringify({ sorular: secili })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(veri) {
+    if (!veri.ok) { gosterHata('Kayıt hatası: ' + (veri.hata || 'Bilinmeyen')); return; }
+    document.getElementById('kaydedilenSayi').textContent = veri.kaydedilen;
+    document.getElementById('adim2').style.display = 'none';
+    document.getElementById('adim3').style.display = 'block';
+  })
+  ['catch'](function(err) { gosterHata('Sunucu hatası: ' + err.message); });
+}
+
+function yenidenBaslat() {
+  analizSonucu = [];
+  window._seciliPdf = null;
+  document.getElementById('pdfInput').value = '';
+  document.getElementById('secilenDosya').style.display = 'none';
+  document.getElementById('analizBtn').style.display = 'none';
+  document.getElementById('pdf_konu').value = '';
+  document.getElementById('adim2').style.display = 'none';
+  document.getElementById('adim3').style.display = 'none';
+  document.getElementById('adim1').style.display = 'block';
+}
+
+function gosterHata(mesaj) {
+  var kutu = document.getElementById('hataKutu');
+  kutu.textContent = '⚠️ ' + mesaj;
+  kutu.style.display = 'block';
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+</script>
+
+<% } else if (mod === 'soruEkle') { %>
+  <div class="card">
+    <h3><%= editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle' %></h3>
+    <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
+      <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><% } %>
+      Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
+        <% if (editSoru && editSoru.sinif) { %><option value="<%= editSoru.sinif %>" selected><%= editSoru.sinif %>. Sınıf</option><% } %>
+        <option value="">— Yükleniyor… —</option>
+      </select>
+      Ders: <select name="ders" id="se_ders" class="input-sm" onchange="dersDegisti()">
+        <% dersler.forEach(function(d) { %>
+          <option value="<%= d %>" <%= editSoru&&editSoru.ders===d ? 'selected' : '' %>><%= d %></option>
+        <% }); %>
+      </select>
+      <br><br>
+      Ünite: <select name="unite" id="se_unite" class="input-sm" onchange="uniteDegisti()" style="min-width:200px;">
+        <option value="">-- Ünite Seçin (Opsiyonel) --</option>
+        <% if(editSoru && editSoru.unite) { %><option value="<%= editSoru.unite %>" selected><%= editSoru.unite %></option><% } %>
+      </select>
+      <br><br>
+      Konu: <select name="konu" id="se_konu" class="input-sm" style="min-width:200px;">
+        <option value="">-- Konu Seçin (Opsiyonel) --</option>
+        <% if(editSoru && editSoru.konu) { %><option value="<%= editSoru.konu %>" selected><%= editSoru.konu %></option><% } %>
+      </select>
+      <br><br>
+      <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+        <label class="form-label" style="display:block; margin-bottom:6px;">📌 Soru Durumu</label>
+        <div class="mobil-tekkolon" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
+            <input type="radio" name="durum" value="taslak" <%= (!editSoru || !editSoru.durum || editSoru.durum==='taslak') ? 'checked' : '' %>>
+            <span style="font-size:13px;">🟡 Taslak</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
+            <input type="radio" name="durum" value="yayinda" <%= (editSoru && editSoru.durum==='yayinda') ? 'checked' : '' %>>
+            <span style="font-size:13px;">🟢 Yayında</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid #ccc; border-radius:6px; cursor:pointer; background:white;">
+            <input type="radio" name="durum" value="duraklat" <%= (editSoru && editSoru.durum==='duraklat') ? 'checked' : '' %>>
+            <span style="font-size:13px;">⏸️ Duraklatıldı</span>
+          </label>
+        </div>
+        <p style="font-size:11px; color:#666; margin:6px 0 0;">Taslak ve Duraklatıldı durumundaki sorular kullanıcılara gösterilmez.</p>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label class="form-label">Öncül 1</label>
+      </div>
+<div class="toolbar" style="margin-bottom:4px; display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','±',0)" class="toolbar-btn" title="Artı/Eksi">±</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','×',0)" class="toolbar-btn" title="Çarpı">×</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','÷',0)" class="toolbar-btn" title="Bölü">÷</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≤',0)" class="toolbar-btn" title="Küçük eşit">≤</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≥',0)" class="toolbar-btn" title="Büyük eşit">≥</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≠',0)" class="toolbar-btn" title="Eşit değil">≠</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','≈',0)" class="toolbar-btn" title="Yaklaşık">≈</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∞',0)" class="toolbar-btn" title="Sonsuz">∞</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','°',0)" class="toolbar-btn" title="Derece">°</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∠',0)" class="toolbar-btn" title="Açı">∠</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','△',0)" class="toolbar-btn" title="Üçgen">△</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∉',0)" class="toolbar-btn" title="Eleman değil">∉</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','⊂',0)" class="toolbar-btn" title="Alt küme">⊂</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∪',0)" class="toolbar-btn" title="Birleşim">∪</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','∩',0)" class="toolbar-btn" title="Kesişim">∩</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;" title="Kalın">B</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;" title="İtalik">I</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;" title="Altı çizili">U</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;" title="Üstü çizili">S</button>
+        <button type="button" onclick="ekle('soruOnculu1Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;" title="Vurgula">HL</button>
+      </div>
+      <textarea name="soruOnculu1" id="soruOnculu1Alan" placeholder="Öncül 1 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu1||'') : '' %></textarea>
+      <label class="form-label">Öncül 1 Görseli</label>
+      <input name="soruOnculu1Resmi" placeholder="Öncül 1 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu1Resmi||editSoru.soruOnculuResmi||'') : '' %>" class="input">
+      <label class="form-label">Öncül 2</label>
+      <div class="toolbar" style="margin-bottom:4px; display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','±',0)" class="toolbar-btn">±</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','×',0)" class="toolbar-btn">×</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','÷',0)" class="toolbar-btn">÷</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≤',0)" class="toolbar-btn">≤</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≥',0)" class="toolbar-btn">≥</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≠',0)" class="toolbar-btn">≠</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','≈',0)" class="toolbar-btn">≈</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∞',0)" class="toolbar-btn">∞</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','°',0)" class="toolbar-btn">°</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∠',0)" class="toolbar-btn">∠</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','△',0)" class="toolbar-btn">△</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','⊥',0)" class="toolbar-btn">⊥</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∥',0)" class="toolbar-btn">∥</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∈',0)" class="toolbar-btn">∈</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∉',0)" class="toolbar-btn">∉</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','⊂',0)" class="toolbar-btn">⊂</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∪',0)" class="toolbar-btn">∪</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','∩',0)" class="toolbar-btn">∩</button>
+        <span style="display:inline-block; width:1px; height:20px; background:#ddd; margin:0 2px; vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;">B</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;">I</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;">U</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;">S</button>
+        <button type="button" onclick="ekle('soruOnculu2Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;">HL</button>
+      </div>
+      <textarea name="soruOnculu2" id="soruOnculu2Alan" placeholder="Öncül 2 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu2||editSoru.soruOnculu||'') : '' %></textarea>
+      <label class="form-label">Öncül 2 Görseli</label>
+      <input name="soruOnculu2Resmi" placeholder="Öncül 2 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu2Resmi||'') : '' %>" class="input">
+      <label class="form-label">Öncül 3</label>
+<div class="toolbar" style="margin-bottom:4px; display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','±',0)" class="toolbar-btn" title="Artı/Eksi">±</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','×',0)" class="toolbar-btn" title="Çarpı">×</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','÷',0)" class="toolbar-btn" title="Bölü">÷</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≤',0)" class="toolbar-btn" title="Küçük eşit">≤</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≥',0)" class="toolbar-btn" title="Büyük eşit">≥</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≠',0)" class="toolbar-btn" title="Eşit değil">≠</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','≈',0)" class="toolbar-btn" title="Yaklaşık">≈</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∞',0)" class="toolbar-btn" title="Sonsuz">∞</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','°',0)" class="toolbar-btn" title="Derece">°</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∠',0)" class="toolbar-btn" title="Açı">∠</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','△',0)" class="toolbar-btn" title="Üçgen">△</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∉',0)" class="toolbar-btn" title="Eleman değil">∉</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','⊂',0)" class="toolbar-btn" title="Alt küme">⊂</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∪',0)" class="toolbar-btn" title="Birleşim">∪</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','∩',0)" class="toolbar-btn" title="Kesişim">∩</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;" title="Kalın">B</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<i></i>',4)" class="toolbar-btn" style="font-style:italic;" title="İtalik">I</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;" title="Altı çizili">U</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;" title="Üstü çizili">S</button>
+        <button type="button" onclick="ekle('soruOnculu3Alan','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;" title="Vurgula">HL</button>
+      </div>
+      <textarea name="soruOnculu3" id="soruOnculu3Alan" placeholder="Öncül 3 metni (Opsiyonel)" class="input" style="height:60px;"><%= editSoru ? (editSoru.soruOnculu3||'') : '' %></textarea>
+      <label class="form-label">Öncül 3 Görseli</label>
+      <input name="soruOnculu3Resmi" placeholder="Öncül 3 Görsel URL (Opsiyonel)" value="<%= editSoru ? (editSoru.soruOnculu3Resmi||'') : '' %>" class="input">
+      <label class="form-label">Soru Metni</label>
+      <div class="toolbar" style="display:flex; flex-wrap:wrap; gap:2px;">
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:4px;">MAT:</span>
+        <button type="button" onclick="ekle('soruMetni','<sup></sup>',6)" class="toolbar-btn" title="Üst simge">x²</button>
+        <button type="button" onclick="ekle('soruMetni','<sub></sub>',6)" class="toolbar-btn" title="Alt simge">x₂</button>
+        <button type="button" onclick="ekle('soruMetni','$\\sqrt{}$',8)" class="toolbar-btn" title="Karekök">√</button>
+        <button type="button" onclick="ekle('soruMetni','$\\sqrt[3]{}$',11)" class="toolbar-btn" title="Küpkök">∛</button>
+        <button type="button" onclick="ekle('soruMetni','$\\frac{}{}$',8)" class="toolbar-btn" title="Kesir">a/b</button>
+        <button type="button" onclick="ekle('soruMetni','$\\pi$',0)" class="toolbar-btn" title="Pi">π</button>
+        <button type="button" onclick="ekle('soruMetni','±',0)" class="toolbar-btn" title="Artı/Eksi">±</button>
+        <button type="button" onclick="ekle('soruMetni','×',0)" class="toolbar-btn" title="Çarpı">×</button>
+        <button type="button" onclick="ekle('soruMetni','÷',0)" class="toolbar-btn" title="Bölü">÷</button>
+        <button type="button" onclick="ekle('soruMetni','≤',0)" class="toolbar-btn" title="Küçük eşit">≤</button>
+        <button type="button" onclick="ekle('soruMetni','≥',0)" class="toolbar-btn" title="Büyük eşit">≥</button>
+        <button type="button" onclick="ekle('soruMetni','≠',0)" class="toolbar-btn" title="Eşit değil">≠</button>
+        <button type="button" onclick="ekle('soruMetni','≈',0)" class="toolbar-btn" title="Yaklaşık">≈</button>
+        <button type="button" onclick="ekle('soruMetni','∞',0)" class="toolbar-btn" title="Sonsuz">∞</button>
+        <button type="button" onclick="ekle('soruMetni','°',0)" class="toolbar-btn" title="Derece">°</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">GEO:</span>
+        <button type="button" onclick="ekle('soruMetni','∠',0)" class="toolbar-btn" title="Açı">∠</button>
+        <button type="button" onclick="ekle('soruMetni','△',0)" class="toolbar-btn" title="Üçgen">△</button>
+        <button type="button" onclick="ekle('soruMetni','⊥',0)" class="toolbar-btn" title="Dik">⊥</button>
+        <button type="button" onclick="ekle('soruMetni','∥',0)" class="toolbar-btn" title="Paralel">∥</button>
+        <button type="button" onclick="ekle('soruMetni','$\\hat{}$',7)" class="toolbar-btn" title="Şapka (açı)">x̂</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <span style="font-size:10px; color:#aaa; align-self:center; margin-right:2px;">KÜME:</span>
+        <button type="button" onclick="ekle('soruMetni','∈',0)" class="toolbar-btn" title="Eleman">∈</button>
+        <button type="button" onclick="ekle('soruMetni','∉',0)" class="toolbar-btn" title="Eleman değil">∉</button>
+        <button type="button" onclick="ekle('soruMetni','⊂',0)" class="toolbar-btn" title="Alt küme">⊂</button>
+        <button type="button" onclick="ekle('soruMetni','∪',0)" class="toolbar-btn" title="Birleşim">∪</button>
+        <button type="button" onclick="ekle('soruMetni','∩',0)" class="toolbar-btn" title="Kesişim">∩</button>
+        <span style="display:inline-block;width:1px;height:20px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+        <button type="button" onclick="ekle('soruMetni','<b></b>',4)" class="toolbar-btn" style="font-weight:bold;" title="Kalın">B</button>
+        <button type="button" onclick="ekle('soruMetni','<i></i>',4)" class="toolbar-btn" style="font-style:italic;" title="İtalik">I</button>
+        <button type="button" onclick="ekle('soruMetni','<u></u>',4)" class="toolbar-btn" style="text-decoration:underline;" title="Altı çizili">U</button>
+        <button type="button" onclick="ekle('soruMetni','<s></s>',4)" class="toolbar-btn" style="text-decoration:line-through;" title="Üstü çizili">S</button>
+        <button type="button" onclick="ekle('soruMetni','<mark></mark>',7)" class="toolbar-btn" style="background:#fff3cd;" title="Vurgula">HL</button>
+        <button type="button" onclick="onizlemeGoster()" class="toolbar-btn" style="background:#1a73e8; color:white; border-color:#1a73e8; margin-left:auto;">Önizle</button>
+      </div>
+      <textarea name="soruMetni" id="soruMetni" placeholder="Soru Metni (HTML desteklenir)" class="input" style="height:80px;" required><%= editSoru ? editSoru.soruMetni : '' %></textarea>
+      <div id="onizleme" style="display:none; background:#fffbe6; border:1px solid #f0c040; border-radius:6px; padding:10px; margin-bottom:10px; font-size:15px;"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div>
+          Şık Dizilimi:
+          <select name="sikDizilimi" class="input-sm">
+            <option value="dikey" <%= (!editSoru || editSoru.sikDizilimi==='dikey' || !editSoru.sikDizilimi) ? 'selected' : '' %>>Dikey (Alt Alta)</option>
+            <option value="yatay" <%= (editSoru && editSoru.sikDizilimi==='yatay') ? 'selected' : '' %>>Yatay (Yan Yana)</option>
+            <option value="ikili" <%= (editSoru && editSoru.sikDizilimi==='ikili') ? 'selected' : '' %>>İkili (A-B üste, C-D altta)</option>
+          </select>
+        </div>
+        <button type="button" onclick="tabloSikOlusturucu()" class="toolbar-btn" style="background:#8e44ad; color:white; border-color:#8e44ad; font-size:12px; padding:4px 10px;">🔢 Tablo Oluştur</button>
+      </div>
+      <input type="hidden" name="tabloBaslik" id="tabloBaslikGizli" value="<%= editSoru && editSoru.tabloBaslik && editSoru.tabloBaslik.length ? JSON.stringify(editSoru.tabloBaslik) : '' %>">
+      <div class="siklar">
+        <div style="margin-bottom:8px;">
+          <p style="margin:0;">Şıklar (Doğru seçeneği işaretleyin):</p>
+        </div>
+        <% for (var i=0; i<4; i++) { %>
+          <div class="sik-row" style="flex-wrap:wrap; gap:4px;">
+            <div style="width:100%; display:flex; flex-wrap:wrap; gap:2px; align-items:center; background:#f8f9fa; border-radius:6px; padding:3px 6px; margin-bottom:2px;">
+              <span style="font-size:10px; color:#aaa; margin-right:2px;">MAT:</span>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','<sup></sup>',6)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Üst simge">x²</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','<sub></sub>',6)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Alt simge">x₂</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\sqrt{}$',8)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Karekök">√</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\sqrt[3]{}$',11)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Küpkök">∛</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\frac{}{}$',8)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Kesir">a/b</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\pi$',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Pi">π</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','±',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">±</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','×',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">×</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','÷',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">÷</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','≤',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">≤</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','≥',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">≥</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','≠',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">≠</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','°',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;">°</button>
+              <span style="display:inline-block;width:1px;height:16px;background:#ddd;margin:0 2px;vertical-align:middle;"></span>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∠',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Açı">∠</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','$\\hat{}$',7)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Şapka (açı)">x̂</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','△',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Üçgen">△</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∈',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Eleman">∈</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∪',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Birleşim">∪</button>
+              <button type="button" onclick="ekle('sikMetin<%=i%>','∩',0)" class="toolbar-btn" style="padding:1px 5px; font-size:11px;" title="Kesişim">∩</button>
+            </div>
+            <b style="align-self:center;"><%= String.fromCharCode(65+i) %>:</b>
+            <input name="metin<%= i %>" id="sikMetin<%= i %>" placeholder="Metin veya HTML (görsel girilirse boş bırakılabilir)" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].metin : '' %>" style="flex:2;">
+            <input name="gorsel<%= i %>" placeholder="Görsel URL" value="<%= editSoru&&editSoru.secenekler[i] ? editSoru.secenekler[i].gorsel : '' %>" style="flex:1;">
+            <input type="radio" name="dogruCevap" value="<%= i %>" <%= editSoru&&editSoru.dogruCevapIndex===i ? 'checked' : '' %> required>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Tablo Şıkkı Oluşturucu Modal -->
+      <div id="tabloModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:12px; padding:24px; width:520px; max-width:95vw; max-height:90vh; overflow-y:auto;">
+          <h3 style="margin:0 0 16px;">🔢 Tablo Şıkkı Oluştur</h3>
+
+          <!-- Sütun başlıkları -->
+          <div style="margin-bottom:12px;">
+            <label class="form-label">Sütun sayısı (çuval sayısı)</label>
+            <select id="tablo_sutunSayisi" class="input-sm" onchange="tabloGuncelle()" style="margin-left:8px;">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+
+          <div id="tablo_sutunBasliklari" style="margin-bottom:12px;"></div>
+
+          <!-- 4 şık için değerler -->
+          <div id="tablo_siklar"></div>
+
+          <div style="display:flex; gap:10px; margin-top:16px;">
+            <button type="button" onclick="tabloHtmlUret()" class="btn btn-success">Şıklara Uygula</button>
+            <button type="button" onclick="document.getElementById('tabloModal').style.display='none'" class="btn" style="background:#888; color:white;">İptal</button>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success">KAYDET</button>
+    </form>
+  </div>
+  <script>
+  var _tumUniteler = [];
+  // Düzenleme modunda mevcut değerler — EJS server-side inject
+  var _editSinif = '<%- editSoru ? (editSoru.sinif||"") : "" %>';
+  var _editDers  = '<%- editSoru ? (editSoru.ders||"") : "" %>';
+  var _editUnite = '<%- editSoru ? (editSoru.unite||"") : "" %>';
+  var _editKonu  = '<%- editSoru ? (editSoru.konu||"") : "" %>';
+
+  // v4.3.29: Soru ekle — sınıf dropdownı da ünitelerden gelir.
+  function seSiniflariYukle(seciliSinif, sonraCallback) {
+    var sinifSelect = document.getElementById('se_sinif');
+    fetch('/api/unite-bilgi')
+      .then(function(r){ return r.json(); })
+      .then(function(v){
+        if (!v.ok) return;
+        sinifSelect.innerHTML = '';
+        (v.siniflar || []).forEach(function(s){
+          var opt = document.createElement('option');
+          opt.value = s; opt.textContent = s + '. Sınıf';
+          if (String(s) === String(seciliSinif)) opt.selected = true;
+          sinifSelect.appendChild(opt);
+        });
+        if (!sinifSelect.value && sinifSelect.options.length) sinifSelect.selectedIndex = 0;
+        if (sonraCallback) sonraCallback();
+      })
+      ['catch'](function(){});
+  }
+
+  function sinifDegisti(hedefUnite, hedefKonu) {
+    var sinif = document.getElementById('se_sinif').value;
+    fetch('/api/unite-bilgi?sinif=' + sinif)
+      .then(function(r){ return r.json(); })
+      .then(function(v){
+        if (!v.ok) return;
+        _tumUniteler = v.uniteler;
+        var dersSelect = document.getElementById('se_ders');
+        var mevcutDers = dersSelect.value;
+        if (v.dersler.length) {
+          var hedefDers = mevcutDers || _editDers || 'Matematik';
+          dersSelect.innerHTML = '';
+          v.dersler.forEach(function(d){
+            var opt = document.createElement('option');
+            opt.value = d; opt.textContent = d;
+            if (d === hedefDers) opt.selected = true;
+            dersSelect.appendChild(opt);
+          });
+          if (!dersSelect.value) dersSelect.selectedIndex = 0;
+        }
+        dersDegisti(hedefUnite || '', hedefKonu || '');
+      })
+      ['catch'](function(){});
+  }
+
+  function dersDegisti(hedefUnite, hedefKonu) {
+    var sinif = document.getElementById('se_sinif').value;
+    var ders  = document.getElementById('se_ders').value;
+    var uniteSelect = document.getElementById('se_unite');
+    // hedefUnite yoksa mevcut seçimi koru
+    var secilenUnite = (hedefUnite !== undefined) ? hedefUnite : uniteSelect.value;
+    uniteSelect.innerHTML = '<option value="">-- Ünite Seçin (Opsiyonel) --</option>';
+    _tumUniteler
+      .filter(function(u){ return u.ders === ders && (!u.sinif || String(u.sinif) === String(sinif)); })
+      .forEach(function(u){
+        var opt = document.createElement('option');
+        opt.value = u.uniteAdi;
+        opt.textContent = u.uniteNo + '. ' + u.uniteAdi;
+        if (u.uniteAdi === secilenUnite) opt.selected = true;
+        uniteSelect.appendChild(opt);
+      });
+    uniteDegisti(hedefKonu || '');
+  }
+
+  function uniteDegisti(hedefKonu) {
+    var sinif = document.getElementById('se_sinif').value;
+    var ders  = document.getElementById('se_ders').value;
+    var unite = document.getElementById('se_unite').value;
+    var konuSelect = document.getElementById('se_konu');
+    var secilenKonu = (hedefKonu !== undefined) ? hedefKonu : konuSelect.value;
+    konuSelect.innerHTML = '<option value="">-- Konu Seçin (Opsiyonel) --</option>';
+    var seciliUnite = _tumUniteler.find(function(u){
+      return u.ders === ders && u.uniteAdi === unite && (!u.sinif || String(u.sinif) === String(sinif));
+    });
+    if (seciliUnite) {
+      seciliUnite.konular.forEach(function(k){
+        var opt = document.createElement('option');
+        opt.value = k; opt.textContent = k;
+        if (k === secilenKonu) opt.selected = true;
+        konuSelect.appendChild(opt);
+      });
+    }
+  }
+
+  function ekle(alanId, html, imlecGeri) {
+    var ta = document.getElementById(alanId);
+    var bas = ta.selectionStart, son = ta.selectionEnd;
+    var secili = ta.value.substring(bas, son);
+    var eklenen;
+    if (secili && imlecGeri > 0) {
+      eklenen = html.slice(0, html.length - imlecGeri) + secili + html.slice(html.length - imlecGeri);
+    } else {
+      eklenen = html;
+    }
+    ta.value = ta.value.substring(0, bas) + eklenen + ta.value.substring(son);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = bas + eklenen.length - (secili ? 0 : imlecGeri);
+  }
+  function onizlemeGoster() {
+    var metin = document.getElementById('soruMetni').value;
+    var div = document.getElementById('onizleme');
+    div.innerHTML = metin;
+    div.style.display = div.style.display === 'none' ? 'block' : 'none';
+  }
+  window.addEventListener('DOMContentLoaded', function(){
+    // v4.3.29: Önce sınıf listesini ünitelerden yükle, sonra zinciri başlat.
+    // editSoru varsa o sınıf seçili gelir, yoksa ilk sınıf.
+    seSiniflariYukle(_editSinif, function(){
+      sinifDegisti(_editUnite, _editKonu);
+    });
+  });
+
+  function tabloSikOlusturucu() {
+    tabloGuncelle();
+    document.getElementById('tabloModal').style.display = 'flex';
+  }
+
+  function tabloGuncelle() {
+    var sutun = parseInt(document.getElementById('tablo_sutunSayisi').value);
+    var romenler = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.'];
+    var harfler = ['A', 'B', 'C', 'D'];
+
+    // Sütun başlıkları
+    var baslikHTML = '<label class="form-label">Sütun başlıkları</label><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">';
+    for (var s = 0; s < sutun; s++) {
+      var mevcutVal = document.getElementById('tablo_baslik_' + s) ? document.getElementById('tablo_baslik_' + s).value : romenler[s] + ' çuval';
+      baslikHTML += '<input id="tablo_baslik_' + s + '" value="' + mevcutVal + '" class="input-sm" style="width:100px;" placeholder="Başlık ' + (s+1) + '">';
+    }
+    baslikHTML += '</div>';
+    document.getElementById('tablo_sutunBasliklari').innerHTML = baslikHTML;
+
+    // Şık değerleri — her şık için sütun sayısı kadar input
+    var sikHTML = '<label class="form-label" style="margin-top:12px; display:block;">Şık değerleri</label>';
+    for (var i = 0; i < 4; i++) {
+      sikHTML += '<div style="display:flex; align-items:center; gap:6px; margin-top:8px;"><b style="min-width:24px;">' + harfler[i] + ')</b>';
+      for (var s2 = 0; s2 < sutun; s2++) {
+        var mevcut = document.getElementById('tablo_val_' + i + '_' + s2) ? document.getElementById('tablo_val_' + i + '_' + s2).value : '';
+        sikHTML += '<input id="tablo_val_' + i + '_' + s2 + '" value="' + mevcut + '" placeholder="' + romenler[s2] + '" class="input-sm" style="width:70px; text-align:center;">';
+      }
+      sikHTML += '</div>';
+    }
+    document.getElementById('tablo_siklar').innerHTML = sikHTML;
+  }
+
+  function tabloHtmlUret() {
+    var sutun = parseInt(document.getElementById('tablo_sutunSayisi').value);
+    var harfler = ['A', 'B', 'C', 'D'];
+    var basliklar = [];
+    for (var s = 0; s < sutun; s++) {
+      basliklar.push(document.getElementById('tablo_baslik_' + s).value || ('Col ' + (s+1)));
+    }
+
+    // Sabit genişlikler — başlık ve değer hücreleri aynı genişlikte olsun ki hizalansın
+    var harfGenislik = '48px';
+    var sutunGenislik = '90px';
+
+    // Başlıkları gizli input'a JSON olarak kaydet — öncül 1'e dokunma
+    document.getElementById('tabloBaslikGizli').value = JSON.stringify(basliklar);
+
+    // Her şık sadece kendi değer satırını içersin
+    for (var i = 0; i < 4; i++) {
+      var degerSatir = '<table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:4px 0; width:' + harfGenislik + '; font-weight:500;">' + harfler[i] + ')</td>';
+      for (var s3 = 0; s3 < sutun; s3++) {
+        var val = document.getElementById('tablo_val_' + i + '_' + s3).value || '-';
+        degerSatir += '<td style="padding:4px 0; width:' + sutunGenislik + '; text-align:center;">' + val + '</td>';
+      }
+      degerSatir += '</tr></table>';
+      document.getElementById('sikMetin' + i).value = degerSatir;
+    }
+    document.getElementById('tabloModal').style.display = 'none';
+  }
+  </script>
+
+<% } else if (mod === 'kullanicilar') { %>
+
+  <!-- v4.3.69: Bugünün aktivite özeti -->
+  <% if (aktiviteOzetiData) {
+       var bugunStr = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day:'numeric', month:'long', year:'numeric' });
+       var sinifAnahtarlari = Object.keys(aktiviteOzetiData.sinifOzeti).sort();
+  %>
+  <div class="card" style="background:#f0f7ff; border:1px solid #b3d7ff;">
+    <h3 style="margin:0 0 6px; font-size:16px;">📊 Bugünün Aktivitesi <span style="font-size:12px; color:#666; font-weight:400;">— <%= bugunStr %></span></h3>
+    <p style="margin:0 0 14px; font-size:13px; color:#555;">
+      Toplam <b><%= aktiviteOzetiData.toplamGiris %></b> öğrenci sisteme girdi · <b><%= aktiviteOzetiData.toplamCozum %></b> soru çözüldü
+    </p>
+    <% if (sinifAnahtarlari.length > 0) { %>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <% sinifAnahtarlari.forEach(function(sinif) {
+           var s = aktiviteOzetiData.sinifOzeti[sinif];
+      %>
+        <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; min-width:160px;">
+          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;"><%= sinif %>. Sınıf</div>
+          <div style="font-size:13px; color:#333; margin-top:4px;">
+            <b style="color:#1a73e8;"><%= s.girisYapan %></b>/<%= s.toplam %> giriş
+          </div>
+          <div style="font-size:13px; color:#333;">
+            <b style="color:#43a047;"><%= s.cozumYapan %></b> kişi · <b><%= s.toplamCozum %></b> soru
+          </div>
+        </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+      <p style="margin:0; color:#999; font-style:italic; font-size:13px;">Bugün henüz aktif öğrenci yok.</p>
+    <% } %>
+
+    <% if (aktiviteOzetiData.detayListe.length > 0) { %>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; font-size:13px; color:#1a73e8; font-weight:600;">
+          📋 Aktif öğrenci listesi (<%= aktiviteOzetiData.detayListe.length %> kişi)
+        </summary>
+        <div style="max-height:400px; overflow-y:auto; margin-top:10px; background:#fff; border:1px solid #e0e0e0; border-radius:8px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead style="background:#f8f9fa; position:sticky; top:0;">
+              <tr>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">#</th>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Kullanıcı</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Sınıf</th>
+                <th style="text-align:left; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Okul</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Giriş</th>
+                <th style="text-align:center; padding:8px 10px; border-bottom:1px solid #e0e0e0;">Çözüm</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% aktiviteOzetiData.detayListe.slice(0, 100).forEach(function(d, i) { %>
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                  <td style="padding:6px 10px; color:#999;"><%= i+1 %></td>
+                  <td style="padding:6px 10px;"><a href="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(d.kullaniciAdi) %>" style="color:#1a73e8; text-decoration:none;"><%= d.kullaniciAdi %></a></td>
+                  <td style="padding:6px 10px; text-align:center;"><%= d.sinif %><%= d.sube ? '/'+d.sube : '' %></td>
+                  <td style="padding:6px 10px; color:#666; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= d.okul %></td>
+                  <td style="padding:6px 10px; text-align:center;"><%= d.girisYaptiMi ? '✓' : '—' %></td>
+                  <td style="padding:6px 10px; text-align:center; font-weight:600; color:<%= d.cozumSayisi > 0 ? '#43a047' : '#999' %>;"><%= d.cozumSayisi %></td>
+                </tr>
+              <% }); %>
+              <% if (aktiviteOzetiData.detayListe.length > 100) { %>
+                <tr><td colspan="6" style="padding:8px; text-align:center; color:#999; font-style:italic;">... ve <%= aktiviteOzetiData.detayListe.length - 100 %> kişi daha</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    <% } %>
+  </div>
+  <% } %>
+
+  <div class="card">
+    <h3>Kullanıcı Listesi (Toplam: <%= filtreliKullanicilar.length %>)</h3>
+    <form method="GET" action="/admin" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+      <input type="hidden" name="mod" value="kullanicilar">
+      <select name="il" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm İller</option>
+        <% iller.forEach(function(il) { %><option value="<%= il %>" <%= filIl===il?'selected':'' %>><%= il %></option><% }); %>
+      </select>
+      <select name="ilce" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm İlçeler</option>
+        <% ilceler.forEach(function(ilce) { %><option value="<%= ilce %>" <%= filIlce===ilce?'selected':'' %>><%= ilce %></option><% }); %>
+      </select>
+      <select name="okul" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm Okullar</option>
+        <% okullar.forEach(function(okul) { %><option value="<%= okul %>" <%= filOkul===okul?'selected':'' %>><%= okul %></option><% }); %>
+      </select>
+      <!-- v4.3.60: Sınıf seviyesi filtresi -->
+      <select name="kullaniciSinif" onchange="this.form.submit()" class="input-sm">
+        <option value="">Tüm Sınıflar</option>
+        <option value="5" <%= filKullaniciSinif==='5'?'selected':'' %>>5. Sınıf</option>
+        <option value="6" <%= filKullaniciSinif==='6'?'selected':'' %>>6. Sınıf</option>
+        <option value="7" <%= filKullaniciSinif==='7'?'selected':'' %>>7. Sınıf</option>
+        <option value="8" <%= filKullaniciSinif==='8'?'selected':'' %>>8. Sınıf</option>
+      </select>
+    </form>
+    <%
+      // v4.3.60: Akıllı sıralama
+      //   • Öğrenciler: Türkiye sırası (1, 2, 3...) → eşit ise il/ilçe alfabetik
+      //   • Niteliksiz öğrenciler (Türkiye sırası 0): puan azalan, sonra il/ilçe
+      //   • Yöneticiler/öğretmenler/veliler: il/ilçe alfabetik
+      //   • Öğrenciler en üstte, sonra yöneticiler/diğerleri
+      function rolGrubu(r) {
+        if (r === 'ogrenci' || r === 'demo') return 0;
+        if (r === 'kurumsal' || r === 'moderator') return 1;
+        if (r === 'ogretmen') return 2;
+        if (r === 'veli') return 3;
+        return 4;
+      }
+      function turkiyeSira(k) {
+        // v4.3.61: siralamaCache cron'da { ...genel, dersSiralamalari } olarak
+        // yayılarak yazılıyor — yani turkiye/il/ilce/okul doğrudan üst seviyede,
+        // .genel.turkiye DEĞİL. Eski v4.3.60 kodu .genel.turkiye okuyordu →
+        // her zaman null dönüyordu → TR# hep "—" görünüyordu.
+        var sc = k.siralamaCache;
+        if (sc && typeof sc.turkiye === 'number' && sc.turkiye > 0) return sc.turkiye;
+        return null;
+      }
+      var siraliKullanicilar = [...filtreliKullanicilar].sort(function(a, b) {
+        // Önce rol grubu (öğrenciler önce)
+        var ga = rolGrubu(a.rol), gb = rolGrubu(b.rol);
+        if (ga !== gb) return ga - gb;
+        // Öğrenci grubu: Türkiye sırası
+        if (ga === 0) {
+          var ta = turkiyeSira(a), tb = turkiyeSira(b);
+          if (ta !== null && tb !== null) {
+            if (ta !== tb) return ta - tb;
+          } else if (ta !== null) return -1;
+          else if (tb !== null) return 1;
+          else {
+            // İkisi de niteliksiz: puana göre azalan
+            var pa = a.puan || 0, pb = b.puan || 0;
+            if (pa !== pb) return pb - pa;
+          }
+        }
+        // Yöneticiler veya öğrenci eşit sırada: il/ilçe alfabetik
+        var ilA = (a.il||'').toLowerCase(), ilB = (b.il||'').toLowerCase();
+        if (ilA !== ilB) return ilA.localeCompare(ilB, 'tr');
+        var ilceA = (a.ilce||'').toLowerCase(), ilceB = (b.ilce||'').toLowerCase();
+        if (ilceA !== ilceB) return ilceA.localeCompare(ilceB, 'tr');
+        return (a.kullaniciAdi||'').localeCompare(b.kullaniciAdi||'', 'tr');
+      });
+    %>
+    <table class="tablo">
+      <thead><tr><th style="width:40px;">TR#</th><th>Kullanıcı Adı</th><th>Sınıf</th><th>İl</th><th>İlçe</th><th>Okul</th><th>Çözülen</th><th>Puan</th><th>İşlem</th></tr></thead>
+      <tbody>
+        <% siraliKullanicilar.forEach(function(k) {
+            var ts = turkiyeSira(k);
+        %>
+          <tr>
+            <td style="text-align:center; color:#888; font-size:12px; font-weight:600;">
+              <% if (k.rol === 'ogrenci' || k.rol === 'demo') { %>
+                <% if (ts) { %><%= ts %><% } else { %>—<% } %>
+              <% } else { %>—<% } %>
+            </td>
+            <td>
+              <%= k.kullaniciAdi %>
+              <% if (k.rol === 'moderator') { %><span style="background:#e8f0fe; color:#1a73e8; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">MOD</span><% } %>
+              <% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">👩‍🏫 ÖĞRETMEN</span><% } %>
+              <% if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1; color:#00695c; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">🏛️ YÖNETİCİ</span><% } %>
+              <% if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">👪 VELİ</span><% } %>
+              <% if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">🧪 DEMO</span><% } %>
+            </td>
+            <td style="text-align:center;"><% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">ÖĞR</span><% } else if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1; color:#00695c; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">YÖN</span><% } else if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">VELİ</span><% } else if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">DEMO</span><% } else { %><%= k.sinif %><% } %></td>
+            <td><%= k.il||'-' %></td>
+            <td><%= k.ilce||'-' %></td>
+            <td><%= k.okul||'-' %></td>
+            <td style="text-align:center;"><%= k.soruIndex %></td>
+            <td style="text-align:center; font-weight:bold; color:#1a73e8;"><%= puanFmt(k.puan) %></td>
+            <td style="text-align:center; display:flex; gap:4px; flex-wrap:wrap; justify-content:center;">
+              <a href="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(k.kullaniciAdi) %>" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">📊 Detay</a>
+              <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="admin-btn admin-btn-duzenle" style="font-size:10px; padding:3px 8px;">👁️ Profil</a>
+              <form action="/kullanici-rol" method="POST" style="display:inline;">
+                <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                <input type="hidden" name="il" value="<%= filIl %>">
+                <input type="hidden" name="ilce" value="<%= filIlce %>">
+                <input type="hidden" name="okul" value="<%= filOkul %>">
+                <button class="admin-btn <%= k.rol === 'moderator' ? 'admin-btn-sil' : 'admin-btn-duzenle' %>" style="font-size:10px; padding:3px 8px;">
+                  <%= k.rol === 'moderator' ? '🔓 Mod Al' : '🔑 Mod Ver' %>
+                </button>
+              </form>
+              <form action="/kullanici-sil" method="POST" style="display:inline;">
+                <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+                <input type="hidden" name="il" value="<%= filIl %>">
+                <input type="hidden" name="ilce" value="<%= filIlce %>">
+                <input type="hidden" name="okul" value="<%= filOkul %>">
+                <button onclick="return confirm('<%= k.kullaniciAdi %> silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Yasaklı İsimler -->
+  <div class="admin-card" style="margin-top:16px;">
+    <div class="admin-card-title">
+      🚫 Yasaklı İsimler
+      <span style="font-size:12px; color:#888; font-weight:400;">— Tek başına kullanılamayacak kullanıcı adları</span>
+    </div>
+    <form action="/yasakli-ekle" method="POST" style="display:flex; gap:8px; margin-bottom:14px;">
+      <input type="text" name="kelime" placeholder="Yasaklanacak kelime..." required
+        style="flex:1; padding:8px 12px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; outline:none;">
+      <button class="ekle-btn" style="padding:8px 16px;">+ Ekle</button>
+    </form>
+    <% if (yasakliKelimeler && yasakliKelimeler.length > 0) { %>
+    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+      <% yasakliKelimeler.forEach(function(y) { %>
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#ffebee; border:1px solid #ffcdd2; border-radius:20px; padding:4px 12px; font-size:13px; color:#c62828; font-weight:500;">
+          <%= y.kelime %>
+          <form action="/yasakli-sil" method="POST" style="display:inline; margin:0;">
+            <input type="hidden" name="id" value="<%= y._id %>">
+            <button type="submit" style="background:none; border:none; cursor:pointer; color:#c62828; font-size:14px; line-height:1; padding:0; margin:0;" title="Kaldır">×</button>
+          </form>
+        </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+      <p style="font-size:13px; color:#aaa;">Henüz yasaklı kelime eklenmemiş.</p>
+    <% } %>
+  </div>
+
+<% } else if (mod === 'uniteler') { %>
+
+<!-- ── Ünite / Konu Yönetimi ── -->
+<div class="card">
+  <h3>📚 Ünite ve Konu Yönetimi</h3>
+  <p style="color:#666; font-size:13px; margin-bottom:16px;">
+    Excel şablonunu indirin, doldurun ve yükleyin. Satır ve sütun yapısına göre otomatik okunur.
+  </p>
+
+  <!-- Şablon İndir -->
+  <a href="/unite-sablon-indir" class="btn" style="background:#1a73e8; color:white; margin-bottom:16px; display:inline-block;">
+    📥 Excel Şablonunu İndir
+  </a>
+
+  <!-- Yükleme Alanı -->
+  <div style="border:2px dashed #1a73e8; border-radius:10px; padding:30px; text-align:center; background:#f8f9ff; cursor:pointer; margin-bottom:16px;" id="excelDropZone">
+    <div style="font-size:32px; margin-bottom:6px;">📊</div>
+    <div style="color:#1a73e8; font-weight:bold; margin-bottom:4px;">Excel dosyasını buraya sürükleyin veya tıklayın</div>
+    <div style="color:#888; font-size:13px;">.xlsx veya .xls — Maks 5 MB</div>
+    <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none;">
+  </div>
+
+  <div id="excelSecilenDosya" style="display:none; padding:10px 14px; background:#e8f5e9; border-radius:8px; margin-bottom:12px;">
+    ✅ <span id="excelDosyaAd" style="font-weight:500;"></span>
+  </div>
+
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+    <label style="font-size:13px; color:#666;">Kayıt modu:</label>
+    <label style="font-size:13px; cursor:pointer;">
+      <input type="radio" name="kayitMod" value="ekle" checked> Mevcut ünitelere ekle
+    </label>
+    <label style="font-size:13px; cursor:pointer;">
+      <input type="radio" name="kayitMod" value="sifirla"> Tümünü sil, yeniden yükle
+    </label>
+  </div>
+
+  <button id="excelAnalizBtn" onclick="excelAnalizBaslat()" class="btn btn-success" style="display:none;">📊 Analiz Et ve Önizle</button>
+  <div id="excelHata" style="display:none; padding:10px; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; color:#c62828; margin-top:10px;"></div>
+</div>
+
+<!-- Önizleme -->
+<div id="excelOnizleme" style="display:none;">
+  <div class="card" style="background:#e8f5e9; border-color:#a5d6a7;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <b style="color:#2e7d32;">✅ <span id="excelToplamUnite"></span> ünite, <span id="excelToplamKonu"></span> konu bulundu</b>
+        <p style="color:#555; font-size:13px; margin-top:4px;">Kontrol edin, ardından kaydedin.</p>
+      </div>
+      <button onclick="excelKaydet()" class="btn btn-success">💾 Veritabanına Kaydet</button>
+    </div>
+  </div>
+  <div id="excelOnizlemeListesi"></div>
+</div>
+
+<!-- Mevcut Üniteler Listesi -->
+<div class="card" style="margin-top:16px;">
+  <h3>Kayıtlı Üniteler (<%= tumUniteler.length %>)</h3>
+  <% if (tumUniteler.length === 0) { %>
+    <p style="color:#888; font-size:13px;">Henüz ünite eklenmemiş.</p>
+  <% } else { %>
+    <table class="tablo">
+      <thead><tr><th>Sınıf</th><th>Ünite No</th><th>Ders</th><th>Ünite Adı</th><th>Konu Sayısı</th><th>Konular</th><th>İşlem</th></tr></thead>
+      <tbody>
+        <% tumUniteler.forEach(function(u) { %>
+          <tr>
+            <td style="text-align:center;"><%= u.sinif||"-" %></td>
+            <td style="text-align:center;"><%= u.uniteNo %></td>
+            <td><%= u.ders %></td>
+            <td><b><%= u.uniteAdi %></b></td>
+            <td style="text-align:center;"><%= u.konular.length %></td>
+            <td style="font-size:12px; color:#666;"><%= u.konular.join(', ') %></td>
+            <td style="text-align:center; white-space:nowrap;">
+              <button type="button" onclick="uniteDuzenleAc('<%= u._id %>')" class="btn" style="background:#1a73e8; color:white; padding:4px 10px; font-size:12px; margin-right:4px;">DÜZENLE</button>
+              <form action="/unite-sil" method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<%= u._id %>">
+                <button onclick="return confirm('Bu ünite silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+          <!-- v4.3.26: Düzenleme satırı (gizli, JS ile açılır) -->
+          <tr id="duzenle-satir-<%= u._id %>" style="display:none; background:#f0f7ff;">
+            <td colspan="7" style="padding:14px 18px;">
+              <form action="/unite-guncelle" method="POST">
+                <input type="hidden" name="id" value="<%= u._id %>">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
+                  <div>
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Sınıf</label>
+                    <input type="text" name="sinif" value="<%= u.sinif||'' %>" class="input-sm" style="width:100%;">
+                  </div>
+                  <div>
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ders</label>
+                    <input type="text" name="ders" value="<%= u.ders||'' %>" class="input-sm" style="width:100%;" required>
+                  </div>
+                  <div>
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite No</label>
+                    <input type="number" name="uniteNo" value="<%= u.uniteNo||0 %>" class="input-sm" style="width:100%;">
+                  </div>
+                  <div style="grid-column:span 2;">
+                    <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite Adı</label>
+                    <input type="text" name="uniteAdi" value="<%= u.uniteAdi||'' %>" class="input-sm" style="width:100%;" required>
+                  </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                  <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Konular (her satıra bir konu veya virgülle ayır)</label>
+                  <textarea name="konularMetin" rows="4" class="input-sm" style="width:100%; resize:vertical; font-family:inherit;"><%= (u.konular||[]).join('\n') %></textarea>
+                </div>
+                <div style="display:flex; gap:8px;">
+                  <button type="submit" class="btn btn-success" style="padding:6px 16px; font-size:13px;">💾 Kaydet</button>
+                  <button type="button" onclick="uniteDuzenleKapat('<%= u._id %>')" class="btn" style="background:#eee; color:#666; padding:6px 16px; font-size:13px;">İptal</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<script>
+var excelOnizlemeVeri = [];
+
+// v4.3.26: Ünite düzenleme satırı aç/kapat
+function uniteDuzenleAc(id) {
+  var satir = document.getElementById('duzenle-satir-' + id);
+  if (satir) satir.style.display = '';
+}
+function uniteDuzenleKapat(id) {
+  var satir = document.getElementById('duzenle-satir-' + id);
+  if (satir) satir.style.display = 'none';
+}
+
+// Drag & Drop
+(function() {
+  var zone  = document.getElementById('excelDropZone');
+  var input = document.getElementById('excelInput');
+  zone.addEventListener('click', function() { input.click(); });
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.style.background='#e3f2fd'; });
+  zone.addEventListener('dragleave', function() { zone.style.background='#f8f9ff'; });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.style.background='#f8f9ff';
+    if (e.dataTransfer.files[0]) excelDosyaSec(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', function() { if (input.files[0]) excelDosyaSec(input.files[0]); });
+})();
+
+function excelDosyaSec(f) {
+  document.getElementById('excelDosyaAd').textContent = f.name;
+  document.getElementById('excelSecilenDosya').style.display = 'block';
+  document.getElementById('excelAnalizBtn').style.display = 'inline-block';
+  document.getElementById('excelHata').style.display = 'none';
+  window._seciliExcel = f;
+}
+
+function excelAnalizBaslat() {
+  if (!window._seciliExcel) return;
+  var fd = new FormData();
+  fd.append('excelDosyasi', window._seciliExcel);
+  fetch('/unite-excel-yukle', {
+    method: 'POST',
+    headers: { 'Authorization': 'Basic <%- adminToken %>' },
+    body: fd
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(v) {
+    if (!v.ok) { gosterExcelHata(v.hata); return; }
+    excelOnizlemeVeri = v.onizleme;
+    document.getElementById('excelToplamUnite').textContent = v.toplamUnite;
+    document.getElementById('excelToplamKonu').textContent = v.toplamKonu;
+    var liste = document.getElementById('excelOnizlemeListesi');
+    liste.innerHTML = '';
+    v.onizleme.forEach(function(u) {
+      var div = document.createElement('div');
+      div.className = 'card';
+      div.style.cssText = 'margin-bottom:8px; border-left:4px solid #1a73e8;';
+      div.innerHTML = '<b style="color:#1a73e8;">' + u.uniteNo + '. ' + u.uniteAdi + '</b>' +
+        '<span style="color:#888; font-size:12px; margin-left:8px;">(' + u.ders + (u.sinif ? ' · ' + u.sinif + '. sınıf' : '') + ')</span>' +
+        '<div style="margin-top:6px; font-size:13px; color:#444;">' +
+        u.konular.map(function(k,i){ return '<span style="background:#f0f2f5; border-radius:4px; padding:2px 8px; margin:2px; display:inline-block;">' + (i+1) + '. ' + k + '</span>'; }).join('') +
+        '</div>';
+      liste.appendChild(div);
+    });
+    document.getElementById('excelOnizleme').style.display = 'block';
+  })
+  ['catch'](function(e) { gosterExcelHata(e.message); });
+}
+
+function excelKaydet() {
+  if (!excelOnizlemeVeri.length) return;
+  var mod = document.querySelector('input[name="kayitMod"]:checked').value;
+  var onay = mod === 'sifirla'
+    ? 'Tüm mevcut üniteler silinip yenileri yüklenecek. Emin misiniz?'
+    : excelOnizlemeVeri.length + ' ünite eklenecek. Onaylıyor musunuz?';
+  if (!confirm(onay)) return;
+  fetch('/unite-kaydet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic <%- adminToken %>' },
+    body: JSON.stringify({ uniteler: excelOnizlemeVeri, mod: mod })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(v) {
+    if (!v.ok) { gosterExcelHata(v.hata); return; }
+    alert(v.kaydedilen + ' ünite başarıyla kaydedildi!');
+    window.location.reload();
+  })
+  ['catch'](function(e) { gosterExcelHata(e.message); });
+}
+
+function gosterExcelHata(msg) {
+  var k = document.getElementById('excelHata');
+  k.textContent = '⚠️ ' + msg;
+  k.style.display = 'block';
+}
+</script>
+
+<% } else if (mod === 'okullar') { %>
+
+  <!-- Excel'den Toplu Okul Yükleme -->
+  <div class="card" style="margin-bottom:16px;">
+    <h3>📊 Excel'den Toplu Okul Yükleme</h3>
+    <p style="color:#666; font-size:13px; margin-bottom:12px;">
+      Excel formatı: <b>A sütunu</b> = İl, <b>B sütunu</b> = İlçe, <b>C sütunu</b> = Okul Adı (1. satır başlık)
+    </p>
+    <div id="okulDropZone" style="border:2px dashed #1a73e8; border-radius:10px; padding:24px; text-align:center; background:#f8f9ff; cursor:pointer; margin-bottom:10px;">
+      <div style="font-size:28px; margin-bottom:4px;">📊</div>
+      <div style="color:#1a73e8; font-weight:bold; margin-bottom:2px;">Excel dosyasını buraya sürükleyin veya tıklayın</div>
+      <div style="color:#888; font-size:12px;">.xlsx veya .xls — Maks 5 MB</div>
+      <input type="file" id="okulExcelInput" accept=".xlsx,.xls" style="display:none;">
+    </div>
+    <div id="okulSecilenDosya" style="display:none; padding:8px 12px; background:#e8f5e9; border-radius:6px; margin-bottom:10px;">
+      ✅ <span id="okulDosyaAd" style="font-weight:500;"></span>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+      <label style="font-size:13px; color:#666;">Kayıt modu:</label>
+      <label style="font-size:13px; cursor:pointer;"><input type="radio" name="okulMod" value="ekle" checked> Mevcut okullara ekle (tekrar olanları atla)</label>
+      <label style="font-size:13px; cursor:pointer;"><input type="radio" name="okulMod" value="sifirla"> Tümünü sil, yeniden yükle</label>
+    </div>
+    <button id="okulAnalizBtn" onclick="okulExcelAnalizBaslat()" class="btn btn-success" style="display:none;">📊 Analiz Et ve Önizle</button>
+    <div id="okulHata" style="display:none; padding:10px; background:#ffebee; border:1px solid #ef9a9a; border-radius:6px; color:#c62828; margin-top:8px;"></div>
+  </div>
+
+  <!-- Önizleme -->
+  <div id="okulOnizleme" style="display:none;" class="card" style="margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#e8f5e9; padding:12px; border-radius:8px; margin-bottom:10px;">
+      <b style="color:#2e7d32;">✅ <span id="okulToplamSayi"></span> okul bulundu</b>
+      <button onclick="okulExcelKaydet()" class="btn btn-success">💾 Kaydet</button>
+    </div>
+    <div id="okulOnizlemeTablosu" style="max-height:300px; overflow-y:auto;">
+      <table class="tablo">
+        <thead><tr><th>İl</th><th>İlçe</th><th>Okul Adı</th></tr></thead>
+        <tbody id="okulOnizlemeSatirlar"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  var _okulOnizlemeVeri = [];
+  (function(){
+    var zone = document.getElementById('okulDropZone');
+    var input = document.getElementById('okulExcelInput');
+    zone.addEventListener('click', function(){ input.click(); });
+    zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.style.background='#e3f2fd'; });
+    zone.addEventListener('dragleave', function(){ zone.style.background='#f8f9ff'; });
+    zone.addEventListener('drop', function(e){
+      e.preventDefault(); zone.style.background='#f8f9ff';
+      if(e.dataTransfer.files[0]) okulDosyaSec(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', function(){ if(input.files[0]) okulDosyaSec(input.files[0]); });
+  })();
+
+  function okulDosyaSec(f) {
+    document.getElementById('okulDosyaAd').textContent = f.name;
+    document.getElementById('okulSecilenDosya').style.display = 'block';
+    document.getElementById('okulAnalizBtn').style.display = 'inline-block';
+    document.getElementById('okulHata').style.display = 'none';
+    window._seciliOkulExcel = f;
+  }
+
+  function okulExcelAnalizBaslat() {
+    if (!window._seciliOkulExcel) return;
+    var fd = new FormData();
+    fd.append('okulExcelDosyasi', window._seciliOkulExcel);
+    fetch('/okul-excel-yukle', {
+      method: 'POST',
+      headers: { 'Authorization': 'Basic <%- adminToken %>' },
+      body: fd
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      if (!v.ok) { document.getElementById('okulHata').textContent = '⚠️ ' + v.hata; document.getElementById('okulHata').style.display='block'; return; }
+      _okulOnizlemeVeri = v.onizleme;
+      document.getElementById('okulToplamSayi').textContent = v.toplam;
+      var tbody = document.getElementById('okulOnizlemeSatirlar');
+      // Sadece ilk 100 satırı göster — performans için
+      var rows = '';
+      var gosterilen = Math.min(v.onizleme.length, 100);
+      for (var i = 0; i < gosterilen; i++) {
+        var o = v.onizleme[i];
+        rows += '<tr><td>'+o.il+'</td><td>'+o.ilce+'</td><td>'+o.ad+'</td></tr>';
+      }
+      if (v.onizleme.length > 100) {
+        rows += '<tr><td colspan="3" style="text-align:center; color:#888; font-style:italic;">... ve ' + (v.onizleme.length - 100) + ' okul daha</td></tr>';
+      }
+      tbody.innerHTML = rows;
+      document.getElementById('okulOnizleme').style.display = 'block';
+    })
+    ['catch'](function(e){ document.getElementById('okulHata').textContent = '⚠️ ' + e.message; document.getElementById('okulHata').style.display='block'; });
+  }
+
+  function okulExcelKaydet() {
+    if (!_okulOnizlemeVeri.length) return;
+    var mod = document.querySelector('input[name="okulMod"]:checked').value;
+    var onay = mod === 'sifirla' ? 'Tüm okullar silinip yenileri yüklenecek. Emin misiniz?' : _okulOnizlemeVeri.length + ' okul eklenecek. Onaylıyor musunuz?';
+    if (!confirm(onay)) return;
+    fetch('/okul-excel-kaydet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic <%- adminToken %>' },
+      body: JSON.stringify({ okullar: _okulOnizlemeVeri, mod: mod })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(v){
+      if (!v.ok) { alert('Hata: ' + v.hata); return; }
+      alert(v.eklenen + ' okul eklendi, ' + v.atlanan + ' tekrar atlandı.');
+      window.location.reload();
+    })
+    ['catch'](function(e){ alert('Hata: ' + e.message); });
+  }
+  </script>
+
+  <div class="card">
+    <h3>Okul Yönetimi</h3>
+
+    <!-- Yeni Okul Ekleme Formu -->
+    <form action="/okul-ekle" method="POST" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:flex-end;">
+      <div><label class="form-label">İl</label><br><select name="il" id="adminIlSelect" onchange="adminIlDegisti()" required class="input-sm"><option value="">İl Seçiniz</option></select></div>
+      <div><label class="form-label">İlçe</label><br><select name="ilce" id="adminIlceSelect" required class="input-sm"><option value="">İlçe Seçiniz</option></select></div>
+      <div><label class="form-label">Okul Adı</label><br><input name="ad" placeholder="Okul adını giriniz" required style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:250px;"></div>
+      <button type="submit" class="btn btn-success">EKLE</button>
+    </form>
+
+    <!-- Filtre -->
+    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+      <select id="filIlSelect" onchange="filtrele()" class="input-sm"><option value="">Tüm İller</option></select>
+      <select id="filIlceSelect" onchange="filtrele()" class="input-sm"><option value="">Tüm İlçeler</option></select>
+    </div>
+
+    <!-- Düzenleme Formu (gizli) -->
+    <div id="duzenleForm" style="display:none; background:#fffbe6; border:1px solid #f0c040; border-radius:8px; padding:15px; margin-bottom:15px;">
+      <b>Okul Düzenle</b>
+      <form action="/okul-guncelle" method="POST" style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:flex-end;">
+        <input type="hidden" name="id" id="duzenleId">
+        <div><label class="form-label">İl</label><br><input name="il" id="duzenleIl" class="input-sm" required></div>
+        <div><label class="form-label">İlçe</label><br><input name="ilce" id="duzenleIlce" class="input-sm" required></div>
+        <div><label class="form-label">Okul Adı</label><br><input name="ad" id="duzenleAd" style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:250px;" required></div>
+        <button type="submit" class="btn btn-success">KAYDET</button>
+        <button type="button" onclick="document.getElementById('duzenleForm').style.display='none'" class="btn" style="background:#888; color:white;">İPTAL</button>
+      </form>
+    </div>
+
+    <table class="tablo" id="okulTablosu">
+      <thead><tr><th>İl</th><th>İlçe</th><th>Okul Adı</th><th>İşlem</th></tr></thead>
+      <tbody>
+        <% tumOkullar.sort(function(a,b){ var ilc = a.ilce.localeCompare(b.ilce,'tr'); return ilc !== 0 ? ilc : a.ad.localeCompare(b.ad,'tr'); }).forEach(function(o) { %>
+          <tr data-il="<%= o.il %>" data-ilce="<%= o.ilce %>">
+            <td><%= o.il %></td>
+            <td><%= o.ilce %></td>
+            <td><%= o.ad %></td>
+            <td style="text-align:center; white-space:nowrap;">
+              <button onclick="duzenle('<%= o._id %>','<%= o.il %>','<%= o.ilce %>','<%= o.ad %>')" class="btn-duzenle">DÜZENLE</button>
+              <form action="/okul-sil" method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<%= o._id %>">
+                <button onclick="return confirm('<%= o.ad %> silinsin mi?')" class="btn-sil">SİL</button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <script>
+  var adminIlIdMap = {};
+  fetch('https://api.turkiyeapi.dev/v1/provinces')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var sel = document.getElementById('adminIlSelect');
+      var filSel = document.getElementById('filIlSelect');
+      (data.data||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(il) {
+        adminIlIdMap[il.name] = il.id;
+        sel.innerHTML += '<option value="'+il.name+'">'+il.name+'</option>';
+        filSel.innerHTML += '<option value="'+il.name+'">'+il.name+'</option>';
+      });
+    })
+    .then(function(){})
+    ['catch'](function(e){ console.log('İller yüklenemedi'); });
+
+  function adminIlDegisti() {
+    var ilAdi = document.getElementById('adminIlSelect').value;
+    var ilceSelect = document.getElementById('adminIlceSelect');
+    ilceSelect.innerHTML = '<option value="">İlçe Yükleniyor...</option>';
+    var ilId = adminIlIdMap[ilAdi];
+    if (!ilId) return;
+    fetch('https://api.turkiyeapi.dev/v1/provinces/'+ilId)
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        ilceSelect.innerHTML = '<option value="">İlçe Seçiniz</option>';
+        ((data.data&&data.data.districts)||[]).sort(function(a,b){ return a.name.localeCompare(b.name,'tr'); }).forEach(function(ilce) {
+          ilceSelect.innerHTML += '<option value="'+ilce.name+'">'+ilce.name+'</option>';
+        });
+      })
+      ['catch'](function(e){ ilceSelect.innerHTML='<option>İlçeler yüklenemedi</option>'; });
+  }
+
+  function filtrele() {
+    var secIl = document.getElementById('filIlSelect').value;
+    var secIlce = document.getElementById('filIlceSelect').value;
+    var satırlar = document.querySelectorAll('#okulTablosu tbody tr');
+
+    // İlçe filtresini il'e göre güncelle
+    var ilceSet = {};
+    satırlar.forEach(function(tr) {
+      if (!secIl || tr.getAttribute('data-il') === secIl) {
+        ilceSet[tr.getAttribute('data-ilce')] = true;
+      }
+    });
+    var filIlceSel = document.getElementById('filIlceSelect');
+    var mevcutIlce = filIlceSel.value;
+    filIlceSel.innerHTML = '<option value="">Tüm İlçeler</option>';
+    Object.keys(ilceSet).sort(function(a,b){ return a.localeCompare(b,'tr'); }).forEach(function(ilce) {
+      var opt = document.createElement('option');
+      opt.value = ilce; opt.textContent = ilce;
+      if (ilce === mevcutIlce) opt.selected = true;
+      filIlceSel.appendChild(opt);
+    });
+    secIlce = filIlceSel.value;
+
+    satırlar.forEach(function(tr) {
+      var ilEsles = !secIl || tr.getAttribute('data-il') === secIl;
+      var ilceEsles = !secIlce || tr.getAttribute('data-ilce') === secIlce;
+      tr.style.display = (ilEsles && ilceEsles) ? '' : 'none';
+    });
+  }
+
+  function duzenle(id, il, ilce, ad) {
+    document.getElementById('duzenleId').value = id;
+    document.getElementById('duzenleIl').value = il;
+    document.getElementById('duzenleIlce').value = ilce;
+    document.getElementById('duzenleAd').value = ad;
+    document.getElementById('duzenleForm').style.display = 'block';
+    document.getElementById('duzenleForm').scrollIntoView({ behavior: 'smooth' });
+  }
+  </script>
+
+<% } else if (mod === 'haberler') { %>
+
+  <div class="admin-card">
+    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>📰 Yeni Haber / Duyuru Ekle</span>
+    </div>
+    <form action="/haber-ekle" method="POST" style="display:flex; flex-direction:column; gap:10px; padding:14px;">
+      <div>
+        <label style="font-size:12px; color:#666; font-weight:600; display:block; margin-bottom:4px;">Başlık</label>
+        <input name="baslik" required class="input" placeholder="Örn: v4.2.0 yayında — Yeni özellikler" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:12px; color:#666; font-weight:600; display:block; margin-bottom:4px;">İçerik</label>
+        <textarea name="icerik" required class="input" rows="6" placeholder="Habere ait detaylı açıklama, kullanıcılarla paylaşmak istediğin değişiklikler vb." style="width:100%; resize:vertical; font-family:inherit;"></textarea>
+      </div>
+      <div>
+        <button type="submit" class="ekle-btn" style="background:#1a73e8; color:white;">+ Yayınla</button>
+        <span style="font-size:11px; color:#888; margin-left:10px;">Yayınlanma tarihi otomatik olarak şimdi atanır.</span>
+      </div>
+    </form>
+  </div>
+
+  <div class="admin-card" style="margin-top:14px;">
+    <div class="admin-card-title">📋 Yayında Olanlar (<%= tumHaberler.length %>)</div>
+    <% if (tumHaberler.length === 0) { %>
+      <div style="padding:24px; text-align:center; color:#888;">Henüz haber yok.</div>
+    <% } else { %>
+      <% tumHaberler.forEach(function(h) {
+           var tarih = new Date(h.yayinTarih);
+           var simdi = new Date();
+           var farkGun = Math.floor((simdi - tarih) / 86400000);
+           var yeniMi = farkGun < 7;
+           var tarihStr = tarih.toLocaleString('tr-TR', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Istanbul' });
+      %>
+        <div style="padding:14px 16px; border-bottom:1px solid #f0f0f0; display:flex; gap:14px; align-items:flex-start;">
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+              <span style="font-weight:600; font-size:14px; color:#222;"><%= h.baslik %></span>
+              <% if (yeniMi) { %><span style="background:#e8f5e9; color:#2e7d32; font-size:10px; font-weight:700; padding:2px 7px; border-radius:8px;">🆕 YENİ</span><% } %>
+              <span style="font-size:11px; color:#888;"><%= tarihStr %></span>
+            </div>
+            <div style="font-size:13px; color:#444; white-space:pre-wrap; line-height:1.5;"><%= h.icerik %></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <button onclick="haberDuzenleAc('<%= h._id %>', this)" style="background:#fff3cd; color:#856404; padding:6px 10px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; white-space:nowrap;">✎ Düzenle</button>
+            <form action="/haber-sil" method="POST" onsubmit="return confirm('Bu haberi silmek istediğine emin misin?');" style="margin:0;">
+              <input type="hidden" name="id" value="<%= h._id %>">
+              <button type="submit" style="background:#ffebee; color:#c62828; padding:6px 10px; border:1px solid #ffcdd2; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%;">🗑️ Sil</button>
+            </form>
+          </div>
+          <!-- Düzenleme formu (gizli, butonla açılır) -->
+          <form action="/haber-guncelle" method="POST" id="duzenle-<%= h._id %>" style="display:none; flex:1 1 100%; flex-direction:column; gap:8px; background:#f8f9ff; padding:12px; border-radius:8px; margin-top:10px;">
+            <input type="hidden" name="id" value="<%= h._id %>">
+            <input name="baslik" required class="input" value="<%= h.baslik %>" style="margin:0;">
+            <textarea name="icerik" required class="input" rows="4" style="margin:0; font-family:inherit;"><%= h.icerik %></textarea>
+            <div style="display:flex; gap:6px;">
+              <button type="submit" class="ekle-btn" style="background:#1a73e8; color:white;">Kaydet</button>
+              <button type="button" onclick="haberDuzenleKapat('<%= h._id %>')" style="background:#f0f0f0; color:#333; padding:8px 16px; border:none; border-radius:8px; font-size:12px; font-weight:500; cursor:pointer;">İptal</button>
+            </div>
+          </form>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+
+  <script>
+  function haberDuzenleAc(id, btn) {
+    var f = document.getElementById('duzenle-' + id);
+    if (f) f.style.display = 'flex';
+    btn.style.display = 'none';
+  }
+  function haberDuzenleKapat(id) {
+    var f = document.getElementById('duzenle-' + id);
+    if (f) f.style.display = 'none';
+    var btn = f && f.parentNode.querySelector('button[onclick*="haberDuzenleAc"]');
+    if (btn) btn.style.display = '';
+  }
+  </script>
+
+<% } else if (mod === 'mesajlar') { %>
+
+  <div class="admin-card">
+    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>💬 Mesajlar — Toplam <%= tumMesajlar.length %> · <span style="color:#e24b4a;">Okunmamış: <%= okunmamisMesajSayisi %></span></span>
+    </div>
+    <% if (tumMesajlar.length === 0) { %>
+      <div style="padding:30px; text-align:center; color:#888;">Henüz mesaj yok.</div>
+    <% } else { %>
+      <% tumMesajlar.forEach(function(m) {
+           var tarih = new Date(m.yazilmaTarih);
+           var tarihStr = tarih.toLocaleString('tr-TR', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Istanbul' });
+      %>
+        <div style="padding:14px 16px; border-bottom:1px solid #f0f0f0; <%= m.okundu ? '' : 'background:#fff8e1;' %>">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px;">
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                <span style="font-weight:600; font-size:14px; color:#222;"><%= m.adSoyad %></span>
+                <% if (!m.okundu) { %><span style="background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px;">YENİ</span><% } %>
+                <span style="font-size:11px; color:#888;"><%= tarihStr %></span>
+              </div>
+              <div style="font-size:12px; color:#666; margin-bottom:4px;">
+                ✉️ <a href="mailto:<%= m.email %>" style="color:#1a73e8; text-decoration:none;"><%= m.email %></a>
+                <% if (m.telefon) { %> · 📞 <%= m.telefon %><% } %>
+              </div>
+              <% if (m.konu) { %>
+              <div style="font-size:13px; font-weight:500; color:#444; margin:6px 0 4px;">Konu: <%= m.konu %></div>
+              <% } %>
+              <div style="font-size:13px; color:#333; white-space:pre-wrap; line-height:1.5; margin-top:6px; padding:8px 10px; background:white; border-radius:6px; border:1px solid #eee;"><%= m.mesaj %></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:5px; flex-shrink:0;">
+              <% if (!m.okundu) { %>
+              <form action="/mesaj-okundu" method="POST" style="margin:0;">
+                <input type="hidden" name="id" value="<%= m._id %>">
+                <button type="submit" style="background:#e8f5e9; color:#2e7d32; padding:6px 10px; border:1px solid #a5d6a7; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%;">✓ Okundu</button>
+              </form>
+              <% } %>
+              <form action="/mesaj-sil" method="POST" onsubmit="return confirm('Bu mesajı silmek istediğine emin misin?');" style="margin:0;">
+                <input type="hidden" name="id" value="<%= m._id %>">
+                <button type="submit" style="background:#ffebee; color:#c62828; padding:6px 10px; border:1px solid #ffcdd2; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600; white-space:nowrap; width:100%;">🗑️ Sil</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+
+<% } else if (mod === 'sifirla') { %>
+  <!-- v4.2.3: Hesaplama butonu üst sağa taşındı, bu sayfada sadece yıkıcı işlemler kaldı.
+       Kazara tıklamayı önlemek için "sifirla" yazma zorunluluğu eklendi. -->
+  <div style="background:#fff8e1; border:1.5px solid #ffd54f; border-radius:10px; padding:14px 18px; margin-bottom:18px; font-size:13px; color:#5d4037; line-height:1.6;">
+    ⚠️ <b>Bu sayfadaki işlemler geri alınamaz.</b> Onaylamak için her butonun yanına <code style="background:#fff; padding:1px 6px; border-radius:4px; font-family:monospace;">sifirla</code> yazman gerekir.
+  </div>
+
+  <div class="card">
+    <h3 style="color:red;">⚠️ Tüm Verileri Sıfırla</h3>
+    <p>Bu işlem tüm kullanıcıların puan, soru ve istatistik verilerini sıfırlar. Kullanıcı hesapları ve soru içerikleri silinmez.</p>
+    <p><b>Bu işlem geri alınamaz!</b></p>
+    <form action="/sifirla" method="POST" onsubmit="return sifirlaOnay(this, 'TÜM VERİLERİ SIFIRLA');" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="text" placeholder="onaylamak için 'sifirla' yaz" autocomplete="off"
+        oninput="sifirlaInputDegisti(this)"
+        style="padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:13px; min-width:240px; font-family:monospace;">
+      <button type="submit" disabled class="btn btn-danger" style="opacity:0.45; cursor:not-allowed;">SIFIRLA</button>
+    </form>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3 style="color:#e65100;">📊 Soru İstatistiklerini Sıfırla</h3>
+    <p>Bu işlem soruların çözülme sayısı, doğru sayısı, ortalama süre ve zorluk katsayısı gibi istatistiklerini sıfırlar.</p>
+    <p>Kullanıcı verileri, soru içerikleri ve öğrenci puanları <b>etkilenmez</b>.</p>
+    <p><b>Bu işlem geri alınamaz!</b></p>
+    <form action="/soru-istatistik-sifirla" method="POST" onsubmit="return sifirlaOnay(this, 'SORU İSTATİSTİKLERİNİ SIFIRLA');" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="text" placeholder="onaylamak için 'sifirla' yaz" autocomplete="off"
+        oninput="sifirlaInputDegisti(this)"
+        style="padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:13px; min-width:240px; font-family:monospace;">
+      <button type="submit" disabled class="btn" style="background:#e65100; color:white; opacity:0.45; cursor:not-allowed;">📊 SORU İSTATİSTİKLERİNİ SIFIRLA</button>
+    </form>
+  </div>
+
+  <script>
+    // v4.2.3: "sifirla" yazma zorunluluğu — kazara tıklamayı önlemek için
+    function sifirlaInputDegisti(inp) {
+      var btn = inp.parentElement.querySelector('button[type="submit"]');
+      if (!btn) return;
+      var dogru = (inp.value.trim().toLowerCase() === 'sifirla');
+      btn.disabled = !dogru;
+      btn.style.opacity = dogru ? '1' : '0.45';
+      btn.style.cursor = dogru ? 'pointer' : 'not-allowed';
+    }
+    function sifirlaOnay(form, etiket) {
+      return confirm(etiket + ' işlemi başlatılsın mı?\n\nBu işlem GERİ ALINAMAZ. Emin misin?');
+    }
+  </script>
+
+<% } else if (mod === 'referans') { %>
+  <%
+    var baseUrlAdmin = (process.env.SITE_URL || 'https://lgssorucozum-4.onrender.com').replace(/\/$/, '');
+    var bekleyenler = tumReferanslar.filter(function(r){ return !r.kullanildi; });
+    // v4.3.52: 4 kademeli sıralama
+    //   1) admin + kopyalanmamış   (yeni → eski)
+    //   2) kullanıcı + kopyalanmamış
+    //   3) admin + kopyalanmış
+    //   4) kullanıcı + kopyalanmış
+    bekleyenler.sort(function(a, b) {
+      var aKademe = (a.olusturan === 'admin' ? 0 : 1) + (a.kopyalandi ? 2 : 0);
+      var bKademe = (b.olusturan === 'admin' ? 0 : 1) + (b.kopyalandi ? 2 : 0);
+      if (aKademe !== bKademe) return aKademe - bKademe;
+      // Kademe aynıysa yeni → eski (azalan tarih)
+      return new Date(b.olusturmaTarih) - new Date(a.olusturmaTarih);
+    });
+    var kullanilanlar = tumReferanslar.filter(function(r){ return r.kullanildi; });
+    // Kullanılanlar: admin önce, içlerinde yeni → eski
+    kullanilanlar.sort(function(a, b) {
+      var aA = a.olusturan === 'admin' ? 0 : 1;
+      var bA = b.olusturan === 'admin' ? 0 : 1;
+      if (aA !== bA) return aA - bA;
+      return new Date(b.olusturmaTarih) - new Date(a.olusturmaTarih);
+    });
+  %>
+
+  <div class="admin-card">
+    <div class="admin-card-title">
+      Referans Kodu Üret
+      <span style="font-size:12px; color:#888;">Toplam: <%= tumReferanslar.length %> | Bekleyen: <%= bekleyenler.length %> | Kullanılan: <%= kullanilanlar.length %></span>
+    </div>
+    <form action="/referans-uret" method="POST" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="number" name="adet" value="10" min="1" max="500" style="width:90px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
+      <select name="tip" style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; background:white;">
+        <option value="ogrenci">👨‍🎓 Öğrenci linki</option>
+        <option value="ogretmen">👩‍🏫 Öğretmen linki</option>
+        <option value="kurumsal">🏛️ Kurumsal linki</option>
+        <option value="veli">👪 Veli linki</option>
+        <option value="demo">🧪 Demo linki (etkisiz öğrenci hesabı)</option>
+      </select>
+      <button class="ekle-btn">Kod Üret</button>
+      <span style="font-size:12px; color:#888;">adet (max 500)</span>
+    </form>
+    <% if (bekleyenler.length > 0) { %>
+    <form action="/referans-toplu-sil" method="POST" style="margin-top:10px;">
+      <button onclick="return confirm('Tüm bekleyen kodlar silinsin mi?')" style="background:#fbeaea; color:#a32d2d; border:1px solid #f5c6c6; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;">🗑 Tüm Bekleyenleri Sil (<%= bekleyenler.length %>)</button>
+    </form>
+    <% } %>
+  </div>
+
+  <% if (bekleyenler.length > 0) { %>
+  <div class="admin-card">
+    <div class="admin-card-title">🟡 Bekleyen Kodlar — <%= bekleyenler.length %></div>
+    <% bekleyenler.forEach(function(r) { %>
+      <div class="admin-soru-item admin-referans-satir" data-kod="<%= r.kod %>">
+        <div class="admin-soru-sol">
+          <code style="font-size:13px; letter-spacing:2px; color:<%= r.kopyalandi ? '#aaa' : '#1a73e8' %>; font-weight:600;"><%= r.kod %></code>
+          <% var refGTip = r.gercekTip || r.tip; %>
+          <% if (refGTip === 'kurumsal') { %>
+            <span style="font-size:10px; background:#e0f2f1; color:#00695c; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">🏛️ KURUMSAL</span>
+          <% } else if (refGTip === 'ogretmen') { %>
+            <span style="font-size:10px; background:#e1bee7; color:#6a1b9a; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👩‍🏫 ÖĞRETMEN</span>
+          <% } else if (refGTip === 'veli') { %>
+            <span style="font-size:10px; background:#fff3e0; color:#e65100; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👪 VELİ</span>
+          <% } else if (refGTip === 'demo') { %>
+            <span style="font-size:10px; background:#ede7f6; color:#5e35b1; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">🧪 DEMO</span>
+          <% } else { %>
+            <span style="font-size:10px; background:#e3f2fd; color:#1565c0; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👨‍🎓 ÖĞRENCİ</span>
+          <% } %>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;">Oluşturan: <b><%= r.olusturan %></b></span>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= new Date(r.olusturmaTarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) %></span>
+          <% if (r.kopyalandi) { %>
+            <span class="admin-kopyalandi-rozet" style="font-size:11px; color:#639922; font-weight:500; margin-left:8px;">✓ Kopyalandı<%= r.kopyalanmaTarih ? ' (' + new Date(r.kopyalanmaTarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) + ')' : '' %></span>
+          <% } else { %>
+            <span class="admin-kopyalandi-rozet" style="display:none; font-size:11px; color:#639922; font-weight:500; margin-left:8px;">✓ Kopyalandı</span>
+          <% } %>
+        </div>
+        <div class="admin-soru-sag">
+          <button onclick="adminKopyala('<%= r.kod %>', this)" data-link="<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>" class="admin-btn admin-btn-duzenle"><%= r.kopyalandi ? '🔁 Tekrar Kopyala' : '🔗 Linki Kopyala' %></button>
+          <form action="/referans-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= r._id %>">
+            <button class="admin-btn admin-btn-sil">Sil</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+  <% } %>
+
+  <% if (kullanilanlar.length > 0) { %>
+  <div class="admin-card">
+    <div class="admin-card-title">✅ Kullanılan Kodlar — <%= kullanilanlar.length %></div>
+    <% kullanilanlar.forEach(function(r) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <code style="font-size:13px; letter-spacing:2px; color:#aaa; font-weight:600;"><%= r.kod %></code>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;">Oluşturan: <b><%= r.olusturan %></b></span>
+          <span style="font-size:11px; color:#639922; margin-left:8px;">→ <b><%= r.kullanan %></b></span>
+          <span style="font-size:11px; color:#aaa; margin-left:8px;"><%= r.kullanimTarih ? new Date(r.kullanimTarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : '' %></span>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+  <% } %>
+
+  <% if (kullanilanlar.length > 0) { %>
+  <div class="admin-card">
+    <div class="admin-card-title">🌳 Referans Zinciri</div>
+    <% kullanilanlar.forEach(function(r) { %>
+      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f5f5f5; font-size:13px;">
+        <span style="background:#fff3e0; color:#e65100; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;"><%= r.olusturan %></span>
+        <span style="color:#ccc; font-size:16px;">→</span>
+        <span style="background:#e3f2fd; color:#1a73e8; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600;"><%= r.kullanan %></span>
+        <span style="font-size:11px; color:#bbb; margin-left:auto;"><%= r.kullanimTarih ? new Date(r.kullanimTarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : '' %></span>
+      </div>
+    <% }); %>
+  </div>
+  <% } %>
+
+  <script>
+  function adminKopyala(kod, btn) {
+    var link = btn.getAttribute('data-link');
+    // v4.1.29: "Siyah ekran" uyarısı kaldırıldı — sadece linkin kendisi kopyalansın.
+    var metin = link;
+    navigator.clipboard.writeText(metin).then(function() {
+      // 1) Sunucuya bildir (kalıcı işaretle)
+      fetch('/admin-referans-kopyalandi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': 'Basic <%= adminToken %>' },
+        body: 'kod=' + encodeURIComponent(kod)
+      }).then(function(r){
+        if (!r.ok) console.warn('admin-referans-kopyalandi sunucu hatası:', r.status);
+      }).catch(function(e){
+        console.warn('admin-referans-kopyalandi bildirimi başarısız:', e);
+      });
+      // 2) UI güncelle: rozeti aç, kodu griye çevir, butonu "Tekrar Kopyala" yap, satırı en alta gönder
+      var satir = btn.closest('.admin-referans-satir');
+      if (satir) {
+        var kodEl = satir.querySelector('code');
+        if (kodEl) kodEl.style.color = '#aaa';
+        var rozet = satir.querySelector('.admin-kopyalandi-rozet');
+        if (rozet) {
+          rozet.style.display = 'inline';
+          var bugun = new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
+          rozet.innerText = '✓ Kopyalandı (' + bugun + ')';
+        }
+        btn.innerText = '🔁 Tekrar Kopyala';
+        // Satırı bekleyen kodlar listesinin en altına gönder
+        var konteyner = satir.parentElement;
+        if (konteyner) konteyner.appendChild(satir);
+      } else {
+        var eski = btn.innerText;
+        btn.innerText = '✓ Kopyalandı';
+        setTimeout(function() { btn.innerText = eski; }, 2000);
+      }
+    }).catch(function(e){
+      console.warn('Pano (clipboard) yazma hatası:', e);
+    });
+  }
+  </script>
+
+<% } else if (mod === 'zorlukRapor') { %>
+  <!-- v4.1.36: Zorluk Raporu — soruları zorluk katsayısına göre listeler -->
+  <div class="admin-card">
+    <div class="admin-card-title">📊 Zorluk Raporu</div>
+    <p style="font-size:13px; color:#666; line-height:1.6; margin:6px 0 14px;">
+      Tüm soruların zorluk katsayıları. Default kolaydan zora sıralı. Sütun başlığına tıklayarak sıralamayı değiştirebilirsin (aynı başlığa ikinci tıklamada yön değişir).
+      Zorluk katsayısı her gün <b>05:10</b>'da çözüm verilerine göre yeniden hesaplanır. Hiç çözülmemiş sorularda default <b>3.0</b> görünür.
+    </p>
+
+    <%
+      // Zorluk dağılımı özeti
+      const zSay = { cokKolay:0, kolay:0, orta:0, zor:0, cokZor:0 };
+      tumSorular.forEach(function(s) {
+        const z = s.zorlukKatsayisi != null ? s.zorlukKatsayisi : 3;
+        if (z < 1.5) zSay.cokKolay++;
+        else if (z < 2.5) zSay.kolay++;
+        else if (z < 3.5) zSay.orta++;
+        else if (z < 4.5) zSay.zor++;
+        else zSay.cokZor++;
+      });
+    %>
+
+    <!-- Özet kartları -->
+    <div class="mobil-ikikolon" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin-bottom:16px;">
+      <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#2e7d32; font-weight:600;">ÇOK KOLAY</div>
+        <div style="font-size:22px; font-weight:700; color:#27ae60;"><%= zSay.cokKolay %></div>
+        <div style="font-size:10px; color:#888;">Z: 1.0 — 1.4</div>
+      </div>
+      <div style="background:#f1f8e9; border:1px solid #c5e1a5; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#558b2f; font-weight:600;">KOLAY</div>
+        <div style="font-size:22px; font-weight:700; color:#2ecc71;"><%= zSay.kolay %></div>
+        <div style="font-size:10px; color:#888;">Z: 1.5 — 2.4</div>
+      </div>
+      <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#f57c00; font-weight:600;">ORTA</div>
+        <div style="font-size:22px; font-weight:700; color:#f39c12;"><%= zSay.orta %></div>
+        <div style="font-size:10px; color:#888;">Z: 2.5 — 3.4</div>
+      </div>
+      <div style="background:#ffe0b2; border:1px solid #ffb74d; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#e65100; font-weight:600;">ZOR</div>
+        <div style="font-size:22px; font-weight:700; color:#e67e22;"><%= zSay.zor %></div>
+        <div style="font-size:10px; color:#888;">Z: 3.5 — 4.4</div>
+      </div>
+      <div style="background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; padding:10px; text-align:center;">
+        <div style="font-size:11px; color:#c62828; font-weight:600;">ÇOK ZOR</div>
+        <div style="font-size:22px; font-weight:700; color:#c0392b;"><%= zSay.cokZor %></div>
+        <div style="font-size:10px; color:#888;">Z: 4.5 — 5.0</div>
+      </div>
+    </div>
+
+    <!-- v4.3.29: Zorluk raporu filtre formu — sınıf/ders/ünite/konu (ünitelerden) -->
+    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; padding:12px; background:#f8f9fb; border:1px solid #eaecf0; border-radius:10px;">
+      <input type="hidden" name="mod" value="zorlukRapor">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Sınıf</label>
+        <select name="filSinif" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:90px;">
+          <option value="">Tümü</option>
+          <% tumSoruSiniflar.forEach(function(s) { %>
+            <option value="<%= s %>" <%= filSinif==s?'selected':'' %>><%= s %>. Sınıf</option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ders</label>
+        <select name="filDers" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruDersler.forEach(function(d) { %>
+            <option value="<%= d %>" <%= filDers==d?'selected':'' %>><%= d %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ünite</label>
+        <select name="filUnite" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruUniteler.forEach(function(u) { %>
+            <option value="<%= u %>" <%= filUnite==u?'selected':'' %>><%= u %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Konu</label>
+        <select name="filKonu" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:160px;">
+          <option value="">Tümü</option>
+          <% tumSoruKonular.forEach(function(k) { %>
+            <option value="<%= k %>" <%= filKonu==k?'selected':'' %>><%= k %></option>
+          <% }); %>
+        </select>
+      </div>
+      <% if (filSinif || filDers || filUnite || filKonu) { %>
+        <a href="/admin?mod=zorlukRapor" style="padding:7px 14px; background:#ffebee; color:#c62828; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; align-self:flex-end;">✕ Filtreyi Temizle</a>
+      <% } %>
+    </form>
+
+    <!-- Toplam -->
+    <p style="font-size:12px; color:#666; margin-bottom:10px;">Toplam <b><%= tumSorular.length %></b> soru gösteriliyor.
+      <% if (filSinif || filDers || filUnite || filKonu) { %>
+        <span style="color:#1565c0;">Aktif filtre: <%= [filSinif&&(filSinif+'. Sınıf'), filDers, filUnite, filKonu].filter(Boolean).join(' / ') %></span>
+      <% } %>
+    </p>
+
+    <!-- Sıralanabilir tablo -->
+    <div style="overflow-x:auto; border:1px solid #e0e7ff; border-radius:10px;">
+      <table id="zorlukTablo" style="width:100%; border-collapse:collapse; font-size:13px;">
+        <thead style="background:#f5f7fa; user-select:none;">
+          <tr>
+            <th data-sort="soruNo"  data-tip="num" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Soru No <span class="sort-icon"></span></th>
+            <th data-sort="sinif"   data-tip="num" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Sınıf <span class="sort-icon"></span></th>
+            <th data-sort="ders"    data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Ders <span class="sort-icon"></span></th>
+            <th data-sort="unite"   data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Ünite <span class="sort-icon"></span></th>
+            <th data-sort="konu"    data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Konu <span class="sort-icon"></span></th>
+            <th data-sort="zorluk"  data-tip="num" data-aktif="1" data-yon="asc" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff; background:#e3f2fd;">Z (Zorluk) <span class="sort-icon">▲</span></th>
+            <th data-sort="hp"      data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">HP <span class="sort-icon"></span></th>
+            <th data-sort="cozulme" data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">Çözülme <span class="sort-icon"></span></th>
+            <th data-sort="dogruluk" data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">Doğruluk <span class="sort-icon"></span></th>
+            <th data-sort="ortSure" data-tip="num" style="padding:10px 8px; text-align:right; cursor:pointer; border-bottom:2px solid #e0e7ff;">Ort. Süre <span class="sort-icon"></span></th>
+            <th data-sort="durum"   data-tip="str" style="padding:10px 8px; text-align:left; cursor:pointer; border-bottom:2px solid #e0e7ff;">Durum <span class="sort-icon"></span></th>
+            <th style="padding:10px 8px; text-align:center; border-bottom:2px solid #e0e7ff;">İşlem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <%
+            // Önce kolaydan zora sırala (default)
+            var siraliSorular = (tumSorular || []).slice().sort(function(a, b) {
+              var za = a.zorlukKatsayisi != null ? a.zorlukKatsayisi : 3;
+              var zb = b.zorlukKatsayisi != null ? b.zorlukKatsayisi : 3;
+              return za - zb;
+            });
+          %>
+          <% siraliSorular.forEach(function(s) {
+            var z = s.zorlukKatsayisi != null ? s.zorlukKatsayisi : 3;
+            var zEt = z < 1.5 ? 'Çok Kolay' : z < 2.5 ? 'Kolay' : z < 3.5 ? 'Orta' : z < 4.5 ? 'Zor' : 'Çok Zor';
+            var zRenk = z < 1.5 ? '#27ae60' : z < 2.5 ? '#2ecc71' : z < 3.5 ? '#f39c12' : z < 4.5 ? '#e67e22' : '#c0392b';
+            var dogruluk = (s.cozulmeSayisi||0) > 0 ? Math.round((s.dogruSayisi||0) / s.cozulmeSayisi * 100) : null;
+            var hp = s.hamPuan != null ? Number(s.hamPuan).toFixed(1) : null;
+            var ortSure = s.ortalamaSure ? Math.round(s.ortalamaSure) : null;
+            var durumRenk = s.durum === 'yayinda' ? '#2e7d32' : s.durum === 'taslak' ? '#888' : '#c62828';
+          %>
+          <tr style="border-bottom:1px solid #f0f3f7;"
+              data-soruno="<%= s.soruNo||0 %>"
+              data-sinif="<%= s.sinif||0 %>"
+              data-ders="<%= s.ders||'' %>"
+              data-unite="<%= s.unite||'' %>"
+              data-konu="<%= s.konu||'' %>"
+              data-zorluk="<%= z %>"
+              data-hp="<%= hp != null ? hp : -1 %>"
+              data-cozulme="<%= s.cozulmeSayisi||0 %>"
+              data-dogruluk="<%= dogruluk != null ? dogruluk : -1 %>"
+              data-ortsure="<%= ortSure != null ? ortSure : -1 %>"
+              data-durum="<%= s.durum||'' %>">
+            <td style="padding:8px;"><%= s.soruNo||'-' %></td>
+            <td style="padding:8px;"><%= s.sinif||'-' %></td>
+            <td style="padding:8px;"><%= s.ders||'-' %></td>
+            <td style="padding:8px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= s.unite||'' %>"><%= s.unite||'-' %></td>
+            <td style="padding:8px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= s.konu||'' %>"><%= s.konu||'-' %></td>
+            <td style="padding:8px; text-align:right;">
+              <span style="display:inline-block; padding:2px 8px; background:<%= zRenk %>; color:white; border-radius:10px; font-size:11px; font-weight:600;"><%= z.toFixed(1) %></span>
+              <div style="font-size:10px; color:<%= zRenk %>; margin-top:2px;"><%= zEt %></div>
+            </td>
+            <td style="padding:8px; text-align:right;"><%= hp != null ? hp : '—' %></td>
+            <td style="padding:8px; text-align:right;"><%= s.cozulmeSayisi||0 %></td>
+            <td style="padding:8px; text-align:right;"><%= dogruluk != null ? '%'+dogruluk : '—' %></td>
+            <td style="padding:8px; text-align:right;"><%= ortSure != null ? ortSure+'sn' : '—' %></td>
+            <td style="padding:8px; color:<%= durumRenk %>;"><%= s.durum||'-' %></td>
+            <td style="padding:8px; text-align:center; white-space:nowrap;">
+              <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">ÖNİZLE</button>
+              <a href="/admin?duzenle=<%= s._id %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
+              <%# v4.5.3: "Çözenler" butonu — alttaki gizli satırı aç/kapat %>
+              <button type="button" onclick="cozumlerAcKapa('<%= s._id %>', this)" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#43a047; color:white;">▼ ÇÖZENLER</button>
+            </td>
+          </tr>
+          <%# v4.5.3: Açılır iç tablo — varsayılan gizli, JS ile yüklenir %>
+          <tr id="cozenler-row-<%= s._id %>" style="display:none; background:#f0f7ff;">
+            <td colspan="12" style="padding:0;">
+              <div id="cozenler-icerik-<%= s._id %>" style="padding:12px 20px; font-size:12px;">
+                <span style="color:#888; font-style:italic;">Yükleniyor...</span>
+              </div>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (!tumSorular.length) { %>
+      <p style="text-align:center; color:#888; padding:30px;">Hiç soru yok.</p>
+    <% } %>
+  </div>
+
+  <script>
+    // v4.5.3: Sorunun çözüm detaylarını aç/kapat
+    var cozumlerYuklendi = {}; // {soruId: true} → bir kez yüklendi
+    function cozumlerAcKapa(soruId, btn) {
+      var satir = document.getElementById('cozenler-row-' + soruId);
+      var icerik = document.getElementById('cozenler-icerik-' + soruId);
+      if (!satir || !icerik) return;
+      var acik = satir.style.display !== 'none';
+      if (acik) {
+        satir.style.display = 'none';
+        if (btn) btn.innerHTML = '▼ ÇÖZENLER';
+        return;
+      }
+      satir.style.display = '';
+      if (btn) btn.innerHTML = '▲ KAPAT';
+      if (cozumlerYuklendi[soruId]) return; // tekrar fetch etme
+      fetch('/admin/soru-cozumler/' + encodeURIComponent(soruId), { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+          if (!d || !d.ok) {
+            icerik.innerHTML = '<span style="color:#c62828;">Hata: ' + ((d && d.hata) || 'veri yüklenemedi') + '</span>';
+            return;
+          }
+          if (d.cozumSayisi === 0) {
+            icerik.innerHTML = '<p style="color:#888; font-style:italic; margin:0;">Bu soruyu henüz kimse doğru çözmedi.</p>';
+            cozumlerYuklendi[soruId] = true;
+            return;
+          }
+          var ortSure = d.soru.ortalamaSure ? Math.round(d.soru.ortalamaSure) + 'sn' : '—';
+          var html = '<div style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap; padding-bottom:8px; border-bottom:1px solid #d0e3ff;">' +
+            '<b style="color:#1a73e8;">' + d.cozumSayisi + ' doğru çözüm</b>' +
+            '<span style="color:#666;">Ortalama süre: <b>' + ortSure + '</b></span>' +
+            '<span style="color:#666;">Z: <b>' + (d.soru.zorlukKatsayisi||0).toFixed(2) + '</b></span>' +
+            '</div>';
+          html += '<table style="width:100%; border-collapse:collapse; font-size:12px;"><thead><tr style="background:#e8f0fe;">' +
+            '<th style="text-align:left; padding:6px 8px;">#</th>' +
+            '<th style="text-align:left; padding:6px 8px;">Kullanıcı</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Sınıf</th>' +
+            '<th style="text-align:left; padding:6px 8px;">Okul</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Süre</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Puan</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Tarih</th>' +
+            '<th style="text-align:center; padding:6px 8px;">Not</th>' +
+            '</tr></thead><tbody>';
+          d.cozumler.forEach(function(c, i) {
+            var t = c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR', { day:'numeric', month:'short', year:'numeric', timeZone:'Europe/Istanbul' }) : '—';
+            var puan = (Math.round((c.kazanilanPuan||0) * 10000) / 10000);
+            var not = c.ikinciKezMi ? '<span style="color:#e65100; font-size:10px;">2.kez (1/5^n)</span>' : '';
+            html += '<tr style="border-bottom:1px solid #e0e6ec;">' +
+              '<td style="padding:5px 8px; color:#999;">' + (i+1) + '</td>' +
+              '<td style="padding:5px 8px;"><a href="/kullanici-detay?kullaniciAdi=' + encodeURIComponent(c.kullaniciAdi) + '" style="color:#1a73e8; text-decoration:none;">' + c.kullaniciAdi + '</a></td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + c.sinif + (c.sube ? '/'+c.sube : '') + '</td>' +
+              '<td style="padding:5px 8px; color:#666; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (c.okul || '—') + '</td>' +
+              '<td style="padding:5px 8px; text-align:center; font-weight:600; color:#1a73e8;">' + c.sure + 'sn</td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + puan + '</td>' +
+              '<td style="padding:5px 8px; text-align:center; color:#666;">' + t + '</td>' +
+              '<td style="padding:5px 8px; text-align:center;">' + not + '</td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
+          icerik.innerHTML = html;
+          cozumlerYuklendi[soruId] = true;
+        })
+        .catch(e => {
+          icerik.innerHTML = '<span style="color:#c62828;">İstek hatası: ' + e.message + '</span>';
+        });
+    }
+
+    // v4.1.36: Tablo sıralaması — başlığa tıkla, aynı başlığa tekrar tıklarsan yön değişir
+    (function() {
+      var tablo = document.getElementById('zorlukTablo');
+      if (!tablo) return;
+      var thead = tablo.querySelector('thead');
+      var tbody = tablo.querySelector('tbody');
+
+      thead.addEventListener('click', function(e) {
+        var th = e.target.closest('th[data-sort]');
+        if (!th) return;
+        var alan = th.getAttribute('data-sort');
+        var tip = th.getAttribute('data-tip');
+        var aktifTh = thead.querySelector('th[data-aktif="1"]');
+        var yon = 'asc';
+        if (aktifTh === th) {
+          // Aynı başlık — yön değiştir
+          yon = th.getAttribute('data-yon') === 'asc' ? 'desc' : 'asc';
+        }
+        // Tüm başlıkların aktif/yön bayraklarını sıfırla
+        thead.querySelectorAll('th[data-sort]').forEach(function(x) {
+          x.removeAttribute('data-aktif');
+          x.removeAttribute('data-yon');
+          x.style.background = '';
+          var ic = x.querySelector('.sort-icon');
+          if (ic) ic.textContent = '';
+        });
+        th.setAttribute('data-aktif', '1');
+        th.setAttribute('data-yon', yon);
+        th.style.background = '#e3f2fd';
+        var ic = th.querySelector('.sort-icon');
+        if (ic) ic.textContent = yon === 'asc' ? '▲' : '▼';
+
+        // Satırları sırala — v4.5.3: yalnızca ana soru satırları (data-soruno olanlar)
+        // sıralanır; "çözenler" alt satırları parent satırın HEMEN ARDINDA
+        // tutulur.
+        var anaSatirlar = Array.from(tbody.querySelectorAll('tr[data-soruno]'));
+        anaSatirlar.sort(function(a, b) {
+          var av = a.getAttribute('data-' + alan.toLowerCase());
+          var bv = b.getAttribute('data-' + alan.toLowerCase());
+          if (tip === 'num') {
+            av = parseFloat(av); if (isNaN(av)) av = -1;
+            bv = parseFloat(bv); if (isNaN(bv)) bv = -1;
+            return yon === 'asc' ? av - bv : bv - av;
+          } else {
+            av = (av||'').toString();
+            bv = (bv||'').toString();
+            var c = av.localeCompare(bv, 'tr');
+            return yon === 'asc' ? c : -c;
+          }
+        });
+        // Yeniden ekle — her ana satırdan sonra ilgili cozenler satırı
+        // (DOM'dan koparmadan önce eşlemeyi yap, sonra frag'a sırayla ekle)
+        var anaSatirlarSiraIle = anaSatirlar.slice();
+        var frag = document.createDocumentFragment();
+        anaSatirlarSiraIle.forEach(function(r){
+          // İlgili cozenler tr'sini onclick içindeki ID'den çıkar
+          var btn = r.querySelector('button[onclick^="cozumlerAcKapa"]');
+          var soruId = null;
+          if (btn) {
+            var m = btn.getAttribute('onclick').match(/cozumlerAcKapa\('([^']+)'/);
+            if (m) soruId = m[1];
+          }
+          frag.appendChild(r);
+          if (soruId) {
+            var cz = document.getElementById('cozenler-row-' + soruId);
+            if (cz) frag.appendChild(cz);
+          }
+        });
+        tbody.appendChild(frag);
+      });
+    })();
+  </script>
+
+<% } else if (mod === 'soruListesi') { %>
+  <div class="admin-card">
+    <div class="admin-card-title" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span>Soru Filtrele</span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <form action="/soru-no-onar" method="POST" style="margin:0;" onsubmit="return confirm('Numarasız sorulara _id sırasıyla soruNo atanacak. Devam edilsin mi?');">
+          <button type="submit" style="background:#fff3cd; color:#856404; border:1px solid #ffe082; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">🔧 Numarasız soruları onar</button>
+        </form>
+        <form action="/soru-latex-onar" method="POST" style="margin:0;" onsubmit="return confirm('Tüm sorularda kayıp LaTeX backslash\\'ları aranacak ve onarılacak ($rac→\\frac, $qrt→\\sqrt vb). Devam edilsin mi?');">
+          <button type="submit" style="background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;">🔬 LaTeX onarımı</button>
+        </form>
+      </div>
+    </div>
+    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+      <input type="hidden" name="mod" value="soruListesi">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Sınıf</label>
+        <select name="filSinif" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:90px;">
+          <option value="">Tümü</option>
+          <% tumSoruSiniflar.forEach(function(s) { %>
+            <option value="<%= s %>" <%= filSinif==s?'selected':'' %>><%= s %>. Sınıf</option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ders</label>
+        <select name="filDers" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruDersler.forEach(function(d) { %>
+            <option value="<%= d %>" <%= filDers==d?'selected':'' %>><%= d %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Ünite</label>
+        <select name="filUnite" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
+          <option value="">Tümü</option>
+          <% tumSoruUniteler.forEach(function(u) { %>
+            <option value="<%= u %>" <%= filUnite==u?'selected':'' %>><%= u %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Konu</label>
+        <select name="filKonu" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:160px;">
+          <option value="">Tümü</option>
+          <% tumSoruKonular.forEach(function(k) { %>
+            <option value="<%= k %>" <%= filKonu==k?'selected':'' %>><%= k %></option>
+          <% }); %>
+        </select>
+      </div>
+      <% if (filSinif || filDers || filUnite || filKonu) { %>
+        <a href="/admin?mod=soruListesi" style="padding:7px 14px; background:#ffebee; color:#c62828; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; align-self:flex-end;">✕ Filtreyi Temizle</a>
+      <% } %>
+      <div style="margin-left:auto; align-self:flex-end; font-size:13px; color:#888;">
+        <b style="color:#1a73e8;"><%= tumSorular.length %></b> soru listeleniyor
+      </div>
+    </form>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-title">Sorular</div>
+
+    <%
+      var taslaklar = tumSorular.filter(function(s){ return !s.durum || s.durum === 'taslak'; })
+        .sort(function(a,b){ return a._id.toString().localeCompare(b._id.toString()); });
+      var yayindalar = tumSorular.filter(function(s){ return s.durum === 'yayinda'; })
+        .sort(function(a,b){
+          var ta = b.yayinTarih ? new Date(b.yayinTarih) : new Date(0);
+          var tb = a.yayinTarih ? new Date(a.yayinTarih) : new Date(0);
+          return ta - tb;
+        });
+      var duraklatilanlar = tumSorular.filter(function(s){ return s.durum === 'duraklat'; });
+    %>
+
+    <% if (taslaklar.length > 0) { %>
+    <div class="soru-grup-baslik soru-grup-taslak">🟡 Taslak — <%= taslaklar.length %> soru</div>
+    <% taslaklar.forEach(function(s, i) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
+          <div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
+          </div>
+        </div>
+        <div class="admin-soru-sag">
+          <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <form action="/soru-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>">
+            <button class="admin-btn admin-btn-sil">SİL</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+    <% } %>
+
+    <% if (yayindalar.length > 0) { %>
+    <div class="soru-grup-baslik soru-grup-yayinda">🟢 Yayında — <%= yayindalar.length %> soru</div>
+    <% yayindalar.forEach(function(s, i) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
+          <div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
+          </div>
+        </div>
+        <div class="admin-soru-sag">
+          <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <form action="/soru-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>">
+            <button class="admin-btn admin-btn-sil">SİL</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+    <% } %>
+
+    <% if (duraklatilanlar.length > 0) { %>
+    <div class="soru-grup-baslik soru-grup-duraklat">⏸️ Duraklatıldı — <%= duraklatilanlar.length %> soru</div>
+    <% duraklatilanlar.forEach(function(s, i) { %>
+      <div class="admin-soru-item">
+        <div class="admin-soru-sol">
+          <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
+          <div>
+            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
+            <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
+          </div>
+        </div>
+        <div class="admin-soru-sag">
+          <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <form action="/soru-sil" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>">
+            <button class="admin-btn admin-btn-sil">SİL</button>
+          </form>
+        </div>
+      </div>
+    <% }); %>
+    <% } %>
+
+    <% if (tumSorular.length === 0) { %>
+      <p style="color:#aab4c4; text-align:center; padding:20px;">Filtreyle eşleşen soru bulunamadı.</p>
+    <% } %>
+
+  </div>
+<% } %>
+
+<!-- v4.3.56: Soru Önizleme Modal — TÜM admin sayfalarında erişilebilir.
+     Eskiden mod='soruListesi' bloğunun İÇİNDE tanımlıydı; zorluk raporundan
+     ÖNİZLE tıklanınca 'soruOnizle is not defined' hatası alıyordu (sessiz).
+     Şimdi mod bloklarının DIŞINDA, sayfa hep yüklendiğinde mevcut. -->
+<div id="soruOnizlemeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:12px; padding:20px; width:800px; max-width:95vw; max-height:90vh; overflow-y:auto; position:relative;">
+    <button onclick="document.getElementById('soruOnizlemeModal').style.display='none'" style="position:absolute; top:10px; right:10px; background:#e74c3c; color:white; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:16px;">✕</button>
+    <h3 style="margin:0 0 16px;">🔍 Soru Önizleme</h3>
+    <div id="soruOnizlemeIcerik" style="min-height:300px;">Yükleniyor...</div>
+  </div>
+</div>
+
+<script>
+// v4.3.56: soruOnizle ve adminMathRender mod bloğundan ÇIKARILDI.
+// Artık zorluk raporu, soru listesi, başka tüm admin sayfalarında çalışır.
+function soruOnizle(id) {
+  var icerik = document.getElementById('soruOnizlemeIcerik');
+  var modal = document.getElementById('soruOnizlemeModal');
+  icerik.innerHTML = 'Yükleniyor...';
+  modal.style.display = 'flex';
+  fetch('/api/soru/' + id, { credentials: 'same-origin' })
+    .then(function(r){
+      if (!r.ok) {
+        return r.text().then(function(txt){
+          throw new Error('HTTP ' + r.status + ' — ' + (txt.length > 200 ? txt.substring(0,200) + '...' : txt));
+        });
+      }
+      return r.json();
+    })
+    .then(function(s){
+      var harfler = ['A','B','C','D'];
+      var html = '';
+      if (s.soruOnculu1) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu1 + '</div>';
+      if (s.soruOnculu1Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu1Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
+      if (s.soruOnculu2) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu2 + '</div>';
+      if (s.soruOnculu2Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu2Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
+      if (s.soruOnculu3) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu3 + '</div>';
+      if (s.soruOnculu3Resmi) html += '<div style="text-align:center; margin-bottom:10px;"><img src="' + s.soruOnculu3Resmi + '" style="max-width:100%; max-height:250px; border-radius:8px;"></div>';
+      html += '<h3 style="font-size:17px; margin:12px 0; white-space:pre-wrap;">' + s.soruMetni + '</h3>';
+      if (s.tabloBaslik && s.tabloBaslik.length > 0) {
+        html += '<div style="margin-bottom:4px;"><table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:3px 0; width:48px;"></td>';
+        for (var tb = 0; tb < s.tabloBaslik.length; tb++) {
+          html += '<td style="padding:3px 0; width:90px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + s.tabloBaslik[tb] + '</td>';
+        }
+        html += '</tr></table></div>';
+      }
+      var dizilim = s.sikDizilimi || 'dikey';
+      var gridCols = dizilim === 'yatay' ? '1fr 1fr 1fr 1fr' : dizilim === 'ikili' ? '1fr 1fr' : '1fr';
+      html += '<div class="secenekler" style="display:grid; grid-template-columns:' + gridCols + '; gap:8px;">';
+      for (var i = 0; i < 4; i++) {
+        if (!s.secenekler[i]) continue;
+        var sikMetin = (s.secenekler[i].metin || '').trim();
+        var sikGorsel = s.secenekler[i].gorsel || '';
+        if (!sikMetin && !sikGorsel) continue;
+        var tabloMu = sikMetin.indexOf('<table') !== -1;
+        var dogruMu = s.dogruCevapIndex === i;
+        var bgRenk = dogruMu ? '#d4edda' : 'white';
+        var border = dogruMu ? '2px solid #28a745' : '2px solid #ddd';
+        var sadeceGorsel = !sikMetin && sikGorsel;
+        if (sadeceGorsel) {
+          html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left; display:flex; flex-direction:column; align-items:flex-start;">';
+          html += '<b style="font-size:14px; margin-bottom:8px;">' + harfler[i] + ')</b>';
+          html += '<img src="' + sikGorsel + '" style="max-width:100%; align-self:center;">';
+          html += '</div>';
+        } else {
+          html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left;">';
+          if (tabloMu) html += '<b style="display:block; margin-bottom:6px;">' + harfler[i] + ')</b>';
+          else html += '<b>' + harfler[i] + ')</b>' + (sikMetin ? ' ' : '');
+          if (sikMetin) html += sikMetin;
+          if (sikGorsel) html += (sikMetin ? '<br>' : '') + '<img src="' + sikGorsel + '" style="max-width:150px;' + (sikMetin ? ' margin-top:5px;' : '') + '">';
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+      html += '<p style="margin-top:12px; font-size:12px; color:#28a745;"><b>Doğru Cevap:</b> ' + harfler[s.dogruCevapIndex] + '</p>';
+      icerik.innerHTML = html;
+      adminMathRender(icerik);
+    })
+    .catch(function(e){ icerik.innerHTML = '<p style="color:red;">Hata: ' + e.message + '</p>'; });
+}
+function adminMathRender(el) {
+  try {
+    if (typeof ciftBackslashNormalize === 'function') {
+      ciftBackslashNormalize(el);
+    }
+  } catch(e) {}
+  if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([el]).catch(function(err){ console.warn('MathJax render hatası:', err); });
+  } else if (window.MathJax && MathJax.typesetPromise) {
+    setTimeout(function(){ MathJax.typesetPromise([el]).catch(function(){}); }, 700);
+  } else {
+    setTimeout(function(){
+      if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([el]).catch(function(){});
+      } else {
+        console.warn('MathJax CDN yüklenmedi, formüller ham görünüyor.');
+      }
+    }, 2000);
+  }
+}
+</script>
+
+<script>
+// Admin çıkış: Basic Auth'tan çıkmak için browser'ın kendi düzeyinde authentication state'i temizlemesi gerekir.
+// Çoğu modern browser bu için "logout" sayfasına yönlenmeyi yetersiz görür. Sade çözüm: kullanıcıya bildirip kaydı temizlemesini sağla.
+// v4.2.3: Hesaplama butonu — üst nav'dan tetikleme. CSRF yok, mevcut form-submit
+// gibi POST atar. Çift tıklamayı önlemek için işlem sırasında button disable.
+function adminHesaplaTetikle(e) {
+  e.preventDefault();
+  if (!confirm('Günlük hesaplama şimdi başlatılsın mı?\n\nİşlem birkaç dakika sürebilir, bu sırada başka işlemler yapabilirsin.')) return;
+  var btn = document.getElementById('adminHesaplaBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Çalışıyor...'; btn.style.opacity = '0.6'; }
+  var f = document.createElement('form');
+  f.method = 'POST';
+  f.action = '/admin/cron-tetikle';
+  f.style.display = 'none';
+  // v4.3.61: Tetiklemeden sonra mevcut sayfaya dönmek için hidden input
+  var donus = document.createElement('input');
+  donus.type = 'hidden';
+  donus.name = 'donus';
+  donus.value = window.location.pathname + window.location.search;
+  f.appendChild(donus);
+  document.body.appendChild(f);
+  f.submit();
+}
+
+function adminCikisYap(e) {
+  e.preventDefault();
+  var onay = confirm('Admin panelden çıkmak istediğine emin misin?\n\nDikkat: Tarayıcı Basic Auth bilgilerini cache\'liyor. Tam çıkış için tarayıcıyı kapatman gerekebilir.');
+  if (!onay) return;
+  // Önce session'ı temizle, sonra kullanıcıya bilgi ver
+  fetch('/cikis', { credentials: 'same-origin' }).finally(function(){
+    // Geçersiz credential göndererek browser'ın cache'i sıfırlamasını dene
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/admin', false, 'cikis_yapildi', 'gecersiz_token_' + Date.now());
+    try { xhr.send(); } catch(_) {}
+    // Ana sayfaya yönlen
+    window.location.href = '/?cikis=admin';
+  });
+}
+</script>
+
+</div>
+</body>
+</html>
