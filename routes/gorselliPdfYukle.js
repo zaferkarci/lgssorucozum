@@ -1,11 +1,18 @@
-// routes/gorselliPdfYukle.js  —  v4.7.0  (ÇEKİRDEK)
+// routes/gorselliPdfYukle.js  —  v4.7.1  (ÇEKİRDEK)
 // "Görselli PDF Yükle": mevcut PDF yükleme akışını AYNEN bırakır.
 // Soru çıkarımı için mevcut  POST /pdf-analiz  (pdfyukle.js),
 // kayıt için mevcut          POST /pdf-sorulari-kaydet  kullanılır.
 // Bu dosyanın tek yeni sunucu işi: kırpılan görseli Cloudinary'ye yükleyip URL döndürmek.
 const express = require('express');
 const router  = express.Router();
+const multer  = require('multer');
 const { gorselYukle } = require('../services/cloudinaryYukle');
+
+// Kırpılan görseli multipart olarak alır (global express.json 100KB limitini baypas eder)
+const gorselUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 }
+});
 
 // pdfyukle.js'teki ile birebir aynı session-aware admin kontrolü.
 // (Mevcut dosya el değmesin diye kopyalandı; ortak servise almak istersen sonra refactor ederiz.)
@@ -34,13 +41,13 @@ router.get('/admin/gorselli-pdf-yukle', (req, res) => {
     res.render('gorselli-pdf-yukle');
 });
 
-// Kırpılan görseli Cloudinary'ye yükle → URL döndür
-router.post('/gorselli-gorsel-yukle', express.json({ limit: '15mb' }), async (req, res) => {
+// Kırpılan görseli Cloudinary'ye yükle → URL döndür (multipart: alan adı 'gorsel')
+router.post('/gorselli-gorsel-yukle', gorselUpload.single('gorsel'), async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const { gorsel } = req.body; // data URI (image/png base64)
-        if (!gorsel) return res.status(400).json({ hata: 'Görsel verisi gelmedi.' });
-        const url = await gorselYukle(gorsel);
+        if (!req.file || !req.file.buffer) return res.status(400).json({ hata: 'Görsel verisi gelmedi.' });
+        const dataUri = 'data:' + (req.file.mimetype || 'image/png') + ';base64,' + req.file.buffer.toString('base64');
+        const url = await gorselYukle(dataUri);
         res.json({ ok: true, url });
     } catch (err) {
         console.error('[Görselli PDF — Cloudinary yükleme]', err.message);

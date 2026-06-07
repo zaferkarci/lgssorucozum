@@ -364,19 +364,22 @@ function cropKesVeYukle(){
   if(!_cizim){ return; }
   var c=document.createElement('canvas'); c.width=Math.round(_cizim.sw); c.height=Math.round(_cizim.sh);
   c.getContext('2d').drawImage(_cizim.canvas, _cizim.sx,_cizim.sy,_cizim.sw,_cizim.sh, 0,0,c.width,c.height);
-  var dataUri=c.toDataURL('image/png');
   document.getElementById('cropKesBtn').disabled=true;
   document.getElementById('cropDurum').textContent='Cloudinary\'ye yükleniyor…';
 
-  fetch('/gorselli-gorsel-yukle',{ method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ gorsel:dataUri }) })
-    .then(function(r){ return r.json(); })
-    .then(function(v){
-      if(!v.ok||v.hata){ document.getElementById('cropDurum').textContent='Hata: '+(v.hata||'bilinmeyen'); document.getElementById('cropKesBtn').disabled=false; return; }
-      slotaDeger(_aktifSlot.soruIdx, _aktifSlot.alan, v.url);
-      gorselSlotlariCiz(_aktifSlot.soruIdx);
-      cropKapat();
-    })
-    .catch(function(e){ document.getElementById('cropDurum').textContent='Sunucu hatası: '+e.message; document.getElementById('cropKesBtn').disabled=false; });
+  c.toBlob(function(blob){
+    if(!blob){ document.getElementById('cropDurum').textContent='Görsel oluşturulamadı.'; document.getElementById('cropKesBtn').disabled=false; return; }
+    var fd=new FormData(); fd.append('gorsel', blob, 'kirpilan.png');
+    fetch('/gorselli-gorsel-yukle',{ method:'POST', credentials:'same-origin', body:fd })
+      .then(function(r){ return r.json(); })
+      .then(function(v){
+        if(!v.ok||v.hata){ document.getElementById('cropDurum').textContent='Hata: '+(v.hata||'bilinmeyen'); document.getElementById('cropKesBtn').disabled=false; return; }
+        slotaDeger(_aktifSlot.soruIdx, _aktifSlot.alan, v.url);
+        gorselSlotlariCiz(_aktifSlot.soruIdx);
+        cropKapat();
+      })
+      .catch(function(e){ document.getElementById('cropDurum').textContent='Sunucu hatası: '+e.message; document.getElementById('cropKesBtn').disabled=false; });
+  }, 'image/png');
 }
 
 function cropKapat(){ document.getElementById('cropModal').style.display='none'; _aktifSlot=null; _cizim=null; }
