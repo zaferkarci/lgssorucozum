@@ -742,6 +742,12 @@ router.post('/soru-latex-onar', async (req, res) => {
             // \frac yutulmuş: rac{...}{...}  →  \frac{...}{...}
             yeni = yeni.replace(/\$([^$]*)\$/g, function(blok, ic) {
                 let d = ic
+                    .replace(/\\rac\{/g, '\\frac{')
+                    .replace(/\\qrt\{/g, '\\sqrt{')
+                    .replace(/\\qrt\[/g, '\\sqrt[')
+                    .replace(/\\inom\{/g, '\\binom{')
+                    .replace(/\\oxed\{/g, '\\boxed{')
+                    .replace(/\\orall\b/g, '\\forall')
                     .replace(/(^|[^a-zA-Z\\])rac\{/g, '$1\\frac{')
                     .replace(/(^|[^a-zA-Z\\])qrt\{/g, '$1\\sqrt{')
                     .replace(/(^|[^a-zA-Z\\])qrt\[/g, '$1\\sqrt[')
