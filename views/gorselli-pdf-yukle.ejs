@@ -248,8 +248,8 @@ function onizleme(){
 
     // öncüller (metni varsa göster)
     [1,2,3].forEach(function(n){
-      var t=s['soruOnculu'+n];
-      if(t && t.length){
+      var t=s['soruOnculu'+n]||'';
+      if(true){  // her zaman göster (Gemini doldurmasa da)
         html+='<div style="margin-bottom:8px;"><b style="font-size:11px; color:#888;">ÖNCÜL '+n+'</b>'+
           '<textarea onchange="alanGuncelle('+i+',\'soruOnculu'+n+'\',this.value)" rows="2" style="width:100%; border:1px solid #eee; border-radius:6px; padding:6px; font-size:13px;">'+escHtml(t)+'</textarea></div>';
       }
@@ -289,7 +289,7 @@ function gorselSlotlariCiz(i){
   var hedef=document.getElementById('gorseller_'+i);
   var slotlar=[{alan:'soruResmi', ad:'Soru Resmi'}];
   [1,2,3].forEach(function(n){
-    if(s['soruOnculu'+n] && s['soruOnculu'+n].length) slotlar.push({alan:'soruOnculu'+n+'Resmi', ad:'Öncül '+n+' Resmi'});
+    slotlar.push({alan:'soruOnculu'+n+'Resmi', ad:'Öncül '+n+' Resmi'});
   });
   ['A','B','C','D'].forEach(function(h,si){ slotlar.push({alan:'sik'+si, ad:'Şık '+h+' Görseli'}); });
 
