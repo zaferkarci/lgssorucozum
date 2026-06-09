@@ -548,10 +548,18 @@ router.get('/takip/aktivite-bugun', oturumGerekli, async (req, res) => {
         }
 
         // Bu kişi takip ettiği öğrencileri bul (durum: kabul)
-        const iliskiler = await TakipIliski.find({
+        // v4.8.6: 'ogretmenAdi' alanı hem öğretmen hem veli için "takipçi" slotudur;
+        //         veli/öğretmen ilişkileri isteyenRol ile ayrılır. Veli panelinin
+        //         "Çocuklarım" listesi isteyenRol:'veli' ile filtreliyken bu endpoint
+        //         filtrelemiyordu; sonuçta veliye ait olmayan (öğretmen/sınıf kaynaklı)
+        //         bir ilişki aktivite kartına sızıp yanlış öğrenci görünüyordu.
+        //         Veli için isteyenRol:'veli' eklenir; öğretmen/kurumsal yolu değişmez.
+        const iliskiFiltre = {
             ogretmenAdi: benim.kullaniciAdi,
             durum: 'kabul'
-        }, 'ogrenciAdi').lean();
+        };
+        if (benim.rol === 'veli') iliskiFiltre.isteyenRol = 'veli';
+        const iliskiler = await TakipIliski.find(iliskiFiltre, 'ogrenciAdi').lean();
         const ogrAdlari = iliskiler.map(i => i.ogrenciAdi);
 
         const { takipEdilenAktivite } = require('../services/aktivite');
