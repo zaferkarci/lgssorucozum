@@ -2610,18 +2610,29 @@ function gosterExcelHata(msg) {
       var duraklatilanlar = tumSorular.filter(function(s){ return s.durum === 'duraklat'; });
     %>
 
+    <!-- v4.8.5: Sol onizleme paneli + saga dayali kart kolonu -->
+    <div class="soru-liste-duzen">
+      <div class="soru-onizleme-panel">
+        <div id="soruListePanel">
+          <div class="soru-onizleme-bos">👉 Sağdaki bir soru kartına tıkla — önizlemesi burada görünür.</div>
+        </div>
+      </div>
+      <div class="soru-liste-kolon">
+
     <% if (taslaklar.length > 0) { %>
     <div class="soru-grup-baslik soru-grup-taslak">🟡 Taslak — <%= taslaklar.length %> soru</div>
     <% taslaklar.forEach(function(s, i) { %>
-      <div class="admin-soru-item">
+      <div class="admin-soru-item" onclick="soruKartiSec(this,'<%= s._id %>')">
         <div class="admin-soru-sol">
+          <input type="checkbox" class="soru-sec-kutu" data-id="<%= s._id %>" onclick="event.stopPropagation();" onchange="soruKutuToggle(this,'<%= s._id %>')">
           <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
-          <div>
-            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
+          <div style="flex:1; min-width:0;">
+            <div class="admin-soru-etiket">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>]</div>
+            <div class="admin-soru-metin"><%= s.soruMetni %></div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
           </div>
         </div>
-        <div class="admin-soru-sag">
+        <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <form action="/soru-sil" method="POST" style="display:inline;">
@@ -2636,15 +2647,17 @@ function gosterExcelHata(msg) {
     <% if (yayindalar.length > 0) { %>
     <div class="soru-grup-baslik soru-grup-yayinda">🟢 Yayında — <%= yayindalar.length %> soru</div>
     <% yayindalar.forEach(function(s, i) { %>
-      <div class="admin-soru-item">
+      <div class="admin-soru-item" onclick="soruKartiSec(this,'<%= s._id %>')">
         <div class="admin-soru-sol">
+          <input type="checkbox" class="soru-sec-kutu" data-id="<%= s._id %>" onclick="event.stopPropagation();" onchange="soruKutuToggle(this,'<%= s._id %>')">
           <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
-          <div>
-            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
+          <div style="flex:1; min-width:0;">
+            <div class="admin-soru-etiket">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>]</div>
+            <div class="admin-soru-metin"><%= s.soruMetni %></div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
           </div>
         </div>
-        <div class="admin-soru-sag">
+        <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <form action="/soru-sil" method="POST" style="display:inline;">
@@ -2659,15 +2672,17 @@ function gosterExcelHata(msg) {
     <% if (duraklatilanlar.length > 0) { %>
     <div class="soru-grup-baslik soru-grup-duraklat">⏸️ Duraklatıldı — <%= duraklatilanlar.length %> soru</div>
     <% duraklatilanlar.forEach(function(s, i) { %>
-      <div class="admin-soru-item">
+      <div class="admin-soru-item" onclick="soruKartiSec(this,'<%= s._id %>')">
         <div class="admin-soru-sol">
+          <input type="checkbox" class="soru-sec-kutu" data-id="<%= s._id %>" onclick="event.stopPropagation();" onchange="soruKutuToggle(this,'<%= s._id %>')">
           <div class="admin-soru-no" title="Soru No"><%= s.soruNo ? '#'+s.soruNo : '#—' %></div>
-          <div>
-            <div class="admin-soru-metin">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>] <%= s.soruMetni.substring(0,50) %>...</div>
+          <div style="flex:1; min-width:0;">
+            <div class="admin-soru-etiket">[<%= s.sinif %>. Sınıf - <%= s.ders %><% if(s.unite){%> - <%= s.unite %><% } %><% if(s.konu){%> - <%= s.konu %><% } %>]</div>
+            <div class="admin-soru-metin"><%= s.soruMetni %></div>
             <div class="admin-soru-istat">Z: <%= (s.zorlukKatsayisi||3).toFixed(1) %> | HP: <%= s.hamPuan !== null && s.hamPuan !== undefined ? Number(s.hamPuan).toFixed(1) : '-' %> | Çözülme: <%= s.cozulmeSayisi || 0 %> | Doğru: <%= s.cozulmeSayisi > 0 ? Math.round((s.dogruSayisi || 0) / s.cozulmeSayisi * 100) + '%' : '—' %> | Ort. süre: <%= s.ortalamaSure ? Math.round(s.ortalamaSure) + 'sn' : '—' %></div>
           </div>
         </div>
-        <div class="admin-soru-sag">
+        <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <form action="/soru-sil" method="POST" style="display:inline;">
@@ -2682,6 +2697,8 @@ function gosterExcelHata(msg) {
     <% if (tumSorular.length === 0) { %>
       <p style="color:#aab4c4; text-align:center; padding:20px;">Filtreyle eşleşen soru bulunamadı.</p>
     <% } %>
+      </div><!-- /soru-liste-kolon -->
+    </div><!-- /soru-liste-duzen -->
 
   </div>
 <% } %>
@@ -2701,21 +2718,7 @@ function gosterExcelHata(msg) {
 <script>
 // v4.3.56: soruOnizle ve adminMathRender mod bloğundan ÇIKARILDI.
 // Artık zorluk raporu, soru listesi, başka tüm admin sayfalarında çalışır.
-function soruOnizle(id) {
-  var icerik = document.getElementById('soruOnizlemeIcerik');
-  var modal = document.getElementById('soruOnizlemeModal');
-  icerik.innerHTML = 'Yükleniyor...';
-  modal.style.display = 'flex';
-  fetch('/api/soru/' + id, { credentials: 'same-origin' })
-    .then(function(r){
-      if (!r.ok) {
-        return r.text().then(function(txt){
-          throw new Error('HTTP ' + r.status + ' — ' + (txt.length > 200 ? txt.substring(0,200) + '...' : txt));
-        });
-      }
-      return r.json();
-    })
-    .then(function(s){
+function _soruOnizleHtml(s){
       var harfler = ['A','B','C','D'];
       var html = '';
       if (s.soruOnculu1) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu1 + '</div>';
@@ -2761,6 +2764,25 @@ function soruOnizle(id) {
       }
       html += '</div>';
       html += '<p style="margin-top:12px; font-size:12px; color:#28a745;"><b>Doğru Cevap:</b> ' + harfler[s.dogruCevapIndex] + '</p>';
+  return html;
+}
+
+function soruOnizle(id) {
+  var icerik = document.getElementById('soruOnizlemeIcerik');
+  var modal = document.getElementById('soruOnizlemeModal');
+  icerik.innerHTML = 'Yükleniyor...';
+  modal.style.display = 'flex';
+  fetch('/api/soru/' + id, { credentials: 'same-origin' })
+    .then(function(r){
+      if (!r.ok) {
+        return r.text().then(function(txt){
+          throw new Error('HTTP ' + r.status + ' — ' + (txt.length > 200 ? txt.substring(0,200) + '...' : txt));
+        });
+      }
+      return r.json();
+    })
+    .then(function(s){
+      var html = _soruOnizleHtml(s);
       icerik.innerHTML = html;
       adminMathRender(icerik);
     })
@@ -2785,6 +2807,44 @@ function adminMathRender(el) {
       }
     }, 2000);
   }
+}
+
+// v4.8.5: Soru listesi — kart seçimi/işaretleme + sol panelde önizleme
+var _aktifSoruKart = null;
+function soruPanelOnizle(id){
+  var hedef = document.getElementById('soruListePanel');
+  if (!hedef) return;
+  hedef.innerHTML = '<div class="soru-onizleme-panel-ic">Yükleniyor...</div>';
+  fetch('/api/soru/' + id, { credentials: 'same-origin' })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(s){
+      var meta = (s.soruNo ? '#' + s.soruNo + ' · ' : '') + (s.sinif ? s.sinif + '. Sınıf' : '') + (s.ders ? ' · ' + s.ders : '') + (s.konu ? ' · ' + s.konu : '');
+      var ic = document.createElement('div');
+      ic.className = 'soru-onizleme-panel-ic';
+      ic.innerHTML = '<div style="font-size:12px; color:#8a93a3; margin-bottom:10px; font-weight:600;">' + meta + '</div>' + _soruOnizleHtml(s);
+      hedef.innerHTML = '';
+      hedef.appendChild(ic);
+      adminMathRender(ic);
+    })
+    .catch(function(e){ hedef.innerHTML = '<div class="soru-onizleme-panel-ic" style="color:#c62828;">Önizleme hatası: ' + e.message + '</div>'; });
+}
+function soruKartiAktifYap(el){
+  if (_aktifSoruKart && _aktifSoruKart !== el) _aktifSoruKart.classList.remove('aktif');
+  el.classList.add('aktif');
+  _aktifSoruKart = el;
+}
+function soruKartiSec(el, id){
+  if (!el) return;
+  var cb = el.querySelector('.soru-sec-kutu');
+  if (cb) { cb.checked = true; el.classList.add('isaretli'); }
+  soruKartiAktifYap(el);
+  soruPanelOnizle(id);
+}
+function soruKutuToggle(cb, id){
+  var el = cb.closest('.admin-soru-item');
+  if (!el) return;
+  el.classList.toggle('isaretli', cb.checked);
+  if (cb.checked) { soruKartiAktifYap(el); soruPanelOnizle(id); }
 }
 </script>
 
