@@ -138,6 +138,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function gosterHata(m){ var h=document.getElementById('hataKutu'); h.textContent=m; h.style.display='block'; }
+// v4.8.3: Turkce-duyarli normalizasyon (sadece eslestirme icin; DB/metin degismez).
+function normTr(s){
+  return String(s==null?'':s)
+    .replace(/\u0130/g,'i').replace(/I/g,'\u0131')
+    .toLowerCase()
+    .replace(/\u00e7/g,'c').replace(/\u011f/g,'g').replace(/\u0131/g,'i').replace(/\u00f6/g,'o').replace(/\u015f/g,'s').replace(/\u00fc/g,'u')
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+}
 
 // ─── Form dropdownları ──────────────────────────────────────────────────
 (function(){
@@ -236,13 +245,13 @@ function onizleme(){
       '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap; margin-bottom:10px;">'+
         '<label style="font-weight:bold; color:#1a73e8;"><input type="checkbox" data-sec="'+i+'" checked style="margin-right:6px;">Soru '+(i+1)+'</label>'+
         '<div style="display:flex; gap:6px; flex-wrap:wrap;">'+
-          '<select onchange="alanGuncelle('+i+',\'sinif\',this.value)" class="input-sm">'+
+          '<select onchange="metaSinifDegisti('+i+',this.value)" class="input-sm">'+
             SINIFLAR.map(function(n){ return '<option value="'+n+'"'+(n==s.sinif?' selected':'')+'>'+n+'. Sınıf</option>'; }).join('')+
           '</select>'+
-          '<select onchange="alanGuncelle('+i+',\'ders\',this.value)" class="input-sm">'+
+          '<select onchange="metaDersDegisti('+i+',this.value)" class="input-sm">'+
             DERSLER.map(function(d){ return '<option value="'+escHtml(d)+'"'+(d===s.ders?' selected':'')+'>'+escHtml(d)+'</option>'; }).join('')+
           '</select>'+
-          '<input value="'+escHtml(s.konu||'')+'" onchange="alanGuncelle('+i+',\'konu\',this.value)" class="input-sm" placeholder="Konu">'+
+          '<span id="konuSecim_'+i+'"></span>'+
         '</div>'+
       '</div>';
 
@@ -279,6 +288,7 @@ function onizleme(){
     div.innerHTML=html;
     k.appendChild(div);
     gorselSlotlariCiz(i);
+    konuSecimCiz(i);
   });
   window.scrollTo(0,0);
 }
@@ -321,6 +331,105 @@ function slotaDeger(i,alan,v){
   if(alan.indexOf('sik')===0){ sorular[i].secenekler[+alan.slice(3)].gorsel=v; }
   else { sorular[i][alan]=v; }
 }
+
+// ─── v4.8.3: Ünite/Konu önerisi (cascading) ───────────────────────
+// Sınıf+ders'e göre üniteler /api/unite-bilgi'den çekilir (sınıf bazında cache).
+// Gemini'nin serbest konu tahmini normTr ile eşleştirilip otomatik seçilir;
+// eşleşme yoksa ya da ünite tanımsızsa serbest-metin kutusuna düşer.
+var _uniteCache = {};   // sinif -> tum uniteler (her ders)
+
+function uniteVeriGetir(sinif){
+  sinif = String(sinif==null?'':sinif);
+  if(_uniteCache[sinif]) return Promise.resolve(_uniteCache[sinif]);
+  return fetch('/api/unite-bilgi?sinif='+encodeURIComponent(sinif), { credentials:'same-origin' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ var arr=(d&&d.ok&&d.uniteler)?d.uniteler:[]; _uniteCache[sinif]=arr; return arr; })
+    .catch(function(){ _uniteCache[sinif]=[]; return []; });
+}
+
+function _uniteKey(u){ return u.uniteAdi || (u.uniteNo+'. Ünite'); }
+
+// Gemini serbest konu metnini önce konularla, eşleşmezse ünite adıyla eşleştir.
+// Dönüş: {unite, konu}. konu=null ise yalnız ünite önerildi (Gemini'nin konu metni korunur,
+// admin onaylasın). Bulanık (token) eşleştirme YOK — yanlış otomatik seçim veriyi bozmasın.
+function eslesenUniteKonu(dersUniteler, gKonu){
+  var hedef=normTr(gKonu);
+  if(!hedef) return null;
+  var tam=null, parca=null, uniteAd=null;
+  dersUniteler.forEach(function(u){
+    var uKey=_uniteKey(u);
+    if(!uniteAd && normTr(uKey)===hedef){ uniteAd={unite:uKey, konu:null}; }
+    (u.konular||[]).forEach(function(k){
+      var nk=normTr(k);
+      if(!nk) return;
+      if(nk===hedef){ if(!tam) tam={unite:uKey, konu:k}; }
+      else if(!parca && (nk.indexOf(hedef)>=0 || hedef.indexOf(nk)>=0)){ parca={unite:uKey, konu:k}; }
+    });
+  });
+  return tam||parca||uniteAd;
+}
+
+// Soru i için ünite seçimini (+konu) çiz; gerekiyorsa veriyi async getirir.
+function konuSecimCiz(i){
+  var s=sorular[i];
+  var hedef=document.getElementById('konuSecim_'+i);
+  if(!hedef) return;
+  hedef.innerHTML='<span style="font-size:12px; color:#aaa;">ünite/konu yükleniyor…</span>';
+  uniteVeriGetir(s.sinif).then(function(tum){
+    if(!document.getElementById('konuSecim_'+i)) return; // bu arada yeniden çizilmiş olabilir
+    var dersUniteler=(tum||[]).filter(function(u){ return u.ders===s.ders; });
+    // Ünite tanımsız → serbest metin kutusu (eski davranış)
+    if(!dersUniteler.length){
+      s.unite=s.unite||'';
+      hedef.innerHTML='<input value="'+escHtml(s.konu||'')+'" onchange="alanGuncelle('+i+',\'konu\',this.value)" class="input-sm" placeholder="Konu" style="min-width:160px;">';
+      return;
+    }
+    // Gemini'nin serbest konu tahminini eşleştir (otomatik seç)
+    var oneri=eslesenUniteKonu(dersUniteler, s.konu);
+    if(oneri){ s.unite=oneri.unite; if(oneri.konu) s.konu=oneri.konu; }
+    var uHtml='<select onchange="uniteSecildi('+i+',this.value)" class="input-sm" title="Ünite" style="min-width:150px;">'+
+        '<option value="">— Ünite —</option>'+
+        dersUniteler.map(function(u){ var k=_uniteKey(u); return '<option value="'+escHtml(k)+'"'+(k===s.unite?' selected':'')+'>'+escHtml((u.uniteNo?u.uniteNo+'. ':'')+(u.uniteAdi||''))+'</option>'; }).join('')+
+      '</select>';
+    hedef.innerHTML=uHtml+'<span id="konuKutu_'+i+'"></span>';
+    konuKutuCiz(i);
+  });
+}
+
+// Seçili ünitenin konularını (yoksa derse ait tüm konuları) listele + serbest kutu.
+function konuKutuCiz(i){
+  var s=sorular[i];
+  var hedef=document.getElementById('konuKutu_'+i);
+  if(!hedef) return;
+  var dersUniteler=(_uniteCache[String(s.sinif==null?'':s.sinif)]||[]).filter(function(u){ return u.ders===s.ders; });
+  var konular=[];
+  if(s.unite){
+    var u=dersUniteler.find(function(x){ return _uniteKey(x)===s.unite; });
+    konular=(u&&u.konular)?u.konular.slice():[];
+  } else {
+    dersUniteler.forEach(function(u){ (u.konular||[]).forEach(function(k){ if(konular.indexOf(k)===-1) konular.push(k); }); });
+  }
+  var konuListede = !!(s.konu && konular.some(function(k){ return normTr(k)===normTr(s.konu); }));
+  var serbestGoster = !!(s.konu && !konuListede);
+  var sel='<select onchange="konuSelectDegisti('+i+',this.value)" class="input-sm" title="Konu" style="min-width:150px; margin-left:6px;">'+
+      '<option value="">— Konu —</option>'+
+      konular.map(function(k){ var sec=(konuListede && normTr(k)===normTr(s.konu)); return '<option value="'+escHtml(k)+'"'+(sec?' selected':'')+'>'+escHtml(k)+'</option>'; }).join('')+
+      '<option value="__serbest__"'+(serbestGoster?' selected':'')+'>+ Serbest yaz…</option>'+
+    '</select>';
+  var inp='<input id="konuSerbest_'+i+'" value="'+escHtml(s.konu||'')+'" onchange="alanGuncelle('+i+',\'konu\',this.value)" class="input-sm" placeholder="Konu (serbest)" style="min-width:150px; margin-left:6px; display:'+(serbestGoster?'inline-block':'none')+';">';
+  hedef.innerHTML=sel+inp;
+}
+
+function uniteSecildi(i,v){ sorular[i].unite=v; sorular[i].konu=''; konuKutuCiz(i); }
+function konuSelectDegisti(i,v){
+  var inp=document.getElementById('konuSerbest_'+i);
+  if(v==='__serbest__'){ if(inp){ inp.style.display='inline-block'; inp.focus(); } sorular[i].konu=(inp?inp.value:''); }
+  else { if(inp){ inp.style.display='none'; } sorular[i].konu=v; }
+}
+
+// Soru kartındaki Sınıf/Ders değişince ünite/konu önerisini yeniden kur.
+function metaSinifDegisti(i,v){ sorular[i].sinif=v; sorular[i].unite=''; konuSecimCiz(i); }
+function metaDersDegisti(i,v){ sorular[i].ders=v; sorular[i].unite=''; konuSecimCiz(i); }
 
 // ─── Kırpma modalı (pdf.js) ────────────────────────────────────────────────
 function kirpAc(i,alan){
