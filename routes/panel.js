@@ -290,79 +290,75 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     //   4) Unite tablosunda olmayan ünite/konu sona düşer (güvenlik ağı)
     const dersFiltre = (req.query.ders || '').trim();
     const eksikFiltre = (req.query.eksik || '').trim(); // "ders|konu" formatı
+    const gercekOgrenci = (!ogretmen && !moderator && !demo);
 
-    if (dersFiltre && !ogretmen && !moderator && !demo) {
-        cozulmemisSorular = cozulmemisSorular.filter(s => (s.ders || '') === dersFiltre);
-    }
-    if (eksikFiltre && !ogretmen && !moderator && !demo) {
-        const [eDers, eKonu] = eksikFiltre.split('|');
-        cozulmemisSorular = cozulmemisSorular.filter(s =>
-            (s.ders || '') === eDers && (s.konu || '') === eKonu
-        );
-    }
-
-    // v4.8.7: Konu izinleri — admin'in kapattigi konular ogrenciye gelmez.
-    // Varsayilan ACIK; yalnizca KonuIzin'de acik:false olan konu suzulur.
-    // Sadece gercek ogrencilere uygulanir (ogretmen/kurumsal/moderator/demo
-    // tum sorulari gormeye devam eder — mevcut davranis).
-    if (!ogretmen && !moderator && !demo) {
+    // v4.8.7: Konu izinleri — admin'in kapattigi konular ogrenciye gelmez (varsayilan acik).
+    let kapaliSet = new Set();
+    if (gercekOgrenci) {
         try {
             const kapaliKayitlar = await KonuIzin.find({ sinif: String(k.sinif), acik: false }, 'ders unite konu').lean();
-            if (kapaliKayitlar.length) {
-                const kapaliSet = new Set(kapaliKayitlar.map(x => (x.ders||'')+'|'+(x.unite||'')+'|'+(x.konu||'')));
+            kapaliSet = new Set(kapaliKayitlar.map(x => (x.ders||'')+'|'+(x.unite||'')+'|'+(x.konu||'')));
+            if (kapaliSet.size) {
                 cozulmemisSorular = cozulmemisSorular.filter(s =>
                     !kapaliSet.has((s.ders||'')+'|'+(s.unite||'')+'|'+(s.konu||''))
                 );
             }
-        } catch (e) { /* izin tablosu yoksa varsayilan acik */ }
+        } catch (e) { kapaliSet = new Set(); }
     }
 
-    let gateGizlenenSayisi = 0; // v4.8.9: gate'in gizledigi (gecilen konu) soru sayisi — bos-durum mesaji icin
-    // v4.8.8: Mastery gate — bir (ders,konu) konusunda yeterince soru cozulup
-    //   basari >= %66 olunca o konunun kalan (normal) sorulari havuzdan cikar;
-    //   ogrenci siradaki konuya gecer. Olcut: kart yuzdesi = (ders,konu) basina
-    //   dogru/toplam (dersIstatMap ile ayni). Esik: en az min(3, o konudaki yayinda
-    //   soru sayisi) soru cevaplanmis VE oran >= 0.66. Kumulatif (pencere yok).
-    //   GECILMIS (skip) sorular budanmaz — konu gecse de sonda bekler; cozulup
-    //   yanlis olursa oran %66 altina duser ve konu yeniden acilir. Skip puan
-    //   cezasi (/cevap'ta 1/5,1/25,0) aynen korunur. Yalnizca gercek ogrenciye.
-    if (!ogretmen && !moderator && !demo) {
+    // v4.8.10: ZORUNLU ANALIZ — v4.8.8 %66 gecis kapisinin yerini alir.
+    //   Her acik (KonuIzin) (ders,unite,konu)'dan en az min(2, o konudaki yayinda
+    //   soru) FARKLI soru CEVAPLANANA kadar ogrenci analiz modundadir; ders/eksik
+    //   secimi yok sayilir, havuz yalniz eksik konularin cozulmemis sorularina
+    //   kisilir (siralama her konuda 2'ser ilerletir). Analiz bitince serbest
+    //   pratik + oneriler. Yeni konu eklenince (0 cevapli) analiz tekrar zorunlu.
+    //   2 cevap dogru/yanlis fark etmez. Yalnizca gercek ogrenciye uygulanir.
+    let analizTamamlandi = true;
+    let analizEksikSayisi = 0;
+    if (gercekOgrenci) {
         try {
-            const cIds = [...new Set(cozulenKayitlar.map(c => String(c.soruId)))];
-            const cTopics = cIds.length
-                ? await Soru.find({ _id: { $in: cIds } }, 'ders konu').lean()
-                : [];
-            const topicMap = {};
-            cTopics.forEach(s => { topicMap[String(s._id)] = (s.ders || 'Diğer') + '|' + (s.konu || 'Genel'); });
-            const konuBasari = {}; // 'ders|konu' -> { dogru, toplam }
-            cozulenKayitlar.forEach(c => {
-                const tk = topicMap[String(c.soruId)];
-                if (!tk) return;
-                if (!konuBasari[tk]) konuBasari[tk] = { dogru: 0, toplam: 0 };
-                konuBasari[tk].toplam++;
-                if (c.dogruMu) konuBasari[tk].dogru++;
-            });
-            const konuToplam = {}; // sinifin (ders,konu) basina yayinda soru sayisi
+            const konuToplam = {}; // acik (ders|unite|konu) -> yayinda soru sayisi
             yayindaSorular.forEach(s => {
-                const tk = (s.ders || 'Diğer') + '|' + (s.konu || 'Genel');
+                const tk = (s.ders || '') + '|' + (s.unite || '') + '|' + (s.konu || '');
+                if (kapaliSet.has(tk)) return;
                 konuToplam[tk] = (konuToplam[tk] || 0) + 1;
             });
-            const gecilenKonular = new Set();
-            Object.keys(konuBasari).forEach(tk => {
-                const b = konuBasari[tk];
-                const esikN = Math.min(3, konuToplam[tk] || 3);
-                if (b.toplam >= esikN && (b.dogru / b.toplam) >= 0.66) gecilenKonular.add(tk);
+            const cIds = [...new Set(cozulenKayitlar.map(c => String(c.soruId)))];
+            const cTopics = cIds.length
+                ? await Soru.find({ _id: { $in: cIds } }, 'ders unite konu').lean()
+                : [];
+            const idTopic = {};
+            cTopics.forEach(s => { idTopic[String(s._id)] = (s.ders || '') + '|' + (s.unite || '') + '|' + (s.konu || ''); });
+            const konuCevap = {}; // acik konu -> cevaplanan FARKLI soru sayisi
+            cIds.forEach(id => {
+                const tk = idTopic[id];
+                if (tk && konuToplam[tk] !== undefined) konuCevap[tk] = (konuCevap[tk] || 0) + 1;
             });
-            if (gecilenKonular.size) {
-                const skipIds = new Set((k.gecilenSorular || []).map(g => String(g.soruId)));
-                const oncesiSayi = cozulmemisSorular.length;
+            const eksikKonuSet = new Set();
+            Object.keys(konuToplam).forEach(tk => {
+                if ((konuCevap[tk] || 0) < Math.min(2, konuToplam[tk])) eksikKonuSet.add(tk);
+            });
+            analizEksikSayisi = eksikKonuSet.size;
+            analizTamamlandi = (eksikKonuSet.size === 0);
+            if (!analizTamamlandi) {
                 cozulmemisSorular = cozulmemisSorular.filter(s =>
-                    skipIds.has(String(s._id)) ||
-                    !gecilenKonular.has((s.ders || 'Diğer') + '|' + (s.konu || 'Genel'))
+                    eksikKonuSet.has((s.ders || '') + '|' + (s.unite || '') + '|' + (s.konu || ''))
                 );
-                gateGizlenenSayisi = oncesiSayi - cozulmemisSorular.length;
             }
-        } catch (e) { /* gate hesaplanamadi -> tum sorular normal akista */ }
+        } catch (e) { analizTamamlandi = true; analizEksikSayisi = 0; }
+    }
+
+    // ders/eksik filtreleri yalniz analiz TAMAMLANINCA (serbest pratik) uygulanir
+    if (analizTamamlandi && gercekOgrenci) {
+        if (dersFiltre) {
+            cozulmemisSorular = cozulmemisSorular.filter(s => (s.ders || '') === dersFiltre);
+        }
+        if (eksikFiltre) {
+            const [eDers, eKonu] = eksikFiltre.split('|');
+            cozulmemisSorular = cozulmemisSorular.filter(s =>
+                (s.ders || '') === eDers && (s.konu || '') === eKonu
+            );
+        }
     }
 
     // Admin'de tanımlı ünite/konu sırasını çek (öğrencinin sınıfı için)
@@ -1100,7 +1096,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         davetEdilenler,
         modIdx,
         gunlukHedefData,
-        seviyeTamamlandi: gateGizlenenSayisi > 0,
+        analizTamamlandi,
+        analizEksikSayisi,
         toplamSoru: cozulmemisSorular.length,
         landingStats,
         digerSinifSoruSayilari,
