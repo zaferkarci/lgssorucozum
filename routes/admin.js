@@ -4,6 +4,7 @@ const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
+const KonuIzin = require('../models/KonuIzin');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Haber = require('../models/Haber');
@@ -496,6 +497,50 @@ router.post('/unite-guncelle', async (req, res) => {
 });
 
 // ── Sınıfa göre ünite/konu verisi ────────────────────────────────────────────
+// v4.8.7: Konu Izinleri — agac verisi (Unite'den beslenir, durum KonuIzin'den).
+router.get('/admin/konu-izinleri-veri', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uniteler = await Unite.find().sort({ sinif: 1, ders: 1, uniteNo: 1 }).lean();
+        const izinler  = await KonuIzin.find().lean();
+        const kapaliSet = new Set();
+        izinler.forEach(z => {
+            if (z.acik === false) kapaliSet.add((z.sinif||'')+'|'+(z.ders||'')+'|'+(z.unite||'')+'|'+(z.konu||''));
+        });
+        const agac = uniteler.map(u => ({
+            sinif: String(u.sinif||''), ders: u.ders||'', unite: u.uniteAdi||'', uniteNo: u.uniteNo||0,
+            konular: (u.konular||[]).map(kn => ({
+                konu: kn,
+                acik: !kapaliSet.has((String(u.sinif||''))+'|'+(u.ders||'')+'|'+(u.uniteAdi||'')+'|'+kn)
+            }))
+        }));
+        res.json({ ok: true, agac });
+    } catch (e) {
+        console.error('[konu-izinleri-veri] HATA:', e.message);
+        res.status(500).json({ ok: false, hata: e.message });
+    }
+});
+
+// v4.8.7: Konu Izinleri — kaydet. Body: { kapalilar: [{sinif,ders,unite,konu}] }.
+router.post('/admin/konu-izinleri-kaydet', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const kapalilar = Array.isArray(req.body.kapalilar) ? req.body.kapalilar : [];
+        await KonuIzin.deleteMany({});
+        if (kapalilar.length) {
+            const docs = kapalilar.map(x => ({
+                sinif: String(x.sinif||''), ders: String(x.ders||''),
+                unite: String(x.unite||''), konu: String(x.konu||''), acik: false
+            }));
+            await KonuIzin.insertMany(docs);
+        }
+        res.json({ ok: true, kapaliSayisi: kapalilar.length });
+    } catch (e) {
+        console.error('[konu-izinleri-kaydet] HATA:', e.message);
+        res.status(500).json({ ok: false, hata: e.message });
+    }
+});
+
 router.get('/api/unite-bilgi', async (req, res) => {
     try {
         const { sinif } = req.query;

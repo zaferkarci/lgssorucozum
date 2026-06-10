@@ -5,6 +5,7 @@ const Soru = require('../models/Soru');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
+const KonuIzin = require('../models/KonuIzin');
 const Kurum = require('../models/Kurum');
 const KurumUyelikIstek = require('../models/KurumUyelikIstek');
 const KurumSinif = require('../models/KurumSinif');
@@ -298,6 +299,22 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         cozulmemisSorular = cozulmemisSorular.filter(s =>
             (s.ders || '') === eDers && (s.konu || '') === eKonu
         );
+    }
+
+    // v4.8.7: Konu izinleri — admin'in kapattigi konular ogrenciye gelmez.
+    // Varsayilan ACIK; yalnizca KonuIzin'de acik:false olan konu suzulur.
+    // Sadece gercek ogrencilere uygulanir (ogretmen/kurumsal/moderator/demo
+    // tum sorulari gormeye devam eder — mevcut davranis).
+    if (!ogretmen && !moderator && !demo) {
+        try {
+            const kapaliKayitlar = await KonuIzin.find({ sinif: String(k.sinif), acik: false }, 'ders unite konu').lean();
+            if (kapaliKayitlar.length) {
+                const kapaliSet = new Set(kapaliKayitlar.map(x => (x.ders||'')+'|'+(x.unite||'')+'|'+(x.konu||'')));
+                cozulmemisSorular = cozulmemisSorular.filter(s =>
+                    !kapaliSet.has((s.ders||'')+'|'+(s.unite||'')+'|'+(s.konu||''))
+                );
+            }
+        } catch (e) { /* izin tablosu yoksa varsayilan acik */ }
     }
 
     // Admin'de tanımlı ünite/konu sırasını çek (öğrencinin sınıfı için)

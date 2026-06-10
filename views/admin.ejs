@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <%
     // v4.2.2: Admin nav iki seviyeli gruplandırma.
     // Her grup, içindeki mod'lara göre aktiflik durumu hesaplar.
-    var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler'];
+    var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler', 'konuIzinleri'];
     var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
     var iletisimModlari    = ['haberler', 'mesajlar'];
     var sistemModlari      = ['sifirla'];
@@ -143,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="/admin?mod=pdfYukle" class="admin-alt-link <%= mod==='pdfYukle'?'active':'' %>">📄 PDF Yükle</a>
     <a href="/admin/gorselli-pdf-yukle" class="admin-alt-link">🖼️ Görselli PDF Yükle</a>
     <a href="/admin?mod=uniteler" class="admin-alt-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
+    <a href="/admin?mod=konuIzinleri" class="admin-alt-link <%= mod==='konuIzinleri'?'active':'' %>">🔓 Konu İzinleri</a>
   <% } else if (aktifGrup === 'kullanicilar') { %>
     <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
     <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
@@ -1630,6 +1631,113 @@ function gosterExcelHata(msg) {
   k.textContent = '⚠️ ' + msg;
   k.style.display = 'block';
 }
+</script>
+
+<% } else if (mod === 'konuIzinleri') { %>
+<div class="admin-card">
+  <div class="admin-card-title">🔓 Konu İzinleri</div>
+  <p style="font-size:13px; color:#666; line-height:1.5; margin:0 0 14px;">
+    Öğrencilere hangi ünite/konulardan soru geleceğini buradan açıp kapatabilirsin.
+    <b>Varsayılan: tüm konular AÇIK.</b> Kapattığın konular öğrencilere gelmez
+    (öğretmen / kurumsal / demo hesapları tüm soruları görmeye devam eder).
+    Liste “Üniteler” menündeki sınıf / ders / ünite / konulardan çekilir.
+  </p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+    <label style="font-size:13px;">Sınıf:
+      <select id="kiSinifFiltre" onchange="kiCiz()" style="padding:5px 8px; border:1px solid #ccc; border-radius:6px;"><option value="">Tümü</option></select>
+    </label>
+    <button type="button" class="btn" onclick="kiHepsi(true)">Hepsini Aç</button>
+    <button type="button" class="btn" onclick="kiHepsi(false)">Hepsini Kapat</button>
+    <span id="kiOzet" style="margin-left:auto; font-size:12px; color:#888;"></span>
+  </div>
+  <div id="kiAgac" style="max-height:60vh; overflow:auto;">Yükleniyor…</div>
+  <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+    <button type="button" class="btn btn-success" onclick="kiKaydet()">💾 Kaydet</button>
+    <span id="kiDurum" style="font-size:13px;"></span>
+  </div>
+</div>
+<script>
+(function(){
+  var VERI=[], DURUM={};
+  function key(s,d,u,k){ return s+'|'+d+'|'+u+'|'+k; }
+  function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;'); }
+  function yukle(){
+    fetch('/admin/konu-izinleri-veri', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        VERI=(d&&d.ok&&d.agac)?d.agac:[]; DURUM={};
+        VERI.forEach(function(u){ (u.konular||[]).forEach(function(kn){ DURUM[key(u.sinif,u.ders,u.unite,kn.konu)] = kn.acik!==false; }); });
+        var sel=document.getElementById('kiSinifFiltre'), ss={};
+        VERI.forEach(function(u){ if(u.sinif) ss[u.sinif]=1; });
+        Object.keys(ss).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(s){ var o=document.createElement('option'); o.value=s; o.textContent=s+'. Sınıf'; sel.appendChild(o); });
+        kiCiz();
+      })
+      .catch(function(e){ document.getElementById('kiAgac').innerHTML='<span style=\"color:#c62828;\">Yüklenemedi: '+esc(e.message)+'</span>'; });
+  }
+  function kiCiz(){
+    var filtre=document.getElementById('kiSinifFiltre').value;
+    var hedef=document.getElementById('kiAgac');
+    var liste=VERI.filter(function(u){ return !filtre || String(u.sinif)===filtre; });
+    if(!liste.length){ hedef.innerHTML='<p style=\"color:#888;\">Bu filtrede ünite yok. Önce “Üniteler” menüsünden sınıf/ders/ünite/konu tanımla.</p>'; kiOzetGuncelle(); return; }
+    var html='', bySinif={};
+    liste.forEach(function(u){ (bySinif[u.sinif]=bySinif[u.sinif]||[]).push(u); });
+    Object.keys(bySinif).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(sin){
+      html+='<div style=\"margin-bottom:18px;\"><div style=\"font-weight:700; color:#333; margin-bottom:6px;\">'+esc(sin)+'. Sınıf</div>';
+      var byDers={};
+      bySinif[sin].forEach(function(u){ (byDers[u.ders]=byDers[u.ders]||[]).push(u); });
+      Object.keys(byDers).sort().forEach(function(ders){
+        html+='<div style=\"margin:0 0 10px 10px;\"><div style=\"font-weight:600; color:#555; margin-bottom:4px;\">'+esc(ders)+'</div>';
+        byDers[ders].sort(function(a,b){return (a.uniteNo||0)-(b.uniteNo||0);}).forEach(function(u){
+          html+='<div style=\"border:1px solid #eee; border-radius:8px; padding:8px 10px; margin:0 0 6px 10px;\">';
+          html+='<label style=\"font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;\"><input type=\"checkbox\" class=\"ki-unite\" data-sinif=\"'+esc(u.sinif)+'\" data-ders=\"'+esc(u.ders)+'\" data-unite=\"'+esc(u.unite)+'\"> '+(u.uniteNo?esc(u.uniteNo)+'. ':'')+esc(u.unite)+'</label>';
+          html+='<div style=\"margin:6px 0 0 22px; display:flex; flex-wrap:wrap; gap:6px 16px;\">';
+          (u.konular||[]).forEach(function(kn){
+            var kk=key(u.sinif,u.ders,u.unite,kn.konu);
+            html+='<label style=\"display:flex; align-items:center; gap:5px; font-size:13px; cursor:pointer;\"><input type=\"checkbox\" class=\"ki-konu\" data-key=\"'+esc(kk)+'\"'+(DURUM[kk]?' checked':'')+'> '+esc(kn.konu)+'</label>';
+          });
+          html+='</div></div>';
+        });
+        html+='</div>';
+      });
+      html+='</div>';
+    });
+    hedef.innerHTML=html;
+    hedef.querySelectorAll('.ki-unite').forEach(function(cb){
+      senkronUnite(cb);
+      cb.addEventListener('change', function(){
+        var pre=cb.getAttribute('data-sinif')+'|'+cb.getAttribute('data-ders')+'|'+cb.getAttribute('data-unite')+'|';
+        hedef.querySelectorAll('.ki-konu').forEach(function(k){ if(k.getAttribute('data-key').indexOf(pre)===0){ k.checked=cb.checked; DURUM[k.getAttribute('data-key')]=cb.checked; } });
+        cb.indeterminate=false; kiOzetGuncelle();
+      });
+    });
+    hedef.querySelectorAll('.ki-konu').forEach(function(cb){
+      cb.addEventListener('change', function(){ DURUM[cb.getAttribute('data-key')]=cb.checked; senkronTumUniteler(); kiOzetGuncelle(); });
+    });
+    kiOzetGuncelle();
+  }
+  function senkronUnite(cb){
+    var hedef=document.getElementById('kiAgac');
+    var pre=cb.getAttribute('data-sinif')+'|'+cb.getAttribute('data-ders')+'|'+cb.getAttribute('data-unite')+'|';
+    var konular=[].slice.call(hedef.querySelectorAll('.ki-konu')).filter(function(k){ return k.getAttribute('data-key').indexOf(pre)===0; });
+    var acik=konular.filter(function(k){return k.checked;}).length;
+    cb.checked = konular.length>0 && acik===konular.length;
+    cb.indeterminate = acik>0 && acik<konular.length;
+  }
+  function senkronTumUniteler(){ document.getElementById('kiAgac').querySelectorAll('.ki-unite').forEach(senkronUnite); }
+  function kiOzetGuncelle(){ var t=0,a=0; Object.keys(DURUM).forEach(function(kk){ t++; if(DURUM[kk]) a++; }); document.getElementById('kiOzet').textContent=t+' konu · '+a+' açık · '+(t-a)+' kapalı'; }
+  window.kiCiz=kiCiz;
+  window.kiHepsi=function(acik){ Object.keys(DURUM).forEach(function(kk){ DURUM[kk]=acik; }); kiCiz(); };
+  window.kiKaydet=function(){
+    var kapalilar=[];
+    Object.keys(DURUM).forEach(function(kk){ if(!DURUM[kk]){ var p=kk.split('|'); kapalilar.push({sinif:p[0],ders:p[1],unite:p[2],konu:p.slice(3).join('|')}); } });
+    var d=document.getElementById('kiDurum'); d.style.color='#555'; d.textContent='Kaydediliyor…';
+    fetch('/admin/konu-izinleri-kaydet', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({kapalilar:kapalilar}) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){ if(res&&res.ok){ d.style.color='#1a7f37'; d.textContent='✓ Kaydedildi ('+res.kapaliSayisi+' konu kapalı).'; } else { d.style.color='#c62828'; d.textContent='Hata: '+((res&&res.hata)||'bilinmiyor'); } })
+      .catch(function(e){ d.style.color='#c62828'; d.textContent='Hata: '+e.message; });
+  };
+  yukle();
+})();
 </script>
 
 <% } else if (mod === 'okullar') { %>
