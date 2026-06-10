@@ -317,6 +317,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         } catch (e) { /* izin tablosu yoksa varsayilan acik */ }
     }
 
+    let gateGizlenenSayisi = 0; // v4.8.9: gate'in gizledigi (gecilen konu) soru sayisi — bos-durum mesaji icin
     // v4.8.8: Mastery gate — bir (ders,konu) konusunda yeterince soru cozulup
     //   basari >= %66 olunca o konunun kalan (normal) sorulari havuzdan cikar;
     //   ogrenci siradaki konuya gecer. Olcut: kart yuzdesi = (ders,konu) basina
@@ -354,10 +355,12 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             });
             if (gecilenKonular.size) {
                 const skipIds = new Set((k.gecilenSorular || []).map(g => String(g.soruId)));
+                const oncesiSayi = cozulmemisSorular.length;
                 cozulmemisSorular = cozulmemisSorular.filter(s =>
                     skipIds.has(String(s._id)) ||
                     !gecilenKonular.has((s.ders || 'Diğer') + '|' + (s.konu || 'Genel'))
                 );
+                gateGizlenenSayisi = oncesiSayi - cozulmemisSorular.length;
             }
         } catch (e) { /* gate hesaplanamadi -> tum sorular normal akista */ }
     }
@@ -1097,6 +1100,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         davetEdilenler,
         modIdx,
         gunlukHedefData,
+        seviyeTamamlandi: gateGizlenenSayisi > 0,
         toplamSoru: cozulmemisSorular.length,
         landingStats,
         digerSinifSoruSayilari,
