@@ -234,7 +234,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         mod = 'veliPanel';
     }
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
-    const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId').lean();
+    const cozulenKayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }, 'soruId dogruMu').lean();
     const cozulenIds = new Set(cozulenKayitlar.map(c => String(c.soruId)));
     // v4.3.4: ogretmen flag, hem öğretmen hem kurumsal kullanıcıları kapsar
     // (her ikisi de soru çözmez, sıralamaya girmez, tüm soruları görebilir).
@@ -315,6 +315,51 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 );
             }
         } catch (e) { /* izin tablosu yoksa varsayilan acik */ }
+    }
+
+    // v4.8.8: Mastery gate — bir (ders,konu) konusunda yeterince soru cozulup
+    //   basari >= %66 olunca o konunun kalan (normal) sorulari havuzdan cikar;
+    //   ogrenci siradaki konuya gecer. Olcut: kart yuzdesi = (ders,konu) basina
+    //   dogru/toplam (dersIstatMap ile ayni). Esik: en az min(3, o konudaki yayinda
+    //   soru sayisi) soru cevaplanmis VE oran >= 0.66. Kumulatif (pencere yok).
+    //   GECILMIS (skip) sorular budanmaz — konu gecse de sonda bekler; cozulup
+    //   yanlis olursa oran %66 altina duser ve konu yeniden acilir. Skip puan
+    //   cezasi (/cevap'ta 1/5,1/25,0) aynen korunur. Yalnizca gercek ogrenciye.
+    if (!ogretmen && !moderator && !demo) {
+        try {
+            const cIds = [...new Set(cozulenKayitlar.map(c => String(c.soruId)))];
+            const cTopics = cIds.length
+                ? await Soru.find({ _id: { $in: cIds } }, 'ders konu').lean()
+                : [];
+            const topicMap = {};
+            cTopics.forEach(s => { topicMap[String(s._id)] = (s.ders || 'Diğer') + '|' + (s.konu || 'Genel'); });
+            const konuBasari = {}; // 'ders|konu' -> { dogru, toplam }
+            cozulenKayitlar.forEach(c => {
+                const tk = topicMap[String(c.soruId)];
+                if (!tk) return;
+                if (!konuBasari[tk]) konuBasari[tk] = { dogru: 0, toplam: 0 };
+                konuBasari[tk].toplam++;
+                if (c.dogruMu) konuBasari[tk].dogru++;
+            });
+            const konuToplam = {}; // sinifin (ders,konu) basina yayinda soru sayisi
+            yayindaSorular.forEach(s => {
+                const tk = (s.ders || 'Diğer') + '|' + (s.konu || 'Genel');
+                konuToplam[tk] = (konuToplam[tk] || 0) + 1;
+            });
+            const gecilenKonular = new Set();
+            Object.keys(konuBasari).forEach(tk => {
+                const b = konuBasari[tk];
+                const esikN = Math.min(3, konuToplam[tk] || 3);
+                if (b.toplam >= esikN && (b.dogru / b.toplam) >= 0.66) gecilenKonular.add(tk);
+            });
+            if (gecilenKonular.size) {
+                const skipIds = new Set((k.gecilenSorular || []).map(g => String(g.soruId)));
+                cozulmemisSorular = cozulmemisSorular.filter(s =>
+                    skipIds.has(String(s._id)) ||
+                    !gecilenKonular.has((s.ders || 'Diğer') + '|' + (s.konu || 'Genel'))
+                );
+            }
+        } catch (e) { /* gate hesaplanamadi -> tum sorular normal akista */ }
     }
 
     // Admin'de tanımlı ünite/konu sırasını çek (öğrencinin sınıfı için)
@@ -1153,7 +1198,9 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 //   4. çözüm  (gecisSayisi=3): puan / 125
                 //   n. çözüm  (gecisSayisi=n-1): puan / 5^(n-1)
                 if (ikinciKezMi && gecisSayisi >= 1) {
-                    kazanilanPuan = kazanilanPuan / Math.pow(5, gecisSayisi);
+                    // v4.8.8: 3. ve sonraki gecislerde (gecisSayisi>=3) puan 0;
+                    //   oncesinde 1/5 (gecisSayisi=1) ve 1/25 (gecisSayisi=2).
+                    kazanilanPuan = (gecisSayisi >= 3) ? 0 : (kazanilanPuan / Math.pow(5, gecisSayisi));
                 }
                 // 4 basamağa yuvarla (saklama optimizasyonu, görüntüde de
                 // 4 basamağa kadar olur)
