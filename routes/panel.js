@@ -574,6 +574,15 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
+    // v4.8.12: Gunluk hedef tamamlaninca (analiz bitmis, soru-coz akisinda) gunluk
+    //   soru cozumunu bitir; ogrenciye "yarin tekrar gel" karti gosterilir.
+    let gunlukHedefDolduMu = false;
+    if (gercekOgrenci && mod === 'soru' && analizTamamlandi
+        && gunlukHedefData && gunlukHedefData.toplamTamamlandi) {
+        sorular = [];
+        gunlukHedefDolduMu = true;
+    }
+
     // v4.6.8: Öğretmen için otomatik günlük davet kodu üretimi tamamen kaldırıldı.
     //         (Önceki "kopyalanmamış taze kod 2'nin altındaysa 2'ye tamamla + günlük
     //         tavan 2" mantığı çıkarıldı.) Öğretmenler artık otomatik link almaz;
@@ -1096,6 +1105,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         davetEdilenler,
         modIdx,
         gunlukHedefData,
+        gunlukHedefDolduMu,
         analizTamamlandi,
         analizEksikSayisi,
         toplamSoru: cozulmemisSorular.length,

@@ -10,6 +10,7 @@
 
 const CevapKaydi = require('../models/CevapKaydi');
 const Unite = require('../models/Unite');
+const Kullanici = require('../models/Kullanici');
 const { bugunBaslangic } = require('./aktivite');
 
 // LGS dersleri sabiti — services/lgsOrtalama.js ile aynı isim sırası
@@ -72,6 +73,19 @@ async function gunlukHedefHesap(kullaniciAdi) {
     const bugun = bugunBaslangic();
     const aralikBas = aralikBaslangic(ARALIK_GUN);
 
+    // v4.8.12: Ortalama boleni — uye olunan tarihten itibaren. Yeni uyeler 30'a
+    //   bolunup haksiz dusuk ortalama almasin diye bolen = min(30, uyelik gunu).
+    //   Uyelik tarihi _id'nin olusturulma zamanindan alinir (ayri alan yok).
+    let bolen = ARALIK_GUN;
+    try {
+        const ku = await Kullanici.findOne({ kullaniciAdi }, '_id').lean();
+        if (ku && ku._id && typeof ku._id.getTimestamp === 'function') {
+            const uyelik = ku._id.getTimestamp();
+            const gunFarki = Math.ceil((Date.now() - uyelik.getTime()) / (24 * 60 * 60 * 1000));
+            bolen = Math.min(ARALIK_GUN, Math.max(1, gunFarki));
+        }
+    } catch (e) { bolen = ARALIK_GUN; }
+
     // Tek aggregate ile hem son 30 gün hem bugün hesabı için ham veri çek
     // — sonra JS'de filtreyle ayırırız (1 sorgu, 2 amaç)
     const kayitlar = await CevapKaydi.find(
@@ -124,7 +138,7 @@ async function gunlukHedefHesap(kullaniciAdi) {
     const dersler = aktifDersler.map(ders => {
         const son30Sayisi = sayim[ders].son30;
         const bugunCozulen = sayim[ders].bugun;
-        const ortalama = son30Sayisi / ARALIK_GUN;
+        const ortalama = son30Sayisi / bolen;
         // v4.8.11: Hedef 30 günlük ortalamayı GEÇMELI — floor(ortalama)+1 (min 2).
         //   örn ortalama 0 → 2; 1.0 → 2; 2.0 → 3; 2.1 → 3; 2.9 → 3; 3.0 → 4
         const hedef = Math.max(MIN_DERS_HEDEF, Math.floor(ortalama) + 1);
@@ -147,7 +161,7 @@ async function gunlukHedefHesap(kullaniciAdi) {
     const toplamHedef = dersler.reduce((t, d) => t + d.hedef, 0);
     const toplamBugun = dersler.reduce((t, d) => t + d.bugunCozulen, 0);
     const toplamTamamlandi = dersler.every(d => d.tamamlandi);
-    const genelOrtalama = Math.round((toplamSon30 / ARALIK_GUN) * 10) / 10;
+    const genelOrtalama = Math.round((toplamSon30 / bolen) * 10) / 10;
 
     return {
         dersler,
