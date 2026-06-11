@@ -4,7 +4,7 @@
 // Tasarım kararları (kullanıcı isteği):
 //   - Aralık: Son 30 gün
 //   - Her ders min hedef: 2 soru → toplam 12
-//   - Ders hedef formülü: max(2, ceil(son 30 gün ortalama))
+//   - Ders hedef formülü: max(2, floor(son 30 gün ortalama) + 1)  // ortalamayı GEÇER (v4.8.11)
 //   - 6 ders sabit: Mat, Türkçe, Fen, İnkılap, Din, İngilizce
 //   - "Bugün" başlangıcı: Europe/Istanbul 00:00 (services/aktivite.js'tekiyle aynı)
 
@@ -125,9 +125,9 @@ async function gunlukHedefHesap(kullaniciAdi) {
         const son30Sayisi = sayim[ders].son30;
         const bugunCozulen = sayim[ders].bugun;
         const ortalama = son30Sayisi / ARALIK_GUN;
-        // Hedef: max(2, ceil(ortalama)) — örn ortalama 0 → 2; ortalama 2.0 → 2;
-        // ortalama 2.0001 → 3
-        const hedef = Math.max(MIN_DERS_HEDEF, Math.ceil(ortalama));
+        // v4.8.11: Hedef 30 günlük ortalamayı GEÇMELI — floor(ortalama)+1 (min 2).
+        //   örn ortalama 0 → 2; 1.0 → 2; 2.0 → 3; 2.1 → 3; 2.9 → 3; 3.0 → 4
+        const hedef = Math.max(MIN_DERS_HEDEF, Math.floor(ortalama) + 1);
         const kalan = Math.max(0, hedef - bugunCozulen);
         const tamamlandi = bugunCozulen >= hedef;
         const ilerleme = hedef > 0 ? Math.min(100, Math.round((bugunCozulen / hedef) * 100)) : 0;
