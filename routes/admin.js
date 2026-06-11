@@ -541,6 +541,46 @@ router.post('/admin/konu-izinleri-kaydet', async (req, res) => {
     }
 });
 
+// v4.8.13: Soru Dagilim raporu — (sinif,ders,unite,konu) basina soru sayisi.
+router.get('/admin/soru-dagilim-veri', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const grup = await Soru.aggregate([
+            { $group: {
+                _id: { sinif: '$sinif', ders: '$ders', unite: '$unite', konu: '$konu' },
+                toplam: { $sum: 1 },
+                yayinda: { $sum: { $cond: [{ $eq: ['$durum', 'yayinda'] }, 1, 0] } }
+            } }
+        ]);
+        const sayiMap = {};
+        let toplamDB = 0, yayindaDB = 0;
+        grup.forEach(g => {
+            const id = g._id || {};
+            const key = (id.sinif||'')+'|'+(id.ders||'')+'|'+(id.unite||'')+'|'+(id.konu||'');
+            sayiMap[key] = { toplam: g.toplam, yayinda: g.yayinda };
+            toplamDB += g.toplam; yayindaDB += g.yayinda;
+        });
+        const uniteler = await Unite.find().sort({ sinif: 1, ders: 1, uniteNo: 1 }).lean();
+        const satirlar = [];
+        let raporToplam = 0;
+        uniteler.forEach(u => {
+            (u.konular || []).forEach(kn => {
+                const key = (String(u.sinif||''))+'|'+(u.ders||'')+'|'+(u.uniteAdi||'')+'|'+kn;
+                const s = sayiMap[key] || { toplam: 0, yayinda: 0 };
+                raporToplam += s.toplam;
+                satirlar.push({
+                    sinif: String(u.sinif||''), ders: u.ders||'', unite: u.uniteAdi||'',
+                    uniteNo: u.uniteNo||0, konu: kn, toplam: s.toplam, yayinda: s.yayinda
+                });
+            });
+        });
+        res.json({ ok: true, satirlar, toplamDB, yayindaDB, eslesmeyen: Math.max(0, toplamDB - raporToplam) });
+    } catch (e) {
+        console.error('[soru-dagilim-veri] HATA:', e.message);
+        res.status(500).json({ ok: false, hata: e.message });
+    }
+});
+
 router.get('/api/unite-bilgi', async (req, res) => {
     try {
         const { sinif } = req.query;

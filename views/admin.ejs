@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <%
     // v4.2.2: Admin nav iki seviyeli gruplandırma.
     // Her grup, içindeki mod'lara göre aktiflik durumu hesaplar.
-    var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler', 'konuIzinleri'];
+    var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler', 'konuIzinleri', 'soruDagilim'];
     var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
     var iletisimModlari    = ['haberler', 'mesajlar'];
     var sistemModlari      = ['sifirla'];
@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="/admin/gorselli-pdf-yukle" class="admin-alt-link">🖼️ Görselli PDF Yükle</a>
     <a href="/admin?mod=uniteler" class="admin-alt-link <%= mod==='uniteler'?'active':'' %>">📚 Üniteler</a>
     <a href="/admin?mod=konuIzinleri" class="admin-alt-link <%= mod==='konuIzinleri'?'active':'' %>">🔓 Konu İzinleri</a>
+    <a href="/admin?mod=soruDagilim" class="admin-alt-link <%= mod==='soruDagilim'?'active':'' %>">📊 Soru Dağılımı</a>
   <% } else if (aktifGrup === 'kullanicilar') { %>
     <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
     <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
@@ -1735,6 +1736,78 @@ function gosterExcelHata(msg) {
       .then(function(r){ return r.json(); })
       .then(function(res){ if(res&&res.ok){ d.style.color='#1a7f37'; d.textContent='✓ Kaydedildi ('+res.kapaliSayisi+' konu kapalı).'; } else { d.style.color='#c62828'; d.textContent='Hata: '+((res&&res.hata)||'bilinmiyor'); } })
       .catch(function(e){ d.style.color='#c62828'; d.textContent='Hata: '+e.message; });
+  };
+  yukle();
+})();
+</script>
+
+<% } else if (mod === 'soruDagilim') { %>
+<div class="admin-card">
+  <div class="admin-card-title">📊 Soru Dağılımı</div>
+  <p style="font-size:13px; color:#666; line-height:1.5; margin:0 0 14px;">
+    Her sınıf / ders / ünite / konu için kaç soru olduğunu gösterir (0 olanlar dahil).
+    Liste "Üniteler" menündeki yapıdan üretilir. Üstteki menülerden filtreleyebilirsin.
+  </p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+    <select id="sdSinif" onchange="sdSinifDegisti()" style="padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px;"><option value="">Tüm sınıflar</option></select>
+    <select id="sdDers" onchange="sdDersDegisti()" style="padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px;"><option value="">Tüm dersler</option></select>
+    <select id="sdUnite" onchange="sdUniteDegisti()" style="padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px;"><option value="">Tüm üniteler</option></select>
+    <select id="sdKonu" onchange="sdCiz()" style="padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:13px;"><option value="">Tüm konular</option></select>
+    <button type="button" class="btn" onclick="sdSifirla()">Temizle</button>
+    <span id="sdOzet" style="margin-left:auto; font-size:12px; color:#888;"></span>
+  </div>
+  <div id="sdTablo" style="max-height:60vh; overflow:auto;">Yükleniyor…</div>
+</div>
+<script>
+(function(){
+  var VERI=[];
+  function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function uniq(arr){ var s={},o=[]; arr.forEach(function(x){ if(x!==undefined&&x!==null&&x!==''&&!s[x]){s[x]=1;o.push(x);} }); return o; }
+  function val(id){ return document.getElementById(id).value; }
+  function opt(sel, list, hepsi){ var cur=sel.value; sel.innerHTML='<option value="">'+hepsi+'</option>'+list.map(function(x){return '<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join(''); sel.value=(list.indexOf(cur)>=0)?cur:''; }
+  function yukle(){
+    fetch('/admin/soru-dagilim-veri',{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        VERI=(d&&d.ok&&d.satirlar)?d.satirlar:[];
+        window.__sdMeta={toplamDB:(d&&d.toplamDB)||0, yayindaDB:(d&&d.yayindaDB)||0, eslesmeyen:(d&&d.eslesmeyen)||0};
+        opt(document.getElementById('sdSinif'), uniq(VERI.map(function(r){return r.sinif;})).sort(function(a,b){return Number(a)-Number(b);}), 'Tüm sınıflar');
+        sdSinifDegisti();
+      })
+      .catch(function(e){ document.getElementById('sdTablo').innerHTML='<span style="color:#c62828;">Yüklenemedi: '+esc(e.message)+'</span>'; });
+  }
+  window.sdSinifDegisti=function(){
+    var s=val('sdSinif');
+    opt(document.getElementById('sdDers'), uniq(VERI.filter(function(r){return !s||r.sinif===s;}).map(function(r){return r.ders;})).sort(), 'Tüm dersler');
+    sdDersDegisti();
+  };
+  window.sdDersDegisti=function(){
+    var s=val('sdSinif'), d=val('sdDers');
+    opt(document.getElementById('sdUnite'), uniq(VERI.filter(function(r){return (!s||r.sinif===s)&&(!d||r.ders===d);}).map(function(r){return r.unite;})).sort(), 'Tüm üniteler');
+    sdUniteDegisti();
+  };
+  window.sdUniteDegisti=function(){
+    var s=val('sdSinif'), d=val('sdDers'), u=val('sdUnite');
+    opt(document.getElementById('sdKonu'), uniq(VERI.filter(function(r){return (!s||r.sinif===s)&&(!d||r.ders===d)&&(!u||r.unite===u);}).map(function(r){return r.konu;})).sort(), 'Tüm konular');
+    sdCiz();
+  };
+  window.sdSifirla=function(){ ['sdSinif','sdDers','sdUnite','sdKonu'].forEach(function(id){document.getElementById(id).value='';}); sdSinifDegisti(); };
+  window.sdCiz=function(){
+    var s=val('sdSinif'),d=val('sdDers'),u=val('sdUnite'),k=val('sdKonu');
+    var rows=VERI.filter(function(r){return (!s||r.sinif===s)&&(!d||r.ders===d)&&(!u||r.unite===u)&&(!k||r.konu===k);});
+    var tT=0,tY=0; rows.forEach(function(r){tT+=r.toplam;tY+=r.yayinda;});
+    var meta=window.__sdMeta||{};
+    document.getElementById('sdOzet').textContent = rows.length+' konu · '+tT+' soru ('+tY+' yayında)';
+    var html='<table style="width:100%; border-collapse:collapse; font-size:13px;">';
+    html+='<thead><tr style="background:#f5f5f5; text-align:left;"><th style="padding:6px 8px;">Sınıf</th><th style="padding:6px 8px;">Ders</th><th style="padding:6px 8px;">Ünite</th><th style="padding:6px 8px;">Konu</th><th style="padding:6px 8px; text-align:right;">Toplam</th><th style="padding:6px 8px; text-align:right;">Yayında</th></tr></thead><tbody>';
+    if(!rows.length){ html+='<tr><td colspan="6" style="padding:12px; color:#888;">Kayıt yok.</td></tr>'; }
+    rows.forEach(function(r){
+      var renk = r.toplam===0 ? 'color:#c62828; font-weight:600;' : '';
+      html+='<tr style="border-bottom:1px solid #eee;"><td style="padding:6px 8px;">'+esc(r.sinif)+'</td><td style="padding:6px 8px;">'+esc(r.ders)+'</td><td style="padding:6px 8px;">'+(r.uniteNo?esc(r.uniteNo)+'. ':'')+esc(r.unite)+'</td><td style="padding:6px 8px;">'+esc(r.konu)+'</td><td style="padding:6px 8px; text-align:right; '+renk+'">'+r.toplam+'</td><td style="padding:6px 8px; text-align:right;">'+r.yayinda+'</td></tr>';
+    });
+    html+='</tbody><tfoot><tr style="background:#fafafa; font-weight:600; border-top:2px solid #ddd;"><td colspan="4" style="padding:6px 8px; text-align:right;">Toplam</td><td style="padding:6px 8px; text-align:right;">'+tT+'</td><td style="padding:6px 8px; text-align:right;">'+tY+'</td></tr></tfoot></table>';
+    if(meta.eslesmeyen){ html+='<p style="font-size:12px; color:#e65100; margin-top:10px;">⚠️ '+meta.eslesmeyen+' soru tanımlı bir ünite/konuya eşleşmiyor (raporda görünmez). Bu soruların sınıf/ders/ünite/konu adlarını Üniteler ile birebir aynı yap.</p>'; }
+    document.getElementById('sdTablo').innerHTML=html;
   };
   yukle();
 })();
