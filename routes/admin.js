@@ -5,6 +5,7 @@ const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
 const KonuIzin = require('../models/KonuIzin');
+const { bosSoruNo } = require('../services/soruNo');
 const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Haber = require('../models/Haber');
@@ -202,9 +203,8 @@ router.post('/soru-ekle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     var hata = soruDogrula(req.body);
     if (hata) return res.send("<script>alert('" + hata + "'); window.history.back();</script>");
-    // soruNo: max + 1
-    const maxSoru = await Soru.findOne().sort({ soruNo: -1 }).select('soruNo').lean();
-    const yeniNo = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+    // v4.8.14: soruNo — en kucuk bos numarayi doldur (silinen numara tekrar kullanilir)
+    const [yeniNo] = await bosSoruNo(1);
     await new Soru({ soruNo: yeniNo, sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
     res.redirect('/admin?mod=soruListesi');
 });
@@ -218,8 +218,8 @@ router.post('/soru-guncelle', async (req, res) => {
     // Numarasız soruya numara ata (özellikle PDF'den gelen taslakta soruNo yoksa)
     const mevcut = await Soru.findById(req.body.id).select('soruNo').lean();
     if (!mevcut || !mevcut.soruNo) {
-        const maxSoru = await Soru.findOne({ soruNo: { $exists: true, $ne: null } }).sort({ soruNo: -1 }).select('soruNo').lean();
-        ekGuncelleme.soruNo = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
+        const [bosNo] = await bosSoruNo(1);
+        ekGuncelleme.soruNo = bosNo;
     }
     await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap), ...ekGuncelleme });
     res.redirect('/admin?mod=soruListesi');

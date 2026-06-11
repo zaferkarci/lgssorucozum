@@ -5,6 +5,7 @@ const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
 const Soru    = require('../models/Soru');
+const { bosSoruNo } = require('../services/soruNo');
 
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -375,10 +376,9 @@ router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req,
                              })),
             dogruCevapIndex: parseInt(s.dogruCevapIndex) >= 0 ? parseInt(s.dogruCevapIndex) : 0
         }));
-        // soruNo ata: max + 1, max + 2, ...
-        const maxSoru = await Soru.findOne().sort({ soruNo: -1 }).select('soruNo').lean();
-        let baslangic = (maxSoru && maxSoru.soruNo) ? maxSoru.soruNo + 1 : 1;
-        kayitlar.forEach((k, i) => { k.soruNo = baslangic + i; });
+        // v4.8.14: soruNo — en kucuk bos numaralari doldur (silinen numaralar tekrar kullanilir)
+        const bosNolar = await bosSoruNo(kayitlar.length);
+        kayitlar.forEach((k, i) => { k.soruNo = bosNolar[i]; });
         await Soru.insertMany(kayitlar);
         res.json({ ok: true, kaydedilen: kayitlar.length });
     } catch (err) {
