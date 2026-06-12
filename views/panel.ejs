@@ -353,6 +353,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <script>
       (function() {
+        // v4.8.18: Analiz sürerken günlük hedef kutlamaları (toast + modal)
+        //   gösterilmez — analiz tek oturuşta kesintisiz tamamlanmalı.
+        //   (Sert durdurma zaten analizTamamlandi şartlı; v4.8.12.)
+        var analizSerbest = <%= (typeof analizTamamlandi === 'undefined' || analizTamamlandi) ? 'true' : 'false' %>;
+        if (!analizSerbest) return;
+
         // v4.5.0: Hedef tamamlandı uyarıları
         // localStorage ile aynı oturumda tekrar göstermeyiz
         var bugunKey = 'hedef_gosterildi_' + new Date().toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
