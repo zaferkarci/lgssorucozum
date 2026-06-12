@@ -462,6 +462,33 @@ router.post('/unite-kaydet', async (req, res) => {
     }
 });
 
+// v4.8.17: Manuel unite ekleme — Excel akisina dokunmadan tek unite kaydeder.
+// Konular tek metin alaninda satir satir veya virgulle ayrilmis gelir
+// (unite-guncelle ile ayni bicim).
+router.post('/unite-ekle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { sinif, ders, uniteNo, uniteAdi, konularMetin } = req.body;
+        if (!uniteAdi || !String(uniteAdi).trim())
+            return res.send("<script>alert('Ünite adı zorunlu.'); window.history.back();</script>");
+        const konular = (konularMetin || '')
+            .split(/[\n,]+/)
+            .map(x => x.trim())
+            .filter(Boolean);
+        await new Unite({
+            sinif:    (sinif || '').trim(),
+            ders:     (ders || '').trim() || 'Belirtilmedi',
+            uniteNo:  parseInt(uniteNo) || 0,
+            uniteAdi: String(uniteAdi).trim(),
+            konular:  konular
+        }).save();
+        res.redirect('/admin?mod=uniteler');
+    } catch (err) {
+        console.error('[Ünite Ekle Hatası]', err.message);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 router.post('/unite-sil', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {

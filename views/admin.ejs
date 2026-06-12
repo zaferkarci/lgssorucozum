@@ -1459,6 +1459,24 @@ function escHtml(str) {
   <div id="excelHata" style="display:none; padding:10px; background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; color:#c62828; margin-top:10px;"></div>
 </div>
 
+<!-- v4.8.17: Manuel Ünite Ekle -->
+<div class="card" style="margin-top:16px;">
+  <h3>➕ Manuel Ünite Ekle</h3>
+  <p style="color:#666; font-size:13px; margin-bottom:12px;">Excel'e gerek kalmadan tek ünite ekle. Konuları her satıra bir tane (veya virgülle ayırarak) yaz.</p>
+  <form method="POST" action="/unite-ekle">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+      <label style="font-size:13px;">Sınıf<br><input type="number" name="sinif" min="1" max="12" placeholder="7" style="width:80px; padding:7px 9px; border:1px solid #ccc; border-radius:6px;"></label>
+      <label style="font-size:13px;">Ders<br><input type="text" name="ders" placeholder="Matematik" required style="width:170px; padding:7px 9px; border:1px solid #ccc; border-radius:6px;"></label>
+      <label style="font-size:13px;">Ünite No<br><input type="number" name="uniteNo" min="0" placeholder="1" style="width:90px; padding:7px 9px; border:1px solid #ccc; border-radius:6px;"></label>
+      <label style="font-size:13px; flex:1; min-width:220px;">Ünite Adı<br><input type="text" name="uniteAdi" placeholder="Tam Sayılar" required style="width:100%; padding:7px 9px; border:1px solid #ccc; border-radius:6px; box-sizing:border-box;"></label>
+    </div>
+    <label style="font-size:13px; display:block; margin-bottom:10px;">Konular (her satıra bir konu veya virgülle)<br>
+      <textarea name="konularMetin" rows="4" placeholder="Tam Sayılarla İşlemler&#10;Mutlak Değer" style="width:100%; padding:8px 10px; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; font-family:inherit;"></textarea>
+    </label>
+    <button type="submit" class="btn btn-success">💾 Üniteyi Kaydet</button>
+  </form>
+</div>
+
 <!-- Önizleme -->
 <div id="excelOnizleme" style="display:none;">
   <div class="card" style="background:#e8f5e9; border-color:#a5d6a7;">
