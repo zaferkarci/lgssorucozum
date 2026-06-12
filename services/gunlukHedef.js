@@ -91,7 +91,11 @@ async function gunlukHedefHesap(kullaniciAdi) {
     const kayitlar = await CevapKaydi.find(
         {
             kullaniciAdi,
-            tarih: { $gte: aralikBas }
+            tarih: { $gte: aralikBas },
+            // v4.8.19: zorunlu analiz sirasinda verilen cevaplar hedefe sayilmaz
+            //   (ne bugunku sayaca ne ortalamaya). Eski kayitlarda alan yok ->
+            //   $ne:true ile normal sayilirlar.
+            analiz: { $ne: true }
             // Not: ikinciKezMi olan kayıtlar BURADA da hesaba dahil edilir —
             // öğrenci "çözüm yaptı", görev açısından önemli. Sorunun
             // istatistiklerini bozmaz ama günlük hedefe sayılır.

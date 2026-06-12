@@ -6,6 +6,7 @@ const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
 const KonuIzin = require('../models/KonuIzin');
+const { analizModundaMi } = require('../services/analizDurumu');
 const Kurum = require('../models/Kurum');
 const KurumUyelikIstek = require('../models/KurumUyelikIstek');
 const KurumSinif = require('../models/KurumSinif');
@@ -574,13 +575,30 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.8.12: Gunluk hedef tamamlaninca (analiz bitmis, soru-coz akisinda) gunluk
-    //   soru cozumunu bitir; ogrenciye "yarin tekrar gel" karti gosterilir.
+    // v4.8.19: Analiz surerken hedef karti TAMAMEN gizli — analiz cevaplari
+    //   hedefe sayilmadigi icin sayac donuk gorunurdu; analiz bitince ortaya cikar.
+    //   (Kart, mini gostergeler ve kutlama scripti ayni gunlukHedefData kosulunda.)
+    if (gercekOgrenci && !analizTamamlandi) gunlukHedefData = null;
+
+    // v4.8.12 -> v4.8.19: Gunluk hedef dolunca once "+1 soru" teklifi (tek seferlik),
+    //   sonra "bugunluk bu kadar" karti. Analiz cevaplari hedefe sayilmadigindan
+    //   analizin bittigi gun ogrenci temiz 0/N hedefle serbest pratige gecebilir.
+    //   - (analiz disi) bugun cozulen >= hedef+1 veya ?bitir=1 -> kart (durdur)
+    //   - tam hedefte: ?ekstra=1 ile +1 soruya izin; degilse teklif ekrani
     let gunlukHedefDolduMu = false;
+    let gunlukHedefEkstraSoru = false;
     if (gercekOgrenci && mod === 'soru' && analizTamamlandi
         && gunlukHedefData && gunlukHedefData.toplamTamamlandi) {
-        sorular = [];
-        gunlukHedefDolduMu = true;
+        const fazla = (gunlukHedefData.toplamBugun || 0) - (gunlukHedefData.toplamHedef || 0);
+        if (fazla >= 1 || req.query.bitir === '1') {
+            sorular = [];
+            gunlukHedefDolduMu = true;
+        } else if (req.query.ekstra === '1') {
+            // +1 soru hakki kullaniliyor — havuza dokunma
+        } else {
+            sorular = [];
+            gunlukHedefEkstraSoru = true;
+        }
     }
 
     // v4.6.8: Öğretmen için otomatik günlük davet kodu üretimi tamamen kaldırıldı.
@@ -1106,6 +1124,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         modIdx,
         gunlukHedefData,
         gunlukHedefDolduMu,
+        gunlukHedefEkstraSoru,
         analizTamamlandi,
         analizEksikSayisi,
         toplamSoru: cozulmemisSorular.length,
@@ -1271,13 +1290,18 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
 
             // Cevap kaydını tut (günlük istatistik için)
             // v4.4.0: ikinciKezMi flag'i — cron istatistik dışında tutar
+            // v4.8.19: analiz etiketi — cevap zorunlu analiz sirasinda verildiyse
+            //   gunluk hedef hesabi onu saymaz (puan/istatistik normal isler).
+            let analizCevabiMi = false;
+            try { analizCevabiMi = await analizModundaMi(k); } catch (e) { analizCevabiMi = false; }
             await new CevapKaydi({
                 soruId: soruId,
                 kullaniciAdi: kullaniciAdi,
                 dogruMu: dogruMu,
                 sure: T_ogr,
                 kazanilanPuan: kazanilanPuan,
-                ikinciKezMi: ikinciKezMi
+                ikinciKezMi: ikinciKezMi,
+                analiz: analizCevabiMi
             }).save();
 
             // v4.4.0: Soru çözüldüyse gecilenSorular listesinden sil
