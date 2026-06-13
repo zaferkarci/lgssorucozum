@@ -242,6 +242,79 @@ router.post('/soru-istatistik-sifirla', async (req, res) => {
 });
 
 // ── Kullanıcı ────────────────────────────────────────────────────────────────
+// v4.9.1: Analiz etiketi onarimi. v4.8.19 ONCESI cevap vermis kullanicilarin
+//   analiz sorulari etiketsiz oldugundan gunluk hedefe yansiyordu. Bu arac,
+//   kullanicinin TUM cevaplarini kronolojik replay edip analiz donemindekileri
+//   (canli etiketleme ile ayni mantik) geriye donuk 'analiz:true' yapar.
+//   Kuru calisma: /admin/analiz-etiket-onar?kullanici=ADI
+//   Uygula:       /admin/analiz-etiket-onar?kullanici=ADI&uygula=1
+router.get('/admin/analiz-etiket-onar', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    const kullaniciAdi = (req.query.kullanici || '').trim();
+    const uygula = req.query.uygula === '1';
+    if (!kullaniciAdi) return res.status(400).send('kullanici parametresi gerekli. Ornek: /admin/analiz-etiket-onar?kullanici=zaynephafsa');
+    try {
+        const k = await Kullanici.findOne({ kullaniciAdi }).lean();
+        if (!k) return res.status(404).send('Kullanici bulunamadi: ' + kullaniciAdi);
+
+        const yayindaSorular = await Soru.find({ durum: 'yayinda', sinif: String(k.sinif) }, 'ders unite konu').lean();
+        let kapaliSet = new Set();
+        try {
+            const kapali = await KonuIzin.find({ sinif: String(k.sinif), acik: false }, 'ders unite konu').lean();
+            kapaliSet = new Set(kapali.map(x => (x.ders||'')+'|'+(x.unite||'')+'|'+(x.konu||'')));
+        } catch (e) {}
+        const konuToplam = {};
+        yayindaSorular.forEach(s => {
+            const tk = (s.ders||'')+'|'+(s.unite||'')+'|'+(s.konu||'');
+            if (kapaliSet.has(tk)) return;
+            konuToplam[tk] = (konuToplam[tk] || 0) + 1;
+        });
+
+        const cevaplar = await CevapKaydi.find({ kullaniciAdi }).sort({ tarih: 1, _id: 1 }).lean();
+        const soruIdSet = [...new Set(cevaplar.map(c => String(c.soruId)))];
+        const soruDocs = soruIdSet.length ? await Soru.find({ _id: { $in: soruIdSet } }, 'ders unite konu').lean() : [];
+        const idTopic = {};
+        soruDocs.forEach(s => { idTopic[String(s._id)] = (s.ders||'')+'|'+(s.unite||'')+'|'+(s.konu||''); });
+
+        function analizEksikMi(konuCevap) {
+            for (const tk of Object.keys(konuToplam)) {
+                if ((konuCevap[tk] || 0) < Math.min(2, konuToplam[tk])) return true;
+            }
+            return false;
+        }
+
+        const konuCevap = {};
+        const seen = new Set();
+        const analizIds = [];
+        for (const c of cevaplar) {
+            if (analizEksikMi(konuCevap)) analizIds.push(c._id);
+            const sid = String(c.soruId);
+            if (!seen.has(sid)) {
+                seen.add(sid);
+                const tk = idTopic[sid];
+                if (tk && konuToplam[tk] !== undefined) konuCevap[tk] = (konuCevap[tk] || 0) + 1;
+            }
+        }
+
+        const zatenEtiketli = cevaplar.filter(c => c.analiz === true).length;
+        let rapor = 'Kullanici: ' + kullaniciAdi + ' (sinif ' + k.sinif + ')\n'
+            + 'Toplam cevap: ' + cevaplar.length + '\n'
+            + 'Acik konu sayisi: ' + Object.keys(konuToplam).length + '\n'
+            + 'Analiz olarak isaretlenecek cevap: ' + analizIds.length + '\n'
+            + 'Hali hazirda analiz=true: ' + zatenEtiketli + '\n';
+        if (uygula) {
+            if (analizIds.length) await CevapKaydi.updateMany({ _id: { $in: analizIds } }, { $set: { analiz: true } });
+            rapor += '\nUYGULANDI: ' + analizIds.length + ' cevap analiz=true yapildi. Hedef yeniden hesaplanacaktir.';
+        } else {
+            rapor += '\nKURU CALISMA (degisiklik yok). Uygulamak icin URL sonuna &uygula=1 ekle.';
+        }
+        res.type('text/plain; charset=utf-8').send(rapor);
+    } catch (e) {
+        console.error('[analiz-etiket-onar]', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
 router.post('/kullanici-sil', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
