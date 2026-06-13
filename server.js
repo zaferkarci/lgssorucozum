@@ -699,6 +699,7 @@ app.use('/', require('./routes/admin'));
 app.use('/', require('./routes/pdfyukle'));
 app.use('/', require('./routes/gorselliPdfYukle'));
 app.use('/', require('./routes/takip'));
+app.use('/', require('./routes/oyun')); // v4.9.0: Bilgi Gezegenleri (admin onizleme)
 
 // Health check — loading.html bu endpoint'i izler
 app.get('/health', (req, res) => res.json({ durum: 'hazir' }));
