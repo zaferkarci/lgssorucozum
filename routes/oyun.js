@@ -79,7 +79,12 @@ router.get('/oyun', (req, res) => {
 // ---- harita sayfasi olusturucu ----
 function haritaHtml(opt) {
     const { sinif, rumuz, renk, bakiye, fiyat, boyut, hucreMap, oyuncuMap, benimSet, hucreSayisi, gezegenSahipli } = opt;
-    // alinabilir: bos + 4-komsusu benim olan (benim hucrem yoksa baslangic butonu gosterilir)
+
+    function hexRgba(hex, a) {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || '#777777'));
+        if (!m) return 'rgba(120,120,120,' + a + ')';
+        return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')';
+    }
     function alinabilirMi(x, y) {
         if (hucreMap[x + ',' + y]) return false;
         for (const [dx, dy] of KOMSU) {
@@ -88,6 +93,15 @@ function haritaHtml(opt) {
         }
         return false;
     }
+
+    const sahipSet = {};
+    const sahipHucreler = {};
+    Object.keys(hucreMap).forEach(key => {
+        const h = hucreMap[key];
+        (sahipSet[h.sahip] = sahipSet[h.sahip] || new Set()).add(key);
+        (sahipHucreler[h.sahip] = sahipHucreler[h.sahip] || []).push([h.x, h.y]);
+    });
+
     let hucreHtml = '';
     for (let y = 0; y < boyut; y++) {
         for (let x = 0; x < boyut; x++) {
@@ -95,69 +109,110 @@ function haritaHtml(opt) {
             const h = hucreMap[key];
             if (h) {
                 const o = oyuncuMap[h.sahip] || { rumuz: h.sahip, renk: '#777' };
+                const col = o.renk || '#777';
+                const own = sahipSet[h.sahip];
+                const bt = own.has(x + ',' + (y - 1)) ? 'transparent' : col;
+                const bb = own.has(x + ',' + (y + 1)) ? 'transparent' : col;
+                const bl = own.has((x - 1) + ',' + y) ? 'transparent' : col;
+                const br = own.has((x + 1) + ',' + y) ? 'transparent' : col;
                 const benim = benimSet.has(key);
                 const ttl = esc(o.rumuz) + (benim ? ' (sen)' : '');
-                hucreHtml += `<div class="hc dolu${benim ? ' benim' : ''}" style="background:${esc(o.renk)};" title="${ttl}"></div>`;
+                hucreHtml += '<div class="hc dolu" title="' + ttl + '" style="background:' + hexRgba(col, 0.32)
+                    + ';border-top-color:' + bt + ';border-bottom-color:' + bb + ';border-left-color:' + bl + ';border-right-color:' + br + ';"></div>';
             } else if (alinabilirMi(x, y)) {
-                hucreHtml += `<div class="hc alinabilir" title="Satin al — ${fiyat} altin" onclick="al(${x},${y})"><span>+</span></div>`;
+                hucreHtml += '<div class="hc alinabilir" title="Satin al - ' + fiyat + ' altin" onclick="al(' + x + ',' + y + ')"><span>+</span></div>';
             } else {
-                hucreHtml += `<div class="hc bos"></div>`;
+                hucreHtml += '<div class="hc bos"></div>';
             }
         }
     }
-    const baslangicBtn = (hucreSayisi === 0)
-        ? `<form method="POST" action="/oyun/baslangic" style="display:inline;"><input type="hidden" name="sinif" value="${sinif}"><button class="btn btn-yesil" type="submit">🎲 Baslangic yurdunu al (ucretsiz)</button></form>`
-        : '';
-    return `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${sinif}. Sinif Gezegeni — Onizleme</title>
-<style>
-  body{margin:0;background:radial-gradient(circle at 30% 20%,#1a1f4a,#070a1c 70%);color:#e8eaf6;font-family:'Segoe UI',sans-serif;min-height:100vh;}
-  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px;}
-  .ust{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px;}
-  .rozet{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:8px 14px;font-size:14px;}
-  .altin{color:#ffd54f;font-weight:700;}
-  .grid{display:grid;grid-template-columns:repeat(${boyut},1fr);gap:3px;background:rgba(255,255,255,.04);padding:10px;border-radius:14px;max-width:${boyut * 46}px;margin:0 auto;}
-  .hc{aspect-ratio:1/1;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:16px;}
-  .hc.bos{background:rgba(255,255,255,.05);}
-  .hc.alinabilir{background:rgba(129,199,132,.18);border:1px dashed #81c784;color:#a5d6a7;cursor:pointer;transition:.15s;}
-  .hc.alinabilir:hover{background:rgba(129,199,132,.4);transform:scale(1.08);}
-  .hc.dolu{box-shadow:inset 0 0 0 1px rgba(0,0,0,.2);}
-  .hc.benim{box-shadow:inset 0 0 0 2px #fff,0 0 8px rgba(255,255,255,.4);}
-  .btn{border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;text-decoration:none;display:inline-block;margin:4px 4px 0 0;}
-  .btn-yesil{background:#43a047;} .btn-gri{background:#455a64;} .btn-kirmizi{background:#c62828;}
-  .araclar{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);}
-  .ipucu{color:#9fa8da;font-size:13px;line-height:1.6;margin:8px 0 0;}
-  a.link{color:#9fa8da;font-size:13px;text-decoration:none;}
-</style></head>
-<body><div class="wrap">
-  <div style="font-size:12px;color:#9fa8da;">YONETICI ONIZLEMESI · <a class="link" href="/oyun">gezegen degistir</a> · <a class="link" href="/admin">admin</a></div>
-  <h1 style="margin:6px 0 2px;font-size:24px;">🪐 ${sinif}. Sinif Gezegeni</h1>
-  <div class="ust">
-    <div class="rozet">Rumuz: <b style="color:${esc(renk)};">${esc(rumuz)}</b></div>
-    <div class="rozet">Altin: <span class="altin">${bakiye}</span></div>
-    <div class="rozet">Topragin: <b>${hucreSayisi}</b> hucre · Sonraki: <span class="altin">${fiyat}</span></div>
-    <div class="rozet">Gezegen: ${boyut}×${boyut} · Sahipli: ${gezegenSahipli}</div>
-  </div>
-  ${baslangicBtn ? '<div style="margin-bottom:12px;">' + baslangicBtn + '</div>' : ''}
-  <div class="grid">${hucreHtml}</div>
-  <p class="ipucu">Yesil kesikli hucreler satin alinabilir (kendi topragina komsu bos hucreler). Her yeni hucre bir oncekinden pahali: fiyat = 10 × mevcut hucre sayisi. Sahipli oran %50'yi asinca gezegen otomatik bir halka buyur.</p>
-  <div class="araclar">
-    <div style="font-size:12px;color:#9fa8da;margin-bottom:6px;">ONIZLEME ARACLARI (yalniz admin)</div>
-    <form method="POST" action="/oyun/test-komsu" style="display:inline;"><input type="hidden" name="sinif" value="${sinif}"><button class="btn btn-gri" type="submit">👥 Test komsu ekle</button></form>
-    <form method="POST" action="/oyun/sifirla" style="display:inline;" onsubmit="return confirm('Bu gezegendeki tum onizleme verisi silinsin mi?');"><input type="hidden" name="sinif" value="${sinif}"><button class="btn btn-kirmizi" type="submit">🗑️ Gezegeni sifirla</button></form>
-    <p class="ipucu">"Test komsu" topragina bitisik baska renkte bir oyuncu yerlestirir (duello gorsellerini denemek icin). "Sifirla" bu gezegenin tum onizleme hucrelerini ve oyuncularini siler.</p>
-  </div>
-</div>
-<script>
-  function al(x,y){
-    fetch('/oyun/hucre-al',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'sinif=${sinif}&x='+x+'&y='+y})
-      .then(function(r){return r.json();})
-      .then(function(d){ if(d&&d.ok){ location.reload(); } else { alert((d&&d.hata)||'Satin alinamadi.'); } })
-      .catch(function(){ alert('Baglanti hatasi.'); });
-  }
-</script>
-</body></html>`;
-}
 
+    let etiketHtml = '';
+    Object.keys(sahipHucreler).forEach(sahip => {
+        const cells = sahipHucreler[sahip];
+        const o = oyuncuMap[sahip] || { rumuz: sahip, renk: '#777' };
+        const benimMi = cells.some(c => benimSet.has(c[0] + ',' + c[1]));
+        let sx = 0, sy = 0;
+        cells.forEach(c => { sx += c[0]; sy += c[1]; });
+        const cx = sx / cells.length, cy = sy / cells.length;
+        const left = ((cx + 0.5) / boyut * 100).toFixed(2);
+        const top = ((cy + 0.5) / boyut * 100).toFixed(2);
+        etiketHtml += '<div class="etiket" style="left:' + left + '%;top:' + top + '%;border-color:' + esc(o.renk) + ';">'
+            + (benimMi ? '<span class="tac">&#128081;</span>' : '<span class="nokta" style="background:' + esc(o.renk) + ';"></span>')
+            + '<span class="etiket-ad">' + esc(o.rumuz) + '</span></div>';
+    });
+
+    let lejant = '';
+    Object.keys(sahipHucreler).forEach(sahip => {
+        const o = oyuncuMap[sahip] || { rumuz: sahip, renk: '#777' };
+        const benimMi = sahipHucreler[sahip].some(c => benimSet.has(c[0] + ',' + c[1]));
+        lejant += '<div class="lej"><span class="lej-renk" style="background:' + esc(o.renk) + ';"></span>'
+            + '<span>' + (benimMi ? '&#128081; ' : '') + esc(o.rumuz) + '</span>'
+            + '<span class="lej-say">' + sahipHucreler[sahip].length + '</span></div>';
+    });
+    lejant += '<div class="lej"><span class="lej-renk" style="background:rgba(255,255,255,.10);"></span><span>Bos Bolge</span></div>';
+
+    const baslangicBtn = (hucreSayisi === 0)
+        ? '<form method="POST" action="/oyun/baslangic" style="display:inline;"><input type="hidden" name="sinif" value="' + sinif + '"><button class="abtn abtn-vurgu" type="submit">&#127922; Baslangic yurdu</button></form>'
+        : '';
+
+    return '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + sinif + '. Sinif Gezegeni</title>'
++ '<style>'
++ '*{box-sizing:border-box;}'
++ 'body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#3a2350,#0a0a1f 55%),#070a1c;color:#e8eaf6;font-family:"Segoe UI",system-ui,sans-serif;min-height:100vh;}'
++ '.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(10,12,30,.6);}'
++ '.topbar h1{font-size:19px;margin:0;font-weight:600;}'
++ '.bc{font-size:12px;color:#9fa8da;text-decoration:none;}'
++ '.alt-rozet{margin-left:auto;background:linear-gradient(135deg,#ffd54f,#ff9800);color:#3a2400;font-weight:800;padding:7px 16px;border-radius:20px;font-size:15px;box-shadow:0 2px 10px rgba(255,170,0,.35);}'
++ '.layout{display:flex;gap:16px;align-items:flex-start;padding:18px 20px 90px;max-width:1280px;margin:0 auto;flex-wrap:wrap;}'
++ '.panel{background:rgba(20,24,52,.72);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:16px;min-width:210px;flex:0 0 230px;}'
++ '.panel h2{font-size:12px;letter-spacing:.12em;color:#9fa8da;margin:0 0 12px;font-weight:700;}'
++ '.sen-ad{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700;margin-bottom:12px;}'
++ '.sat{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid rgba(255,255,255,.07);font-size:14px;}'
++ '.sat b{color:#fff;} .altin{color:#ffd54f;font-weight:800;}'
++ '.mapwrap{flex:1 1 420px;min-width:300px;display:flex;flex-direction:column;align-items:center;}'
++ '.grid{position:relative;display:grid;grid-template-columns:repeat(' + boyut + ',1fr);gap:2px;background:rgba(255,255,255,.03);padding:10px;border-radius:16px;width:100%;max-width:' + (boyut * 48) + 'px;border:1px solid rgba(255,255,255,.07);}'
++ '.hc{aspect-ratio:1/1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;}'
++ '.hc.bos{background:rgba(255,255,255,.045);}'
++ '.hc.alinabilir{background:rgba(129,199,132,.16);border:1px dashed #81c784;color:#a5d6a7;cursor:pointer;transition:.15s;}'
++ '.hc.alinabilir:hover{background:rgba(129,199,132,.42);transform:scale(1.1);box-shadow:0 0 10px rgba(129,199,132,.5);}'
++ '.hc.dolu{border:3px solid transparent;border-radius:3px;}'
++ '.etiket{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:5px;background:rgba(10,12,30,.86);border:1.5px solid #777;border-radius:20px;padding:3px 10px 3px 7px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.5);}'
++ '.etiket .tac{font-size:13px;} .etiket .nokta{width:9px;height:9px;border-radius:50%;display:inline-block;} .etiket-ad{max-width:120px;overflow:hidden;text-overflow:ellipsis;}'
++ '.lej{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;}'
++ '.lej-renk{width:14px;height:14px;border-radius:4px;flex:0 0 auto;} .lej-say{margin-left:auto;color:#9fa8da;font-size:12px;}'
++ '.actionbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px;}'
++ '.abtn{border-radius:24px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;color:#e8eaf6;background:rgba(40,46,86,.9);border:1px solid rgba(255,255,255,.12);text-decoration:none;display:inline-block;}'
++ '.abtn:hover{background:rgba(60,68,120,.95);} .abtn-vurgu{background:linear-gradient(135deg,#43a047,#2e7d32);border:none;} .abtn-tehlike{background:linear-gradient(135deg,#c62828,#8e1c1c);border:none;}'
++ '.ipucu{color:#9fa8da;font-size:12px;line-height:1.6;margin:12px 0 0;text-align:center;max-width:' + (boyut * 48) + 'px;}'
++ '.gezegen-rozet{position:fixed;left:18px;bottom:16px;display:flex;align-items:center;gap:10px;background:rgba(10,12,30,.8);border:1px solid rgba(255,255,255,.12);border-radius:40px;padding:8px 16px 8px 8px;}'
++ '.gez-kup{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff8a65,#7b1fa2);box-shadow:0 0 14px rgba(186,104,200,.6);}'
++ '.gez-ad{font-size:12px;} .gez-ad b{display:block;font-size:14px;}'
++ '@media(max-width:820px){.panel{flex:1 1 100%;} .gezegen-rozet{display:none;}}'
++ '</style></head>'
++ '<body>'
++ '<div class="topbar"><a class="bc" href="/admin">&#8592; admin</a><a class="bc" href="/oyun">gezegen degistir</a><h1>&#129680; ' + sinif + '. Sinif Gezegeni</h1><div class="alt-rozet">&#129689; ' + bakiye + ' altin</div></div>'
++ '<div class="layout">'
++ '<aside class="panel"><h2>TOPRAK SAHIBI</h2><div class="sen-ad"><span>&#128081;</span><span style="color:' + esc(renk) + ';">' + esc(rumuz) + '</span></div>'
++ '<div class="sat"><span>Topraklarin</span><b>' + hucreSayisi + ' hucre</b></div>'
++ '<div class="sat"><span>Altin</span><b class="altin">' + bakiye + '</b></div>'
++ '<div class="sat"><span>Sonraki hucre</span><b class="altin">' + fiyat + '</b></div>'
++ '<div class="sat"><span>Gezegen</span><b>' + boyut + '&#215;' + boyut + '</b></div>'
++ '<div class="sat"><span>Toplam sahipli</span><b>' + gezegenSahipli + '</b></div>'
++ (baslangicBtn ? '<div style="margin-top:14px;">' + baslangicBtn + '</div>' : '')
++ '</aside>'
++ '<main class="mapwrap"><div class="grid">' + hucreHtml + etiketHtml + '</div>'
++ '<p class="ipucu">Yesil kesikli hucreler kendi topragina komsu bos hucrelerdir; tiklayip satin al. Fiyat = 10 &#215; mevcut hucre sayisi. Sahipli oran %50 gecince gezegen bir halka buyur.</p>'
++ '<div class="actionbar">'
++ '<form method="POST" action="/oyun/test-komsu" style="display:inline;"><input type="hidden" name="sinif" value="' + sinif + '"><button class="abtn" type="submit">&#128101; Test komsu</button></form>'
++ '<form method="POST" action="/oyun/sifirla" style="display:inline;" onsubmit="return confirm(\'Bu gezegendeki tum onizleme verisi silinsin mi?\');"><input type="hidden" name="sinif" value="' + sinif + '"><button class="abtn abtn-tehlike" type="submit">&#128465; Sifirla</button></form>'
++ '</div></main>'
++ '<aside class="panel"><h2>BOLGE SAHIPLERI</h2>' + lejant + '</aside>'
++ '</div>'
++ '<div class="gezegen-rozet"><div class="gez-kup"></div><div class="gez-ad">GEZEGEN<b>' + sinif + '. Sinif</b></div></div>'
++ '<script>function al(x,y){fetch("/oyun/hucre-al",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif=' + sinif + '&x="+x+"&y="+y}).then(function(r){return r.json();}).then(function(d){if(d&&d.ok){location.reload();}else{alert((d&&d.hata)||"Satin alinamadi.");}}).catch(function(){alert("Baglanti hatasi.");});}</script>'
++ '</body></html>';
+}
 // ---- GET /oyun/:sinif : harita ----
 router.get('/oyun/:sinif', async (req, res) => {
     if (!adminMi(req)) return kapali(res);
