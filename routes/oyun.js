@@ -29,6 +29,33 @@ const RENK = ['#e57373', '#64b5f6', '#81c784', '#ffb74d', '#ba68c8', '#4db6ac', 
 function rumuzUret(id) { const h = hashStr(id); return ADJ[h % ADJ.length] + ' ' + NOUN[(h >> 3) % NOUN.length] + '-' + (h % 90 + 10); }
 function renkUret(id) { return RENK[hashStr(id) % RENK.length]; }
 
+// v4.9.3: Aynalanmis (yatay simetri) stilize dunya haritasi zemini.
+//   Gercek kita SVG dosyasi degil; kendi stilize siluetim, gezegenimizin
+//   ayna simetrisi -> tanidik ama farkli kurgu gezegen. Mavi tema.
+function dunyaSvg() {
+    return '<svg viewBox="0 0 200 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<defs>'
+        + '<radialGradient id="oky" cx="48%" cy="38%" r="80%"><stop offset="0%" stop-color="#123f63"/><stop offset="60%" stop-color="#0b2c49"/><stop offset="100%" stop-color="#06182b"/></radialGradient>'
+        + '<linearGradient id="kara" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#46b87e"/><stop offset="100%" stop-color="#1c6b49"/></linearGradient>'
+        + '</defs>'
+        + '<rect width="200" height="200" fill="url(#oky)"/>'
+        + '<g stroke="rgba(255,255,255,.05)" stroke-width="0.5">'
+        + '<line x1="40" y1="0" x2="40" y2="200"/><line x1="80" y1="0" x2="80" y2="200"/><line x1="120" y1="0" x2="120" y2="200"/><line x1="160" y1="0" x2="160" y2="200"/>'
+        + '<line x1="0" y1="40" x2="200" y2="40"/><line x1="0" y1="80" x2="200" y2="80"/><line x1="0" y1="120" x2="200" y2="120"/><line x1="0" y1="160" x2="200" y2="160"/>'
+        + '</g>'
+        + '<g transform="scale(-1,1) translate(-200,0)" fill="url(#kara)" stroke="#8fe8bd" stroke-width="0.7" stroke-opacity="0.45" stroke-linejoin="round">'
+        + '<path d="M28,34 C42,22 66,24 72,42 C78,58 64,70 50,70 C36,70 20,60 22,44 C23,37 24,38 28,34 Z"/>'
+        + '<path d="M56,90 C70,86 78,98 74,118 C70,140 60,162 53,154 C47,147 52,128 54,116 C56,102 50,94 56,90 Z"/>'
+        + '<path d="M98,70 C116,66 128,82 123,106 C118,132 106,152 97,146 C89,140 92,118 94,104 C95,92 88,76 98,70 Z"/>'
+        + '<path d="M110,38 C140,24 182,30 186,50 C189,66 162,70 142,68 C153,80 172,82 165,91 C152,98 120,92 114,74 C110,62 98,50 110,38 Z"/>'
+        + '<path d="M150,130 C168,125 182,136 177,150 C172,162 154,162 147,153 C142,146 142,135 150,130 Z"/>'
+        + '<path d="M86,20 C96,16 104,20 102,28 C100,35 90,36 84,32 C80,28 80,23 86,20 Z"/>'
+        + '</g>'
+        + '<rect x="0" y="0" width="200" height="14" fill="rgba(255,255,255,.06)"/>'
+        + '<rect x="0" y="186" width="200" height="14" fill="rgba(255,255,255,.06)"/>'
+        + '</svg>';
+}
+
 // Gezegen 8x8 baslar; sahipli oran %50'yi asinca cepere halka eklenir (10,12,...).
 function planetBoyut(toplamSahipli) { let b = 8; while (toplamSahipli > 0.5 * b * b) b += 2; return b; }
 
@@ -159,7 +186,7 @@ function haritaHtml(opt) {
     return '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + sinif + '. Sinif Gezegeni</title>'
 + '<style>'
 + '*{box-sizing:border-box;}'
-+ 'body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#3a2350,#0a0a1f 55%),#070a1c;color:#e8eaf6;font-family:"Segoe UI",system-ui,sans-serif;min-height:100vh;}'
++ 'body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#15324f,#060d1c 55%),#05080f;color:#e8eaf6;font-family:"Segoe UI",system-ui,sans-serif;min-height:100vh;}'
 + '.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(10,12,30,.6);}'
 + '.topbar h1{font-size:19px;margin:0;font-weight:600;}'
 + '.bc{font-size:12px;color:#9fa8da;text-decoration:none;}'
@@ -171,8 +198,10 @@ function haritaHtml(opt) {
 + '.sat{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid rgba(255,255,255,.07);font-size:14px;}'
 + '.sat b{color:#fff;} .altin{color:#ffd54f;font-weight:800;}'
 + '.mapwrap{flex:1 1 420px;min-width:300px;display:flex;flex-direction:column;align-items:center;}'
-+ '.grid{position:relative;display:grid;grid-template-columns:repeat(' + boyut + ',1fr);gap:2px;background:rgba(255,255,255,.03);padding:10px;border-radius:16px;width:100%;max-width:' + (boyut * 48) + 'px;border:1px solid rgba(255,255,255,.07);}'
-+ '.hc{aspect-ratio:1/1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;}'
++ '.grid{position:relative;display:grid;grid-template-columns:repeat(' + boyut + ',1fr);gap:2px;background:transparent;padding:10px;border-radius:16px;width:100%;max-width:' + (boyut * 48) + 'px;border:1px solid rgba(255,255,255,.07);}'
++ '.worldbg{position:absolute;inset:10px;border-radius:12px;overflow:hidden;z-index:0;pointer-events:none;}'
++ '.worldbg svg{width:100%;height:100%;display:block;}'
++ '.hc{position:relative;z-index:1;aspect-ratio:1/1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;}'
 + '.hc.bos{background:rgba(255,255,255,.045);}'
 + '.hc.alinabilir{background:rgba(129,199,132,.16);border:1px dashed #81c784;color:#a5d6a7;cursor:pointer;transition:.15s;}'
 + '.hc.alinabilir:hover{background:rgba(129,199,132,.42);transform:scale(1.1);box-shadow:0 0 10px rgba(129,199,132,.5);}'
@@ -186,7 +215,7 @@ function haritaHtml(opt) {
 + '.abtn:hover{background:rgba(60,68,120,.95);} .abtn-vurgu{background:linear-gradient(135deg,#43a047,#2e7d32);border:none;} .abtn-tehlike{background:linear-gradient(135deg,#c62828,#8e1c1c);border:none;}'
 + '.ipucu{color:#9fa8da;font-size:12px;line-height:1.6;margin:12px 0 0;text-align:center;max-width:' + (boyut * 48) + 'px;}'
 + '.gezegen-rozet{position:fixed;left:18px;bottom:16px;display:flex;align-items:center;gap:10px;background:rgba(10,12,30,.8);border:1px solid rgba(255,255,255,.12);border-radius:40px;padding:8px 16px 8px 8px;}'
-+ '.gez-kup{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff8a65,#7b1fa2);box-shadow:0 0 14px rgba(186,104,200,.6);}'
++ '.gez-kup{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3fa971,#0d3a5e);box-shadow:0 0 14px rgba(63,169,113,.6);}'
 + '.gez-ad{font-size:12px;} .gez-ad b{display:block;font-size:14px;}'
 + '@media(max-width:820px){.panel{flex:1 1 100%;} .gezegen-rozet{display:none;}}'
 + '</style></head>'
@@ -201,7 +230,7 @@ function haritaHtml(opt) {
 + '<div class="sat"><span>Toplam sahipli</span><b>' + gezegenSahipli + '</b></div>'
 + (baslangicBtn ? '<div style="margin-top:14px;">' + baslangicBtn + '</div>' : '')
 + '</aside>'
-+ '<main class="mapwrap"><div class="grid">' + hucreHtml + etiketHtml + '</div>'
++ '<main class="mapwrap"><div class="grid"><div class="worldbg">' + dunyaSvg() + '</div>' + hucreHtml + etiketHtml + '</div>'
 + '<p class="ipucu">Yesil kesikli hucreler kendi topragina komsu bos hucrelerdir; tiklayip satin al. Fiyat = 10 &#215; mevcut hucre sayisi. Sahipli oran %50 gecince gezegen bir halka buyur.</p>'
 + '<div class="actionbar">'
 + '<form method="POST" action="/oyun/test-komsu" style="display:inline;"><input type="hidden" name="sinif" value="' + sinif + '"><button class="abtn" type="submit">&#128101; Test komsu</button></form>'
