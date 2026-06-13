@@ -20,6 +20,32 @@ const ADMIN_OYUNCU = '__admin_onizleme__';
 const ADMIN_TEST_ALTIN = 1000000;
 const KOMSU = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
+// v4.9.7: Turkiye Cumhuriyeti karasi alinamaz/baslanamaz. Yaklasik sinir poligonu
+//   (lon,lat); hucre merkezi poligon icindeyse o hucre BLOKE.
+const TR_POLY = [
+  [26.0,41.7],[28.0,42.0],[31.5,41.8],[35.0,42.0],[38.0,41.3],[41.0,41.5],
+  [41.5,41.0],[43.5,41.2],[44.0,39.8],[44.8,39.0],[44.2,37.8],[42.0,37.2],
+  [38.5,36.7],[36.5,36.2],[36.0,36.0],[35.5,36.6],[32.0,36.0],[30.0,36.3],
+  [28.5,36.6],[27.2,37.0],[26.3,38.3],[26.7,39.5],[26.2,40.5],[26.0,41.0]
+];
+function hucreLonLat(x, y) { return [ (x + 0.5) / DW * 360 - 180, 90 - (y + 0.5) / DH * 180 ]; }
+function noktaPoligonda(px, py, poly) {
+    let ic = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+        if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) ic = !ic;
+    }
+    return ic;
+}
+const BLOKE = new Set();
+(function () {
+    for (let y = 50; y <= 63; y++) for (let x = 225; x <= 253; x++) {
+        const ll = hucreLonLat(x, y);
+        if (noktaPoligonda(ll[0], ll[1], TR_POLY)) BLOKE.add(x + ',' + y);
+    }
+})();
+function blokeMi(x, y) { return BLOKE.has(x + ',' + y); }
+
 function adminMi(req) { return !!(req.session && req.session.adminGirisli === true); }
 function kapali(res) { return res.status(403).send('<div style="font-family:sans-serif;padding:40px;text-align:center;">Oyun yakinda. (Su an yalnizca yonetici onizlemesi.)</div>'); }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -85,7 +111,9 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
         oyuncular.forEach(o => { players[o.kullaniciAdi] = { rumuz: o.rumuz, renk: o.renk }; });
         const hucreSayisi = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
         const bakiye = await altinBakiye(ben);
-        res.json({ ok: true, vx, vy, owned, players, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: ADMIN_OYUNCU });
+        const bloke = [];
+        for (let yy = vy; yy < vy + VP; yy++) for (let xx = vx; xx < vx + VP; xx++) if (BLOKE.has(xx + ',' + yy)) bloke.push(xx + ',' + yy);
+        res.json({ ok: true, vx, vy, owned, players, bloke, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: ADMIN_OYUNCU });
     } catch (e) {
         console.error('[oyun veri]', e.message);
         res.status(500).json({ ok: false, hata: e.message });
@@ -141,6 +169,7 @@ router.post('/oyun/baslangic', async (req, res) => {
         // v4.9.6: elle secilen baslangic hucresi (gonderildiyse)
         const ex = parseInt(req.body.x), ey = parseInt(req.body.y);
         if (!Number.isNaN(ex) && !Number.isNaN(ey) && ex >= 0 && ey >= 0 && ex < DW && ey < DH) {
+            if (blokeMi(ex, ey)) return res.json({ ok: false, hata: 'Turkiye Cumhuriyeti topraklari secilemez.' });
             const var2 = await OyunHucre.findOne({ sinif, x: ex, y: ey }, '_id').lean();
             if (var2) return res.json({ ok: false, hata: 'Bu hucre dolu, baska sec.' });
             await new OyunHucre({ sinif, x: ex, y: ey, sahip: ADMIN_OYUNCU }).save();
@@ -157,7 +186,7 @@ router.post('/oyun/baslangic', async (req, res) => {
             for (let dy = -r; dy <= r && !sec; dy++) for (let dx = -r; dx <= r && !sec; dx++) {
                 if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
                 const x = clamp(mx + dx, 0, DW - 1), y = clamp(my + dy, 0, DH - 1);
-                if (!dolu.has(x + ',' + y)) sec = [x, y];
+                if (!dolu.has(x + ',' + y) && !BLOKE.has(x + ',' + y)) sec = [x, y];
             }
         }
         if (!sec) sec = [NAZILLI.x, NAZILLI.y];
@@ -175,6 +204,7 @@ router.post('/oyun/hucre-al', async (req, res) => {
     const sinif = String(req.body.sinif);
     const x = parseInt(req.body.x), y = parseInt(req.body.y);
     if (Number.isNaN(x) || Number.isNaN(y) || x < 0 || y < 0 || x >= DW || y >= DH) return res.json({ ok: false, hata: 'Gecersiz hucre.' });
+    if (blokeMi(x, y)) return res.json({ ok: false, hata: 'Turkiye Cumhuriyeti topraklari alinamaz.' });
     try {
         const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
         const say = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
@@ -212,7 +242,7 @@ router.post('/oyun/test-komsu', async (req, res) => {
         for (const h of benimler) {
             for (const [dx, dy] of KOMSU) {
                 const nx = h.x + dx, ny = h.y + dy;
-                if (nx >= 0 && ny >= 0 && nx < DW && ny < DH && !tumDolu.has(nx + ',' + ny)) { hedef = [nx, ny]; break; }
+                if (nx >= 0 && ny >= 0 && nx < DW && ny < DH && !tumDolu.has(nx + ',' + ny) && !BLOKE.has(nx + ',' + ny)) { hedef = [nx, ny]; break; }
             }
             if (hedef) break;
         }
@@ -264,6 +294,7 @@ function kabukHtml(opt) {
 + '.hc.alinabilir:after{content:"+";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#a5d6a7;font-size:15px;background:rgba(129,199,132,.18);border:1px dashed #81c784;border-radius:4px;}'
 + '.hc.alinabilir:hover:after{background:rgba(129,199,132,.4);}'
 + '.hc.dolu{border:3px solid transparent;border-radius:3px;}'
++ '.hc.bloke{background:repeating-linear-gradient(45deg,rgba(229,57,53,.30),rgba(229,57,53,.30) 4px,rgba(229,57,53,.15) 4px,rgba(229,57,53,.15) 8px);border:1px solid rgba(229,57,53,.55);border-radius:3px;}'
 + '.lbl{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;background:rgba(8,12,28,.88);border:1.5px solid #777;border-radius:14px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:5;}'
 + '.lbl .nk{width:8px;height:8px;border-radius:50%;display:inline-block;}'
 + '.dpad{display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:4px;margin-top:12px;}'
@@ -315,13 +346,13 @@ function scriptBlok(o) {
 + 'function updateRect(){var r=document.getElementById("vprect");var sx=200/DW,sy=100/DH;r.style.left=(vx*sx)+"px";r.style.top=(vy*sy)+"px";r.style.width=(VP*sx)+"px";r.style.height=(VP*sy)+"px";}'
 + 'async function render(){setBg();var r=await fetch("/oyun/veri/"+SINIF+"?vx="+vx+"&vy="+vy,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;'
 + 'document.getElementById("bakiye").textContent=d.bakiye;document.getElementById("bakiye2").textContent=d.bakiye;document.getElementById("hsay").textContent=d.hucreSayisi;document.getElementById("fiyat").textContent=d.fiyat;'
-+ 'var om={},benim={};d.owned.forEach(function(c){om[c.x+","+c.y]=c.sahip;if(c.sahip===ADMIN)benim[c.x+","+c.y]=1;});'
++ 'var om={},benim={};d.owned.forEach(function(c){om[c.x+","+c.y]=c.sahip;if(c.sahip===ADMIN)benim[c.x+","+c.y]=1;});var bs={};(d.bloke||[]).forEach(function(k){bs[k]=1;});'
 + 'var html="";for(var row=0;row<VP;row++){for(var col=0;col<VP;col++){var wx=vx+col,wy=vy+row,key=wx+","+wy;var sahip=om[key];'
 + 'if(sahip){var pl=d.players[sahip]||{renk:"#777"};var col2=pl.renk||"#777";'
 + 'function bd(dx,dy){return om[(wx+dx)+","+(wy+dy)]===sahip?"transparent":col2;}'
 + 'var st="background:"+hexA(col2,0.34)+";border-top-color:"+bd(0,-1)+";border-bottom-color:"+bd(0,1)+";border-left-color:"+bd(-1,0)+";border-right-color:"+bd(1,0)+";";'
 + 'html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";'
-+ '}else if(yerlestir){html+="<div class=\\"hc alinabilir\\" onclick=\\"ilkHucreKoy("+wx+","+wy+")\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
++ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Turkiye Cumhuriyeti - alinamaz\\"></div>";}else if(yerlestir){html+="<div class=\\"hc alinabilir\\" onclick=\\"ilkHucreKoy("+wx+","+wy+")\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
 + 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
 + 'document.getElementById("grid").innerHTML=html;'
 + 'cizEtiket(d);cizLejant(d);}'
