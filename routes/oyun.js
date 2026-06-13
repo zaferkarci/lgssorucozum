@@ -138,6 +138,14 @@ router.post('/oyun/baslangic', async (req, res) => {
         await oyuncuGetir(ADMIN_OYUNCU, sinif);
         const varOlan = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
         if (varOlan > 0) return res.json({ ok: true });
+        // v4.9.6: elle secilen baslangic hucresi (gonderildiyse)
+        const ex = parseInt(req.body.x), ey = parseInt(req.body.y);
+        if (!Number.isNaN(ex) && !Number.isNaN(ey) && ex >= 0 && ey >= 0 && ex < DW && ey < DH) {
+            const var2 = await OyunHucre.findOne({ sinif, x: ex, y: ey }, '_id').lean();
+            if (var2) return res.json({ ok: false, hata: 'Bu hucre dolu, baska sec.' });
+            await new OyunHucre({ sinif, x: ex, y: ey, sahip: ADMIN_OYUNCU }).save();
+            return res.json({ ok: true, x: ex, y: ey });
+        }
         // kume merkezi: tum hucrelerin ortasi, yoksa Nazilli
         const hepsi = await OyunHucre.find({ sinif }, 'x y').lean();
         let mx = NAZILLI.x, my = NAZILLI.y;
@@ -276,11 +284,12 @@ function kabukHtml(opt) {
 + '<div class="sat"><span>Altin</span><b class="altin" id="bakiye2">...</b></div>'
 + '<div class="sat"><span>Sonraki hucre</span><b class="altin" id="fiyat">0</b></div>'
 + '<div class="sat"><span>Konum</span><b id="konum">-</b></div>'
-+ (ilkHucreYok ? '<button class="abtn abtn-vurgu" style="margin-top:12px;width:100%;" onclick="baslangic()">&#127922; Baslangic yurdu (Nazilli)</button>' : '')
++ (ilkHucreYok ? '<button class="abtn abtn-vurgu" style="margin-top:12px;width:100%;" onclick="baslangicMod()">&#127922; Baslangic yurdunu sec</button>' : '')
 + '<h2 style="margin-top:16px;">MINI HARITA</h2><div class="mini" id="mini" onclick="miniTikla(event)"><div class="vprect" id="vprect"></div></div>'
 + '<div class="ipucu" style="text-align:left;">Mini haritaya tikla = oraya atla. Yon tuslari/oklar = kaydir.</div>'
 + '</aside>'
 + '<main class="center">'
++ '<div id="yhint" style="display:none;width:' + (VP * HUC) + 'px;max-width:100%;background:rgba(67,160,71,.2);border:1px solid #43a047;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#a5d6a7;text-align:center;">Baslangic hucreni sec: haritada bir hucreye tikla.</div>'
 + '<div class="vpwrap"><div class="worldbg" id="worldbg"></div><div class="grid" id="grid"></div></div>'
 + '<div class="dpad"><span></span><button onclick="kaydir(0,-3)">&#9650;</button><span></span>'
 + '<button onclick="kaydir(-3,0)">&#9664;</button><span></span><button onclick="kaydir(3,0)">&#9654;</button>'
@@ -298,7 +307,7 @@ function scriptBlok(o) {
     const { sinif, vx, vy, HUC } = o;
     return '<script>'
 + 'var SINIF="' + sinif + '",DW=' + DW + ',DH=' + DH + ',VP=' + VP + ',HUC=' + HUC + ',ADMIN="' + ADMIN_OYUNCU + '";'
-+ 'var vx=' + vx + ',vy=' + vy + ',MINI=[];'
++ 'var vx=' + vx + ',vy=' + vy + ',MINI=[],yerlestir=false;'
 + 'function clamp(v,a,b){return Math.max(a,Math.min(b,v));}'
 + 'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}'
 + 'var NB=[[1,0],[-1,0],[0,1],[0,-1]];'
@@ -312,7 +321,7 @@ function scriptBlok(o) {
 + 'function bd(dx,dy){return om[(wx+dx)+","+(wy+dy)]===sahip?"transparent":col2;}'
 + 'var st="background:"+hexA(col2,0.34)+";border-top-color:"+bd(0,-1)+";border-bottom-color:"+bd(0,1)+";border-left-color:"+bd(-1,0)+";border-right-color:"+bd(1,0)+";";'
 + 'html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";'
-+ '}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
++ '}else if(yerlestir){html+="<div class=\\"hc alinabilir\\" onclick=\\"ilkHucreKoy("+wx+","+wy+")\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
 + 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
 + 'document.getElementById("grid").innerHTML=html;'
 + 'cizEtiket(d);cizLejant(d);}'
@@ -320,6 +329,8 @@ function scriptBlok(o) {
 + 'function cizEtiket(d){document.querySelectorAll(".lbl").forEach(function(e){e.remove();});var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;(grp[c.sahip]=grp[c.sahip]||[]).push(c);});var wrap=document.querySelector(".vpwrap");Object.keys(grp).forEach(function(s){var cs=grp[s];var pl=d.players[s]||{renk:"#777",rumuz:s};var sx=0,sy=0;cs.forEach(function(c){sx+=c.x;sy+=c.y;});var cx=sx/cs.length,cy=sy/cs.length;var benim=s===ADMIN;var el=document.createElement("div");el.className="lbl";el.style.left=((cx-vx+0.5)/VP*100)+"%";el.style.top=((cy-vy+0.5)/VP*100)+"%";el.style.borderColor=pl.renk;el.innerHTML=(benim?"&#128081; ":"<span class=\\"nk\\" style=\\"background:"+pl.renk+"\\"></span>")+esc(pl.rumuz||s);wrap.appendChild(el);});}'
 + 'function cizLejant(d){var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;grp[c.sahip]=(grp[c.sahip]||0)+1;});var h="";Object.keys(grp).forEach(function(s){var pl=d.players[s]||{renk:"#777",rumuz:s};h+="<div style=\\"display:flex;align-items:center;gap:7px;padding:4px 0;\\"><span style=\\"width:13px;height:13px;border-radius:4px;background:"+pl.renk+"\\"></span><span style=\\"color:#e8eaf6\\">"+(s===ADMIN?"&#128081; ":"")+esc(pl.rumuz||s)+"</span><span style=\\"margin-left:auto\\">"+grp[s]+"</span></div>";});document.getElementById("lejant").innerHTML=h||"Bu bolgede kimse yok.";}'
 + 'function kaydir(dx,dy){vx=clamp(vx+dx,0,DW-VP);vy=clamp(vy+dy,0,DH-VP);render();}'
++ 'function baslangicMod(){yerlestir=true;document.getElementById("yhint").style.display="block";render();}'
++ 'async function ilkHucreKoy(x,y){var r=await fetch("/oyun/baslangic",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(d.ok){location.reload();}else{alert(d.hata||"Olmadi");}}'
 + 'async function al(x,y){var r=await fetch("/oyun/hucre-al",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(d.ok){render();yukleMini();}else{alert(d.hata||"Alinamadi");}}'
 + 'async function baslangic(){var r=await fetch("/oyun/baslangic",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});var d=await r.json();if(d.ok){if(d.x!=null){vx=clamp(d.x-VP/2,0,DW-VP);vy=clamp(d.y-VP/2,0,DH-VP);}location.reload();}else{alert(d.hata||"Olmadi");}}'
 + 'async function testKomsu(){var r=await fetch("/oyun/test-komsu",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});var d=await r.json();if(d.ok){render();yukleMini();}else{alert(d.hata||"Olmadi");}}'
