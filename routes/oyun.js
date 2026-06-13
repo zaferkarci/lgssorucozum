@@ -105,7 +105,7 @@ router.get('/oyun', (req, res) => {
 
 // ---- harita sayfasi olusturucu ----
 function haritaHtml(opt) {
-    const { sinif, rumuz, renk, bakiye, fiyat, boyut, hucreMap, oyuncuMap, benimSet, hucreSayisi, gezegenSahipli } = opt;
+    const { sinif, rumuz, renk, bakiye, fiyat, winMinX, winMinY, winW, winH, hucreMap, oyuncuMap, benimSet, hucreSayisi, gezegenSahipli } = opt;
 
     function hexRgba(hex, a) {
         const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || '#777777'));
@@ -116,7 +116,7 @@ function haritaHtml(opt) {
         if (hucreMap[x + ',' + y]) return false;
         for (const [dx, dy] of KOMSU) {
             const nx = x + dx, ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < boyut && ny < boyut && benimSet.has(nx + ',' + ny)) return true;
+            if (benimSet.has(nx + ',' + ny)) return true;
         }
         return false;
     }
@@ -130,8 +130,8 @@ function haritaHtml(opt) {
     });
 
     let hucreHtml = '';
-    for (let y = 0; y < boyut; y++) {
-        for (let x = 0; x < boyut; x++) {
+    for (let y = winMinY; y < winMinY + winH; y++) {
+        for (let x = winMinX; x < winMinX + winW; x++) {
             const key = x + ',' + y;
             const h = hucreMap[key];
             if (h) {
@@ -162,8 +162,8 @@ function haritaHtml(opt) {
         let sx = 0, sy = 0;
         cells.forEach(c => { sx += c[0]; sy += c[1]; });
         const cx = sx / cells.length, cy = sy / cells.length;
-        const left = ((cx + 0.5) / boyut * 100).toFixed(2);
-        const top = ((cy + 0.5) / boyut * 100).toFixed(2);
+        const left = ((cx - winMinX + 0.5) / winW * 100).toFixed(2);
+        const top = ((cy - winMinY + 0.5) / winH * 100).toFixed(2);
         etiketHtml += '<div class="etiket" style="left:' + left + '%;top:' + top + '%;border-color:' + esc(o.renk) + ';">'
             + (benimMi ? '<span class="tac">&#128081;</span>' : '<span class="nokta" style="background:' + esc(o.renk) + ';"></span>')
             + '<span class="etiket-ad">' + esc(o.rumuz) + '</span></div>';
@@ -198,7 +198,7 @@ function haritaHtml(opt) {
 + '.sat{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid rgba(255,255,255,.07);font-size:14px;}'
 + '.sat b{color:#fff;} .altin{color:#ffd54f;font-weight:800;}'
 + '.mapwrap{flex:1 1 420px;min-width:300px;display:flex;flex-direction:column;align-items:center;}'
-+ '.grid{position:relative;display:grid;grid-template-columns:repeat(' + boyut + ',1fr);gap:2px;background:transparent;padding:10px;border-radius:16px;width:100%;max-width:' + (boyut * 48) + 'px;border:1px solid rgba(255,255,255,.07);}'
++ '.grid{position:relative;display:grid;grid-template-columns:repeat(' + winW + ',1fr);gap:2px;background:transparent;padding:10px;border-radius:16px;width:100%;max-width:' + (winW * 48) + 'px;border:1px solid rgba(255,255,255,.07);}'
 + '.worldbg{position:absolute;inset:10px;border-radius:12px;overflow:hidden;z-index:0;pointer-events:none;}'
 + '.worldbg svg{width:100%;height:100%;display:block;}'
 + '.hc{position:relative;z-index:1;aspect-ratio:1/1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;}'
@@ -213,7 +213,7 @@ function haritaHtml(opt) {
 + '.actionbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px;}'
 + '.abtn{border-radius:24px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;color:#e8eaf6;background:rgba(40,46,86,.9);border:1px solid rgba(255,255,255,.12);text-decoration:none;display:inline-block;}'
 + '.abtn:hover{background:rgba(60,68,120,.95);} .abtn-vurgu{background:linear-gradient(135deg,#43a047,#2e7d32);border:none;} .abtn-tehlike{background:linear-gradient(135deg,#c62828,#8e1c1c);border:none;}'
-+ '.ipucu{color:#9fa8da;font-size:12px;line-height:1.6;margin:12px 0 0;text-align:center;max-width:' + (boyut * 48) + 'px;}'
++ '.ipucu{color:#9fa8da;font-size:12px;line-height:1.6;margin:12px 0 0;text-align:center;max-width:' + (winW * 48) + 'px;}'
 + '.gezegen-rozet{position:fixed;left:18px;bottom:16px;display:flex;align-items:center;gap:10px;background:rgba(10,12,30,.8);border:1px solid rgba(255,255,255,.12);border-radius:40px;padding:8px 16px 8px 8px;}'
 + '.gez-kup{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3fa971,#0d3a5e);box-shadow:0 0 14px rgba(63,169,113,.6);}'
 + '.gez-ad{font-size:12px;} .gez-ad b{display:block;font-size:14px;}'
@@ -226,7 +226,7 @@ function haritaHtml(opt) {
 + '<div class="sat"><span>Topraklarin</span><b>' + hucreSayisi + ' hucre</b></div>'
 + '<div class="sat"><span>Altin</span><b class="altin">' + bakiye + '</b></div>'
 + '<div class="sat"><span>Sonraki hucre</span><b class="altin">' + fiyat + '</b></div>'
-+ '<div class="sat"><span>Gezegen</span><b>' + boyut + '&#215;' + boyut + '</b></div>'
++ '<div class="sat"><span>Harita</span><b>' + winW + '&#215;' + winH + '</b></div>'
 + '<div class="sat"><span>Toplam sahipli</span><b>' + gezegenSahipli + '</b></div>'
 + (baslangicBtn ? '<div style="margin-top:14px;">' + baslangicBtn + '</div>' : '')
 + '</aside>'
@@ -255,19 +255,29 @@ router.get('/oyun/:sinif', async (req, res) => {
         oyuncular.forEach(o => { oyuncuMap[o.kullaniciAdi] = o; });
         const hucreMap = {};
         const benimSet = new Set();
-        let maxKoord = 0;
         hucreler.forEach(h => {
             hucreMap[h.x + ',' + h.y] = h;
             if (h.sahip === ADMIN_OYUNCU) benimSet.add(h.x + ',' + h.y);
-            maxKoord = Math.max(maxKoord, h.x, h.y);
         });
         const hucreSayisi = benimSet.size;
-        let boyut = planetBoyut(hucreler.length);
-        if (maxKoord + 1 > boyut) boyut = maxKoord + 1;
+        // Pencere: topraklarin sinir kutusu + 1 hucre cerceve (alinabilir sinir),
+        //   min 8x8. Boylece ulasilamaz "olu bolge" gosterilmez.
+        let minX, minY, maxX, maxY;
+        if (hucreler.length === 0) { minX = 0; minY = 0; maxX = 7; maxY = 7; }
+        else {
+            minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+            hucreler.forEach(h => { minX = Math.min(minX, h.x); minY = Math.min(minY, h.y); maxX = Math.max(maxX, h.x); maxY = Math.max(maxY, h.y); });
+            minX -= 1; minY -= 1; maxX += 1; maxY += 1;
+        }
+        const genislet = (a, b) => { while (b - a + 1 < 8) { a -= 1; b += 1; } return [a, b]; };
+        [minX, maxX] = genislet(minX, maxX);
+        [minY, maxY] = genislet(minY, maxY);
+        const winW = maxX - minX + 1, winH = maxY - minY + 1;
         const fiyat = 10 * hucreSayisi;
         const bakiye = await altinBakiye(ben);
         res.send(haritaHtml({
-            sinif, rumuz: ben.rumuz, renk: ben.renk, bakiye, fiyat, boyut,
+            sinif, rumuz: ben.rumuz, renk: ben.renk, bakiye, fiyat,
+            winMinX: minX, winMinY: minY, winW, winH,
             hucreMap, oyuncuMap, benimSet, hucreSayisi, gezegenSahipli: hucreler.length
         }));
     } catch (e) {
