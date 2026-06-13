@@ -1,27 +1,33 @@
-// v4.9.5 — "Bilgi Gezegenleri": dunya haritasi zemini + viewport mimarisi.
-//   YALNIZCA ADMIN onizlemesi. Ogrencilere kapali; panel menusune link yok.
+// v4.9.8 — "Bilgi Gezegenleri": dunya zemini + viewport + elle kilit + siralama.
+//   YALNIZCA ADMIN onizlemesi. Ogrencilere kapali; panel menusunde link yok.
 //   Mevcut modeller/PUANLAMA degismez; oyun verisi ayri koleksiyonlarda.
 //   - Mantiksal dunya: DW x DH hucre (her sinif kendi dunyasi).
-//   - Gorunur pencere (viewport): VP x VP hucre; tarayici yalniz bunu cizer.
-//   - Zemin: /world.svg (kita-only). Baslangic merkezi: Nazilli (NAZILLI hucre).
-//   Duello v4.9.6'da gelecek.
+//   - Viewport: VP x VP hucre; tarayici yalniz bunu cizer.
+//   - Kilit: OyunKilit (global) - admin elle isaretler; kilitli hucre alinamaz.
+//   - Baslangic: OTOMATIK + kumeleyici (oyuncular birbirine yakin dogar).
+//   - Siralama: her sinif dunyasinda rumuz + alinan hucre sayisi (azalan).
 const express = require('express');
 const router = express.Router();
 
 const OyunHucre = require('../models/OyunHucre');
 const OyunOyuncu = require('../models/OyunOyuncu');
+const OyunKilit = require('../models/OyunKilit');
 const Kullanici = require('../models/Kullanici');
 
 // ---- sabitler ----
-const DW = 400, DH = 200;          // dunya hucre boyutu (400x200 = 80.000)
-const VP = 20;                     // viewport (20x20 = 400 gorunur hucre)
-const NAZILLI = { x: 231, y: 58 }; // Turkiye/Aydin/Nazilli ~ equirect. hucre
+const DW = 400, DH = 200;
+const VP = 20;
+const NAZILLI = { x: 231, y: 58 };
 const ADMIN_OYUNCU = '__admin_onizleme__';
 const ADMIN_TEST_ALTIN = 1000000;
 const KOMSU = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-// v4.9.7: Turkiye Cumhuriyeti karasi alinamaz/baslanamaz. Yaklasik sinir poligonu
-//   (lon,lat); hucre merkezi poligon icindeyse o hucre BLOKE.
+function adminMi(req) { return !!(req.session && req.session.adminGirisli === true); }
+function kapali(res) { return res.status(403).send('<div style="font-family:sans-serif;padding:40px;text-align:center;">Oyun yakinda. (Su an yalnizca yonetici onizlemesi.)</div>'); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// Turkiye taslagi (opsiyonel seed) icin yaklasik poligon + yardimcilar.
 const TR_POLY = [
   [26.0,41.7],[28.0,42.0],[31.5,41.8],[35.0,42.0],[38.0,41.3],[41.0,41.5],
   [41.5,41.0],[43.5,41.2],[44.0,39.8],[44.8,39.0],[44.2,37.8],[42.0,37.2],
@@ -37,19 +43,8 @@ function noktaPoligonda(px, py, poly) {
     }
     return ic;
 }
-const BLOKE = new Set();
-(function () {
-    for (let y = 50; y <= 63; y++) for (let x = 225; x <= 253; x++) {
-        const ll = hucreLonLat(x, y);
-        if (noktaPoligonda(ll[0], ll[1], TR_POLY)) BLOKE.add(x + ',' + y);
-    }
-})();
-function blokeMi(x, y) { return BLOKE.has(x + ',' + y); }
-
-function adminMi(req) { return !!(req.session && req.session.adminGirisli === true); }
-function kapali(res) { return res.status(403).send('<div style="font-family:sans-serif;padding:40px;text-align:center;">Oyun yakinda. (Su an yalnizca yonetici onizlemesi.)</div>'); }
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+async function kilitSeti() { const ks = await OyunKilit.find({}, 'x y').lean(); return new Set(ks.map(k => k.x + ',' + k.y)); }
+async function kilitliMi(x, y) { return !!(await OyunKilit.findOne({ x, y }, '_id').lean()); }
 
 function hashStr(s) { let h = 0; s = String(s); for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 const ADJ = ['Mavi', 'Kizil', 'Altin', 'Gumus', 'Parlak', 'Sessiz', 'Hizli', 'Gizemli', 'Yesil', 'Mor', 'Beyaz', 'Turuncu'];
@@ -77,7 +72,7 @@ async function altinBakiye(oyuncu) {
     return Math.round((k && k.puan) || 0) - (oyuncu.harcananAltin || 0);
 }
 
-// ---- GET /oyun : gezegen secici ----
+// ---- GET /oyun : dunya secici ----
 router.get('/oyun', (req, res) => {
     if (!adminMi(req)) return kapali(res);
     const kart = (s, ad) => '<a href="/oyun/' + s + '" style="display:block;padding:22px;margin:10px 0;background:linear-gradient(135deg,#15324f,#0d2540);color:#fff;border-radius:14px;text-decoration:none;font-size:18px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);">&#127758; ' + ad + '</a>';
@@ -100,7 +95,6 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
     let vy = clamp(parseInt(req.query.vy) || 0, 0, DH - VP);
     try {
         const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
-        // padli bolge (kenar komsulugu icin 1 hucre tasma)
         const owned = await OyunHucre.find({
             sinif,
             x: { $gte: vx - 1, $lte: vx + VP },
@@ -109,10 +103,13 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
         const oyuncular = await OyunOyuncu.find({ sinif }, 'kullaniciAdi rumuz renk').lean();
         const players = {};
         oyuncular.forEach(o => { players[o.kullaniciAdi] = { rumuz: o.rumuz, renk: o.renk }; });
+        const klist = await OyunKilit.find({
+            x: { $gte: vx, $lt: vx + VP },
+            y: { $gte: vy, $lt: vy + VP }
+        }, 'x y').lean();
+        const bloke = klist.map(k => k.x + ',' + k.y);
         const hucreSayisi = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
         const bakiye = await altinBakiye(ben);
-        const bloke = [];
-        for (let yy = vy; yy < vy + VP; yy++) for (let xx = vx; xx < vx + VP; xx++) if (BLOKE.has(xx + ',' + yy)) bloke.push(xx + ',' + yy);
         res.json({ ok: true, vx, vy, owned, players, bloke, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: ADMIN_OYUNCU });
     } catch (e) {
         console.error('[oyun veri]', e.message);
@@ -120,7 +117,7 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
     }
 });
 
-// ---- GET /oyun/minimap/:sinif : tum sahipli hucreler (mini-harita) ----
+// ---- GET /oyun/minimap/:sinif : tum sahipli hucreler ----
 router.get('/oyun/minimap/:sinif', async (req, res) => {
     if (!adminMi(req)) return res.status(403).json({ ok: false });
     const sinif = String(req.params.sinif);
@@ -134,14 +131,40 @@ router.get('/oyun/minimap/:sinif', async (req, res) => {
     } catch (e) { res.status(500).json({ ok: false }); }
 });
 
-// ---- GET /oyun/:sinif : viewport kabuk sayfasi ----
+// ---- GET /oyun/siralama/:sinif : rumuz + alinan hucre (azalan) ----
+router.get('/oyun/siralama/:sinif', async (req, res) => {
+    if (!adminMi(req)) return res.status(403).json({ ok: false });
+    const sinif = String(req.params.sinif);
+    try {
+        const agg = await OyunHucre.aggregate([
+            { $match: { sinif } },
+            { $group: { _id: '$sahip', sayi: { $sum: 1 } } },
+            { $sort: { sayi: -1 } },
+            { $limit: 50 }
+        ]);
+        const oyuncular = await OyunOyuncu.find({ sinif }, 'kullaniciAdi rumuz renk').lean();
+        const pm = {};
+        oyuncular.forEach(o => { pm[o.kullaniciAdi] = { rumuz: o.rumuz, renk: o.renk }; });
+        const liste = agg.map(a => ({
+            rumuz: (pm[a._id] || {}).rumuz || a._id,
+            renk: (pm[a._id] || {}).renk || '#888',
+            sayi: a.sayi,
+            ben: a._id === ADMIN_OYUNCU
+        }));
+        res.json({ ok: true, liste });
+    } catch (e) {
+        console.error('[oyun siralama]', e.message);
+        res.status(500).json({ ok: false });
+    }
+});
+
+// ---- GET /oyun/:sinif : viewport kabuk ----
 router.get('/oyun/:sinif', async (req, res) => {
     if (!adminMi(req)) return kapali(res);
     const sinif = String(req.params.sinif);
     if (!['5', '6', '7', '8'].includes(sinif)) return res.redirect('/oyun');
     try {
         const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
-        // baslangic viewport: kendi topragimin ortasi, yoksa Nazilli
         const benimler = await OyunHucre.find({ sinif, sahip: ADMIN_OYUNCU }, 'x y').lean();
         let cx = NAZILLI.x, cy = NAZILLI.y;
         if (benimler.length) {
@@ -150,15 +173,14 @@ router.get('/oyun/:sinif', async (req, res) => {
         }
         const vx = clamp(cx - Math.floor(VP / 2), 0, DW - VP);
         const vy = clamp(cy - Math.floor(VP / 2), 0, DH - VP);
-        const ilkHucreYok = benimler.length === 0;
-        res.send(kabukHtml({ sinif, rumuz: ben.rumuz, renk: ben.renk, vx, vy, ilkHucreYok }));
+        res.send(kabukHtml({ sinif, rumuz: ben.rumuz, renk: ben.renk, vx, vy, ilkHucreYok: benimler.length === 0 }));
     } catch (e) {
         console.error('[oyun kabuk]', e.message);
         res.status(500).send('Hata: ' + e.message);
     }
 });
 
-// ---- POST /oyun/baslangic : ilk hucre (Nazilli/kume yakini, ucretsiz) ----
+// ---- POST /oyun/baslangic : OTOMATIK + kumeleyici (ucretsiz) ----
 router.post('/oyun/baslangic', async (req, res) => {
     if (!adminMi(req)) return res.status(403).json({ ok: false });
     const sinif = String(req.body.sinif);
@@ -166,30 +188,21 @@ router.post('/oyun/baslangic', async (req, res) => {
         await oyuncuGetir(ADMIN_OYUNCU, sinif);
         const varOlan = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
         if (varOlan > 0) return res.json({ ok: true });
-        // v4.9.6: elle secilen baslangic hucresi (gonderildiyse)
-        const ex = parseInt(req.body.x), ey = parseInt(req.body.y);
-        if (!Number.isNaN(ex) && !Number.isNaN(ey) && ex >= 0 && ey >= 0 && ex < DW && ey < DH) {
-            if (blokeMi(ex, ey)) return res.json({ ok: false, hata: 'Turkiye Cumhuriyeti topraklari secilemez.' });
-            const var2 = await OyunHucre.findOne({ sinif, x: ex, y: ey }, '_id').lean();
-            if (var2) return res.json({ ok: false, hata: 'Bu hucre dolu, baska sec.' });
-            await new OyunHucre({ sinif, x: ex, y: ey, sahip: ADMIN_OYUNCU }).save();
-            return res.json({ ok: true, x: ex, y: ey });
-        }
-        // kume merkezi: tum hucrelerin ortasi, yoksa Nazilli
+        // kume merkezi: tum hucrelerin ortasi (oyuncular birbirine yakin dogsun), yoksa Nazilli
         const hepsi = await OyunHucre.find({ sinif }, 'x y').lean();
         let mx = NAZILLI.x, my = NAZILLI.y;
         if (hepsi.length) { let sx = 0, sy = 0; hepsi.forEach(h => { sx += h.x; sy += h.y; }); mx = Math.round(sx / hepsi.length); my = Math.round(sy / hepsi.length); }
         const dolu = new Set(hepsi.map(h => h.x + ',' + h.y));
-        // merkezden disa spiral ile en yakin bos hucre
+        const kset = await kilitSeti();
         let sec = null;
-        for (let r = 0; r < 60 && !sec; r++) {
+        for (let r = 0; r < 120 && !sec; r++) {
             for (let dy = -r; dy <= r && !sec; dy++) for (let dx = -r; dx <= r && !sec; dx++) {
                 if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
                 const x = clamp(mx + dx, 0, DW - 1), y = clamp(my + dy, 0, DH - 1);
-                if (!dolu.has(x + ',' + y) && !BLOKE.has(x + ',' + y)) sec = [x, y];
+                if (!dolu.has(x + ',' + y) && !kset.has(x + ',' + y)) sec = [x, y];
             }
         }
-        if (!sec) sec = [NAZILLI.x, NAZILLI.y];
+        if (!sec) sec = [clamp(mx, 0, DW - 1), clamp(my, 0, DH - 1)];
         await new OyunHucre({ sinif, x: sec[0], y: sec[1], sahip: ADMIN_OYUNCU }).save();
         res.json({ ok: true, x: sec[0], y: sec[1] });
     } catch (e) {
@@ -198,18 +211,17 @@ router.post('/oyun/baslangic', async (req, res) => {
     }
 });
 
-// ---- POST /oyun/hucre-al : bitisik satin alma (artan fiyat, her hucre) ----
+// ---- POST /oyun/hucre-al : bitisik satin alma (artan fiyat) ----
 router.post('/oyun/hucre-al', async (req, res) => {
     if (!adminMi(req)) return res.status(403).json({ ok: false, hata: 'Yetki yok.' });
     const sinif = String(req.body.sinif);
     const x = parseInt(req.body.x), y = parseInt(req.body.y);
     if (Number.isNaN(x) || Number.isNaN(y) || x < 0 || y < 0 || x >= DW || y >= DH) return res.json({ ok: false, hata: 'Gecersiz hucre.' });
-    if (blokeMi(x, y)) return res.json({ ok: false, hata: 'Turkiye Cumhuriyeti topraklari alinamaz.' });
     try {
+        if (await kilitliMi(x, y)) return res.json({ ok: false, hata: 'Bu hucre kilitli, alinamaz.' });
         const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
         const say = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
         if (say === 0) return res.json({ ok: false, hata: 'Once baslangic yurdunu al.' });
-        // bitisiklik
         const komsu = await OyunHucre.findOne({
             sinif, sahip: ADMIN_OYUNCU,
             $or: [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }]
@@ -230,7 +242,7 @@ router.post('/oyun/hucre-al', async (req, res) => {
     }
 });
 
-// ---- POST /oyun/test-komsu : bitisik sahte oyuncu (gorsel test) ----
+// ---- POST /oyun/test-komsu : bitisik sahte oyuncu ----
 router.post('/oyun/test-komsu', async (req, res) => {
     if (!adminMi(req)) return res.status(403).json({ ok: false });
     const sinif = String(req.body.sinif);
@@ -238,15 +250,16 @@ router.post('/oyun/test-komsu', async (req, res) => {
         const benimler = await OyunHucre.find({ sinif, sahip: ADMIN_OYUNCU }, 'x y').lean();
         if (!benimler.length) return res.json({ ok: false, hata: 'Once baslangic yurdunu al.' });
         const tumDolu = new Set((await OyunHucre.find({ sinif }, 'x y').lean()).map(h => h.x + ',' + h.y));
+        const kset = await kilitSeti();
         let hedef = null;
         for (const h of benimler) {
             for (const [dx, dy] of KOMSU) {
                 const nx = h.x + dx, ny = h.y + dy;
-                if (nx >= 0 && ny >= 0 && nx < DW && ny < DH && !tumDolu.has(nx + ',' + ny) && !BLOKE.has(nx + ',' + ny)) { hedef = [nx, ny]; break; }
+                if (nx >= 0 && ny >= 0 && nx < DW && ny < DH && !tumDolu.has(nx + ',' + ny) && !kset.has(nx + ',' + ny)) { hedef = [nx, ny]; break; }
             }
             if (hedef) break;
         }
-        if (!hedef) return res.json({ ok: false, hata: 'Bitisik bos hucre yok.' });
+        if (!hedef) return res.json({ ok: false, hata: 'Bitisik bos/kilitsiz hucre yok.' });
         const sahteSay = await OyunOyuncu.countDocuments({ sinif, kullaniciAdi: /^__test_komsu_/ });
         const id = '__test_komsu_' + (sahteSay + 1) + '__';
         await oyuncuGetir(id, sinif);
@@ -258,7 +271,47 @@ router.post('/oyun/test-komsu', async (req, res) => {
     }
 });
 
-// ---- POST /oyun/sifirla ----
+// ---- POST /oyun/kilit-degistir : tek hucre kilit toggle (GLOBAL) ----
+router.post('/oyun/kilit-degistir', async (req, res) => {
+    if (!adminMi(req)) return res.status(403).json({ ok: false });
+    const x = parseInt(req.body.x), y = parseInt(req.body.y);
+    if (Number.isNaN(x) || Number.isNaN(y) || x < 0 || y < 0 || x >= DW || y >= DH) return res.json({ ok: false });
+    try {
+        const v = await OyunKilit.findOne({ x, y }, '_id').lean();
+        if (v) { await OyunKilit.deleteOne({ x, y }); return res.json({ ok: true, locked: false }); }
+        await new OyunKilit({ x, y }).save();
+        res.json({ ok: true, locked: true });
+    } catch (e) {
+        if (e.code === 11000) return res.json({ ok: true, locked: true });
+        res.status(500).json({ ok: false });
+    }
+});
+
+// ---- POST /oyun/kilit-turkiye-taslak : poligon hucrelerini kilitle (opsiyonel seed) ----
+router.post('/oyun/kilit-turkiye-taslak', async (req, res) => {
+    if (!adminMi(req)) return res.status(403).json({ ok: false });
+    try {
+        const ops = [];
+        for (let y = 50; y <= 63; y++) for (let x = 225; x <= 253; x++) {
+            const ll = hucreLonLat(x, y);
+            if (noktaPoligonda(ll[0], ll[1], TR_POLY)) ops.push({ updateOne: { filter: { x, y }, update: { $set: { x, y } }, upsert: true } });
+        }
+        if (ops.length) await OyunKilit.bulkWrite(ops, { ordered: false });
+        res.json({ ok: true, adet: ops.length });
+    } catch (e) {
+        console.error('[oyun kilit-taslak]', e.message);
+        res.status(500).json({ ok: false, hata: e.message });
+    }
+});
+
+// ---- POST /oyun/kilit-temizle : tum kilitleri sil ----
+router.post('/oyun/kilit-temizle', async (req, res) => {
+    if (!adminMi(req)) return res.status(403).json({ ok: false });
+    try { await OyunKilit.deleteMany({}); res.json({ ok: true }); }
+    catch (e) { res.status(500).json({ ok: false }); }
+});
+
+// ---- POST /oyun/sifirla : sinif dunyasini sifirla (kilitler korunur) ----
 router.post('/oyun/sifirla', async (req, res) => {
     if (!adminMi(req)) return res.status(403).json({ ok: false });
     const sinif = String(req.body.sinif);
@@ -269,7 +322,7 @@ router.post('/oyun/sifirla', async (req, res) => {
     } catch (e) { res.status(500).json({ ok: false }); }
 });
 
-// ============ KABUK HTML (viewport istemci uygulamasi) ============
+// ============ KABUK HTML ============
 function kabukHtml(opt) {
     const { sinif, rumuz, renk, vx, vy, ilkHucreYok } = opt;
     const HUC = 28;
@@ -295,6 +348,8 @@ function kabukHtml(opt) {
 + '.hc.alinabilir:hover:after{background:rgba(129,199,132,.4);}'
 + '.hc.dolu{border:3px solid transparent;border-radius:3px;}'
 + '.hc.bloke{background:repeating-linear-gradient(45deg,rgba(229,57,53,.30),rgba(229,57,53,.30) 4px,rgba(229,57,53,.15) 4px,rgba(229,57,53,.15) 8px);border:1px solid rgba(229,57,53,.55);border-radius:3px;}'
++ '.hc.kduzen{cursor:pointer;outline:1px solid rgba(255,255,255,.12);outline-offset:-1px;}'
++ '.hc.kduzen:hover{background:rgba(255,213,79,.25);}'
 + '.lbl{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;background:rgba(8,12,28,.88);border:1.5px solid #777;border-radius:14px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:5;}'
 + '.lbl .nk{width:8px;height:8px;border-radius:50%;display:inline-block;}'
 + '.dpad{display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:4px;margin-top:12px;}'
@@ -306,6 +361,7 @@ function kabukHtml(opt) {
 + '.mini .vprect{position:absolute;border:1.5px solid #ffd54f;box-shadow:0 0 6px rgba(255,213,79,.8);}'
 + '.mini .dot{position:absolute;width:2px;height:2px;border-radius:1px;}'
 + '.ipucu{color:#9fa8da;font-size:12px;line-height:1.5;margin:10px 0 0;max-width:' + (VP * HUC) + 'px;text-align:center;}'
++ '.sira-sat{display:flex;align-items:center;gap:7px;padding:4px 0;border-top:1px solid rgba(255,255,255,.06);font-size:13px;}'
 + '</style></head>'
 + '<body>'
 + '<div class="topbar"><a class="bc" href="/admin">&#8592; admin</a><a class="bc" href="/oyun">dunya degistir</a><h1>&#127758; ' + sinif + '. Sinif Dunyasi</h1><div class="alt-rozet">&#129689; <span id="bakiye">...</span> altin</div></div>'
@@ -315,20 +371,23 @@ function kabukHtml(opt) {
 + '<div class="sat"><span>Altin</span><b class="altin" id="bakiye2">...</b></div>'
 + '<div class="sat"><span>Sonraki hucre</span><b class="altin" id="fiyat">0</b></div>'
 + '<div class="sat"><span>Konum</span><b id="konum">-</b></div>'
-+ (ilkHucreYok ? '<button class="abtn abtn-vurgu" style="margin-top:12px;width:100%;" onclick="baslangicMod()">&#127922; Baslangic yurdunu sec</button>' : '')
++ (ilkHucreYok ? '<button class="abtn abtn-vurgu" style="margin-top:12px;width:100%;" onclick="baslangic()">&#127922; Baslangic yurdu (otomatik)</button>' : '')
 + '<h2 style="margin-top:16px;">MINI HARITA</h2><div class="mini" id="mini" onclick="miniTikla(event)"><div class="vprect" id="vprect"></div></div>'
 + '<div class="ipucu" style="text-align:left;">Mini haritaya tikla = oraya atla. Yon tuslari/oklar = kaydir.</div>'
 + '</aside>'
 + '<main class="center">'
-+ '<div id="yhint" style="display:none;width:' + (VP * HUC) + 'px;max-width:100%;background:rgba(67,160,71,.2);border:1px solid #43a047;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#a5d6a7;text-align:center;">Baslangic hucreni sec: haritada bir hucreye tikla.</div>'
 + '<div class="vpwrap"><div class="worldbg" id="worldbg"></div><div class="grid" id="grid"></div></div>'
 + '<div class="dpad"><span></span><button onclick="kaydir(0,-3)">&#9650;</button><span></span>'
 + '<button onclick="kaydir(-3,0)">&#9664;</button><span></span><button onclick="kaydir(3,0)">&#9654;</button>'
 + '<span></span><button onclick="kaydir(0,3)">&#9660;</button><span></span></div>'
 + '<p class="ipucu">Yesil "+" hucreler kendi topragina komsu; tikla = satin al (her hucre, okyanus dahil). Fiyat = 10 x mevcut hucre. Uzak rakipleri gormek icin kaydir.</p>'
-+ '<div><form style="display:inline" onsubmit="return false"><button class="abtn" onclick="testKomsu()">&#128101; Test komsu</button><button class="abtn abtn-tehlike" onclick="sifirla()">&#128465; Sifirla</button></form></div>'
++ '<div><button class="abtn" onclick="testKomsu()">&#128101; Test komsu</button><button class="abtn abtn-tehlike" onclick="sifirla()">&#128465; Sifirla (dunya)</button></div>'
++ '<div style="margin-top:6px;"><button class="abtn" id="kduzenBtn" onclick="kilitDuzenle()">&#128274; Kilit duzenle</button>'
++ '<span id="kilitAraclar" style="display:none;"><button class="abtn" onclick="turkiyeTaslak()">&#127481; Turkiye taslagi</button><button class="abtn abtn-tehlike" onclick="kilitTemizle()">Kilitleri temizle</button></span></div>'
++ '<p class="ipucu" id="kilitIpucu" style="display:none;color:#ffcc80;">KILIT DUZENLEME ACIK: haritada bir hucreye tikla = kilitle / ac. Kilitler tum sinif dunyalarinda gecerli.</p>'
 + '</main>'
-+ '<aside class="panel"><h2>GORUNUR BOLGE SAHIPLERI</h2><div id="lejant" style="font-size:13px;color:#9fa8da;">-</div></aside>'
++ '<aside class="panel"><h2>GORUNUR BOLGE SAHIPLERI</h2><div id="lejant" style="font-size:13px;color:#9fa8da;">-</div>'
++ '<h2 style="margin-top:18px;">SIRALAMA (' + sinif + '. Sinif)</h2><div id="siralama" style="font-size:13px;color:#9fa8da;">-</div></aside>'
 + '</div>'
 + scriptBlok({ sinif, vx, vy, HUC })
 + '</body></html>';
@@ -338,7 +397,7 @@ function scriptBlok(o) {
     const { sinif, vx, vy, HUC } = o;
     return '<script>'
 + 'var SINIF="' + sinif + '",DW=' + DW + ',DH=' + DH + ',VP=' + VP + ',HUC=' + HUC + ',ADMIN="' + ADMIN_OYUNCU + '";'
-+ 'var vx=' + vx + ',vy=' + vy + ',MINI=[],yerlestir=false;'
++ 'var vx=' + vx + ',vy=' + vy + ',MINI=[],kilitMod=false;'
 + 'function clamp(v,a,b){return Math.max(a,Math.min(b,v));}'
 + 'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}'
 + 'var NB=[[1,0],[-1,0],[0,1],[0,-1]];'
@@ -348,28 +407,32 @@ function scriptBlok(o) {
 + 'document.getElementById("bakiye").textContent=d.bakiye;document.getElementById("bakiye2").textContent=d.bakiye;document.getElementById("hsay").textContent=d.hucreSayisi;document.getElementById("fiyat").textContent=d.fiyat;'
 + 'var om={},benim={};d.owned.forEach(function(c){om[c.x+","+c.y]=c.sahip;if(c.sahip===ADMIN)benim[c.x+","+c.y]=1;});var bs={};(d.bloke||[]).forEach(function(k){bs[k]=1;});'
 + 'var html="";for(var row=0;row<VP;row++){for(var col=0;col<VP;col++){var wx=vx+col,wy=vy+row,key=wx+","+wy;var sahip=om[key];'
-+ 'if(sahip){var pl=d.players[sahip]||{renk:"#777"};var col2=pl.renk||"#777";'
++ 'if(kilitMod){html+="<div class=\\"hc kduzen"+(bs[key]?" bloke":"")+"\\" onclick=\\"kilitDegistir("+wx+","+wy+")\\"></div>";}'
++ 'else if(sahip){var pl=d.players[sahip]||{renk:"#777"};var col2=pl.renk||"#777";'
 + 'function bd(dx,dy){return om[(wx+dx)+","+(wy+dy)]===sahip?"transparent":col2;}'
 + 'var st="background:"+hexA(col2,0.34)+";border-top-color:"+bd(0,-1)+";border-bottom-color:"+bd(0,1)+";border-left-color:"+bd(-1,0)+";border-right-color:"+bd(1,0)+";";'
 + 'html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";'
-+ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Turkiye Cumhuriyeti - alinamaz\\"></div>";}else if(yerlestir){html+="<div class=\\"hc alinabilir\\" onclick=\\"ilkHucreKoy("+wx+","+wy+")\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
++ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Kilitli - alinamaz\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
 + 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
 + 'document.getElementById("grid").innerHTML=html;'
 + 'cizEtiket(d);cizLejant(d);}'
 + 'function hexA(h,a){var m=/^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(h||"");if(!m)return"rgba(120,120,120,"+a+")";return"rgba("+parseInt(m[1],16)+","+parseInt(m[2],16)+","+parseInt(m[3],16)+","+a+")";}'
-+ 'function cizEtiket(d){document.querySelectorAll(".lbl").forEach(function(e){e.remove();});var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;(grp[c.sahip]=grp[c.sahip]||[]).push(c);});var wrap=document.querySelector(".vpwrap");Object.keys(grp).forEach(function(s){var cs=grp[s];var pl=d.players[s]||{renk:"#777",rumuz:s};var sx=0,sy=0;cs.forEach(function(c){sx+=c.x;sy+=c.y;});var cx=sx/cs.length,cy=sy/cs.length;var benim=s===ADMIN;var el=document.createElement("div");el.className="lbl";el.style.left=((cx-vx+0.5)/VP*100)+"%";el.style.top=((cy-vy+0.5)/VP*100)+"%";el.style.borderColor=pl.renk;el.innerHTML=(benim?"&#128081; ":"<span class=\\"nk\\" style=\\"background:"+pl.renk+"\\"></span>")+esc(pl.rumuz||s);wrap.appendChild(el);});}'
++ 'function cizEtiket(d){document.querySelectorAll(".lbl").forEach(function(e){e.remove();});if(kilitMod)return;var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;(grp[c.sahip]=grp[c.sahip]||[]).push(c);});var wrap=document.querySelector(".vpwrap");Object.keys(grp).forEach(function(s){var cs=grp[s];var pl=d.players[s]||{renk:"#777",rumuz:s};var sx=0,sy=0;cs.forEach(function(c){sx+=c.x;sy+=c.y;});var cx=sx/cs.length,cy=sy/cs.length;var benim=s===ADMIN;var el=document.createElement("div");el.className="lbl";el.style.left=((cx-vx+0.5)/VP*100)+"%";el.style.top=((cy-vy+0.5)/VP*100)+"%";el.style.borderColor=pl.renk;el.innerHTML=(benim?"&#128081; ":"<span class=\\"nk\\" style=\\"background:"+pl.renk+"\\"></span>")+esc(pl.rumuz||s);wrap.appendChild(el);});}'
 + 'function cizLejant(d){var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;grp[c.sahip]=(grp[c.sahip]||0)+1;});var h="";Object.keys(grp).forEach(function(s){var pl=d.players[s]||{renk:"#777",rumuz:s};h+="<div style=\\"display:flex;align-items:center;gap:7px;padding:4px 0;\\"><span style=\\"width:13px;height:13px;border-radius:4px;background:"+pl.renk+"\\"></span><span style=\\"color:#e8eaf6\\">"+(s===ADMIN?"&#128081; ":"")+esc(pl.rumuz||s)+"</span><span style=\\"margin-left:auto\\">"+grp[s]+"</span></div>";});document.getElementById("lejant").innerHTML=h||"Bu bolgede kimse yok.";}'
++ 'async function yukleSiralama(){var r=await fetch("/oyun/siralama/"+SINIF,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;var h="";d.liste.forEach(function(o,i){h+="<div class=\\"sira-sat\\"><span style=\\"width:18px;color:#9fa8da\\">"+(i+1)+"</span><span style=\\"width:11px;height:11px;border-radius:3px;background:"+o.renk+"\\"></span><span style=\\"color:#e8eaf6;flex:1\\">"+(o.ben?"&#128081; ":"")+esc(o.rumuz)+"</span><b>"+o.sayi+"</b></div>";});document.getElementById("siralama").innerHTML=h||"Henuz kimse yok.";}'
 + 'function kaydir(dx,dy){vx=clamp(vx+dx,0,DW-VP);vy=clamp(vy+dy,0,DH-VP);render();}'
-+ 'function baslangicMod(){yerlestir=true;document.getElementById("yhint").style.display="block";render();}'
-+ 'async function ilkHucreKoy(x,y){var r=await fetch("/oyun/baslangic",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(d.ok){location.reload();}else{alert(d.hata||"Olmadi");}}'
-+ 'async function al(x,y){var r=await fetch("/oyun/hucre-al",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(d.ok){render();yukleMini();}else{alert(d.hata||"Alinamadi");}}'
-+ 'async function baslangic(){var r=await fetch("/oyun/baslangic",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});var d=await r.json();if(d.ok){if(d.x!=null){vx=clamp(d.x-VP/2,0,DW-VP);vy=clamp(d.y-VP/2,0,DH-VP);}location.reload();}else{alert(d.hata||"Olmadi");}}'
-+ 'async function testKomsu(){var r=await fetch("/oyun/test-komsu",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});var d=await r.json();if(d.ok){render();yukleMini();}else{alert(d.hata||"Olmadi");}}'
-+ 'async function sifirla(){if(!confirm("Bu dunyadaki tum onizleme verisi silinsin mi?"))return;await fetch("/oyun/sifirla",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});location.reload();}'
++ 'async function al(x,y){var r=await fetch("/oyun/hucre-al",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(d.ok){render();yukleMini();yukleSiralama();}else{alert(d.hata||"Alinamadi");}}'
++ 'async function baslangic(){var r=await fetch("/oyun/baslangic",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});var d=await r.json();if(d.ok){location.reload();}else{alert(d.hata||"Olmadi");}}'
++ 'async function testKomsu(){var r=await fetch("/oyun/test-komsu",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});var d=await r.json();if(d.ok){render();yukleMini();yukleSiralama();}else{alert(d.hata||"Olmadi");}}'
++ 'async function sifirla(){if(!confirm("Bu dunyadaki tum onizleme verisi silinsin mi? (Kilitler korunur)"))return;await fetch("/oyun/sifirla",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF});location.reload();}'
++ 'function kilitDuzenle(){kilitMod=!kilitMod;document.getElementById("kduzenBtn").innerHTML=kilitMod?"&#9989; Kilit duzenleme: ACIK":"&#128274; Kilit duzenle";document.getElementById("kilitAraclar").style.display=kilitMod?"inline":"none";document.getElementById("kilitIpucu").style.display=kilitMod?"block":"none";render();}'
++ 'async function kilitDegistir(x,y){var r=await fetch("/oyun/kilit-degistir",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"x="+x+"&y="+y});var d=await r.json();if(d.ok){render();}}'
++ 'async function turkiyeTaslak(){if(!confirm("Turkiye taslagi (yaklasik) kilitlere eklensin mi?"))return;var r=await fetch("/oyun/kilit-turkiye-taslak",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:""});var d=await r.json();if(d.ok){render();}else{alert("Olmadi");}}'
++ 'async function kilitTemizle(){if(!confirm("TUM kilitler silinsin mi?"))return;await fetch("/oyun/kilit-temizle",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:""});render();}'
 + 'async function yukleMini(){var r=await fetch("/oyun/minimap/"+SINIF,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;MINI=d.noktalar;var mini=document.getElementById("mini");mini.querySelectorAll(".dot").forEach(function(e){e.remove();});var sx=200/DW,sy=100/DH;MINI.forEach(function(p){var dot=document.createElement("div");dot.className="dot";dot.style.left=(p.x*sx)+"px";dot.style.top=(p.y*sy)+"px";dot.style.background=p.renk;mini.appendChild(dot);});}'
 + 'function miniTikla(e){var mini=document.getElementById("mini");var rc=mini.getBoundingClientRect();var px=(e.clientX-rc.left)/rc.width*DW,py=(e.clientY-rc.top)/rc.height*DH;vx=clamp(Math.round(px-VP/2),0,DW-VP);vy=clamp(Math.round(py-VP/2),0,DH-VP);render();}'
 + 'document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){kaydir(-1,0);e.preventDefault();}else if(e.key==="ArrowRight"){kaydir(1,0);e.preventDefault();}else if(e.key==="ArrowUp"){kaydir(0,-1);e.preventDefault();}else if(e.key==="ArrowDown"){kaydir(0,1);e.preventDefault();}});'
-+ 'render();yukleMini();'
++ 'render();yukleMini();yukleSiralama();'
 + '</script>';
 }
 
