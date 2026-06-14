@@ -14,6 +14,9 @@ const KullaniciSchema = new mongoose.Schema({
     bagliKurumId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Kurum', default: null }, // öğretmen/öğrenci için
     il: String, ilce: String, okul: String,
     sinif: { type: Number, default: 8 },
+    // v4.11.0: Oyun giris duyurusu acilir penceresini "bir daha gosterme" ile kapatan
+    //   kullanicilarda bir daha gosterilmez.
+    oyunDuyuruGoruldu: { type: Boolean, default: false },
     sube: { type: String, default: '' },
     soruIndex: { type: Number, default: 0 },
     puan: { type: Number, default: 0 },

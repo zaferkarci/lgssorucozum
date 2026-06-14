@@ -205,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
+      <% if (k.rol === 'ogrenci' || k.rol === 'demo') { %><a href="/oyun" class="ptopbar-link" style="background:linear-gradient(135deg,#7b1fa2,#1565c0);color:#fff;border-radius:14px;">🪐 Oyun</a><% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
@@ -3575,5 +3576,26 @@ function sfEsles() {
 </script>
 
 </div>
+<% if (typeof oyunDuyuruGoster !== 'undefined' && oyunDuyuruGoster) { %>
+<div id="oyunDuyuruModal" style="display:flex; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:linear-gradient(160deg,#15324f,#0b1b30); border:1px solid rgba(255,255,255,0.15); border-radius:18px; max-width:420px; width:100%; padding:26px; text-align:center; color:#e8eaf6; box-shadow:0 12px 40px rgba(0,0,0,0.5);">
+    <div style="font-size:46px; line-height:1; margin-bottom:8px;">🪐</div>
+    <h2 style="margin:0 0 8px; font-size:22px;">Bilgi Gezegenleri başladı!</h2>
+    <p style="color:#b9c2e8; font-size:14px; line-height:1.6; margin:0 0 18px;">Soru çözerek kazandığın altınla kendi sınıf dünyanda toprak kap, kuşat, fethet ve sıralamada yüksel. Kuralları oyun menüsündeki &quot;Kurallar&quot; bölümünden görebilirsin.</p>
+    <a href="/oyun" id="oyunDuyuruOyna" style="display:block; background:linear-gradient(135deg,#43a047,#2e7d32); color:#fff; text-decoration:none; font-weight:700; padding:12px; border-radius:24px; margin-bottom:12px;">🎮 Hemen Oyna</a>
+    <label style="display:flex; align-items:center; justify-content:center; gap:7px; font-size:13px; color:#9fa8da; cursor:pointer; margin-bottom:10px;"><input type="checkbox" id="oyunDuyuruBirDaha"> Bir daha gösterme</label>
+    <button type="button" onclick="oyunDuyuruKapat()" style="background:none; border:none; color:#9fa8da; font-size:13px; cursor:pointer; text-decoration:underline;">Kapat</button>
+  </div>
+</div>
+<script>
+  function oyunDuyuruIsaretle(cb){
+    if(document.getElementById("oyunDuyuruBirDaha").checked){
+      fetch("/oyun-duyuru-goruldu",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},credentials:"same-origin"}).then(cb).catch(cb);
+    } else { cb(); }
+  }
+  function oyunDuyuruKapat(){ oyunDuyuruIsaretle(function(){ document.getElementById("oyunDuyuruModal").style.display="none"; }); }
+  document.getElementById("oyunDuyuruOyna").addEventListener("click", function(e){ e.preventDefault(); oyunDuyuruIsaretle(function(){ window.location.href="/oyun"; }); });
+</script>
+<% } %>
 </body>
 </html>

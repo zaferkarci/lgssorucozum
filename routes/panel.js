@@ -1117,6 +1117,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
 
     res.render('panel', {
         k,
+        // v4.11.0: Oyun acildi duyurusu acilir penceresi - ogrenci/demo, henuz
+        //   "bir daha gosterme" dememisse.
+        oyunDuyuruGoster: ((k.rol === 'ogrenci' || k.rol === 'demo') && !k.oyunDuyuruGoruldu),
         mod,
         sorular,
         zorlukBilgisi,

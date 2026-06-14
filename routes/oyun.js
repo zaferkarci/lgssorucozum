@@ -27,6 +27,23 @@ function kapali(res) { return res.status(403).send('<div style="font-family:sans
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
+// v4.11.0: Oyuncu cozumleme. Admin -> ADMIN_OYUNCU (onizleme; herhangi sinif,
+//   test altini, admin araclari). Ogrenci/demo -> kendi adi + kendi sinifi (5-8);
+//   altin = puan - harcanan. Diger roller oynayamaz.
+async function oyuncuCoz(req, sinifParam) {
+    if (adminMi(req)) {
+        const s = ['5', '6', '7', '8'].includes(String(sinifParam)) ? String(sinifParam) : '5';
+        return { ok: true, kullaniciAdi: ADMIN_OYUNCU, sinif: s, admin: true };
+    }
+    const su = req.session && req.session.kullaniciAdi;
+    if (!su) return { ok: false };
+    const k = await Kullanici.findOne({ kullaniciAdi: su }, 'rol sinif').lean();
+    if (!k || (k.rol !== 'ogrenci' && k.rol !== 'demo')) return { ok: false };
+    const m = String(k.sinif == null ? '' : k.sinif).match(/([5-8])/);
+    if (!m) return { ok: false };
+    return { ok: true, kullaniciAdi: su, sinif: m[1], admin: false };
+}
+
 // Turkiye taslagi (opsiyonel seed) icin yaklasik poligon + yardimcilar.
 const TR_POLY = [
   [26.0,41.7],[28.0,42.0],[31.5,41.8],[35.0,42.0],[38.0,41.3],[41.0,41.5],
@@ -126,8 +143,12 @@ async function altinBakiye(oyuncu) {
 }
 
 // ---- GET /oyun : dunya secici ----
-router.get('/oyun', (req, res) => {
-    if (!adminMi(req)) return kapali(res);
+router.get('/oyun', async (req, res) => {
+    if (!adminMi(req)) {
+        const ctx = await oyuncuCoz(req);
+        if (!ctx.ok) return kapali(res);
+        return res.redirect('/oyun/' + ctx.sinif);
+    }
     const kart = (s, ad) => '<a href="/oyun/' + s + '" style="display:block;padding:22px;margin:10px 0;background:linear-gradient(135deg,#15324f,#0d2540);color:#fff;border-radius:14px;text-decoration:none;font-size:18px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);">&#127758; ' + ad + '</a>';
     res.send('<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bilgi Gezegenleri</title></head>'
         + '<body style="margin:0;background:#070d1c;color:#e8eaf6;font-family:Segoe UI,sans-serif;min-height:100vh;">'
@@ -142,12 +163,13 @@ router.get('/oyun', (req, res) => {
 
 // ---- GET /oyun/veri/:sinif?vx&vy : viewport JSON ----
 router.get('/oyun/veri/:sinif', async (req, res) => {
-    if (!adminMi(req)) return res.status(403).json({ ok: false });
-    const sinif = String(req.params.sinif);
+    const ctx = await oyuncuCoz(req, req.params.sinif);
+    if (!ctx.ok) return res.status(403).json({ ok: false });
+    const sinif = ctx.sinif, OYUNCU = ctx.kullaniciAdi;
     let vx = clamp(parseInt(req.query.vx) || 0, 0, DW - VP);
     let vy = clamp(parseInt(req.query.vy) || 0, 0, DH - VP);
     try {
-        const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
+        const ben = await oyuncuGetir(OYUNCU, sinif);
         await bekleyenFetihIsle(ben, sinif); // altin geldiyse bekleyen fetihleri isle
         const owned = await OyunHucre.find({
             sinif,
@@ -163,9 +185,9 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
         }, 'x y').lean();
         const bloke = klist.map(k => k.x + ',' + k.y);
         const bekleyen = (ben.bekleyenFetih || []).filter(c => c.x >= vx && c.x < vx + VP && c.y >= vy && c.y < vy + VP).map(c => c.x + ',' + c.y);
-        const hucreSayisi = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
+        const hucreSayisi = await OyunHucre.countDocuments({ sinif, sahip: OYUNCU });
         const bakiye = await altinBakiye(ben);
-        res.json({ ok: true, vx, vy, owned, players, bloke, bekleyen, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: ADMIN_OYUNCU });
+        res.json({ ok: true, vx, vy, owned, players, bloke, bekleyen, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: OYUNCU });
     } catch (e) {
         console.error('[oyun veri]', e.message);
         res.status(500).json({ ok: false, hata: e.message });
@@ -174,8 +196,9 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
 
 // ---- GET /oyun/minimap/:sinif : tum sahipli hucreler ----
 router.get('/oyun/minimap/:sinif', async (req, res) => {
-    if (!adminMi(req)) return res.status(403).json({ ok: false });
-    const sinif = String(req.params.sinif);
+    const ctx = await oyuncuCoz(req, req.params.sinif);
+    if (!ctx.ok) return res.status(403).json({ ok: false });
+    const sinif = ctx.sinif;
     try {
         const hucreler = await OyunHucre.find({ sinif }, 'x y sahip').lean();
         const oyuncular = await OyunOyuncu.find({ sinif }, 'kullaniciAdi renk').lean();
@@ -188,8 +211,9 @@ router.get('/oyun/minimap/:sinif', async (req, res) => {
 
 // ---- GET /oyun/siralama/:sinif : rumuz + alinan hucre (azalan) ----
 router.get('/oyun/siralama/:sinif', async (req, res) => {
-    if (!adminMi(req)) return res.status(403).json({ ok: false });
-    const sinif = String(req.params.sinif);
+    const ctx = await oyuncuCoz(req, req.params.sinif);
+    if (!ctx.ok) return res.status(403).json({ ok: false });
+    const sinif = ctx.sinif, OYUNCU = ctx.kullaniciAdi;
     try {
         const agg = await OyunHucre.aggregate([
             { $match: { sinif } },
@@ -204,7 +228,7 @@ router.get('/oyun/siralama/:sinif', async (req, res) => {
             rumuz: (pm[a._id] || {}).rumuz || a._id,
             renk: (pm[a._id] || {}).renk || '#888',
             sayi: a.sayi,
-            ben: a._id === ADMIN_OYUNCU
+            ben: a._id === OYUNCU
         }));
         res.json({ ok: true, liste });
     } catch (e) {
@@ -215,12 +239,12 @@ router.get('/oyun/siralama/:sinif', async (req, res) => {
 
 // ---- GET /oyun/:sinif : viewport kabuk ----
 router.get('/oyun/:sinif', async (req, res) => {
-    if (!adminMi(req)) return kapali(res);
-    const sinif = String(req.params.sinif);
-    if (!['5', '6', '7', '8'].includes(sinif)) return res.redirect('/oyun');
+    const ctx = await oyuncuCoz(req, req.params.sinif);
+    if (!ctx.ok) return kapali(res);
+    const sinif = ctx.sinif, OYUNCU = ctx.kullaniciAdi;
     try {
-        const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
-        const benimler = await OyunHucre.find({ sinif, sahip: ADMIN_OYUNCU }, 'x y').lean();
+        const ben = await oyuncuGetir(OYUNCU, sinif);
+        const benimler = await OyunHucre.find({ sinif, sahip: OYUNCU }, 'x y').lean();
         let cx = NAZILLI.x, cy = NAZILLI.y;
         if (benimler.length) {
             let sx = 0, sy = 0; benimler.forEach(h => { sx += h.x; sy += h.y; });
@@ -228,7 +252,7 @@ router.get('/oyun/:sinif', async (req, res) => {
         }
         const vx = clamp(cx - Math.floor(VP / 2), 0, DW - VP);
         const vy = clamp(cy - Math.floor(VP / 2), 0, DH - VP);
-        res.send(kabukHtml({ sinif, rumuz: ben.rumuz, renk: ben.renk, vx, vy, ilkHucreYok: benimler.length === 0 }));
+        res.send(kabukHtml({ sinif, rumuz: ben.rumuz, renk: ben.renk, vx, vy, ilkHucreYok: benimler.length === 0, admin: ctx.admin, benId: OYUNCU }));
     } catch (e) {
         console.error('[oyun kabuk]', e.message);
         res.status(500).send('Hata: ' + e.message);
@@ -237,11 +261,12 @@ router.get('/oyun/:sinif', async (req, res) => {
 
 // ---- POST /oyun/baslangic : OTOMATIK + kumeleyici (ucretsiz) ----
 router.post('/oyun/baslangic', async (req, res) => {
-    if (!adminMi(req)) return res.status(403).json({ ok: false });
-    const sinif = String(req.body.sinif);
+    const ctx = await oyuncuCoz(req, req.body.sinif);
+    if (!ctx.ok) return res.status(403).json({ ok: false });
+    const sinif = ctx.sinif, OYUNCU = ctx.kullaniciAdi;
     try {
-        await oyuncuGetir(ADMIN_OYUNCU, sinif);
-        const varOlan = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
+        await oyuncuGetir(OYUNCU, sinif);
+        const varOlan = await OyunHucre.countDocuments({ sinif, sahip: OYUNCU });
         if (varOlan > 0) return res.json({ ok: true });
         // kume merkezi: tum hucrelerin ortasi (oyuncular birbirine yakin dogsun), yoksa Nazilli
         const hepsi = await OyunHucre.find({ sinif }, 'x y').lean();
@@ -258,7 +283,7 @@ router.post('/oyun/baslangic', async (req, res) => {
             }
         }
         if (!sec) sec = [clamp(mx, 0, DW - 1), clamp(my, 0, DH - 1)];
-        await new OyunHucre({ sinif, x: sec[0], y: sec[1], sahip: ADMIN_OYUNCU }).save();
+        await new OyunHucre({ sinif, x: sec[0], y: sec[1], sahip: OYUNCU }).save();
         res.json({ ok: true, x: sec[0], y: sec[1] });
     } catch (e) {
         console.error('[oyun baslangic]', e.message);
@@ -268,17 +293,18 @@ router.post('/oyun/baslangic', async (req, res) => {
 
 // ---- POST /oyun/hucre-al : bitisik satin alma (artan fiyat) ----
 router.post('/oyun/hucre-al', async (req, res) => {
-    if (!adminMi(req)) return res.status(403).json({ ok: false, hata: 'Yetki yok.' });
-    const sinif = String(req.body.sinif);
+    const ctx = await oyuncuCoz(req, req.body.sinif);
+    if (!ctx.ok) return res.status(403).json({ ok: false, hata: 'Yetki yok.' });
+    const sinif = ctx.sinif, OYUNCU = ctx.kullaniciAdi;
     const x = parseInt(req.body.x), y = parseInt(req.body.y);
     if (Number.isNaN(x) || Number.isNaN(y) || x < 0 || y < 0 || x >= DW || y >= DH) return res.json({ ok: false, hata: 'Gecersiz hucre.' });
     try {
         if (await kilitliMi(x, y)) return res.json({ ok: false, hata: 'Bu hucre kilitli, alinamaz.' });
-        const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
-        const say = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
+        const ben = await oyuncuGetir(OYUNCU, sinif);
+        const say = await OyunHucre.countDocuments({ sinif, sahip: OYUNCU });
         if (say === 0) return res.json({ ok: false, hata: 'Once baslangic yurdunu al.' });
         const komsu = await OyunHucre.findOne({
-            sinif, sahip: ADMIN_OYUNCU,
+            sinif, sahip: OYUNCU,
             $or: [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }]
         }, '_id').lean();
         if (!komsu) return res.json({ ok: false, hata: 'Yalniz kendi topragina komsu hucre alinabilir.' });
@@ -287,7 +313,7 @@ router.post('/oyun/hucre-al', async (req, res) => {
         const fiyat = 10 * say;
         const bakiye = await altinBakiye(ben);
         if (bakiye < fiyat) return res.json({ ok: false, hata: 'Yetersiz altin (' + fiyat + ' gerekli).' });
-        await new OyunHucre({ sinif, x, y, sahip: ADMIN_OYUNCU }).save();
+        await new OyunHucre({ sinif, x, y, sahip: OYUNCU }).save();
         ben.harcananAltin = (ben.harcananAltin || 0) + fiyat;
         await ben.save();
         // v4.10.0: bu alimla kapanan cep(ler)i kusatma tespiti ile fetih kuyruguna al
@@ -301,7 +327,7 @@ router.post('/oyun/hucre-al', async (req, res) => {
             const nx = x + d[0], ny = y + d[1], key = nx + ',' + ny;
             if (nx < 0 || ny < 0 || nx >= DW || ny >= DH) continue;
             if (occ.has(key) || locks.has(key)) continue;
-            const r = bolgeTara(nx, ny, occ, locks, ADMIN_OYUNCU);
+            const r = bolgeTara(nx, ny, occ, locks, OYUNCU);
             if (r.kapali) r.hucreler.forEach(c => {
                 const k = c[0] + ',' + c[1];
                 if (!eklendi.has(k) && !mevcutKuyruk.has(k)) { eklendi.add(k); ben.bekleyenFetih.push({ x: c[0], y: c[1] }); }
@@ -399,7 +425,7 @@ router.post('/oyun/sifirla', async (req, res) => {
 
 // ============ KABUK HTML ============
 function kabukHtml(opt) {
-    const { sinif, rumuz, renk, vx, vy, ilkHucreYok } = opt;
+    const { sinif, rumuz, renk, vx, vy, ilkHucreYok, admin, benId } = opt;
     const HUC = 28;
     return '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + sinif + '. Sinif Dunyasi</title>'
 + '<style>'
@@ -440,7 +466,7 @@ function kabukHtml(opt) {
 + '.sira-sat{display:flex;align-items:center;gap:7px;padding:4px 0;border-top:1px solid rgba(255,255,255,.06);font-size:13px;}'
 + '</style></head>'
 + '<body>'
-+ '<div class="topbar"><a class="bc" href="/admin">&#8592; admin</a><a class="bc" href="/oyun">dunya degistir</a><h1>&#127758; ' + sinif + '. Sinif Dunyasi</h1><div class="alt-rozet">&#129689; <span id="bakiye">...</span> altin</div></div>'
++ '<div class="topbar">' + (admin ? '<a class="bc" href="/admin">&#8592; admin</a><a class="bc" href="/oyun">dunya degistir</a>' : '<a class="bc" href="/panel/' + encodeURIComponent(benId) + '">&#8592; panelim</a>') + '<h1>&#127758; ' + sinif + '. Sinif Dunyasi</h1><button class="bc" onclick="kurallarAc()" style="background:none;border:none;cursor:pointer;font-family:inherit;">&#128220; Kurallar</button><div class="alt-rozet">&#129689; <span id="bakiye">...</span> altin</div></div>'
 + '<div class="layout">'
 + '<aside class="panel"><h2>TOPRAK SAHIBI</h2><div class="sen-ad"><span>&#128081;</span><span style="color:' + esc(renk) + ';">' + esc(rumuz) + '</span></div>'
 + '<div class="sat"><span>Topraklarin</span><b id="hsay">0</b></div>'
@@ -457,22 +483,37 @@ function kabukHtml(opt) {
 + '<button onclick="kaydir(-3,0)">&#9664;</button><span></span><button onclick="kaydir(3,0)">&#9654;</button>'
 + '<span></span><button onclick="kaydir(0,3)">&#9660;</button><span></span></div>'
 + '<p class="ipucu">Yesil "+" hucreler kendi topragina komsu; tikla = satin al (her hucre, okyanus dahil). Fiyat = 10 x mevcut hucre. Uzak rakipleri gormek icin kaydir.</p>'
-+ '<div><button class="abtn" onclick="testKomsu()">&#128101; Test komsu</button><button class="abtn abtn-tehlike" onclick="sifirla()">&#128465; Sifirla (dunya)</button></div>'
++ (admin ? ('<div><button class="abtn" onclick="testKomsu()">&#128101; Test komsu</button><button class="abtn abtn-tehlike" onclick="sifirla()">&#128465; Sifirla (dunya)</button></div>'
 + '<div style="margin-top:6px;"><button class="abtn" id="kduzenBtn" onclick="kilitDuzenle()">&#128274; Kilit duzenle</button>'
 + '<span id="kilitAraclar" style="display:none;"><button class="abtn" onclick="turkiyeTaslak()">&#127481; Turkiye taslagi</button><button class="abtn abtn-tehlike" onclick="kilitTemizle()">Kilitleri temizle</button></span></div>'
-+ '<p class="ipucu" id="kilitIpucu" style="display:none;color:#ffcc80;">KILIT DUZENLEME ACIK: haritada bir hucreye tikla = kilitle / ac. Kilitler tum sinif dunyalarinda gecerli.</p>'
++ '<p class="ipucu" id="kilitIpucu" style="display:none;color:#ffcc80;">KILIT DUZENLEME ACIK: haritada bir hucreye tikla = kilitle / ac. Kilitler tum sinif dunyalarinda gecerli.</p>') : '')
 + '</main>'
 + '<aside class="panel"><h2>GORUNUR BOLGE SAHIPLERI</h2><div id="lejant" style="font-size:13px;color:#9fa8da;">-</div>'
 + '<h2 style="margin-top:18px;">SIRALAMA (' + sinif + '. Sinif)</h2><div id="siralama" style="font-size:13px;color:#9fa8da;">-</div></aside>'
 + '</div>'
-+ scriptBlok({ sinif, vx, vy, HUC })
++ '<div id="kurallarModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;align-items:center;justify-content:center;padding:20px;"><div style="background:#0e1830;border:1px solid rgba(255,255,255,.15);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:22px;"><div style="display:flex;align-items:center;margin-bottom:10px;"><h2 style="margin:0;font-size:18px;">&#128220; Bilgi Gezegenleri - Kurallar</h2><button onclick="kurallarKapat()" style="margin-left:auto;background:none;border:none;color:#9fa8da;font-size:24px;cursor:pointer;">&times;</button></div>' + kurallarMetni() + '</div></div>'
++ scriptBlok({ sinif, vx, vy, HUC, benId })
 + '</body></html>';
 }
 
+function kurallarMetni() {
+    return '<div style="font-size:13.5px;line-height:1.7;color:#d6dbf5;">'
++ '<p><b>Amac:</b> Kendi sinif dunyanda topraklarini buyut, siralamada yuksel.</p>'
++ '<p><b>Altin:</b> Altinin = toplam puanin - oyunda harcadigin. Soru cozdukce puan (=altin) kazanirsin. Oyunda harcamak akademik puanini ve siralamani DUSURMEZ.</p>'
++ '<p><b>Baslangic:</b> "Baslangic yurdu" ile ilk hucren otomatik, oyunculara yakin bir noktaya kurulur (ucretsiz).</p>'
++ '<p><b>Hucre alma:</b> Yalniz kendi topragina komsu (yan yana) bos hucreler alinabilir. Her yeni hucre bir oncekinden 10 altin pahalidir (10 x mevcut hucre sayisi). Okyanus dahil her hucre alinabilir.</p>'
++ '<p><b>Kilitli alanlar:</b> Kirmizi tarali hucreler (Turkiye Cumhuriyeti) alinamaz; duvar gibidir.</p>'
++ '<p><b>Kusatma = otomatik fetih:</b> Bir bos alani kendi hucrelerinle (veya kilitli duvarlarla) tamamen cevirirsen, icindeki tum hucreler otomatik senin olur. Fetih fiyati satin almayla aynidir. Altinin yetmezse fetih bekler; yeni altin kazandikca otomatik devam eder.</p>'
++ '<p><b>Gezinme:</b> Dunya buyuktur; ekranda 20x20 alan gorunur. Yon tuslari/oklar ile kaydir, mini haritaya tiklayarak uzaga atla.</p>'
++ '<p><b>Siralama:</b> Sag panelde sinif dunyandaki oyuncular hucre sayisina gore siralanir.</p>'
++ '<p style="color:#9fa8da;">Duello (komsu rakibe meydan okuma) yakinda eklenecek.</p>'
++ '</div>';
+}
+
 function scriptBlok(o) {
-    const { sinif, vx, vy, HUC } = o;
+    const { sinif, vx, vy, HUC, benId } = o;
     return '<script>'
-+ 'var SINIF="' + sinif + '",DW=' + DW + ',DH=' + DH + ',VP=' + VP + ',HUC=' + HUC + ',ADMIN="' + ADMIN_OYUNCU + '";'
++ 'var SINIF="' + sinif + '",DW=' + DW + ',DH=' + DH + ',VP=' + VP + ',HUC=' + HUC + ',ADMIN=' + JSON.stringify(benId) + ';'
 + 'var vx=' + vx + ',vy=' + vy + ',MINI=[],kilitMod=false;'
 + 'function clamp(v,a,b){return Math.max(a,Math.min(b,v));}'
 + 'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}'
@@ -508,8 +549,18 @@ function scriptBlok(o) {
 + 'async function yukleMini(){var r=await fetch("/oyun/minimap/"+SINIF,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;MINI=d.noktalar;var mini=document.getElementById("mini");mini.querySelectorAll(".dot").forEach(function(e){e.remove();});var sx=200/DW,sy=100/DH;MINI.forEach(function(p){var dot=document.createElement("div");dot.className="dot";dot.style.left=(p.x*sx)+"px";dot.style.top=(p.y*sy)+"px";dot.style.background=p.renk;mini.appendChild(dot);});}'
 + 'function miniTikla(e){var mini=document.getElementById("mini");var rc=mini.getBoundingClientRect();var px=(e.clientX-rc.left)/rc.width*DW,py=(e.clientY-rc.top)/rc.height*DH;vx=clamp(Math.round(px-VP/2),0,DW-VP);vy=clamp(Math.round(py-VP/2),0,DH-VP);render();}'
 + 'document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){kaydir(-1,0);e.preventDefault();}else if(e.key==="ArrowRight"){kaydir(1,0);e.preventDefault();}else if(e.key==="ArrowUp"){kaydir(0,-1);e.preventDefault();}else if(e.key==="ArrowDown"){kaydir(0,1);e.preventDefault();}});'
++ 'function kurallarAc(){document.getElementById("kurallarModal").style.display="flex";}'
++ 'function kurallarKapat(){document.getElementById("kurallarModal").style.display="none";}'
 + 'render();yukleMini();yukleSiralama();'
 + '</script>';
 }
+
+// ---- POST /oyun-duyuru-goruldu : giris duyurusunu kalici kapat ----
+router.post('/oyun-duyuru-goruldu', async (req, res) => {
+    const su = req.session && req.session.kullaniciAdi;
+    if (!su) return res.status(403).json({ ok: false });
+    try { await Kullanici.updateOne({ kullaniciAdi: su }, { $set: { oyunDuyuruGoruldu: true } }); res.json({ ok: true }); }
+    catch (e) { res.status(500).json({ ok: false }); }
+});
 
 module.exports = router;
