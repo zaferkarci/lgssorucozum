@@ -46,6 +46,59 @@ function noktaPoligonda(px, py, poly) {
 async function kilitSeti() { const ks = await OyunKilit.find({}, 'x y').lean(); return new Set(ks.map(k => k.x + ',' + k.y)); }
 async function kilitliMi(x, y) { return !!(await OyunKilit.findOne({ x, y }, '_id').lean()); }
 
+// v4.10.0: Kusatma tespiti — (sx,sy) bos hucresinden 4-yon flood-fill. Bolge
+//   yalnizca benim hucrelerim + kilitler ile cevriliyse (dunya kenarina kacis
+//   yok, baska oyuncuya degmez) kapali=true ve hucreler doner. occupied: Map(key->sahip).
+function bolgeTara(sx, sy, occupied, locks, benimAdi) {
+    const CAP = 20000;
+    const seen = new Set([sx + ',' + sy]);
+    const stack = [[sx, sy]];
+    const hucreler = [];
+    while (stack.length) {
+        const cur = stack.pop(); const cx = cur[0], cy = cur[1];
+        hucreler.push(cur);
+        if (cx === 0 || cy === 0 || cx === DW - 1 || cy === DH - 1) return { kapali: false };
+        if (hucreler.length > CAP) return { kapali: false };
+        for (const d of KOMSU) {
+            const nx = cx + d[0], ny = cy + d[1];
+            if (nx < 0 || ny < 0 || nx >= DW || ny >= DH) continue;
+            const key = nx + ',' + ny;
+            const sah = occupied.get(key);
+            if (sah) { if (sah !== benimAdi) return { kapali: false }; continue; }
+            if (locks.has(key)) continue;
+            if (!seen.has(key)) { seen.add(key); stack.push([nx, ny]); }
+        }
+    }
+    return { kapali: true, hucreler };
+}
+
+// v4.10.0: Bekleyen fetih kuyrugunu altin elverdikce isler. Fiyat satin almayla
+//   ayni: 10 x mevcut hucre. Altin yetmezse durur, kalan kuyrukta bekler; altin
+//   gelince (tekrar cagrilinca) kaldigi yerden devam eder.
+async function bekleyenFetihIsle(oyuncu, sinif) {
+    if (!oyuncu.bekleyenFetih || !oyuncu.bekleyenFetih.length) return 0;
+    const occupied = new Set((await OyunHucre.find({ sinif }, 'x y').lean()).map(h => h.x + ',' + h.y));
+    let say = await OyunHucre.countDocuments({ sinif, sahip: oyuncu.kullaniciAdi });
+    let bakiye = await altinBakiye(oyuncu);
+    const kalan = [], ekle = [];
+    let durdu = false;
+    for (const c of oyuncu.bekleyenFetih) {
+        const key = c.x + ',' + c.y;
+        if (occupied.has(key)) continue;
+        if (durdu) { kalan.push(c); continue; }
+        const fiyat = 10 * say;
+        if (bakiye < fiyat) { durdu = true; kalan.push(c); continue; }
+        ekle.push({ sinif, x: c.x, y: c.y, sahip: oyuncu.kullaniciAdi });
+        occupied.add(key); bakiye -= fiyat; say += 1;
+        oyuncu.harcananAltin = (oyuncu.harcananAltin || 0) + fiyat;
+    }
+    if (ekle.length) await OyunHucre.insertMany(ekle);
+    oyuncu.bekleyenFetih = kalan;
+    oyuncu.markModified('bekleyenFetih');
+    await oyuncu.save();
+    return ekle.length;
+}
+
 function hashStr(s) { let h = 0; s = String(s); for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 const ADJ = ['Mavi', 'Kizil', 'Altin', 'Gumus', 'Parlak', 'Sessiz', 'Hizli', 'Gizemli', 'Yesil', 'Mor', 'Beyaz', 'Turuncu'];
 const NOUN = ['Kuyrukluyildiz', 'Yildiz', 'Nebula', 'Komet', 'Meteor', 'Galaksi', 'Pulsar', 'Yorunge', 'Asteroit', 'Ay'];
@@ -95,6 +148,7 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
     let vy = clamp(parseInt(req.query.vy) || 0, 0, DH - VP);
     try {
         const ben = await oyuncuGetir(ADMIN_OYUNCU, sinif);
+        await bekleyenFetihIsle(ben, sinif); // altin geldiyse bekleyen fetihleri isle
         const owned = await OyunHucre.find({
             sinif,
             x: { $gte: vx - 1, $lte: vx + VP },
@@ -108,9 +162,10 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
             y: { $gte: vy, $lt: vy + VP }
         }, 'x y').lean();
         const bloke = klist.map(k => k.x + ',' + k.y);
+        const bekleyen = (ben.bekleyenFetih || []).filter(c => c.x >= vx && c.x < vx + VP && c.y >= vy && c.y < vy + VP).map(c => c.x + ',' + c.y);
         const hucreSayisi = await OyunHucre.countDocuments({ sinif, sahip: ADMIN_OYUNCU });
         const bakiye = await altinBakiye(ben);
-        res.json({ ok: true, vx, vy, owned, players, bloke, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: ADMIN_OYUNCU });
+        res.json({ ok: true, vx, vy, owned, players, bloke, bekleyen, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: ADMIN_OYUNCU });
     } catch (e) {
         console.error('[oyun veri]', e.message);
         res.status(500).json({ ok: false, hata: e.message });
@@ -235,7 +290,27 @@ router.post('/oyun/hucre-al', async (req, res) => {
         await new OyunHucre({ sinif, x, y, sahip: ADMIN_OYUNCU }).save();
         ben.harcananAltin = (ben.harcananAltin || 0) + fiyat;
         await ben.save();
-        res.json({ ok: true, bakiye: bakiye - fiyat });
+        // v4.10.0: bu alimla kapanan cep(ler)i kusatma tespiti ile fetih kuyruguna al
+        if (!Array.isArray(ben.bekleyenFetih)) ben.bekleyenFetih = [];
+        const occ = new Map();
+        (await OyunHucre.find({ sinif }, 'x y sahip').lean()).forEach(h => occ.set(h.x + ',' + h.y, h.sahip));
+        const locks = await kilitSeti();
+        const mevcutKuyruk = new Set(ben.bekleyenFetih.map(q => q.x + ',' + q.y));
+        const eklendi = new Set();
+        for (const d of KOMSU) {
+            const nx = x + d[0], ny = y + d[1], key = nx + ',' + ny;
+            if (nx < 0 || ny < 0 || nx >= DW || ny >= DH) continue;
+            if (occ.has(key) || locks.has(key)) continue;
+            const r = bolgeTara(nx, ny, occ, locks, ADMIN_OYUNCU);
+            if (r.kapali) r.hucreler.forEach(c => {
+                const k = c[0] + ',' + c[1];
+                if (!eklendi.has(k) && !mevcutKuyruk.has(k)) { eklendi.add(k); ben.bekleyenFetih.push({ x: c[0], y: c[1] }); }
+            });
+        }
+        if (eklendi.size) { ben.markModified('bekleyenFetih'); await ben.save(); }
+        await bekleyenFetihIsle(ben, sinif);
+        const yeniBakiye = await altinBakiye(ben);
+        res.json({ ok: true, bakiye: yeniBakiye, fetih: eklendi.size });
     } catch (e) {
         console.error('[oyun hucre-al]', e.message);
         res.json({ ok: false, hata: e.message });
@@ -348,6 +423,7 @@ function kabukHtml(opt) {
 + '.hc.alinabilir:hover:after{background:rgba(129,199,132,.4);}'
 + '.hc.dolu{border:3px solid transparent;border-radius:3px;}'
 + '.hc.bloke{background:repeating-linear-gradient(45deg,rgba(229,57,53,.30),rgba(229,57,53,.30) 4px,rgba(229,57,53,.15) 4px,rgba(229,57,53,.15) 8px);border:1px solid rgba(229,57,53,.55);border-radius:3px;}'
++ '.hc.bekle{background:repeating-linear-gradient(45deg,rgba(255,193,79,.40),rgba(255,193,79,.40) 4px,rgba(255,193,79,.16) 4px,rgba(255,193,79,.16) 8px);border:1.5px dashed rgba(133,79,11,.85);border-radius:3px;}'
 + '.hc.kduzen{cursor:pointer;outline:1px solid rgba(255,255,255,.12);outline-offset:-1px;}'
 + '.hc.kduzen:hover{background:rgba(255,213,79,.25);}'
 + '.lbl{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;background:rgba(8,12,28,.88);border:1.5px solid #777;border-radius:14px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:5;}'
@@ -405,14 +481,14 @@ function scriptBlok(o) {
 + 'function updateRect(){var r=document.getElementById("vprect");var sx=200/DW,sy=100/DH;r.style.left=(vx*sx)+"px";r.style.top=(vy*sy)+"px";r.style.width=(VP*sx)+"px";r.style.height=(VP*sy)+"px";}'
 + 'async function render(){setBg();var r=await fetch("/oyun/veri/"+SINIF+"?vx="+vx+"&vy="+vy,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;'
 + 'document.getElementById("bakiye").textContent=d.bakiye;document.getElementById("bakiye2").textContent=d.bakiye;document.getElementById("hsay").textContent=d.hucreSayisi;document.getElementById("fiyat").textContent=d.fiyat;'
-+ 'var om={},benim={};d.owned.forEach(function(c){om[c.x+","+c.y]=c.sahip;if(c.sahip===ADMIN)benim[c.x+","+c.y]=1;});var bs={};(d.bloke||[]).forEach(function(k){bs[k]=1;});'
++ 'var om={},benim={};d.owned.forEach(function(c){om[c.x+","+c.y]=c.sahip;if(c.sahip===ADMIN)benim[c.x+","+c.y]=1;});var bs={};(d.bloke||[]).forEach(function(k){bs[k]=1;});var beks={};(d.bekleyen||[]).forEach(function(k){beks[k]=1;});'
 + 'var html="";for(var row=0;row<VP;row++){for(var col=0;col<VP;col++){var wx=vx+col,wy=vy+row,key=wx+","+wy;var sahip=om[key];'
 + 'if(kilitMod){html+="<div class=\\"hc kduzen"+(bs[key]?" bloke":"")+"\\" onclick=\\"kilitDegistir("+wx+","+wy+")\\"></div>";}'
 + 'else if(sahip){var pl=d.players[sahip]||{renk:"#777"};var col2=pl.renk||"#777";'
 + 'function bd(dx,dy){return om[(wx+dx)+","+(wy+dy)]===sahip?"transparent":col2;}'
 + 'var st="background:"+hexA(col2,0.34)+";border-top-color:"+bd(0,-1)+";border-bottom-color:"+bd(0,1)+";border-left-color:"+bd(-1,0)+";border-right-color:"+bd(1,0)+";";'
 + 'html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";'
-+ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Kilitli - alinamaz\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
++ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Kilitli - alinamaz\\"></div>";}else if(beks[key]){html+="<div class=\\"hc bekle\\" title=\\"Altin bekleniyor - otomatik fetih\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
 + 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
 + 'document.getElementById("grid").innerHTML=html;'
 + 'cizEtiket(d);cizLejant(d);}'

@@ -10,6 +10,9 @@ const OyunOyuncuSchema = new mongoose.Schema({
     rumuz:         { type: String, default: '' },        // sabit, otomatik takma ad
     renk:          { type: String, default: '#64b5f6' }, // haritada hucre rengi
     harcananAltin: { type: Number, default: 0 },
+    // v4.10.0: Kusatma ile cevrelenmis ama altin yetmediginden henuz fethedilmemis
+    //   hucreler. Altin geldikce (soru cozup puan kazandikca) otomatik islenir.
+    bekleyenFetih: { type: [{ x: Number, y: Number, _id: false }], default: [] },
     olusturma:     { type: Date, default: Date.now }
 });
 
