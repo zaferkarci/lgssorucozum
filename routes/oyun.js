@@ -241,6 +241,9 @@ router.get('/oyun/siralama/:sinif', async (req, res) => {
 router.get('/oyun/:sinif', async (req, res) => {
     const ctx = await oyuncuCoz(req, req.params.sinif);
     if (!ctx.ok) return kapali(res);
+    // v4.11.1: Ogrenci YALNIZ kendi sinif seviyesindeki gezegeni gorur. Farkli bir
+    //   sinif URL'sine giderse kendi dunyasina yonlendirilir (admin haric).
+    if (!ctx.admin && String(req.params.sinif) !== ctx.sinif) return res.redirect('/oyun/' + ctx.sinif);
     const sinif = ctx.sinif, OYUNCU = ctx.kullaniciAdi;
     try {
         const ben = await oyuncuGetir(OYUNCU, sinif);
