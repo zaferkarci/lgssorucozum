@@ -1,6 +1,17 @@
 // Takip ilişkisi route'ları (Öğretmen ↔ Öğrenci)
 const express = require('express');
 const router = express.Router();
+
+// v4.9.9: Bu router kisisel/dinamik veri sunar; tarayici/proxy
+//   onbellegi bayat liste gostermesin diye no-store. (Doru/yanlis listesinin
+//   bugunku cevaplari gec gostermesi onbellekten kaynaklaniyordu.)
+router.use(function (req, res, next) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
+
 const Kullanici = require('../models/Kullanici');
 const TakipIliski = require('../models/TakipIliski');
 const KurumSinif = require('../models/KurumSinif');
