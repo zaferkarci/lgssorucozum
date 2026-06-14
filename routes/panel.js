@@ -586,10 +586,14 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
-    // v4.8.19: Analiz surerken hedef karti TAMAMEN gizli — analiz cevaplari
-    //   hedefe sayilmadigi icin sayac donuk gorunurdu; analiz bitince ortaya cikar.
-    //   (Kart, mini gostergeler ve kutlama scripti ayni gunlukHedefData kosulunda.)
-    if (gercekOgrenci && !analizTamamlandi) gunlukHedefData = null;
+    // v4.10.1: Hedef karti TUM ogrencilerde gosterilir (analiz surse bile).
+    //   Onceden (v4.8.19) analiz tamamlanana kadar gizlenirdi; kullanici talebi
+    //   uzerine kart artik herkeste gorunur. Kutlama scripti (panel.ejs:
+    //   analizSerbest) ve sert "hedef doldu" durdurma (asagida analizTamamlandi
+    //   sartli) analiz sirasinda ZATEN devre disi oldugundan, kartin gorunur
+    //   olmasi bu akislari etkilemez.
+    //   Not: analiz cevaplari hedefe sayilmadigi icin (analiz:true), analiz
+    //   surerken sayac bugun icin 0/N gosterebilir; analiz bitince normal isler.
 
     // v4.8.12 -> v4.8.19: Gunluk hedef dolunca once "+1 soru" teklifi (tek seferlik),
     //   sonra "bugunluk bu kadar" karti. Analiz cevaplari hedefe sayilmadigindan
