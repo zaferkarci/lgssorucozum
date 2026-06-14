@@ -31,17 +31,25 @@ function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').repla
 //   test altini, admin araclari). Ogrenci/demo -> kendi adi + kendi sinifi (5-8);
 //   altin = puan - harcanan. Diger roller oynayamaz.
 async function oyuncuCoz(req, sinifParam) {
+    // v4.12.0: Once OTURUM kullanicisina bak. Gercek ogrenci/demo ise KENDI
+    //   kimligiyle, kendi sinif gezegeninde oynar — admin Basic-Auth (adminGirisli)
+    //   ayni tarayicida yapiskan kalmis olsa bile. Boylece bir ogrenci hesabi asla
+    //   admin onizlemesine (tum dunyalar + test altini) dusmez.
+    const su = req.session && req.session.kullaniciAdi;
+    if (su) {
+        const k = await Kullanici.findOne({ kullaniciAdi: su }, 'rol sinif').lean();
+        if (k && (k.rol === 'ogrenci' || k.rol === 'demo')) {
+            const m = String(k.sinif == null ? '' : k.sinif).match(/([5-8])/);
+            if (!m) return { ok: false };
+            return { ok: true, kullaniciAdi: su, sinif: m[1], admin: false };
+        }
+    }
+    // Ogrenci/demo oturumu yoksa: saf admin (Basic-Auth) -> onizleme.
     if (adminMi(req)) {
         const s = ['5', '6', '7', '8'].includes(String(sinifParam)) ? String(sinifParam) : '5';
         return { ok: true, kullaniciAdi: ADMIN_OYUNCU, sinif: s, admin: true };
     }
-    const su = req.session && req.session.kullaniciAdi;
-    if (!su) return { ok: false };
-    const k = await Kullanici.findOne({ kullaniciAdi: su }, 'rol sinif').lean();
-    if (!k || (k.rol !== 'ogrenci' && k.rol !== 'demo')) return { ok: false };
-    const m = String(k.sinif == null ? '' : k.sinif).match(/([5-8])/);
-    if (!m) return { ok: false };
-    return { ok: true, kullaniciAdi: su, sinif: m[1], admin: false };
+    return { ok: false };
 }
 
 // Turkiye taslagi (opsiyonel seed) icin yaklasik poligon + yardimcilar.
@@ -144,11 +152,11 @@ async function altinBakiye(oyuncu) {
 
 // ---- GET /oyun : dunya secici ----
 router.get('/oyun', async (req, res) => {
-    if (!adminMi(req)) {
-        const ctx = await oyuncuCoz(req);
-        if (!ctx.ok) return kapali(res);
-        return res.redirect('/oyun/' + ctx.sinif);
-    }
+    const ctx = await oyuncuCoz(req);
+    if (!ctx.ok) return kapali(res);
+    // v4.12.0: Ogrenci/demo oturumu (yapiskan admin olsa bile) kendi gezegenine gider;
+    //   secici (tum dunyalar) yalniz saf admin onizlemesinde gosterilir.
+    if (!ctx.admin) return res.redirect('/oyun/' + ctx.sinif);
     const kart = (s, ad) => '<a href="/oyun/' + s + '" style="display:block;padding:22px;margin:10px 0;background:linear-gradient(135deg,#15324f,#0d2540);color:#fff;border-radius:14px;text-decoration:none;font-size:18px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);">&#127758; ' + ad + '</a>';
     res.send('<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bilgi Gezegenleri</title></head>'
         + '<body style="margin:0;background:#070d1c;color:#e8eaf6;font-family:Segoe UI,sans-serif;min-height:100vh;">'
