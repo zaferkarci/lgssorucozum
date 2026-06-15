@@ -503,11 +503,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             // v4.3.16: Sınıf filtresi okul ve şube dolu olmalı (boş okul/şube farklı kişileri eşleyemez)
             const sinifFiltre = (u) => u.okul && k.okul && u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? (u.sube && u.sube === k.sube) : true);
 
-            const turkiyeListesi = tumKullanicilar.filter(nitelikliFiltre).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-            const ilListesi      = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.il === k.il).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
-            const ilceListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.ilce === k.ilce).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const turkiyeListesi = tumKullanicilar.filter(u => nitelikliFiltre(u) && Number(u.sinif) === Number(k.sinif)).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const ilListesi      = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.il === k.il && Number(u.sinif) === Number(k.sinif)).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const ilceListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.ilce === k.ilce && Number(u.sinif) === Number(k.sinif)).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
             // v4.3.16: Okul ve sınıf sıralamaları sadece okul/şubesi dolu kullanıcılar arasında
-            const okulListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
+            const okulListesi    = tumKullanicilar.filter(u => nitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul && Number(u.sinif) === Number(k.sinif)).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
             const sinifListesi   = tumKullanicilar.filter(u => nitelikliFiltre(u) && sinifFiltre(u)).map(u => ortToplamHesapla(u)).sort((a, b) => b - a);
 
             // v4.3.16: Kullanıcının kendi okul/şubesi boşsa o sıralamalarda 0 (görünmez) döndür
@@ -548,11 +548,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 const kDersNitelikli = kDersSoruSayisi >= MIN_SORU;
 
                 const dersNitelikliFiltre = (u) => dersSoruSayisiFn(u) >= MIN_SORU;
-                const tList  = tumKullanicilar.filter(dersNitelikliFiltre).map(dersOrtFn).sort((a,b) => b-a);
-                const iList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.il === k.il).map(dersOrtFn).sort((a,b) => b-a);
-                const ilList = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.ilce === k.ilce).map(dersOrtFn).sort((a,b) => b-a);
+                const tList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
+                const iList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.il === k.il && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
+                const ilList = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.ilce === k.ilce && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
                 // v4.3.16: Ders okul/sınıf sıralaması — sadece okul/şubesi dolu kullanıcılar
-                const oList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul).map(dersOrtFn).sort((a,b) => b-a);
+                const oList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
                 const sList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && sinifFiltre(u)).map(dersOrtFn).sort((a,b) => b-a);
                 dersSiralamalari[dersAdi] = {
                     turkiye:        kDersNitelikli ? tList.findIndex(p => p <= kDersOrt) + 1 : 0,
