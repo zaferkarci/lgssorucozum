@@ -2835,6 +2835,25 @@ function gosterExcelHata(msg) {
         <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <% var _d = s.durum || 'taslak'; %>
+          <% if (_d !== 'yayinda') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="yayinda">
+            <button class="admin-btn" style="background:#2e7d32;color:#fff;" title="Hizlica yayina al">&#9654; YAYINA AL</button>
+          </form>
+          <% } %>
+          <% if (_d !== 'duraklat') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="duraklat">
+            <button class="admin-btn" style="background:#ef6c00;color:#fff;" title="Hizlica duraklat">&#9208; DURAKLAT</button>
+          </form>
+          <% } %>
+          <% if (_d !== 'taslak') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="taslak">
+            <button class="admin-btn" style="background:#757575;color:#fff;" title="Hizlica taslaga al">&#8617; TASLAGA AL</button>
+          </form>
+          <% } %>
           <form action="/soru-sil" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>">
             <button class="admin-btn admin-btn-sil">SİL</button>
@@ -2860,6 +2879,25 @@ function gosterExcelHata(msg) {
         <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <% var _d = s.durum || 'taslak'; %>
+          <% if (_d !== 'yayinda') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="yayinda">
+            <button class="admin-btn" style="background:#2e7d32;color:#fff;" title="Hizlica yayina al">&#9654; YAYINA AL</button>
+          </form>
+          <% } %>
+          <% if (_d !== 'duraklat') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="duraklat">
+            <button class="admin-btn" style="background:#ef6c00;color:#fff;" title="Hizlica duraklat">&#9208; DURAKLAT</button>
+          </form>
+          <% } %>
+          <% if (_d !== 'taslak') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="taslak">
+            <button class="admin-btn" style="background:#757575;color:#fff;" title="Hizlica taslaga al">&#8617; TASLAGA AL</button>
+          </form>
+          <% } %>
           <form action="/soru-sil" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>">
             <button class="admin-btn admin-btn-sil">SİL</button>
@@ -2885,6 +2923,25 @@ function gosterExcelHata(msg) {
         <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <% var _d = s.durum || 'taslak'; %>
+          <% if (_d !== 'yayinda') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="yayinda">
+            <button class="admin-btn" style="background:#2e7d32;color:#fff;" title="Hizlica yayina al">&#9654; YAYINA AL</button>
+          </form>
+          <% } %>
+          <% if (_d !== 'duraklat') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="duraklat">
+            <button class="admin-btn" style="background:#ef6c00;color:#fff;" title="Hizlica duraklat">&#9208; DURAKLAT</button>
+          </form>
+          <% } %>
+          <% if (_d !== 'taslak') { %>
+          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+            <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="taslak">
+            <button class="admin-btn" style="background:#757575;color:#fff;" title="Hizlica taslaga al">&#8617; TASLAGA AL</button>
+          </form>
+          <% } %>
           <form action="/soru-sil" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>">
             <button class="admin-btn admin-btn-sil">SİL</button>

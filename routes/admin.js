@@ -231,6 +231,24 @@ router.post('/soru-sil', async (req, res) => {
     res.redirect('/admin?mod=soruListesi');
 });
 
+// v4.14.0: Sorular listesinden HIZLI durum degistirme (yayinda / taslak / duraklat).
+//   soru-guncelle ile ayni yan etkiler: yayina alirken yayinTarih ve numarasiz
+//   soruya numara atanir. Diger alanlar korunur.
+router.post('/soru-durum-degistir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    const id = req.body.id;
+    const durum = req.body.durum;
+    if (['taslak', 'yayinda', 'duraklat'].indexOf(durum) === -1) return res.redirect('/admin?mod=soruListesi');
+    const ek = { durum };
+    if (durum === 'yayinda') {
+        ek.yayinTarih = new Date();
+        const mevcut = await Soru.findById(id).select('soruNo').lean();
+        if (!mevcut || !mevcut.soruNo) { const [bosNo] = await bosSoruNo(1); ek.soruNo = bosNo; }
+    }
+    await Soru.findByIdAndUpdate(id, ek);
+    res.redirect('/admin?mod=soruListesi');
+});
+
 router.post('/soru-istatistik-sifirla', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {

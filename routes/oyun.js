@@ -153,6 +153,30 @@ async function bekleyenFetihIsle(oyuncu, sinif) {
     return ekle.length;
 }
 
+// v4.14.0: (x,y) hucresi oyuncunun olduktan SONRA, bu hucreyle kapanan cep(ler)i
+//   kusatma tespiti ile fetih kuyruguna alir ve altin elverdikce isler. Hem normal
+//   alimda hem de DUELLO ile kazanilan hucrede ayni otomatik fetih calissin diye.
+async function kusatmaIsle(ben, sinif, x, y, oyuncuAdi) {
+    if (!Array.isArray(ben.bekleyenFetih)) ben.bekleyenFetih = [];
+    const occ = new Map();
+    (await OyunHucre.find({ sinif }, 'x y sahip').lean()).forEach(h => occ.set(h.x + ',' + h.y, h.sahip));
+    const locks = await kilitSeti();
+    const mevcutKuyruk = new Set(ben.bekleyenFetih.map(q => q.x + ',' + q.y));
+    const eklendi = new Set();
+    for (const d of KOMSU) {
+        const nx = x + d[0], ny = y + d[1], key = nx + ',' + ny;
+        if (nx < 0 || ny < 0 || nx >= DW || ny >= DH) continue;
+        if (occ.has(key) || locks.has(key)) continue;
+        const r = bolgeTara(nx, ny, occ, locks, oyuncuAdi);
+        if (r.kapali) r.hucreler.forEach(c => {
+            const k = c[0] + ',' + c[1];
+            if (!eklendi.has(k) && !mevcutKuyruk.has(k)) { eklendi.add(k); ben.bekleyenFetih.push({ x: c[0], y: c[1] }); }
+        });
+    }
+    if (eklendi.size) { ben.markModified('bekleyenFetih'); await ben.save(); }
+    await bekleyenFetihIsle(ben, sinif);
+}
+
 function hashStr(s) { let h = 0; s = String(s); for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; } return h; }
 const ADJ = ['Mavi', 'Kizil', 'Altin', 'Gumus', 'Parlak', 'Sessiz', 'Hizli', 'Gizemli', 'Yesil', 'Mor', 'Beyaz', 'Turuncu'];
 const NOUN = ['Kuyrukluyildiz', 'Yildiz', 'Nebula', 'Komet', 'Meteor', 'Galaksi', 'Pulsar', 'Yorunge', 'Asteroit', 'Ay'];
@@ -641,7 +665,10 @@ router.post('/oyun/duello', async (req, res) => {
         const kazandi = benSure < rakipSure; // esitlikte savunan korur
         ben.sonSaldiriTarih = new Date(); // saldiri hakki sonuc ne olursa olsun tukenir
         await ben.save();
-        if (kazandi) await OyunHucre.updateOne({ sinif, x, y }, { $set: { sahip: BEN } });
+        if (kazandi) {
+            await OyunHucre.updateOne({ sinif, x, y }, { $set: { sahip: BEN } });
+            await kusatmaIsle(ben, sinif, x, y, BEN); // duello ile kapanan cep otomatik fethedilsin
+        }
         const ro = await OyunOyuncu.findOne({ sinif, kullaniciAdi: RAKIP }, 'rumuz').lean();
         res.json({ ok: true, kazandi, benSure, rakipSure, rakipRumuz: (ro && ro.rumuz) || RAKIP });
     } catch (e) {
