@@ -13,6 +13,7 @@ const OyunHucre = require('../models/OyunHucre');
 const OyunOyuncu = require('../models/OyunOyuncu');
 const OyunKilit = require('../models/OyunKilit');
 const Kullanici = require('../models/Kullanici');
+const CevapKaydi = require('../models/CevapKaydi');
 
 // ---- sabitler ----
 const DW = 400, DH = 200;
@@ -37,11 +38,14 @@ async function oyuncuCoz(req, sinifParam) {
     //   admin onizlemesine (tum dunyalar + test altini) dusmez.
     const su = req.session && req.session.kullaniciAdi;
     if (su) {
+        // v4.13.1: Oturumda kullanici varsa ve sinif seviyesi (5-8) belirliyse, ROLU
+        //   ne olursa olsun YALNIZ kendi gezegeninde oynar. Boylece hicbir gercek
+        //   kullanici (yapiskan admin/adminGirisli olsa bile) tum dunyalari goren
+        //   onizlemeye dusemez.
         const k = await Kullanici.findOne({ kullaniciAdi: su }, 'rol sinif').lean();
-        if (k && (k.rol === 'ogrenci' || k.rol === 'demo')) {
+        if (k) {
             const m = String(k.sinif == null ? '' : k.sinif).match(/([5-8])/);
-            if (!m) return { ok: false };
-            return { ok: true, kullaniciAdi: su, sinif: m[1], admin: false };
+            if (m) return { ok: true, kullaniciAdi: su, sinif: m[1], admin: false };
         }
     }
     // Ogrenci/demo oturumu yoksa: saf admin (Basic-Auth) -> onizleme.
@@ -50,6 +54,31 @@ async function oyuncuCoz(req, sinifParam) {
         return { ok: true, kullaniciAdi: ADMIN_OYUNCU, sinif: s, admin: true };
     }
     return { ok: false };
+}
+
+// v4.13.0: Iki tarih ayni gun mu (gunluk saldiri limiti).
+function ayniGunMu(a, b) {
+    a = new Date(a); b = new Date(b);
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+// v4.13.0: Oyuncu kusatilmis mi? Tum hucrelerinin 4-komsusu dolu/kilitli/kenar ise
+//   (hic bos+kilitsiz komsu yok) kusatilmistir; uzak sicramaya izin verilir.
+async function kusatildiMi(sinif, oyuncuAdi) {
+    const tum = await OyunHucre.find({ sinif }, 'x y sahip').lean();
+    const occSet = new Set(tum.map(h => h.x + ',' + h.y));
+    const lockSet = await kilitSeti();
+    const benim = tum.filter(h => h.sahip === oyuncuAdi);
+    if (!benim.length) return false;
+    for (const h of benim) {
+        for (const dd of KOMSU) {
+            const nx = h.x + dd[0], ny = h.y + dd[1];
+            if (nx < 0 || ny < 0 || nx >= DW || ny >= DH) continue;
+            const kk = nx + ',' + ny;
+            if (!occSet.has(kk) && !lockSet.has(kk)) return false;
+        }
+    }
+    return true;
 }
 
 // Turkiye taslagi (opsiyonel seed) icin yaklasik poligon + yardimcilar.
@@ -157,6 +186,10 @@ router.get('/oyun', async (req, res) => {
     // v4.12.0: Ogrenci/demo oturumu (yapiskan admin olsa bile) kendi gezegenine gider;
     //   secici (tum dunyalar) yalniz saf admin onizlemesinde gosterilir.
     if (!ctx.admin) return res.redirect('/oyun/' + ctx.sinif);
+    // v4.13.1: Tum-dunya secicisi YALNIZ acik istekle (?yonetici=1) gosterilir.
+    //   Aksi halde ciplak /oyun hicbir zaman tum dunyalari listelemez; saf admin
+    //   tek bir dunyaya yonlendirilir (istedigi dunyaya /oyun/<sinif> ile gidebilir).
+    if (req.query.yonetici !== '1') return res.redirect('/oyun/8');
     const kart = (s, ad) => '<a href="/oyun/' + s + '" style="display:block;padding:22px;margin:10px 0;background:linear-gradient(135deg,#15324f,#0d2540);color:#fff;border-radius:14px;text-decoration:none;font-size:18px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);">&#127758; ' + ad + '</a>';
     res.send('<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bilgi Gezegenleri</title></head>'
         + '<body style="margin:0;background:#070d1c;color:#e8eaf6;font-family:Segoe UI,sans-serif;min-height:100vh;">'
@@ -195,7 +228,9 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
         const bekleyen = (ben.bekleyenFetih || []).filter(c => c.x >= vx && c.x < vx + VP && c.y >= vy && c.y < vy + VP).map(c => c.x + ',' + c.y);
         const hucreSayisi = await OyunHucre.countDocuments({ sinif, sahip: OYUNCU });
         const bakiye = await altinBakiye(ben);
-        res.json({ ok: true, vx, vy, owned, players, bloke, bekleyen, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: OYUNCU });
+        const kusatildi = await kusatildiMi(sinif, OYUNCU);
+        const saldiriHakki = !(ben.sonSaldiriTarih && ayniGunMu(ben.sonSaldiriTarih, new Date()));
+        res.json({ ok: true, vx, vy, owned, players, bloke, bekleyen, bakiye, hucreSayisi, fiyat: 10 * hucreSayisi, admin: OYUNCU, kusatildi, saldiriHakki });
     } catch (e) {
         console.error('[oyun veri]', e.message);
         res.status(500).json({ ok: false, hata: e.message });
@@ -318,7 +353,11 @@ router.post('/oyun/hucre-al', async (req, res) => {
             sinif, sahip: OYUNCU,
             $or: [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }]
         }, '_id').lean();
-        if (!komsu) return res.json({ ok: false, hata: 'Yalniz kendi topragina komsu hucre alinabilir.' });
+        if (!komsu) {
+            // v4.13.0: kusatma kacisi — komsu bos+kilitsiz hucre kalmadiysa uzak sicramaya izin
+            const kus = await kusatildiMi(sinif, OYUNCU);
+            if (!kus) return res.json({ ok: false, hata: 'Yalniz kendi topragina komsu hucre alinabilir.' });
+        }
         const dolu = await OyunHucre.findOne({ sinif, x, y }, '_id').lean();
         if (dolu) return res.json({ ok: false, hata: 'Bu hucre zaten alinmis.' });
         const fiyat = 10 * say;
@@ -461,6 +500,8 @@ function kabukHtml(opt) {
 + '.hc.dolu{border:3px solid transparent;border-radius:3px;}'
 + '.hc.bloke{background:repeating-linear-gradient(45deg,rgba(229,57,53,.30),rgba(229,57,53,.30) 4px,rgba(229,57,53,.15) 4px,rgba(229,57,53,.15) 8px);border:1px solid rgba(229,57,53,.55);border-radius:3px;}'
 + '.hc.bekle{background:repeating-linear-gradient(45deg,rgba(255,193,79,.40),rgba(255,193,79,.40) 4px,rgba(255,193,79,.16) 4px,rgba(255,193,79,.16) 8px);border:1.5px dashed rgba(133,79,11,.85);border-radius:3px;}'
++ '.hc.duello{cursor:crosshair;} .hc.duello .swd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;opacity:.65;text-shadow:0 0 3px #000;} .hc.duello:hover .swd{opacity:1;transform:scale(1.25);}'
++ '.hc.sicrama{cursor:pointer;background:rgba(79,143,255,.18);border:1px dashed #4f8fff;border-radius:4px;} .hc.sicrama .jmp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#bbdefb;} .hc.sicrama:hover{background:rgba(79,143,255,.36);}'
 + '.hc.kduzen{cursor:pointer;outline:1px solid rgba(255,255,255,.12);outline-offset:-1px;}'
 + '.hc.kduzen:hover{background:rgba(255,213,79,.25);}'
 + '.lbl{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;background:rgba(8,12,28,.88);border:1.5px solid #777;border-radius:14px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:5;}'
@@ -484,6 +525,7 @@ function kabukHtml(opt) {
 + '<div class="sat"><span>Altin</span><b class="altin" id="bakiye2">...</b></div>'
 + '<div class="sat"><span>Sonraki hucre</span><b class="altin" id="fiyat">0</b></div>'
 + '<div class="sat"><span>Konum</span><b id="konum">-</b></div>'
++ '<div class="sat"><span>Saldiri hakki</span><b id="saldiriHakki">-</b></div>'
 + (ilkHucreYok ? '<button class="abtn abtn-vurgu" style="margin-top:12px;width:100%;" onclick="baslangic()">&#127922; Baslangic yurdu (otomatik)</button>' : '')
 + '<h2 style="margin-top:16px;">MINI HARITA</h2><div class="mini" id="mini" onclick="miniTikla(event)"><div class="vprect" id="vprect"></div></div>'
 + '<div class="ipucu" style="text-align:left;">Mini haritaya tikla = oraya atla. Yon tuslari/oklar = kaydir.</div>'
@@ -503,6 +545,7 @@ function kabukHtml(opt) {
 + '<h2 style="margin-top:18px;">SIRALAMA (' + sinif + '. Sinif)</h2><div id="siralama" style="font-size:13px;color:#9fa8da;">-</div></aside>'
 + '</div>'
 + '<div id="kurallarModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;align-items:center;justify-content:center;padding:20px;"><div style="background:#0e1830;border:1px solid rgba(255,255,255,.15);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:22px;"><div style="display:flex;align-items:center;margin-bottom:10px;"><h2 style="margin:0;font-size:18px;">&#128220; Bilgi Gezegenleri - Kurallar</h2><button onclick="kurallarKapat()" style="margin-left:auto;background:none;border:none;color:#9fa8da;font-size:24px;cursor:pointer;">&times;</button></div>' + kurallarMetni() + '</div></div>'
++ '<div id="duelloModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;align-items:center;justify-content:center;padding:20px;"><div style="background:#0e1830;border:1px solid rgba(255,255,255,.15);border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center;"><div id="duelloIkon" style="font-size:40px;margin-bottom:6px;"></div><h2 id="duelloBaslik" style="margin:0 0 10px;font-size:20px;"></h2><p style="color:#b9c2e8;font-size:14px;line-height:1.7;">Rakip: <b id="duelloRakip"></b><br>Ortak bir soruda sure kiyasi:<br>Senin suren: <b id="duelloBenSure"></b> sn<br>Rakibin suresi: <b id="duelloRakipSure"></b> sn</p><p id="duelloNot" style="font-size:13px;color:#9fa8da;"></p><button onclick="duelloKapat()" class="abtn" style="margin-top:6px;">Kapat</button></div></div>'
 + scriptBlok({ sinif, vx, vy, HUC, benId })
 + '</body></html>';
 }
@@ -517,7 +560,8 @@ function kurallarMetni() {
 + '<p><b>Kusatma = otomatik fetih:</b> Bir bos alani kendi hucrelerinle (veya kilitli duvarlarla) tamamen cevirirsen, icindeki tum hucreler otomatik senin olur. Fetih fiyati satin almayla aynidir. Altinin yetmezse fetih bekler; yeni altin kazandikca otomatik devam eder.</p>'
 + '<p><b>Gezinme:</b> Dunya buyuktur; ekranda 20x20 alan gorunur. Yon tuslari/oklar ile kaydir, mini haritaya tiklayarak uzaga atla.</p>'
 + '<p><b>Siralama:</b> Sag panelde sinif dunyandaki oyuncular hucre sayisina gore siralanir.</p>'
-+ '<p style="color:#9fa8da;">Duello (komsu rakibe meydan okuma) yakinda eklenecek.</p>'
++ '<p><b>Duello:</b> Kendi topragina komsu bir DUSMAN hucresine tiklayarak duello acabilirsin. Ikinizin de DOGRU cozdugu ortak bir soru rastgele secilir; o soruyu daha KISA surede cozen kazanir. Kazanirsan o hucre senin olur. Gunde 1 saldiri hakkin vardir. Rakibin son hucresi korumalidir. Ortak dogru cozulmus soru yoksa duello yapilamaz.</p>'
++ '<p><b>Kusatma kacisi:</b> Tamamen kusatildiysan (komsu bos hucre kalmadiysa), bitisiklik sarti olmadan uzaktaki bos bir hucreye sicrayabilirsin; fiyat normaldir (10 x mevcut hucre).</p>'
 + '</div>';
 }
 
@@ -533,15 +577,18 @@ function scriptBlok(o) {
 + 'function updateRect(){var r=document.getElementById("vprect");var sx=200/DW,sy=100/DH;r.style.left=(vx*sx)+"px";r.style.top=(vy*sy)+"px";r.style.width=(VP*sx)+"px";r.style.height=(VP*sy)+"px";}'
 + 'async function render(){setBg();var r=await fetch("/oyun/veri/"+SINIF+"?vx="+vx+"&vy="+vy,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;'
 + 'document.getElementById("bakiye").textContent=d.bakiye;document.getElementById("bakiye2").textContent=d.bakiye;document.getElementById("hsay").textContent=d.hucreSayisi;document.getElementById("fiyat").textContent=d.fiyat;'
++ 'var shEl=document.getElementById("saldiriHakki");if(shEl){shEl.textContent=d.saldiriHakki?"var":"bugun doldu";shEl.style.color=d.saldiriHakki?"#a5d6a7":"#ef9a9a";}'
 + 'var om={},benim={};d.owned.forEach(function(c){om[c.x+","+c.y]=c.sahip;if(c.sahip===ADMIN)benim[c.x+","+c.y]=1;});var bs={};(d.bloke||[]).forEach(function(k){bs[k]=1;});var beks={};(d.bekleyen||[]).forEach(function(k){beks[k]=1;});'
 + 'var html="";for(var row=0;row<VP;row++){for(var col=0;col<VP;col++){var wx=vx+col,wy=vy+row,key=wx+","+wy;var sahip=om[key];'
 + 'if(kilitMod){html+="<div class=\\"hc kduzen"+(bs[key]?" bloke":"")+"\\" onclick=\\"kilitDegistir("+wx+","+wy+")\\"></div>";}'
 + 'else if(sahip){var pl=d.players[sahip]||{renk:"#777"};var col2=pl.renk||"#777";'
 + 'function bd(dx,dy){return om[(wx+dx)+","+(wy+dy)]===sahip?"transparent":col2;}'
 + 'var st="background:"+hexA(col2,0.34)+";border-top-color:"+bd(0,-1)+";border-bottom-color:"+bd(0,1)+";border-left-color:"+bd(-1,0)+";border-right-color:"+bd(1,0)+";";'
-+ 'html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";'
++ 'var dusman=(sahip!==ADMIN),kb=false;if(dusman){for(var di=0;di<NB.length;di++){if(benim[(wx+NB[di][0])+","+(wy+NB[di][1])]){kb=true;break;}}}'
++ 'if(dusman&&kb){html+="<div class=\\"hc dolu duello\\" title=\\"Duello: "+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\" onclick=\\"duelloBaslat("+wx+","+wy+")\\"><span class=\\"swd\\">&#9876;</span></div>";}'
++ 'else{html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";}'
 + '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Kilitli - alinamaz\\"></div>";}else if(beks[key]){html+="<div class=\\"hc bekle\\" title=\\"Altin bekleniyor - otomatik fetih\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
-+ 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
++ 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else if(d.kusatildi){html+="<div class=\\"hc sicrama\\" title=\\"Uzak sicrama (kusatma kacisi)\\" onclick=\\"al("+wx+","+wy+")\\"><span class=\\"jmp\\">&#11015;</span></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
 + 'document.getElementById("grid").innerHTML=html;'
 + 'cizEtiket(d);cizLejant(d);}'
 + 'function hexA(h,a){var m=/^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(h||"");if(!m)return"rgba(120,120,120,"+a+")";return"rgba("+parseInt(m[1],16)+","+parseInt(m[2],16)+","+parseInt(m[3],16)+","+a+")";}'
@@ -560,11 +607,52 @@ function scriptBlok(o) {
 + 'async function yukleMini(){var r=await fetch("/oyun/minimap/"+SINIF,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;MINI=d.noktalar;var mini=document.getElementById("mini");mini.querySelectorAll(".dot").forEach(function(e){e.remove();});var sx=200/DW,sy=100/DH;MINI.forEach(function(p){var dot=document.createElement("div");dot.className="dot";dot.style.left=(p.x*sx)+"px";dot.style.top=(p.y*sy)+"px";dot.style.background=p.renk;mini.appendChild(dot);});}'
 + 'function miniTikla(e){var mini=document.getElementById("mini");var rc=mini.getBoundingClientRect();var px=(e.clientX-rc.left)/rc.width*DW,py=(e.clientY-rc.top)/rc.height*DH;vx=clamp(Math.round(px-VP/2),0,DW-VP);vy=clamp(Math.round(py-VP/2),0,DH-VP);render();}'
 + 'document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){kaydir(-1,0);e.preventDefault();}else if(e.key==="ArrowRight"){kaydir(1,0);e.preventDefault();}else if(e.key==="ArrowUp"){kaydir(0,-1);e.preventDefault();}else if(e.key==="ArrowDown"){kaydir(0,1);e.preventDefault();}});'
++ 'async function duelloBaslat(x,y){if(!confirm("Bu dusman hucresine duello acmak ister misin? (Gunde 1 saldiri hakkin var)"))return;var r=await fetch("/oyun/duello",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(!d.ok){alert(d.hata||"Duello yapilamadi");return;}duelloSonuc(d);render();yukleMini();yukleSiralama();}'
++ 'function duelloSonuc(d){document.getElementById("duelloIkon").innerHTML=d.kazandi?"&#9876;":"&#128737;";var b=document.getElementById("duelloBaslik");b.textContent=d.kazandi?"KAZANDIN!":"Kaybettin";b.style.color=d.kazandi?"#a5d6a7":"#ef9a9a";document.getElementById("duelloRakip").textContent=d.rakipRumuz;document.getElementById("duelloBenSure").textContent=d.benSure;document.getElementById("duelloRakipSure").textContent=d.rakipSure;document.getElementById("duelloNot").textContent=d.kazandi?"Bu hucre senin oldu!":"Bugunku saldiri hakkin doldu.";document.getElementById("duelloModal").style.display="flex";}'
++ 'function duelloKapat(){document.getElementById("duelloModal").style.display="none";}'
 + 'function kurallarAc(){document.getElementById("kurallarModal").style.display="flex";}'
 + 'function kurallarKapat(){document.getElementById("kurallarModal").style.display="none";}'
 + 'render();yukleMini();yukleSiralama();'
 + '</script>';
 }
+
+// ---- POST /oyun/duello : komsu dusman hucresine duello (ortak dogru soru, sure kiyasi) ----
+router.post('/oyun/duello', async (req, res) => {
+    const ctx = await oyuncuCoz(req, req.body.sinif);
+    if (!ctx.ok) return res.status(403).json({ ok: false, hata: 'Yetki yok.' });
+    const sinif = ctx.sinif, BEN = ctx.kullaniciAdi;
+    const x = parseInt(req.body.x), y = parseInt(req.body.y);
+    if (Number.isNaN(x) || Number.isNaN(y)) return res.json({ ok: false, hata: 'Gecersiz hucre.' });
+    try {
+        const hedef = await OyunHucre.findOne({ sinif, x, y }, 'sahip').lean();
+        if (!hedef) return res.json({ ok: false, hata: 'Bu hucre bos.' });
+        const RAKIP = hedef.sahip;
+        if (RAKIP === BEN) return res.json({ ok: false, hata: 'Kendi hucrene duello olmaz.' });
+        const komsu = await OyunHucre.findOne({ sinif, sahip: BEN, $or: [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }] }, '_id').lean();
+        if (!komsu) return res.json({ ok: false, hata: 'Yalniz kendi topragina komsu dusman hucresine duello acabilirsin.' });
+        const rakipSayi = await OyunHucre.countDocuments({ sinif, sahip: RAKIP });
+        if (rakipSayi <= 1) return res.json({ ok: false, hata: 'Rakibin son hucresi korumali, alinamaz.' });
+        const ben = await oyuncuGetir(BEN, sinif);
+        if (ben.sonSaldiriTarih && ayniGunMu(ben.sonSaldiriTarih, new Date())) return res.json({ ok: false, hata: 'Bugun saldiri hakkin doldu (gunde 1).' });
+        const benDogru = await CevapKaydi.find({ kullaniciAdi: BEN, dogruMu: true }, 'soruId sure').lean();
+        const rakipDogru = await CevapKaydi.find({ kullaniciAdi: RAKIP, dogruMu: true }, 'soruId sure').lean();
+        const benMap = {}; benDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); const s = (c.sure == null ? 99999 : c.sure); if (benMap[id] == null || s < benMap[id]) benMap[id] = s; });
+        const rakipMap = {}; rakipDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); const s = (c.sure == null ? 99999 : c.sure); if (rakipMap[id] == null || s < rakipMap[id]) rakipMap[id] = s; });
+        const ortak = Object.keys(benMap).filter(id => rakipMap[id] != null);
+        if (!ortak.length) return res.json({ ok: false, sebep: 'ortak-yok', hata: 'Ikinizin de dogru cozdugu ortak soru yok; duello yapilamaz.' });
+        const secId = ortak[Math.floor(Math.random() * ortak.length)];
+        const benSure = benMap[secId], rakipSure = rakipMap[secId];
+        const kazandi = benSure < rakipSure; // esitlikte savunan korur
+        ben.sonSaldiriTarih = new Date(); // saldiri hakki sonuc ne olursa olsun tukenir
+        await ben.save();
+        if (kazandi) await OyunHucre.updateOne({ sinif, x, y }, { $set: { sahip: BEN } });
+        const ro = await OyunOyuncu.findOne({ sinif, kullaniciAdi: RAKIP }, 'rumuz').lean();
+        res.json({ ok: true, kazandi, benSure, rakipSure, rakipRumuz: (ro && ro.rumuz) || RAKIP });
+    } catch (e) {
+        console.error('[oyun duello]', e.message);
+        res.json({ ok: false, hata: e.message });
+    }
+});
 
 // ---- POST /oyun-duyuru-goruldu : giris duyurusunu kalici kapat ----
 router.post('/oyun-duyuru-goruldu', async (req, res) => {

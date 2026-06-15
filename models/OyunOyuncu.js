@@ -13,6 +13,8 @@ const OyunOyuncuSchema = new mongoose.Schema({
     // v4.10.0: Kusatma ile cevrelenmis ama altin yetmediginden henuz fethedilmemis
     //   hucreler. Altin geldikce (soru cozup puan kazandikca) otomatik islenir.
     bekleyenFetih: { type: [{ x: Number, y: Number, _id: false }], default: [] },
+    // v4.13.0: Gunluk duello saldiri limiti (gunde 1) - son saldiri zamani.
+    sonSaldiriTarih: { type: Date, default: null },
     olusturma:     { type: Date, default: Date.now }
 });
 
