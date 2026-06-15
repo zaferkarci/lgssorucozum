@@ -186,10 +186,6 @@ router.get('/oyun', async (req, res) => {
     // v4.12.0: Ogrenci/demo oturumu (yapiskan admin olsa bile) kendi gezegenine gider;
     //   secici (tum dunyalar) yalniz saf admin onizlemesinde gosterilir.
     if (!ctx.admin) return res.redirect('/oyun/' + ctx.sinif);
-    // v4.13.1: Tum-dunya secicisi YALNIZ acik istekle (?yonetici=1) gosterilir.
-    //   Aksi halde ciplak /oyun hicbir zaman tum dunyalari listelemez; saf admin
-    //   tek bir dunyaya yonlendirilir (istedigi dunyaya /oyun/<sinif> ile gidebilir).
-    if (req.query.yonetici !== '1') return res.redirect('/oyun/8');
     const kart = (s, ad) => '<a href="/oyun/' + s + '" style="display:block;padding:22px;margin:10px 0;background:linear-gradient(135deg,#15324f,#0d2540);color:#fff;border-radius:14px;text-decoration:none;font-size:18px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);">&#127758; ' + ad + '</a>';
     res.send('<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bilgi Gezegenleri</title></head>'
         + '<body style="margin:0;background:#070d1c;color:#e8eaf6;font-family:Segoe UI,sans-serif;min-height:100vh;">'
