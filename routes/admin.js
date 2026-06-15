@@ -238,7 +238,11 @@ router.post('/soru-durum-degistir', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     const id = req.body.id;
     const durum = req.body.durum;
-    if (['taslak', 'yayinda', 'duraklat'].indexOf(durum) === -1) return res.redirect('/admin?mod=soruListesi');
+    // v4.14.1: islem sonrasi AYNI filtreye (sinif/ders/unite/konu) geri don
+    const qs = new URLSearchParams({ mod: 'soruListesi' });
+    ['filSinif', 'filDers', 'filUnite', 'filKonu'].forEach(f => { if (req.query[f]) qs.set(f, req.query[f]); });
+    const geri = '/admin?' + qs.toString();
+    if (['taslak', 'yayinda', 'duraklat'].indexOf(durum) === -1) return res.redirect(geri);
     const ek = { durum };
     if (durum === 'yayinda') {
         ek.yayinTarih = new Date();
@@ -246,7 +250,7 @@ router.post('/soru-durum-degistir', async (req, res) => {
         if (!mevcut || !mevcut.soruNo) { const [bosNo] = await bosSoruNo(1); ek.soruNo = bosNo; }
     }
     await Soru.findByIdAndUpdate(id, ek);
-    res.redirect('/admin?mod=soruListesi');
+    res.redirect(geri);
 });
 
 router.post('/soru-istatistik-sifirla', async (req, res) => {

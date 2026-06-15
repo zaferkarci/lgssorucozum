@@ -2808,6 +2808,7 @@ function gosterExcelHata(msg) {
           return ta - tb;
         });
       var duraklatilanlar = tumSorular.filter(function(s){ return s.durum === 'duraklat'; });
+      var _filtreQS = 'filSinif=' + encodeURIComponent(filSinif||'') + '&filDers=' + encodeURIComponent(filDers||'') + '&filUnite=' + encodeURIComponent(filUnite||'') + '&filKonu=' + encodeURIComponent(filKonu||'');
     %>
 
     <!-- v4.8.5: Sol onizleme paneli + saga dayali kart kolonu -->
@@ -2837,21 +2838,21 @@ function gosterExcelHata(msg) {
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <% var _d = s.durum || 'taslak'; %>
           <% if (_d !== 'yayinda') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="yayinda">
-            <button class="admin-btn" style="background:#2e7d32;color:#fff;" title="Hizlica yayina al">&#9654; YAYINA AL</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#2e7d32;" title="Hizlica yayina al">&#9654; Yayinla</button>
           </form>
           <% } %>
           <% if (_d !== 'duraklat') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="duraklat">
-            <button class="admin-btn" style="background:#ef6c00;color:#fff;" title="Hizlica duraklat">&#9208; DURAKLAT</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#ef6c00;" title="Hizlica duraklat">&#9208; Duraklat</button>
           </form>
           <% } %>
           <% if (_d !== 'taslak') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="taslak">
-            <button class="admin-btn" style="background:#757575;color:#fff;" title="Hizlica taslaga al">&#8617; TASLAGA AL</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#546e7a;" title="Hizlica taslaga al">&#9998; Taslak</button>
           </form>
           <% } %>
           <form action="/soru-sil" method="POST" style="display:inline;">
@@ -2881,21 +2882,21 @@ function gosterExcelHata(msg) {
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <% var _d = s.durum || 'taslak'; %>
           <% if (_d !== 'yayinda') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="yayinda">
-            <button class="admin-btn" style="background:#2e7d32;color:#fff;" title="Hizlica yayina al">&#9654; YAYINA AL</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#2e7d32;" title="Hizlica yayina al">&#9654; Yayinla</button>
           </form>
           <% } %>
           <% if (_d !== 'duraklat') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="duraklat">
-            <button class="admin-btn" style="background:#ef6c00;color:#fff;" title="Hizlica duraklat">&#9208; DURAKLAT</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#ef6c00;" title="Hizlica duraklat">&#9208; Duraklat</button>
           </form>
           <% } %>
           <% if (_d !== 'taslak') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="taslak">
-            <button class="admin-btn" style="background:#757575;color:#fff;" title="Hizlica taslaga al">&#8617; TASLAGA AL</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#546e7a;" title="Hizlica taslaga al">&#9998; Taslak</button>
           </form>
           <% } %>
           <form action="/soru-sil" method="POST" style="display:inline;">
@@ -2925,21 +2926,21 @@ function gosterExcelHata(msg) {
           <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <% var _d = s.durum || 'taslak'; %>
           <% if (_d !== 'yayinda') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="yayinda">
-            <button class="admin-btn" style="background:#2e7d32;color:#fff;" title="Hizlica yayina al">&#9654; YAYINA AL</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#2e7d32;" title="Hizlica yayina al">&#9654; Yayinla</button>
           </form>
           <% } %>
           <% if (_d !== 'duraklat') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="duraklat">
-            <button class="admin-btn" style="background:#ef6c00;color:#fff;" title="Hizlica duraklat">&#9208; DURAKLAT</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#ef6c00;" title="Hizlica duraklat">&#9208; Duraklat</button>
           </form>
           <% } %>
           <% if (_d !== 'taslak') { %>
-          <form action="/soru-durum-degistir" method="POST" style="display:inline;">
+          <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= s._id %>"><input type="hidden" name="durum" value="taslak">
-            <button class="admin-btn" style="background:#757575;color:#fff;" title="Hizlica taslaga al">&#8617; TASLAGA AL</button>
+            <button style="padding:3px 9px;font-size:11px;font-weight:600;border:none;border-radius:6px;color:#fff;cursor:pointer;line-height:1.5;background:#546e7a;" title="Hizlica taslaga al">&#9998; Taslak</button>
           </form>
           <% } %>
           <form action="/soru-sil" method="POST" style="display:inline;">
