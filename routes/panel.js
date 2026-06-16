@@ -302,6 +302,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     //   4) Unite tablosunda olmayan ünite/konu sona düşer (güvenlik ağı)
     const dersFiltre = (req.query.ders || '').trim();
     const eksikFiltre = (req.query.eksik || '').trim(); // "ders|konu" formatı
+    const uniteFiltre = (req.query.unite || '').trim(); // v4.15.0: manuel unite secimi
+    const konuFiltre  = (req.query.konu  || '').trim(); // v4.15.0: manuel konu secimi
     const gercekOgrenci = (!ogretmen && !moderator && !demo);
 
     // v4.8.7: Konu izinleri — admin'in kapattigi konular ogrenciye gelmez (varsayilan acik).
@@ -360,10 +362,46 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         } catch (e) { analizTamamlandi = true; analizEksikSayisi = 0; }
     }
 
+    // v4.15.0: Manuel secim agaci (Ders -> Unite -> Konu) — Unite tablosu sirasiyla,
+    //   yalniz cozulmemis sorusu olan dugumler. Filtreler UYGULANMADAN once, tam
+    //   cozulmemis havuzdan sayilir. Istemci (panel.ejs) kademeli acilir menude kullanir.
+    let dersUniteKonuAgaci = [];
+    if (gercekOgrenci && analizTamamlandi) {
+        try {
+            const _sayac = {}; // 'ders|unite|konu' -> adet
+            cozulmemisSorular.forEach(s => {
+                const key = (s.ders||'') + '|' + (s.unite||'') + '|' + (s.konu||'');
+                _sayac[key] = (_sayac[key] || 0) + 1;
+            });
+            const _agacUnite = await Unite.find({ sinif: String(k.sinif) }).sort({ uniteNo: 1 }).lean();
+            const _dersGrup = {}; // ders -> [{ uniteAdi, sayi, konular:[{konu,sayi}] }]
+            _agacUnite.forEach(u => {
+                const _konular = (u.konular||[]).map(ko => ({
+                    konu: ko,
+                    sayi: _sayac[(u.ders||'') + '|' + (u.uniteAdi||'') + '|' + ko] || 0
+                })).filter(x => x.sayi > 0);
+                const _uSayi = _konular.reduce((tp, x) => tp + x.sayi, 0);
+                if (_uSayi > 0) {
+                    if (!_dersGrup[u.ders]) _dersGrup[u.ders] = [];
+                    _dersGrup[u.ders].push({ uniteAdi: u.uniteAdi, sayi: _uSayi, konular: _konular });
+                }
+            });
+            dersUniteKonuAgaci = Object.keys(_dersGrup)
+                .sort((a, b) => a.localeCompare(b, 'tr'))
+                .map(d => ({ ders: d, uniteler: _dersGrup[d] }));
+        } catch (e) { dersUniteKonuAgaci = []; }
+    }
+
     // ders/eksik filtreleri yalniz analiz TAMAMLANINCA (serbest pratik) uygulanir
     if (analizTamamlandi && gercekOgrenci) {
         if (dersFiltre) {
             cozulmemisSorular = cozulmemisSorular.filter(s => (s.ders || '') === dersFiltre);
+        }
+        if (uniteFiltre) {
+            cozulmemisSorular = cozulmemisSorular.filter(s => (s.unite || '') === uniteFiltre);
+        }
+        if (konuFiltre) {
+            cozulmemisSorular = cozulmemisSorular.filter(s => (s.konu || '') === konuFiltre);
         }
         if (eksikFiltre) {
             const [eDers, eKonu] = eksikFiltre.split('|');
@@ -436,6 +474,21 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         return String(a._id).localeCompare(String(b._id));
     });
 
+    // v4.15.0: Manuel ders/unite/konu secimi aktifse, secili kapsamda sorular
+    //   COK KOLAYDAN COK ZORA (saf zorluk-artan) gelir. Gecilen sorular yine en sona.
+    //   Ogrenciye sorular[0] gosterildiginden bu sira dogrudan kolaydan-zora ilerlemeyi verir.
+    if (analizTamamlandi && gercekOgrenci && (dersFiltre || uniteFiltre || konuFiltre)) {
+        cozulmemisSorular.sort((a, b) => {
+            const gecA = gecilenSoruMap[String(a._id)] || 0;
+            const gecB = gecilenSoruMap[String(b._id)] || 0;
+            if (gecA !== gecB) return gecA - gecB;
+            const za = a.zorlukKatsayisi != null ? a.zorlukKatsayisi : 3;
+            const zb = b.zorlukKatsayisi != null ? b.zorlukKatsayisi : 3;
+            if (za !== zb) return za - zb;
+            return String(a._id).localeCompare(String(b._id));
+        });
+    }
+
     // Moderatör/demo için navigasyon indexi (ileri-geri tek tek geçiş)
     const modIdx = (moderator || demo) ? Math.max(0, Math.min(parseInt(req.query.idx) || 0, cozulmemisSorular.length - 1)) : 0;
     let sorular;
@@ -457,7 +510,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // v4.1.41: Filtre ile gelmiş (ders veya eksik) ama o filtrede çözülmemiş soru
     // kalmamışsa, kullanıcıyı ders seçim ekranına geri yönlendir (mod=soru, basla yok).
     // Soru çözme akışında yarıda kalmasın, ders seçim ekranını görsün.
-    if (!moderator && !ogretmen && req.query.basla === 'true' && sorular.length === 0 && (dersFiltre || eksikFiltre)) {
+    if (!moderator && !ogretmen && req.query.basla === 'true' && sorular.length === 0 && (dersFiltre || eksikFiltre || uniteFiltre || konuFiltre)) {
         return res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi) + '?bitti=' + (dersFiltre || eksikFiltre.split('|').join('-')));
     }
 
@@ -1153,6 +1206,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         enZayifKonu,
         dersFiltre,
         eksikFiltre,
+        uniteFiltre,
+        konuFiltre,
+        dersUniteKonuAgaci,
         eksikBilgiVar,
         kurum,
         kurumOgretmenler,
