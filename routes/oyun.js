@@ -580,7 +580,7 @@ function kurallarMetni() {
 + '<p><b>Kusatma = otomatik fetih:</b> Bir bos alani kendi hucrelerinle (veya kilitli duvarlarla) tamamen cevirirsen, icindeki tum hucreler otomatik senin olur. Fetih fiyati satin almayla aynidir. Altinin yetmezse fetih bekler; yeni altin kazandikca otomatik devam eder.</p>'
 + '<p><b>Gezinme:</b> Dunya buyuktur; ekranda 20x20 alan gorunur. Yon tuslari/oklar ile kaydir, mini haritaya tiklayarak uzaga atla.</p>'
 + '<p><b>Siralama:</b> Sag panelde sinif dunyandaki oyuncular hucre sayisina gore siralanir.</p>'
-+ '<p><b>Duello:</b> Kendi topragina komsu bir DUSMAN hucresine tiklayarak duello acabilirsin. Ikinizin de DOGRU cozdugu ortak bir soru rastgele secilir; o soruyu daha KISA surede cozen kazanir. Kazanirsan o hucre senin olur. Gunde 1 saldiri hakkin vardir. Rakibin son hucresi korumalidir. Ortak dogru cozulmus soru yoksa duello yapilamaz.</p>'
++ '<p><b>Duello:</b> Kendi topragina komsu bir RAKIP hucresine tiklayarak duello acabilirsin. Ikinizin de DOGRU cozdugu ortak bir soru rastgele secilir; o soruyu daha KISA surede cozen kazanir. Kazanirsan o hucre senin olur. Gunde 1 saldiri hakkin vardir. Rakibin son hucresi korumalidir. Ortak dogru cozulmus soru yoksa duello yapilamaz.</p>'
 + '<p><b>Kusatma kacisi:</b> Tamamen kusatildiysan (komsu bos hucre kalmadiysa), bitisiklik sarti olmadan uzaktaki bos bir hucreye sicrayabilirsin; fiyat normaldir (10 x mevcut hucre).</p>'
 + '</div>';
 }
@@ -627,7 +627,7 @@ function scriptBlok(o) {
 + 'async function yukleMini(){var r=await fetch("/oyun/minimap/"+SINIF,{credentials:"same-origin"});var d=await r.json();if(!d.ok)return;MINI=d.noktalar;var mini=document.getElementById("mini");mini.querySelectorAll(".dot").forEach(function(e){e.remove();});var sx=200/DW,sy=100/DH;MINI.forEach(function(p){var dot=document.createElement("div");dot.className="dot";dot.style.left=(p.x*sx)+"px";dot.style.top=(p.y*sy)+"px";dot.style.background=p.renk;mini.appendChild(dot);});}'
 + 'function miniTikla(e){var mini=document.getElementById("mini");var rc=mini.getBoundingClientRect();var px=(e.clientX-rc.left)/rc.width*DW,py=(e.clientY-rc.top)/rc.height*DH;vx=clamp(Math.round(px-VP/2),0,DW-VP);vy=clamp(Math.round(py-VP/2),0,DH-VP);render();}'
 + 'document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){kaydir(-1,0);e.preventDefault();}else if(e.key==="ArrowRight"){kaydir(1,0);e.preventDefault();}else if(e.key==="ArrowUp"){kaydir(0,-1);e.preventDefault();}else if(e.key==="ArrowDown"){kaydir(0,1);e.preventDefault();}});'
-+ 'async function duelloBaslat(x,y){if(!confirm("Bu dusman hucresine duello acmak ister misin? (Gunde 1 saldiri hakkin var)"))return;var r=await fetch("/oyun/duello",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(!d.ok){alert(d.hata||"Duello yapilamadi");return;}duelloSonuc(d);render();yukleMini();yukleSiralama();}'
++ 'async function duelloBaslat(x,y){if(!confirm("Bu rakip hucresine duello acmak ister misin? (Gunde 1 saldiri hakkin var)"))return;var r=await fetch("/oyun/duello",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(!d.ok){alert(d.hata||"Duello yapilamadi");return;}duelloSonuc(d);render();yukleMini();yukleSiralama();}'
 + 'function duelloSonuc(d){document.getElementById("duelloIkon").innerHTML=d.kazandi?"&#9876;":"&#128737;";var b=document.getElementById("duelloBaslik");b.textContent=d.kazandi?"KAZANDIN!":"Kaybettin";b.style.color=d.kazandi?"#a5d6a7":"#ef9a9a";document.getElementById("duelloRakip").textContent=d.rakipRumuz;document.getElementById("duelloBenSure").textContent=d.benSure;document.getElementById("duelloRakipSure").textContent=d.rakipSure;document.getElementById("duelloNot").textContent=d.kazandi?"Bu hucre senin oldu!":"Bugunku saldiri hakkin doldu.";document.getElementById("duelloModal").style.display="flex";}'
 + 'function duelloKapat(){document.getElementById("duelloModal").style.display="none";}'
 + 'function kurallarAc(){document.getElementById("kurallarModal").style.display="flex";}'
@@ -649,7 +649,7 @@ router.post('/oyun/duello', async (req, res) => {
         const RAKIP = hedef.sahip;
         if (RAKIP === BEN) return res.json({ ok: false, hata: 'Kendi hucrene duello olmaz.' });
         const komsu = await OyunHucre.findOne({ sinif, sahip: BEN, $or: [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }] }, '_id').lean();
-        if (!komsu) return res.json({ ok: false, hata: 'Yalniz kendi topragina komsu dusman hucresine duello acabilirsin.' });
+        if (!komsu) return res.json({ ok: false, hata: 'Yalniz kendi topragina komsu rakip hucresine duello acabilirsin.' });
         const rakipSayi = await OyunHucre.countDocuments({ sinif, sahip: RAKIP });
         if (rakipSayi <= 1) return res.json({ ok: false, hata: 'Rakibin son hucresi korumali, alinamaz.' });
         const ben = await oyuncuGetir(BEN, sinif);
