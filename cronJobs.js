@@ -333,4 +333,4 @@ async function gunlukHesapla() {
     }
 }
 
-module.exports = { gunlukHesapla };
+module.exports = { gunlukHesapla, kullaniciPuanHesapla };
