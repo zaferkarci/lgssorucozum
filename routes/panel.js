@@ -655,8 +655,14 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     //   - tam hedefte: ?ekstra=1 ile +1 soruya izin; degilse teklif ekrani
     let gunlukHedefDolduMu = false;
     let gunlukHedefEkstraSoru = false;
+    // v4.16.7: Durdurma kosulu TUM dersler tamamlansin (toplamTamamlandi) yerine
+    //   TOPLAM sayiya bagli: bugun (analiz disi) cozulen >= toplam hedef. Boylece
+    //   tek derse odaklanan (ders/unite/konu kartiyla) ogrenci de hedef+1'de durur;
+    //   onerilen ile ders karti AYNI kurala tabi olur. (Yorumdaki tasarim buydu;
+    //   eski kod yanlislikla 'tum dersler bitsin' istiyordu.)
     if (gercekOgrenci && mod === 'soru' && analizTamamlandi
-        && gunlukHedefData && gunlukHedefData.toplamTamamlandi) {
+        && gunlukHedefData && (gunlukHedefData.toplamHedef || 0) > 0
+        && (gunlukHedefData.toplamBugun || 0) >= gunlukHedefData.toplamHedef) {
         const fazla = (gunlukHedefData.toplamBugun || 0) - (gunlukHedefData.toplamHedef || 0);
         if (fazla >= 1 || req.query.bitir === '1') {
             sorular = [];

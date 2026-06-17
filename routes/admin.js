@@ -270,29 +270,6 @@ router.post('/soru-istatistik-sifirla', async (req, res) => {
 //   (canli etiketleme ile ayni mantik) geriye donuk 'analiz:true' yapar.
 //   Kuru calisma: /admin/analiz-etiket-onar?kullanici=ADI
 //   Uygula:       /admin/analiz-etiket-onar?kullanici=ADI&uygula=1
-// v4.16.5: Geriye donuk yeniden hesap. TUM ogrencilerin puan + dersPuanlari +
-//   CevapKaydi.kazanilanPuan degerlerini, ANALIZ dahil tum dogru cevaplardan
-//   yeniden kurar (gece cron'unun puan adimiyla ayni fonksiyon). Boylece analiz
-//   cevaplarinin puan/istatistik/altina katkisi gecmise donuk uygulanir/dogrulanir.
-//   Gunluk hedef hesabi DEGISMEZ (o zaten yalniz analiz-disi cevaplari sayar).
-router.get('/admin/puan-yeniden-hesapla', async (req, res) => {
-    if (!adminKontrol(req, res)) return;
-    try {
-        const { kullaniciPuanHesapla } = require('../cronJobs');
-        const t0 = Date.now();
-        await kullaniciPuanHesapla();
-        const adet = await Kullanici.countDocuments({ rol: 'ogrenci' });
-        res.send('<pre style="font:14px monospace; padding:16px;">'
-            + 'Puan yeniden hesaplandi (ANALIZ dahil tum dogru cevaplardan).\n'
-            + 'Ogrenci sayisi: ' + adet + '\n'
-            + 'Sure: ' + ((Date.now() - t0) / 1000).toFixed(1) + ' sn\n\n'
-            + 'Guncellenenler: Kullanici.puan, Kullanici.dersPuanlari, CevapKaydi.kazanilanPuan.\n'
-            + '(Altin = round(puan) - harcananAltin oldugundan otomatik yansir.)</pre>');
-    } catch (e) {
-        res.status(500).send('Hata: ' + e.message);
-    }
-});
-
 router.get('/admin/analiz-etiket-onar', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     const kullaniciAdi = (req.query.kullanici || '').trim();
