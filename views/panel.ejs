@@ -3061,63 +3061,80 @@ document.addEventListener('DOMContentLoaded', function() {
         <% if (typeof dersUniteKonuAgaci !== 'undefined' && dersUniteKonuAgaci && dersUniteKonuAgaci.length > 0) { %>
         <div style="margin-top:22px; background:#fff; border:1.5px solid #e0e7ff; border-radius:14px; padding:18px;">
           <div style="font-size:14px; font-weight:600; color:#1a73e8; margin-bottom:4px;">🎯 Ünite ve konu seçerek çöz</div>
-          <div style="font-size:12px; color:#5f6368; margin-bottom:14px;">Ders seç, istersen ünite ve konuyu daralt. Sorular <b>kolaydan zora</b> gelir.</div>
-          <div class="duk-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-            <select id="dukDers" onchange="dukDersChange()" style="padding:9px 10px; border:1px solid #cfd8dc; border-radius:8px; font-size:13px; background:#fff;">
-              <option value="">Ders seç…</option>
-              <% dersUniteKonuAgaci.forEach(function(d){ %>
-              <option value="<%= d.ders %>"><%= d.ders %></option>
-              <% }); %>
-            </select>
-            <select id="dukUnite" onchange="dukUniteChange()" disabled style="padding:9px 10px; border:1px solid #cfd8dc; border-radius:8px; font-size:13px; background:#fff;">
-              <option value="">Tüm üniteler</option>
-            </select>
-            <select id="dukKonu" disabled style="padding:9px 10px; border:1px solid #cfd8dc; border-radius:8px; font-size:13px; background:#fff;">
-              <option value="">Tüm konular</option>
-            </select>
-          </div>
-          <div style="text-align:center; margin-top:14px;">
-            <button id="dukBasla" onclick="dukBaslaGit()" disabled
-                    style="padding:10px 28px; background:#1a73e8; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; opacity:0.5;">Başla</button>
-          </div>
+          <div style="font-size:12px; color:#5f6368; margin-bottom:14px;">Ders, sonra ünite ve konu kartından seç. Sorular <b>kolaydan zora</b> gelir.</div>
+          <div id="dukKartAlan"></div>
         </div>
         <style>
-          @media (max-width: 600px) { .duk-grid { grid-template-columns: 1fr !important; } }
+          .duk-kart-grid { grid-template-columns: repeat(3, 1fr); }
+          @media (max-width: 600px) { .duk-kart-grid { grid-template-columns: 1fr 1fr !important; } }
         </style>
         <script>
           var DUK_AGAC = <%- JSON.stringify(dersUniteKonuAgaci) %>;
           var DUK_BASE = '/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true';
+          var DUK_IKON = {
+            'Matematik':{ikon:'🧮',renk:'#185FA5'},
+            'Türkçe':{ikon:'📖',renk:'#3B6D11'},
+            'Fen Bilimleri':{ikon:'🔬',renk:'#854F0B'},
+            'T.C. İnkılâp Tarihi':{ikon:'🏛️',renk:'#993C1D'},
+            'İngilizce':{ikon:'🌍',renk:'#534AB7'},
+            'Din Kültürü':{ikon:'📿',renk:'#0F6E56'}
+          };
+          var dukState = { ders:null, unite:null };
           function dukFind(ders){ for (var i=0;i<DUK_AGAC.length;i++){ if(DUK_AGAC[i].ders===ders) return DUK_AGAC[i]; } return null; }
-          function dukOpt(val,txt){ var o=document.createElement('option'); o.value=val; o.textContent=txt; return o; }
-          function dukDersChange(){
-            var ders=document.getElementById('dukDers').value;
-            var us=document.getElementById('dukUnite'), ks=document.getElementById('dukKonu');
-            us.innerHTML=''; ks.innerHTML='';
-            us.appendChild(dukOpt('','Tüm üniteler'));
-            ks.appendChild(dukOpt('','Tüm konular')); ks.disabled=true;
-            var d=dukFind(ders);
-            if(d){ d.uniteler.forEach(function(u){ us.appendChild(dukOpt(u.uniteAdi, u.uniteAdi+' ('+u.sayi+')')); }); us.disabled=false; }
-            else { us.disabled=true; }
-            var b=document.getElementById('dukBasla'); b.disabled=!ders; b.style.opacity=ders?'1':'0.5';
-          }
-          function dukUniteChange(){
-            var ders=document.getElementById('dukDers').value, unite=document.getElementById('dukUnite').value;
-            var ks=document.getElementById('dukKonu'); ks.innerHTML=''; ks.appendChild(dukOpt('','Tüm konular'));
-            var d=dukFind(ders), u=null;
-            if(d){ for(var i=0;i<d.uniteler.length;i++){ if(d.uniteler[i].uniteAdi===unite){ u=d.uniteler[i]; break; } } }
-            if(u){ u.konular.forEach(function(c){ ks.appendChild(dukOpt(c.konu, c.konu+' ('+c.sayi+')')); }); ks.disabled=false; }
-            else { ks.disabled=true; }
-          }
-          function dukBaslaGit(){
-            var ders=document.getElementById('dukDers').value;
-            if(!ders) return;
-            var unite=document.getElementById('dukUnite').value;
-            var konu=document.getElementById('dukKonu').value;
+          function dukUniteBul(d, unite){ if(!d) return null; for(var i=0;i<d.uniteler.length;i++){ if(d.uniteler[i].uniteAdi===unite) return d.uniteler[i]; } return null; }
+          function dukToplam(d){ var tp=0; d.uniteler.forEach(function(u){ tp+=u.sayi; }); return tp; }
+          function dukGit(ders, unite, konu){
             var url=DUK_BASE+'&ders='+encodeURIComponent(ders);
             if(unite) url+='&unite='+encodeURIComponent(unite);
             if(konu) url+='&konu='+encodeURIComponent(konu);
             window.location.href=url;
           }
+          function dukKartEl(o){
+            var el=document.createElement('div');
+            el.style.cssText='background:'+(o.vurgu?'#e8f5e9':'#fff')+'; border:1.5px solid '+(o.renk||'#185FA5')+'; border-radius:12px; padding:14px 12px; text-align:center; cursor:pointer; transition:transform 0.1s;';
+            el.onmouseover=function(){ this.style.transform='translateY(-2px)'; };
+            el.onmouseout=function(){ this.style.transform=''; };
+            el.onclick=o.onClick;
+            if(o.ikon){ var ic=document.createElement('div'); ic.style.cssText='font-size:24px; margin-bottom:6px;'; ic.textContent=o.ikon; el.appendChild(ic); }
+            var tt=document.createElement('div'); tt.style.cssText='font-size:14px; font-weight:600; color:'+(o.renk||'#185FA5')+'; line-height:1.25;'; tt.textContent=o.baslik; el.appendChild(tt);
+            if(o.alt){ var ss=document.createElement('div'); ss.style.cssText='font-size:11px; color:#5f6368; margin-top:3px;'; ss.textContent=o.alt; el.appendChild(ss); }
+            return el;
+          }
+          function dukRender(){
+            var alan=document.getElementById('dukKartAlan'); if(!alan) return; alan.innerHTML='';
+            var ust=document.createElement('div'); ust.style.cssText='display:flex; align-items:center; gap:10px; margin-bottom:12px; min-height:22px;';
+            if(dukState.ders){
+              var geri=document.createElement('button'); geri.textContent='← Geri';
+              geri.style.cssText='padding:5px 12px; border:1px solid #cfd8dc; background:#fff; border-radius:8px; font-size:12px; cursor:pointer; color:#1a73e8;';
+              geri.onclick=function(){ if(dukState.unite){ dukState.unite=null; } else { dukState.ders=null; } dukRender(); };
+              ust.appendChild(geri);
+              var yol=document.createElement('div'); yol.style.cssText='font-size:13px; color:#5f6368; font-weight:500;';
+              yol.textContent=dukState.ders+(dukState.unite?' › '+dukState.unite:''); ust.appendChild(yol);
+            } else {
+              var ip=document.createElement('div'); ip.style.cssText='font-size:12px; color:#888;'; ip.textContent='Bir ders seç'; ust.appendChild(ip);
+            }
+            alan.appendChild(ust);
+            var grid=document.createElement('div'); grid.className='duk-kart-grid'; grid.style.cssText='display:grid; gap:10px;'; alan.appendChild(grid);
+            if(!dukState.ders){
+              DUK_AGAC.forEach(function(d){
+                var ik=DUK_IKON[d.ders]||{ikon:'📚',renk:'#5f6368'};
+                grid.appendChild(dukKartEl({ikon:ik.ikon, renk:ik.renk, baslik:d.ders, alt:dukToplam(d)+' soru', onClick:function(){ dukState.ders=d.ders; dukState.unite=null; dukRender(); }}));
+              });
+            } else if(!dukState.unite){
+              var d=dukFind(dukState.ders);
+              d.uniteler.forEach(function(u){
+                grid.appendChild(dukKartEl({ikon:'📘', renk:'#185FA5', baslik:u.uniteAdi, alt:u.sayi+' soru', onClick:function(){ dukState.unite=u.uniteAdi; dukRender(); }}));
+              });
+            } else {
+              var d2=dukFind(dukState.ders), u2=dukUniteBul(d2, dukState.unite);
+              if(u2){
+                u2.konular.forEach(function(c){
+                  grid.appendChild(dukKartEl({ikon:'📄', renk:'#534AB7', baslik:c.konu, alt:c.sayi+' soru', onClick:function(){ dukGit(dukState.ders,dukState.unite,c.konu); }}));
+                });
+              }
+            }
+          }
+          dukRender();
         </script>
         <% } %>
       <% } else { %>
