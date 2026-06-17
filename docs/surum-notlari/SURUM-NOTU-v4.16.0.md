@@ -4,7 +4,8 @@
 
 ## Özellik
 Öğrenci, önerilen (en zayıf konu) kartını tercih etmezse, soru çözme ekranında
-DERS → ÜNİTE → KONU seçerek çözüme devam edebilir. Seçenekler admin'in tanımladığı
+DERS → ÜNİTE → KONU seçerek soru çözebilir (önerilen konu yerine kendi seçimiyle).
+Seçenekler admin'in tanımladığı
 Unite tablosundan (sınıf/ders/ünite/konu) gelir; yalnız çözülmemiş sorusu olan
 ünite/konular gösterilir (yanlarında kalan soru sayısı).
 
@@ -19,10 +20,12 @@ Manuel ders/ünite/konu seçimi aktifken, seçili kapsamdaki sorular ÇOK KOLAYD
 (en kolay) çözülmemiş sorusu gösterildiğinden, ilerledikçe sorular zorlaşır.
 Geçilen (atlanan) sorular yine en sona itilir.
 
-### Hedef kuralı korunur
-Seçim, mevcut günlük hedef akışına dokunmaz; hedef dolunca yine "+1 soru / bugünlük
-bu kadar" ekranı çıkar. Yani seçim yalnız HANGİ soruların geleceğini daraltır,
-hedef kuralı aynen işler.
+### Hedef kuralı korunur (hedef dolunca çözüm DURUR)
+Bu seçim günlük hedef akışını DEĞİŞTİRMEZ. Hedef dolunca çözüm normal şekilde
+DURUR: isteğe bağlı tek bir "+1 soru" hakkı sunulur, o da çözülünce "bugünlük bu
+kadar" ekranı gelir. Ders/ünite/konu seçimi yalnız HANGİ soruların geleceğini
+daraltır; hedef sonrası çözmeye devam ettirmez. (Hedef gating'i panel.js'te
+seçimden bağımsız calisir.)
 
 ## Teknik
 - routes/panel.js:

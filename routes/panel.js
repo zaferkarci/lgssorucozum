@@ -1251,6 +1251,25 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 '&z=' + encodeURIComponent(zD.toFixed(1)) +
                 (demoIdx != null ? '&idx=' + encodeURIComponent(demoIdx) : ''));
         }
+        // v4.16.6: Cift-POST korumasi (idempotency). Ayni kullanici+soru icin son
+        //   5 saniyede zaten bir kayit varsa, bu ikinci gonderimi YAZMA — puan,
+        //   gunluk hedef, altin ve "cozulen" sayisi ikinci kez sayilmasin. Gercek
+        //   tekrar cozumu (dakikalar/saatler sonra) etkilenmez; yalniz saniyeler
+        //   icindeki cift tiklama / cift POST engellenir.
+        if (s && k) {
+            const sonKayit = await CevapKaydi.findOne({
+                kullaniciAdi: k.kullaniciAdi,
+                soruId: s._id,
+                tarih: { $gte: new Date(Date.now() - 5000) }
+            }).sort({ tarih: -1 }).lean();
+            if (sonKayit) {
+                const zD = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+                return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) +
+                    '?basla=true&sonuc=' + (sonKayit.dogruMu ? 'dogru' : 'yanlis') +
+                    '&z=' + encodeURIComponent(zD.toFixed(1)));
+            }
+        }
+
         if (s && k) {
             const T_ogr = Math.max(parseInt(gecenSure) || 1, 1);
             const dogruMu = parseInt(secilenIndex) === s.dogruCevapIndex;
