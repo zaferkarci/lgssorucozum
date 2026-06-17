@@ -3332,6 +3332,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="soru-kart-yeni">
       <div class="soru-etiket-bar">
         <span class="ep ep-zorluk">Zorluk: <%= zb.etiket %></span>
+        <% if (k.rol === 'demo' && soru.soruNo) { %><span class="ep" style="background:#ede7f6; color:#4527a0; border-color:#d1c4e9;" title="Admin Sorular sekmesindeki soru numarasi">Soru No: <%= soru.soruNo %></span><% } %>
         <% if (soru.sinif) { %><span class="ep ep-sinif"><%= soru.sinif %>. Sınıf</span><% } %>
         <span class="ep ep-ders">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
