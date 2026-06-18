@@ -280,17 +280,20 @@ router.get('/admin/mukerrer-temizle', async (req, res) => {
     const uygula = req.query.uygula === '1';
     const PENCERE_MS = 5000;
     try {
-        const tum = await CevapKaydi.find({}, '_id kullaniciAdi soruId tarih')
+        const tum = await CevapKaydi.find({}, '_id kullaniciAdi soruId tarih dogruMu sure')
             .sort({ kullaniciAdi: 1, soruId: 1, tarih: 1 }).lean();
         const silinecek = [];
-        let prevKey = null, sonTutulanTs = null;
+        const ciftler = []; // { tutulan, silinen }
+        let prevKey = null, sonTutulan = null;
         for (const r of tum) {
             const key = r.kullaniciAdi + '|' + String(r.soruId);
             const ts = r.tarih ? new Date(r.tarih).getTime() : 0;
-            if (key === prevKey && sonTutulanTs != null && (ts - sonTutulanTs) <= PENCERE_MS) {
+            const sonTs = (sonTutulan && sonTutulan.tarih) ? new Date(sonTutulan.tarih).getTime() : null;
+            if (key === prevKey && sonTs != null && (ts - sonTs) <= PENCERE_MS) {
                 silinecek.push(r._id);
+                ciftler.push({ tutulan: sonTutulan, silinen: r });
             } else {
-                prevKey = key; sonTutulanTs = ts;
+                prevKey = key; sonTutulan = r;
             }
         }
         let silindi = 0;
@@ -298,19 +301,67 @@ router.get('/admin/mukerrer-temizle', async (req, res) => {
             const sonuc = await CevapKaydi.deleteMany({ _id: { $in: silinecek } });
             silindi = sonuc.deletedCount || 0;
         }
-        const html = '<pre style="font:14px monospace; padding:16px; line-height:1.6;">'
-            + 'Mukerrer (cift-POST) cevap temizleme\n'
-            + '====================================\n'
-            + 'Mod              : ' + (uygula ? 'UYGULA (silindi)' : 'KURU CALISMA (rapor, silme YOK)') + '\n'
-            + 'Toplam kayit     : ' + tum.length + '\n'
-            + 'Mukerrer bulunan : ' + silinecek.length + '\n'
-            + (uygula ? ('SILINEN          : ' + silindi + '\n') : '')
-            + '\n'
+
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const fmtT = (x) => { try { return new Date(x).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', hour12: false }) + '.' + String(new Date(x).getMilliseconds()).padStart(3, '0'); } catch (e) { return esc(x); } };
+        const dg = (b) => b ? '<span style="color:#137333;">dogru</span>' : '<span style="color:#c62828;">yanlis</span>';
+
+        const LIMIT = 3000;
+        const gosterilen = ciftler.slice(0, LIMIT);
+        let satirlar = '';
+        for (let i = 0; i < gosterilen.length; i++) {
+            const c = gosterilen[i];
+            const tut = c.tutulan, sil = c.silinen;
+            const farkMs = (new Date(sil.tarih).getTime() - new Date(tut.tarih).getTime());
+            const fark = (farkMs / 1000).toFixed(1) + ' sn';
+            // Tutulan satiri
+            satirlar += '<tr style="border-top:2px solid #999;">'
+                + '<td style="text-align:right; color:#888;">' + (i + 1) + '</td>'
+                + '<td style="color:#137333; font-weight:600;">TUTULAN</td>'
+                + '<td>' + esc(tut.kullaniciAdi) + '</td>'
+                + '<td style="font-family:monospace; font-size:12px;">' + esc(String(tut.soruId)) + '</td>'
+                + '<td>' + fmtT(tut.tarih) + '</td>'
+                + '<td>' + dg(tut.dogruMu) + '</td>'
+                + '<td style="text-align:right;">' + esc(tut.sure) + '</td>'
+                + '<td style="font-family:monospace; font-size:11px; color:#888;">' + esc(String(tut._id)) + '</td>'
+                + '<td></td>'
+                + '</tr>';
+            // Silinen satiri
+            satirlar += '<tr style="background:#fff5f5;">'
+                + '<td></td>'
+                + '<td style="color:#c62828; font-weight:600;">' + (uygula ? 'SILINDI' : 'SILINECEK') + '</td>'
+                + '<td>' + esc(sil.kullaniciAdi) + '</td>'
+                + '<td style="font-family:monospace; font-size:12px;">' + esc(String(sil.soruId)) + '</td>'
+                + '<td>' + fmtT(sil.tarih) + '</td>'
+                + '<td>' + dg(sil.dogruMu) + '</td>'
+                + '<td style="text-align:right;">' + esc(sil.sure) + '</td>'
+                + '<td style="font-family:monospace; font-size:11px; color:#888;">' + esc(String(sil._id)) + '</td>'
+                + '<td style="text-align:right; color:#c62828;">' + fark + '</td>'
+                + '</tr>';
+        }
+        const tabloNot = ciftler.length > LIMIT
+            ? ('<p style="color:#c62828;">Not: ' + ciftler.length + ' mukerrerin ilk ' + LIMIT + ' tanesi listelendi.</p>')
+            : '';
+
+        const ozet = '<h2 style="margin:0 0 8px;">Mukerrer (cift-POST) cevap temizleme</h2>'
+            + '<p style="line-height:1.6;"><b>Mod:</b> ' + (uygula ? 'UYGULA (silindi)' : 'KURU CALISMA (rapor, silme YOK)') + '<br>'
+            + '<b>Toplam kayit:</b> ' + tum.length + '<br>'
+            + '<b>Mukerrer (silinecek) cift:</b> ' + silinecek.length
+            + (uygula ? ('<br><b>SILINEN:</b> ' + silindi) : '') + '</p>'
             + (uygula
-                ? 'Tamamlandi. puan/dersPuanlari gece cron\'unda CevapKaydi\'ndan yeniden kurulur.'
-                : ('Silmek icin: <a href="/admin/mukerrer-temizle?uygula=1">/admin/mukerrer-temizle?uygula=1</a>'))
-            + '</pre>';
-        res.send(html);
+                ? '<p style="color:#137333;">Tamamlandi. puan/dersPuanlari gece cron\'unda CevapKaydi\'ndan yeniden kurulur.</p>'
+                : (silinecek.length
+                    ? '<p><a href="/admin/mukerrer-temizle?uygula=1" style="background:#c62828; color:#fff; padding:8px 16px; border-radius:6px; text-decoration:none; font-weight:600;">Bu kayitlari SIL (?uygula=1)</a></p>'
+                    : '<p style="color:#137333;">Mukerrer kayit yok.</p>'));
+
+        const tablo = ciftler.length
+            ? ('<table cellspacing="0" cellpadding="6" style="border-collapse:collapse; font:13px sans-serif; border:1px solid #ccc;">'
+                + '<thead><tr style="background:#f0f0f0;">'
+                + '<th>#</th><th>Tip</th><th>Kullanici</th><th>SoruId</th><th>Tarih</th><th>Sonuc</th><th>Sure</th><th>_id</th><th>Fark</th>'
+                + '</tr></thead><tbody>' + satirlar + '</tbody></table>')
+            : '';
+
+        res.send('<div style="padding:16px; font:14px sans-serif;">' + ozet + tabloNot + tablo + '</div>');
     } catch (e) {
         res.status(500).send('Hata: ' + e.message);
     }
