@@ -562,26 +562,26 @@ router.get('/unite-sablon-indir', async (req, res) => {
     try {
         const XLSX = require('xlsx');
         const uniteler = await Unite.find().sort({ sinif: 1, ders: 1, uniteNo: 1 }).lean();
-        const satirlar = [['Sınıf', 'Ders', 'Ünite No', 'Ünite Adı', 'Konu']];
+        const satirlar = [['Sınıf', 'Ders', 'Ünite No', 'Ünite Adı', 'Konu', 'Öğrenme Çıktıları', 'Süreç Bileşenleri']];
         if (uniteler.length === 0) {
             // Kayıt yoksa örnek bir satır koy ki şablon boş olmasın
-            satirlar.push(['8', 'Matematik', '1', 'Çarpanlar ve Katlar', 'Asal Çarpanlar']);
+            satirlar.push(['8', 'Matematik', '1', 'Çarpanlar ve Katlar', 'Asal Çarpanlar', '', '']);
         } else {
             uniteler.forEach(u => {
                 const konular = (u.konular && u.konular.length > 0) ? u.konular : [''];
                 konular.forEach((konu, idx) => {
                     if (idx === 0) {
                         // İlk konu satırında ünite bilgileri yazılır
-                        satirlar.push([u.sinif || '', u.ders || '', u.uniteNo || '', u.uniteAdi || '', konu || '']);
+                        satirlar.push([u.sinif || '', u.ders || '', u.uniteNo || '', u.uniteAdi || '', konu || '', '', '']);
                     } else {
                         // Aynı ünitenin diğer konuları — ünite sütunları boş (devam eder)
-                        satirlar.push(['', '', '', '', konu || '']);
+                        satirlar.push(['', '', '', '', konu || '', '', '']);
                     }
                 });
             });
         }
         const ws = XLSX.utils.aoa_to_sheet(satirlar);
-        ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 10 }, { wch: 32 }, { wch: 36 }];
+        ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 10 }, { wch: 32 }, { wch: 36 }, { wch: 40 }, { wch: 50 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Üniteler');
         const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
