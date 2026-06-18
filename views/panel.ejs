@@ -762,6 +762,29 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="veliAramaSonuc" style="margin-top:10px;"></div>
     </div>
 
+    <!-- YOL B: DAVET LİNKİ -->
+    <div style="background:#fff; border:1px solid #e0e7ff; border-radius:12px; padding:18px 22px; margin-bottom:20px;">
+      <div style="font-size:14px; font-weight:600; color:#37474f; margin-bottom:4px;">🔗 Çocuğum üye değil — davet linki oluştur</div>
+      <p style="font-size:12px; color:#5f6368; margin:0 0 12px;">Çocuğunuz henüz üye değilse davet linki üretip ona verin. Bu linkle kaydolan öğrenci otomatik olarak takibinize girer (onay gerekmez).</p>
+      <form method="POST" action="/veli/davet-uret" style="margin:0 0 12px;">
+        <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+        <button type="submit" style="background:#43a047; color:white; border:none; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">+ Yeni davet linki üret</button>
+      </form>
+      <% if (veliDavetKodlari && veliDavetKodlari.length > 0) { %>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <% veliDavetKodlari.forEach(function(kod) { %>
+            <% var link = baseUrl + '/kayit?ref=' + kod.kod; %>
+            <div style="background:#f8f9fa; border:1px solid #e8edf2; border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:8px;">
+              <input type="text" readonly value="<%= link %>" style="flex:1; border:none; background:transparent; font-size:12px; color:#5f6368;" onclick="this.select();">
+              <button onclick="veliKopyala('<%= link %>', this)" style="background:#e8f0fe; color:#1a73e8; border:none; padding:4px 10px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer;">Kopyala</button>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div style="font-size:12px; color:#9aa0a6;">Henüz davet linki üretmediniz.</div>
+      <% } %>
+    </div>
+
     <div style="text-align:center; margin-bottom:20px;">
       <a href="/cikis" style="font-size:13px; color:#888; text-decoration:none;">Çıkış Yap</a>
     </div>
@@ -1491,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <!-- v4.6.3: Öğrenci rolünde davet linkleri kartı tamamen gizlendi.
              v4.8.4: Öğretmen rolünde de tamamen gizlendi — öğretmen artık davet/
              referans linki üretmez ve görmez. Kurumsal / veli için aynen korunur. -->
-        <% if (k.rol !== 'ogrenci' && k.rol !== 'ogretmen') { %>
+        <% if (k.rol !== 'ogrenci' && k.rol !== 'ogretmen' && k.rol !== 'veli') { %>
         <div class="profil-kart-yeni">
           <p class="profil-kart-baslik-yeni">Davet linklerin</p>
           <p style="font-size:12px; color:#888; margin-bottom:12px;">Bu linklerle arkadaşlarını davet edebilirsin. Her link tek kullanımlık.</p>
