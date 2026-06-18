@@ -270,6 +270,52 @@ router.post('/soru-istatistik-sifirla', async (req, res) => {
 //   (canli etiketleme ile ayni mantik) geriye donuk 'analiz:true' yapar.
 //   Kuru calisma: /admin/analiz-etiket-onar?kullanici=ADI
 //   Uygula:       /admin/analiz-etiket-onar?kullanici=ADI&uygula=1
+// v4.16.8: Mukerrer (cift-POST) CevapKaydi temizleme — ADMIN SAYFASI.
+//   /admin/mukerrer-temizle          -> KURU CALISMA (kac mukerrer var, SILMEZ)
+//   /admin/mukerrer-temizle?uygula=1 -> gercekten siler
+//   Kural: her (kullaniciAdi,soruId) icin ilk kayit tutulur; son tutulandan
+//   <= 5 sn sonrasi mukerrer sayilip silinir. Gercek tekrar cozum (dk/saat sonra) korunur.
+router.get('/admin/mukerrer-temizle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    const uygula = req.query.uygula === '1';
+    const PENCERE_MS = 5000;
+    try {
+        const tum = await CevapKaydi.find({}, '_id kullaniciAdi soruId tarih')
+            .sort({ kullaniciAdi: 1, soruId: 1, tarih: 1 }).lean();
+        const silinecek = [];
+        let prevKey = null, sonTutulanTs = null;
+        for (const r of tum) {
+            const key = r.kullaniciAdi + '|' + String(r.soruId);
+            const ts = r.tarih ? new Date(r.tarih).getTime() : 0;
+            if (key === prevKey && sonTutulanTs != null && (ts - sonTutulanTs) <= PENCERE_MS) {
+                silinecek.push(r._id);
+            } else {
+                prevKey = key; sonTutulanTs = ts;
+            }
+        }
+        let silindi = 0;
+        if (uygula && silinecek.length) {
+            const sonuc = await CevapKaydi.deleteMany({ _id: { $in: silinecek } });
+            silindi = sonuc.deletedCount || 0;
+        }
+        const html = '<pre style="font:14px monospace; padding:16px; line-height:1.6;">'
+            + 'Mukerrer (cift-POST) cevap temizleme\n'
+            + '====================================\n'
+            + 'Mod              : ' + (uygula ? 'UYGULA (silindi)' : 'KURU CALISMA (rapor, silme YOK)') + '\n'
+            + 'Toplam kayit     : ' + tum.length + '\n'
+            + 'Mukerrer bulunan : ' + silinecek.length + '\n'
+            + (uygula ? ('SILINEN          : ' + silindi + '\n') : '')
+            + '\n'
+            + (uygula
+                ? 'Tamamlandi. puan/dersPuanlari gece cron\'unda CevapKaydi\'ndan yeniden kurulur.'
+                : ('Silmek icin: <a href="/admin/mukerrer-temizle?uygula=1">/admin/mukerrer-temizle?uygula=1</a>'))
+            + '</pre>';
+        res.send(html);
+    } catch (e) {
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
 router.get('/admin/analiz-etiket-onar', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     const kullaniciAdi = (req.query.kullanici || '').trim();
