@@ -1893,15 +1893,11 @@ router.post('/kurum/davet-uret', oturumKontrol, async (req, res) => {
 // tip:'veli' bir referans kodu oluşur. Bu kodla kaydolan öğrenci, veliyi onaysız
 // takibe alır (kayit-yap içinde işlenir).
 router.post('/veli/davet-uret', oturumKontrol, async (req, res) => {
+    // v4.16.10: Veli davet linki URETIMI DURDURULDU. Endpoint artik kod uretmez;
+    //   yalnizca panele geri yonlendirir. (Profil davet karti da kaldirildi.)
     try {
         const { kullaniciAdi } = req.body;
-        const veli = await Kullanici.findOne({ kullaniciAdi });
-        if (!veli || veli.rol !== 'veli') {
-            return res.status(403).send('Yetki yok.');
-        }
-        const { referansKoduUret } = require('./auth');
-        await referansKoduUret(kullaniciAdi, 1, 'veli');
-        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi));
+        return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi || ''));
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 
