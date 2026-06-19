@@ -1486,6 +1486,8 @@ function escHtml(str) {
 
 <% } else if (mod === 'uniteler') { %>
 
+<style>.admin-main { max-width: none; }</style>
+
 <!-- ── Ünite / Konu Yönetimi ── -->
 <div class="card">
   <h3>📚 Ünite ve Konu Yönetimi</h3>
@@ -1564,69 +1566,75 @@ function escHtml(str) {
   <% if (tumUniteler.length === 0) { %>
     <p style="color:#888; font-size:13px;">Henüz ünite eklenmemiş.</p>
   <% } else { %>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-    <% tumUniteler.forEach(function(u) { %>
-      <% var _cikSay = (u.konuDetay||[]).reduce(function(t,d){return t+(d.ciktilar||[]).length;},0); %>
-      <div style="border:1px solid #e0e7ff; border-radius:10px; padding:12px 16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <div style="font-size:14px;">
-            <b style="font-size:15px;"><%= u.uniteAdi %></b>
-            <span style="color:#888; font-size:12px;">· <%= u.sinif||'-' %>. sınıf · <%= u.ders %> · ünite <%= u.uniteNo %> · <%= u.konular.length %> konu · <%= _cikSay %> çıktı</span>
-          </div>
-          <div style="white-space:nowrap;">
-            <button type="button" onclick="uniteDuzenleAc('<%= u._id %>')" class="btn" style="background:#1a73e8; color:white; padding:4px 12px; font-size:12px; margin-right:4px;">DÜZENLE</button>
-            <form action="/unite-sil" method="POST" style="display:inline;">
-              <input type="hidden" name="id" value="<%= u._id %>">
-              <button onclick="return confirm('Bu ünite silinsin mi?')" class="btn-sil">SİL</button>
-            </form>
-          </div>
-        </div>
-        <div style="margin-top:10px; border-top:1px solid #eef2ff; padding-top:8px; display:flex; flex-direction:column; gap:8px;">
-          <% (u.konular||[]).forEach(function(kn){ var kd=(u.konuDetay||[]).find(function(d){return d.konu===kn;}); var cik=(kd&&kd.ciktilar)||[]; %>
-            <div>
-              <span style="font-weight:600; font-size:13px; background:#f0f2f5; border-radius:4px; padding:2px 8px;"><%= kn %></span>
+    <div style="overflow-x:auto;">
+    <table class="tablo" style="width:100%;">
+      <thead><tr>
+        <th>Sınıf</th><th>Ünite No</th><th>Ders</th><th>Ünite Adı</th><th>Konu</th><th>Öğrenme Çıktıları</th><th>Süreç Bileşenleri</th><th>İşlem</th>
+      </tr></thead>
+      <tbody>
+      <% tumUniteler.forEach(function(u) { %>
+        <% var _konuListe = (u.konular && u.konular.length) ? u.konular : ['']; %>
+        <% _konuListe.forEach(function(kn, ki) { var kd=(u.konuDetay||[]).find(function(d){return d.konu===kn;}); var cik=(kd&&kd.ciktilar)||[]; %>
+          <tr>
+            <% if (ki === 0) { %>
+              <td rowspan="<%= _konuListe.length %>" style="text-align:center;"><%= u.sinif||'-' %></td>
+              <td rowspan="<%= _konuListe.length %>" style="text-align:center;"><%= u.uniteNo %></td>
+              <td rowspan="<%= _konuListe.length %>"><%= u.ders %></td>
+              <td rowspan="<%= _konuListe.length %>"><b><%= u.uniteAdi %></b></td>
+            <% } %>
+            <td style="font-weight:600; font-size:13px;"><%= kn || '-' %></td>
+            <td style="font-size:12px;">
               <% if (cik.length) { %>
-                <div style="margin:5px 0 0 10px; display:flex; flex-direction:column; gap:5px;">
-                  <% cik.forEach(function(c){ %>
-                    <div style="background:#f7f9fc; border-left:2px solid #90caf9; border-radius:4px; padding:6px 10px;">
-                      <div style="font-size:13px;"><%= c.metin || c.kod || '' %></div>
-                      <% if ((c.surecler||[]).length) { %>
-                        <div style="margin-top:4px; display:flex; flex-direction:column; gap:2px;">
-                          <% (c.surecler||[]).forEach(function(p){ %>
-                            <div style="font-size:12px; color:#555;"><%= (p.harf? p.harf+' ':'') + (p.metin||'') %></div>
-                          <% }); %>
-                        </div>
-                      <% } %>
-                    </div>
-                  <% }); %>
-                </div>
-              <% } %>
-            </div>
-          <% }); %>
-          <% if (!u.konular || u.konular.length===0) { %><span style="font-size:12px; color:#aaa;">Konu yok.</span><% } %>
-        </div>
-        <div id="duzenle-satir-<%= u._id %>" style="display:none; margin-top:10px; border-top:1px solid #cfd8e3; padding-top:10px;">
-          <form action="/unite-guncelle" method="POST">
-            <input type="hidden" name="id" value="<%= u._id %>">
-            <input type="hidden" name="konularMetin" value="<%= (u.konular||[]).join('\n') %>">
-            <input type="hidden" name="konuYapisi" id="kHidden_<%= u._id %>">
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
-              <div><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Sınıf</label><input type="text" name="sinif" value="<%= u.sinif||'' %>" class="input-sm" style="width:100%;"></div>
-              <div><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ders</label><input type="text" name="ders" value="<%= u.ders||'' %>" class="input-sm" style="width:100%;" required></div>
-              <div><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite No</label><input type="number" name="uniteNo" value="<%= u.uniteNo||0 %>" class="input-sm" style="width:100%;"></div>
-              <div style="grid-column:span 2;"><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite Adı</label><input type="text" name="uniteAdi" value="<%= u.uniteAdi||'' %>" class="input-sm" style="width:100%;" required></div>
-            </div>
-            <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Konular · çıktılar · süreç bileşenleri</label>
-            <div id="kEd_<%= u._id %>" style="display:flex; flex-direction:column; gap:10px;"></div>
-            <button type="button" onclick="kEdAddKonu('<%= u._id %>')" class="btn" style="margin-top:8px; font-size:12px; background:#eef2ff; color:#1565c0;">+ Konu ekle</button>
-            <div style="display:flex; gap:8px; margin-top:10px;">
-              <button type="submit" class="btn btn-success" style="padding:6px 16px; font-size:13px;">💾 Kaydet</button>
-              <button type="button" onclick="uniteDuzenleKapat('<%= u._id %>')" class="btn" style="background:#eee; color:#666; padding:6px 16px; font-size:13px;">İptal</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    <% }); %>
+                <% cik.forEach(function(c){ %><div style="margin-bottom:6px;"><%= c.metin || c.kod || '' %></div><% }); %>
+              <% } else { %><span style="color:#bbb;">—</span><% } %>
+            </td>
+            <td style="font-size:12px; color:#555;">
+              <% if (cik.length) { %>
+                <% cik.forEach(function(c){ %>
+                  <div style="margin-bottom:6px;">
+                    <% if ((c.surecler||[]).length) { %>
+                      <% (c.surecler||[]).forEach(function(p){ %><div><%= (p.harf? p.harf+' ':'') + (p.metin||'') %></div><% }); %>
+                    <% } else { %><span style="color:#bbb;">—</span><% } %>
+                  </div>
+                <% }); %>
+              <% } else { %><span style="color:#bbb;">—</span><% } %>
+            </td>
+            <% if (ki === 0) { %>
+              <td rowspan="<%= _konuListe.length %>" style="text-align:center; white-space:nowrap;">
+                <button type="button" onclick="uniteDuzenleAc('<%= u._id %>')" class="btn" style="background:#1a73e8; color:white; padding:4px 10px; font-size:12px; margin-bottom:4px;">DÜZENLE</button>
+                <form action="/unite-sil" method="POST" style="display:inline;">
+                  <input type="hidden" name="id" value="<%= u._id %>">
+                  <button onclick="return confirm('Bu ünite silinsin mi?')" class="btn-sil">SİL</button>
+                </form>
+              </td>
+            <% } %>
+          </tr>
+        <% }); %>
+        <tr id="duzenle-satir-<%= u._id %>" style="display:none; background:#f0f7ff;">
+          <td colspan="8" style="padding:14px 18px;">
+            <form action="/unite-guncelle" method="POST">
+              <input type="hidden" name="id" value="<%= u._id %>">
+              <input type="hidden" name="konularMetin" value="<%= (u.konular||[]).join('\n') %>">
+              <input type="hidden" name="konuYapisi" id="kHidden_<%= u._id %>">
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
+                <div><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Sınıf</label><input type="text" name="sinif" value="<%= u.sinif||'' %>" class="input-sm" style="width:100%;"></div>
+                <div><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ders</label><input type="text" name="ders" value="<%= u.ders||'' %>" class="input-sm" style="width:100%;" required></div>
+                <div><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite No</label><input type="number" name="uniteNo" value="<%= u.uniteNo||0 %>" class="input-sm" style="width:100%;"></div>
+                <div style="grid-column:span 2;"><label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Ünite Adı</label><input type="text" name="uniteAdi" value="<%= u.uniteAdi||'' %>" class="input-sm" style="width:100%;" required></div>
+              </div>
+              <label style="font-size:11px; color:#666; font-weight:600; display:block; margin-bottom:3px;">Konular · çıktılar · süreç bileşenleri</label>
+              <div id="kEd_<%= u._id %>" style="display:flex; flex-direction:column; gap:10px;"></div>
+              <button type="button" onclick="kEdAddKonu('<%= u._id %>')" class="btn" style="margin-top:8px; font-size:12px; background:#eef2ff; color:#1565c0;">+ Konu ekle</button>
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button type="submit" class="btn btn-success" style="padding:6px 16px; font-size:13px;">💾 Kaydet</button>
+                <button type="button" onclick="uniteDuzenleKapat('<%= u._id %>')" class="btn" style="background:#eee; color:#666; padding:6px 16px; font-size:13px;">İptal</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
     </div>
   <% } %>
 </div>
