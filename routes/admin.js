@@ -74,11 +74,15 @@ router.get('/admin', async (req, res) => {
     const filDers   = req.query.filDers   || '';
     const filUnite  = req.query.filUnite  || '';
     const filKonu   = req.query.filKonu   || '';
+    const filCikti  = req.query.filCikti  || '';
+    const filSurec  = req.query.filSurec  || '';
     const soruFiltre = {};
     if (filSinif)  soruFiltre.sinif  = filSinif;
     if (filDers)   soruFiltre.ders   = filDers;
     if (filUnite)  soruFiltre.unite  = filUnite;
     if (filKonu)   soruFiltre.konu   = filKonu;
+    if (filCikti)  soruFiltre.ogrenmeCiktisi = filCikti;
+    if (filSurec)  soruFiltre.surecBileseni  = filSurec;
     const tumSorular = await Soru.collection.find(soruFiltre).sort({ soruNo: 1 }).toArray();
     const dersler = ["Matematik", "Türkçe", "Fen Bilimleri", "T.C. İnkılâp Tarihi", "İngilizce", "Din Kültürü"];
     const mod = req.query.mod || (req.query.duzenle ? 'soruEkle' : 'soruListesi');
@@ -169,7 +173,7 @@ router.get('/admin', async (req, res) => {
         tumKullanicilar, filtreliKullanicilar,
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
-        filSinif, filDers, filUnite, filKonu,
+        filSinif, filDers, filUnite, filKonu, filCikti, filSurec,
         filKullaniciSinif,
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
@@ -240,7 +244,7 @@ router.post('/soru-durum-degistir', async (req, res) => {
     const durum = req.body.durum;
     // v4.14.1: islem sonrasi AYNI filtreye (sinif/ders/unite/konu) geri don
     const qs = new URLSearchParams({ mod: 'soruListesi' });
-    ['filSinif', 'filDers', 'filUnite', 'filKonu'].forEach(f => { if (req.query[f]) qs.set(f, req.query[f]); });
+    ['filSinif', 'filDers', 'filUnite', 'filKonu', 'filCikti', 'filSurec'].forEach(f => { if (req.query[f]) qs.set(f, req.query[f]); });
     const geri = '/admin?' + qs.toString();
     if (['taslak', 'yayinda', 'duraklat'].indexOf(durum) === -1) return res.redirect(geri);
     const ek = { durum };

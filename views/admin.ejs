@@ -2812,51 +2812,90 @@ function gosterExcelHata(msg) {
         </form>
       </div>
     </div>
-    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+    <form method="GET" action="/admin" id="fl_form" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
       <input type="hidden" name="mod" value="soruListesi">
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Sınıf</label>
-        <select name="filSinif" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:90px;">
+        <select name="filSinif" id="fl_sinif" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:90px;">
           <option value="">Tümü</option>
-          <% tumSoruSiniflar.forEach(function(s) { %>
-            <option value="<%= s %>" <%= filSinif==s?'selected':'' %>><%= s %>. Sınıf</option>
-          <% }); %>
+          <% if (filSinif) { %><option value="<%= filSinif %>" selected><%= filSinif %>. Sınıf</option><% } %>
         </select>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Ders</label>
-        <select name="filDers" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
+        <select name="filDers" id="fl_ders" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
           <option value="">Tümü</option>
-          <% tumSoruDersler.forEach(function(d) { %>
-            <option value="<%= d %>" <%= filDers==d?'selected':'' %>><%= d %></option>
-          <% }); %>
+          <% if (filDers) { %><option value="<%= filDers %>" selected><%= filDers %></option><% } %>
         </select>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Ünite</label>
-        <select name="filUnite" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:140px;">
+        <select name="filUnite" id="fl_unite" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:150px;">
           <option value="">Tümü</option>
-          <% tumSoruUniteler.forEach(function(u) { %>
-            <option value="<%= u %>" <%= filUnite==u?'selected':'' %>><%= u %></option>
-          <% }); %>
+          <% if (filUnite) { %><option value="<%= filUnite %>" selected><%= filUnite %></option><% } %>
         </select>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Konu</label>
-        <select name="filKonu" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:160px;">
+        <select name="filKonu" id="fl_konu" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:170px;">
           <option value="">Tümü</option>
-          <% tumSoruKonular.forEach(function(k) { %>
-            <option value="<%= k %>" <%= filKonu==k?'selected':'' %>><%= k %></option>
-          <% }); %>
+          <% if (filKonu) { %><option value="<%= filKonu %>" selected><%= filKonu %></option><% } %>
         </select>
       </div>
-      <% if (filSinif || filDers || filUnite || filKonu) { %>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Öğrenme Çıktısı</label>
+        <select name="filCikti" id="fl_cikti" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:220px;">
+          <option value="">Tümü</option>
+          <% if (filCikti) { %><option value="<%= filCikti %>" selected><%= filCikti %></option><% } %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Süreç Bileşeni</label>
+        <select name="filSurec" id="fl_surec" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fafbfc; min-width:180px;">
+          <option value="">Tümü</option>
+          <% if (filSurec) { %><option value="<%= filSurec %>" selected><%= filSurec %></option><% } %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">&nbsp;</label>
+        <button type="submit" style="padding:7px 16px; background:#1a73e8; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Filtrele</button>
+      </div>
+      <% if (filSinif || filDers || filUnite || filKonu || filCikti || filSurec) { %>
         <a href="/admin?mod=soruListesi" style="padding:7px 14px; background:#ffebee; color:#c62828; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; align-self:flex-end;">✕ Filtreyi Temizle</a>
       <% } %>
       <div style="margin-left:auto; align-self:flex-end; font-size:13px; color:#888;">
         <b style="color:#1a73e8;"><%= tumSorular.length %></b> soru listeleniyor
       </div>
     </form>
+    <script>
+    (function(){
+      var U=[];
+      var _flSinif=<%- JSON.stringify(filSinif||"") %>, _flDers=<%- JSON.stringify(filDers||"") %>, _flUnite=<%- JSON.stringify(filUnite||"") %>, _flKonu=<%- JSON.stringify(filKonu||"") %>, _flCikti=<%- JSON.stringify(filCikti||"") %>, _flSurec=<%- JSON.stringify(filSurec||"") %>;
+      function E(id){ return document.getElementById(id); }
+      function opt(sel, items, sec){ sel.innerHTML=""; var o0=document.createElement("option"); o0.value=""; o0.textContent="Tümü"; sel.appendChild(o0); items.forEach(function(it){ var o=document.createElement("option"); o.value=it.v; o.textContent=it.t; if(it.v===sec)o.selected=true; sel.appendChild(o); }); }
+      function sinifEsle(x){ var s=E("fl_sinif").value; return !s || String(x.sinif||"")===String(s) || !x.sinif; }
+      function seciliUnite(){ var d=E("fl_ders").value, u=E("fl_unite").value; return U.find(function(x){ return x.ders===d && x.uniteAdi===u && sinifEsle(x); }); }
+      function ddDers(sec){ var ds=[]; U.filter(sinifEsle).forEach(function(x){ if(x.ders && ds.indexOf(x.ders)<0) ds.push(x.ders); }); opt(E("fl_ders"), ds.map(function(d){return {v:d,t:d};}), sec); }
+      function ddUnite(sec){ var d=E("fl_ders").value, us=[]; U.filter(function(x){return sinifEsle(x)&&(!d||x.ders===d);}).forEach(function(x){ if(x.uniteAdi && us.indexOf(x.uniteAdi)<0) us.push(x.uniteAdi); }); opt(E("fl_unite"), us.map(function(u){return {v:u,t:u};}), sec); }
+      function ddKonu(sec){ var d=E("fl_ders").value, u=E("fl_unite").value, ks=[]; U.filter(function(x){return sinifEsle(x)&&(!d||x.ders===d)&&(!u||x.uniteAdi===u);}).forEach(function(x){ (x.konular||[]).forEach(function(k){ if(ks.indexOf(k)<0) ks.push(k); }); }); opt(E("fl_konu"), ks.map(function(k){return {v:k,t:k};}), sec); }
+      function ddCikti(sec){ var k=E("fl_konu").value, su=seciliUnite(); var kd=su&&(su.konuDetay||[]).find(function(d){return d.konu===k;}); opt(E("fl_cikti"), kd?(kd.ciktilar||[]).map(function(c){return {v:(c.kod||c.metin), t:(c.metin||c.kod)};}):[], sec); }
+      function ddSurec(sec){ var k=E("fl_konu").value, c=E("fl_cikti").value, su=seciliUnite(); var kd=su&&(su.konuDetay||[]).find(function(d){return d.konu===k;}); var ci=kd&&(kd.ciktilar||[]).find(function(x){return (x.kod||x.metin)===c;}); opt(E("fl_surec"), ci?(ci.surecler||[]).map(function(p){return {v:(p.harf||p.metin), t:(p.harf?p.harf+" ":"")+p.metin};}):[], sec); }
+      function ddSinif(sec, siniflar){ opt(E("fl_sinif"), (siniflar||[]).map(function(s){return {v:String(s),t:s+". Sınıf"};}), sec); }
+      E("fl_sinif").addEventListener("change", function(){ ddDers(); ddUnite(); ddKonu(); ddCikti(); ddSurec(); });
+      E("fl_ders").addEventListener("change", function(){ ddUnite(); ddKonu(); ddCikti(); ddSurec(); });
+      E("fl_unite").addEventListener("change", function(){ ddKonu(); ddCikti(); ddSurec(); });
+      E("fl_konu").addEventListener("change", function(){ ddCikti(); ddSurec(); });
+      E("fl_cikti").addEventListener("change", function(){ ddSurec(); });
+      fetch("/api/unite-bilgi").then(function(r){return r.json();}).then(function(v){ if(!v.ok) return; U=v.uniteler||[];
+        ddSinif(_flSinif, v.siniflar||[]); E("fl_sinif").value=_flSinif;
+        ddDers(_flDers);   E("fl_ders").value=_flDers;
+        ddUnite(_flUnite); E("fl_unite").value=_flUnite;
+        ddKonu(_flKonu);   E("fl_konu").value=_flKonu;
+        ddCikti(_flCikti); E("fl_cikti").value=_flCikti;
+        ddSurec(_flSurec); E("fl_surec").value=_flSurec;
+      })["catch"](function(){});
+    })();
+    </script>
   </div>
 
   <div class="admin-card">
@@ -2872,7 +2911,7 @@ function gosterExcelHata(msg) {
           return ta - tb;
         });
       var duraklatilanlar = tumSorular.filter(function(s){ return s.durum === 'duraklat'; });
-      var _filtreQS = 'filSinif=' + encodeURIComponent(filSinif||'') + '&filDers=' + encodeURIComponent(filDers||'') + '&filUnite=' + encodeURIComponent(filUnite||'') + '&filKonu=' + encodeURIComponent(filKonu||'');
+      var _filtreQS = 'filSinif=' + encodeURIComponent(filSinif||'') + '&filDers=' + encodeURIComponent(filDers||'') + '&filUnite=' + encodeURIComponent(filUnite||'') + '&filKonu=' + encodeURIComponent(filKonu||'') + '&filCikti=' + encodeURIComponent(filCikti||'') + '&filSurec=' + encodeURIComponent(filSurec||'');
     %>
 
     <!-- v4.8.5: Sol onizleme paneli + saga dayali kart kolonu -->
