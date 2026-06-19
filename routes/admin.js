@@ -744,12 +744,16 @@ router.post('/unite-guncelle', async (req, res) => {
             .split(/[\n,]+/)
             .map(x => x.trim())
             .filter(Boolean);
+        // v4.16.16: konuDetay'ı yeni konu listesine göre hizala (orphan kalmasın)
+        const _mevcut = await Unite.findById(id).lean();
+        const _yeniKD = ((_mevcut && _mevcut.konuDetay) || []).filter(d => konular.indexOf(d.konu) !== -1);
         await Unite.findByIdAndUpdate(id, {
             sinif:    (sinif || '').trim(),
             ders:     (ders || '').trim() || 'Belirtilmedi',
             uniteNo:  parseInt(uniteNo) || 0,
             uniteAdi: (uniteAdi || '').trim(),
-            konular:  konular
+            konular:  konular,
+            konuDetay: _yeniKD
         });
         res.redirect('/admin?mod=uniteler');
     } catch (err) {

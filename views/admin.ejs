@@ -1547,7 +1547,7 @@ function escHtml(str) {
   <div class="card" style="background:#e8f5e9; border-color:#a5d6a7;">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <div>
-        <b style="color:#2e7d32;">✅ <span id="excelToplamUnite"></span> ünite, <span id="excelToplamKonu"></span> konu bulundu</b>
+        <b style="color:#2e7d32;">✅ <span id="excelToplamUnite"></span> ünite, <span id="excelToplamKonu"></span> konu, <span id="excelToplamCikti">0</span> öğrenme çıktısı bulundu</b>
         <p style="color:#555; font-size:13px; margin-top:4px;">Kontrol edin, ardından kaydedin.</p>
       </div>
       <button onclick="excelKaydet()" class="btn btn-success">💾 Veritabanına Kaydet</button>
@@ -1563,7 +1563,7 @@ function escHtml(str) {
     <p style="color:#888; font-size:13px;">Henüz ünite eklenmemiş.</p>
   <% } else { %>
     <table class="tablo">
-      <thead><tr><th>Sınıf</th><th>Ünite No</th><th>Ders</th><th>Ünite Adı</th><th>Konu Sayısı</th><th>Konular</th><th>İşlem</th></tr></thead>
+      <thead><tr><th>Sınıf</th><th>Ünite No</th><th>Ders</th><th>Ünite Adı</th><th>Konu Sayısı</th><th>Konular</th><th>Çıktı</th><th>İşlem</th></tr></thead>
       <tbody>
         <% tumUniteler.forEach(function(u) { %>
           <tr>
@@ -1573,6 +1573,7 @@ function escHtml(str) {
             <td><b><%= u.uniteAdi %></b></td>
             <td style="text-align:center;"><%= u.konular.length %></td>
             <td style="font-size:12px; color:#666;"><%= u.konular.join(', ') %></td>
+            <td style="text-align:center;"><%= (u.konuDetay||[]).reduce(function(t,d){return t+(d.ciktilar||[]).length;},0) %></td>
             <td style="text-align:center; white-space:nowrap;">
               <button type="button" onclick="uniteDuzenleAc('<%= u._id %>')" class="btn" style="background:#1a73e8; color:white; padding:4px 10px; font-size:12px; margin-right:4px;">DÜZENLE</button>
               <form action="/unite-sil" method="POST" style="display:inline;">
@@ -1583,7 +1584,7 @@ function escHtml(str) {
           </tr>
           <!-- v4.3.26: Düzenleme satırı (gizli, JS ile açılır) -->
           <tr id="duzenle-satir-<%= u._id %>" style="display:none; background:#f0f7ff;">
-            <td colspan="7" style="padding:14px 18px;">
+            <td colspan="8" style="padding:14px 18px;">
               <form action="/unite-guncelle" method="POST">
                 <input type="hidden" name="id" value="<%= u._id %>">
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
@@ -1656,6 +1657,26 @@ function excelDosyaSec(f) {
   window._seciliExcel = f;
 }
 
+function _konuDetayHtml(u) {
+  var kdMap = {};
+  (u.konuDetay || []).forEach(function(d){ kdMap[d.konu] = d.ciktilar || []; });
+  return '<div style="margin-top:6px;">' + (u.konular || []).map(function(k){
+    var ciktilar = kdMap[k] || [];
+    var ch = '';
+    if (ciktilar.length) {
+      ch = '<div style="margin:3px 0 0 10px; display:flex; flex-direction:column; gap:4px;">' +
+        ciktilar.map(function(c){
+          var sn = (c.surecler || []).length;
+          return '<div style="background:#f7f9fc; border-radius:5px; padding:5px 9px; font-size:12px; color:#333;">' +
+            (c.metin || c.kod || '') +
+            (sn ? '<span style="background:#e3f2fd; color:#1565c0; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:6px; white-space:nowrap;">' + sn + ' süreç</span>' : '') +
+            '</div>';
+        }).join('') + '</div>';
+    }
+    return '<div style="margin-top:6px;"><span style="background:#f0f2f5; border-radius:4px; padding:2px 8px; font-size:13px; font-weight:600; display:inline-block;">' + k + '</span>' + ch + '</div>';
+  }).join('') + '</div>';
+}
+
 function excelAnalizBaslat() {
   if (!window._seciliExcel) return;
   var fd = new FormData();
@@ -1671,6 +1692,8 @@ function excelAnalizBaslat() {
     excelOnizlemeVeri = v.onizleme;
     document.getElementById('excelToplamUnite').textContent = v.toplamUnite;
     document.getElementById('excelToplamKonu').textContent = v.toplamKonu;
+    var _tc = (v.onizleme||[]).reduce(function(t,u){ return t + (u.konuDetay||[]).reduce(function(tt,d){ return tt + (d.ciktilar||[]).length; }, 0); }, 0);
+    var _tcEl = document.getElementById('excelToplamCikti'); if (_tcEl) _tcEl.textContent = _tc;
     var liste = document.getElementById('excelOnizlemeListesi');
     liste.innerHTML = '';
     v.onizleme.forEach(function(u) {
@@ -1679,9 +1702,7 @@ function excelAnalizBaslat() {
       div.style.cssText = 'margin-bottom:8px; border-left:4px solid #1a73e8;';
       div.innerHTML = '<b style="color:#1a73e8;">' + u.uniteNo + '. ' + u.uniteAdi + '</b>' +
         '<span style="color:#888; font-size:12px; margin-left:8px;">(' + u.ders + (u.sinif ? ' · ' + u.sinif + '. sınıf' : '') + ')</span>' +
-        '<div style="margin-top:6px; font-size:13px; color:#444;">' +
-        u.konular.map(function(k,i){ return '<span style="background:#f0f2f5; border-radius:4px; padding:2px 8px; margin:2px; display:inline-block;">' + (i+1) + '. ' + k + '</span>'; }).join('') +
-        '</div>';
+        _konuDetayHtml(u);
       liste.appendChild(div);
     });
     document.getElementById('excelOnizleme').style.display = 'block';
