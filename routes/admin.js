@@ -703,19 +703,34 @@ router.post('/unite-kaydet', async (req, res) => {
 router.post('/unite-ekle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const { sinif, ders, uniteNo, uniteAdi, konularMetin } = req.body;
+        const { sinif, ders, uniteNo, uniteAdi, konularMetin, konuYapisi } = req.body;
         if (!uniteAdi || !String(uniteAdi).trim())
             return res.send("<script>alert('Ünite adı zorunlu.'); window.history.back();</script>");
-        const konular = (konularMetin || '')
-            .split(/[\n,]+/)
-            .map(x => x.trim())
-            .filter(Boolean);
+        let konular = [], konuDetay = [];
+        let _yapi = null;
+        if (konuYapisi) { try { _yapi = JSON.parse(konuYapisi); } catch (e) { _yapi = null; } }
+        if (Array.isArray(_yapi) && _yapi.length) {
+            _yapi.forEach(k => {
+                const ad = String((k && k.ad) || '').trim();
+                if (!ad) return;
+                if (konular.indexOf(ad) === -1) konular.push(ad);
+                const ciktilar = ((k && k.ciktilar) || []).map(c => {
+                    const metin = String((c && c.metin) || '').trim();
+                    const kodEs = metin.match(/^\s*([A-ZÇĞİÖŞÜ]{2,4}\.[\d.]+)/);
+                    return { kod: kodEs ? kodEs[1] : '', metin: metin, surecler: ((c && c.surecler) || []).map(p => ({ harf: String((p && p.harf) || '').trim(), metin: String((p && p.metin) || '').trim() })).filter(p => p.harf || p.metin) };
+                }).filter(c => c.metin);
+                if (ciktilar.length) konuDetay.push({ konu: ad, ciktilar });
+            });
+        } else {
+            konular = (konularMetin || '').split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+        }
         await new Unite({
             sinif:    (sinif || '').trim(),
             ders:     (ders || '').trim() || 'Belirtilmedi',
             uniteNo:  parseInt(uniteNo) || 0,
             uniteAdi: String(uniteAdi).trim(),
-            konular:  konular
+            konular:  konular,
+            konuDetay: konuDetay
         }).save();
         res.redirect('/admin?mod=uniteler');
     } catch (err) {
@@ -737,23 +752,35 @@ router.post('/unite-sil', async (req, res) => {
 router.post('/unite-guncelle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const { id, sinif, ders, uniteNo, uniteAdi, konularMetin } = req.body;
+        const { id, sinif, ders, uniteNo, uniteAdi, konularMetin, konuYapisi } = req.body;
         if (!id) return res.status(400).send('Ünite id eksik.');
-        // Konular: satır sonu veya virgülle ayrılmış → temiz dizi
-        const konular = (konularMetin || '')
-            .split(/[\n,]+/)
-            .map(x => x.trim())
-            .filter(Boolean);
-        // v4.16.16: konuDetay'ı yeni konu listesine göre hizala (orphan kalmasın)
-        const _mevcut = await Unite.findById(id).lean();
-        const _yeniKD = ((_mevcut && _mevcut.konuDetay) || []).filter(d => konular.indexOf(d.konu) !== -1);
+        let konular = [], konuDetay = [];
+        let _yapi = null;
+        if (konuYapisi) { try { _yapi = JSON.parse(konuYapisi); } catch (e) { _yapi = null; } }
+        if (Array.isArray(_yapi) && _yapi.length) {
+            _yapi.forEach(k => {
+                const ad = String((k && k.ad) || '').trim();
+                if (!ad) return;
+                if (konular.indexOf(ad) === -1) konular.push(ad);
+                const ciktilar = ((k && k.ciktilar) || []).map(c => {
+                    const metin = String((c && c.metin) || '').trim();
+                    const kodEs = metin.match(/^\s*([A-ZÇĞİÖŞÜ]{2,4}\.[\d.]+)/);
+                    return { kod: kodEs ? kodEs[1] : '', metin: metin, surecler: ((c && c.surecler) || []).map(p => ({ harf: String((p && p.harf) || '').trim(), metin: String((p && p.metin) || '').trim() })).filter(p => p.harf || p.metin) };
+                }).filter(c => c.metin);
+                if (ciktilar.length) konuDetay.push({ konu: ad, ciktilar });
+            });
+        } else {
+            konular = (konularMetin || '').split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+            const _mevcut = await Unite.findById(id).lean();
+            konuDetay = ((_mevcut && _mevcut.konuDetay) || []).filter(d => konular.indexOf(d.konu) !== -1);
+        }
         await Unite.findByIdAndUpdate(id, {
             sinif:    (sinif || '').trim(),
             ders:     (ders || '').trim() || 'Belirtilmedi',
             uniteNo:  parseInt(uniteNo) || 0,
             uniteAdi: (uniteAdi || '').trim(),
             konular:  konular,
-            konuDetay: _yeniKD
+            konuDetay: konuDetay
         });
         res.redirect('/admin?mod=uniteler');
     } catch (err) {
