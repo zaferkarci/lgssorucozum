@@ -2541,53 +2541,92 @@ function gosterExcelHata(msg) {
     </div>
 
     <!-- v4.3.29: Zorluk raporu filtre formu — sınıf/ders/ünite/konu (ünitelerden) -->
-    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; padding:12px; background:#f8f9fb; border:1px solid #eaecf0; border-radius:10px;">
+    <form method="GET" action="/admin" id="zr_form" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; padding:12px; background:#f8f9fb; border:1px solid #eaecf0; border-radius:10px;">
       <input type="hidden" name="mod" value="zorlukRapor">
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Sınıf</label>
-        <select name="filSinif" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:90px;">
+        <select name="filSinif" id="zr_sinif" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:90px;">
           <option value="">Tümü</option>
-          <% tumSoruSiniflar.forEach(function(s) { %>
-            <option value="<%= s %>" <%= filSinif==s?'selected':'' %>><%= s %>. Sınıf</option>
-          <% }); %>
+          <% if (filSinif) { %><option value="<%= filSinif %>" selected><%= filSinif %>. Sınıf</option><% } %>
         </select>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Ders</label>
-        <select name="filDers" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
+        <select name="filDers" id="zr_ders" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
           <option value="">Tümü</option>
-          <% tumSoruDersler.forEach(function(d) { %>
-            <option value="<%= d %>" <%= filDers==d?'selected':'' %>><%= d %></option>
-          <% }); %>
+          <% if (filDers) { %><option value="<%= filDers %>" selected><%= filDers %></option><% } %>
         </select>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Ünite</label>
-        <select name="filUnite" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:140px;">
+        <select name="filUnite" id="zr_unite" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:150px;">
           <option value="">Tümü</option>
-          <% tumSoruUniteler.forEach(function(u) { %>
-            <option value="<%= u %>" <%= filUnite==u?'selected':'' %>><%= u %></option>
-          <% }); %>
+          <% if (filUnite) { %><option value="<%= filUnite %>" selected><%= filUnite %></option><% } %>
         </select>
       </div>
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:11px; color:#888; font-weight:600;">Konu</label>
-        <select name="filKonu" onchange="this.form.submit()" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:160px;">
+        <select name="filKonu" id="zr_konu" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:170px;">
           <option value="">Tümü</option>
-          <% tumSoruKonular.forEach(function(k) { %>
-            <option value="<%= k %>" <%= filKonu==k?'selected':'' %>><%= k %></option>
-          <% }); %>
+          <% if (filKonu) { %><option value="<%= filKonu %>" selected><%= filKonu %></option><% } %>
         </select>
       </div>
-      <% if (filSinif || filDers || filUnite || filKonu) { %>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Öğrenme Çıktısı</label>
+        <select name="filCikti" id="zr_cikti" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:220px;">
+          <option value="">Tümü</option>
+          <% if (filCikti) { %><option value="<%= filCikti %>" selected><%= filCikti %></option><% } %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">Süreç Bileşeni</label>
+        <select name="filSurec" id="zr_surec" style="padding:7px 10px; border:1.5px solid #eaecf0; border-radius:8px; font-size:13px; background:#fff; min-width:180px;">
+          <option value="">Tümü</option>
+          <% if (filSurec) { %><option value="<%= filSurec %>" selected><%= filSurec %></option><% } %>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:11px; color:#888; font-weight:600;">&nbsp;</label>
+        <button type="submit" style="padding:7px 16px; background:#1a73e8; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Filtrele</button>
+      </div>
+      <% if (filSinif || filDers || filUnite || filKonu || filCikti || filSurec) { %>
         <a href="/admin?mod=zorlukRapor" style="padding:7px 14px; background:#ffebee; color:#c62828; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; align-self:flex-end;">✕ Filtreyi Temizle</a>
       <% } %>
     </form>
+    <script>
+    (function(){
+      var U=[];
+      var _zSinif=<%- JSON.stringify(filSinif||"") %>, _zDers=<%- JSON.stringify(filDers||"") %>, _zUnite=<%- JSON.stringify(filUnite||"") %>, _zKonu=<%- JSON.stringify(filKonu||"") %>, _zCikti=<%- JSON.stringify(filCikti||"") %>, _zSurec=<%- JSON.stringify(filSurec||"") %>;
+      function E(id){ return document.getElementById(id); }
+      function opt(sel, items, sec){ sel.innerHTML=""; var o0=document.createElement("option"); o0.value=""; o0.textContent="Tümü"; sel.appendChild(o0); items.forEach(function(it){ var o=document.createElement("option"); o.value=it.v; o.textContent=it.t; if(it.v===sec)o.selected=true; sel.appendChild(o); }); }
+      function sinifEsle(x){ var sv=E("zr_sinif").value; return !sv || String(x.sinif||"")===String(sv) || !x.sinif; }
+      function seciliUnite(){ var d=E("zr_ders").value, u=E("zr_unite").value; return U.find(function(x){ return x.ders===d && x.uniteAdi===u && sinifEsle(x); }); }
+      function ddDers(sec){ var ds=[]; U.filter(sinifEsle).forEach(function(x){ if(x.ders && ds.indexOf(x.ders)<0) ds.push(x.ders); }); opt(E("zr_ders"), ds.map(function(d){return {v:d,t:d};}), sec); }
+      function ddUnite(sec){ var d=E("zr_ders").value, us=[]; U.filter(function(x){return sinifEsle(x)&&(!d||x.ders===d);}).forEach(function(x){ if(x.uniteAdi && us.indexOf(x.uniteAdi)<0) us.push(x.uniteAdi); }); opt(E("zr_unite"), us.map(function(u){return {v:u,t:u};}), sec); }
+      function ddKonu(sec){ var d=E("zr_ders").value, u=E("zr_unite").value, ks=[]; U.filter(function(x){return sinifEsle(x)&&(!d||x.ders===d)&&(!u||x.uniteAdi===u);}).forEach(function(x){ (x.konular||[]).forEach(function(k){ if(ks.indexOf(k)<0) ks.push(k); }); }); opt(E("zr_konu"), ks.map(function(k){return {v:k,t:k};}), sec); }
+      function ddCikti(sec){ var k=E("zr_konu").value, su=seciliUnite(); var kd=su&&(su.konuDetay||[]).find(function(d){return d.konu===k;}); opt(E("zr_cikti"), kd?(kd.ciktilar||[]).map(function(c){return {v:(c.kod||c.metin), t:(c.metin||c.kod)};}):[], sec); }
+      function ddSurec(sec){ var k=E("zr_konu").value, c=E("zr_cikti").value, su=seciliUnite(); var kd=su&&(su.konuDetay||[]).find(function(d){return d.konu===k;}); var ci=kd&&(kd.ciktilar||[]).find(function(x){return (x.kod||x.metin)===c;}); opt(E("zr_surec"), ci?(ci.surecler||[]).map(function(pp){return {v:(pp.harf||pp.metin), t:(pp.harf?pp.harf+" ":"")+pp.metin};}):[], sec); }
+      function ddSinif(sec, siniflar){ opt(E("zr_sinif"), (siniflar||[]).map(function(sx){return {v:String(sx),t:sx+". Sınıf"};}), sec); }
+      E("zr_sinif").addEventListener("change", function(){ ddDers(); ddUnite(); ddKonu(); ddCikti(); ddSurec(); });
+      E("zr_ders").addEventListener("change", function(){ ddUnite(); ddKonu(); ddCikti(); ddSurec(); });
+      E("zr_unite").addEventListener("change", function(){ ddKonu(); ddCikti(); ddSurec(); });
+      E("zr_konu").addEventListener("change", function(){ ddCikti(); ddSurec(); });
+      E("zr_cikti").addEventListener("change", function(){ ddSurec(); });
+      fetch("/api/unite-bilgi").then(function(r){return r.json();}).then(function(v){ if(!v.ok) return; U=v.uniteler||[];
+        ddSinif(_zSinif, v.siniflar||[]); E("zr_sinif").value=_zSinif;
+        ddDers(_zDers);   E("zr_ders").value=_zDers;
+        ddUnite(_zUnite); E("zr_unite").value=_zUnite;
+        ddKonu(_zKonu);   E("zr_konu").value=_zKonu;
+        ddCikti(_zCikti); E("zr_cikti").value=_zCikti;
+        ddSurec(_zSurec); E("zr_surec").value=_zSurec;
+      })["catch"](function(){});
+    })();
+    </script>
 
     <!-- Toplam -->
     <p style="font-size:12px; color:#666; margin-bottom:10px;">Toplam <b><%= tumSorular.length %></b> soru gösteriliyor.
-      <% if (filSinif || filDers || filUnite || filKonu) { %>
-        <span style="color:#1565c0;">Aktif filtre: <%= [filSinif&&(filSinif+'. Sınıf'), filDers, filUnite, filKonu].filter(Boolean).join(' / ') %></span>
+      <% if (filSinif || filDers || filUnite || filKonu || filCikti || filSurec) { %>
+        <span style="color:#1565c0;">Aktif filtre: <%= [filSinif&&(filSinif+'. Sınıf'), filDers, filUnite, filKonu, filCikti, filSurec].filter(Boolean).join(' / ') %></span>
       <% } %>
     </p>
 
