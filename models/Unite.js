@@ -5,5 +5,9 @@ module.exports = mongoose.model('Unite', new mongoose.Schema({
     ders:      { type: String, required: true },
     uniteNo:   { type: Number, required: true },
     uniteAdi:  { type: String, required: true },
-    konular:   [String]
+    konular:   [String],
+    konuDetay: [{
+        konu:     String,
+        ciktilar: [{ kod: String, metin: String, surecler: [{ harf: String, metin: String }] }]
+    }]
 }));

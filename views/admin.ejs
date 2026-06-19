@@ -743,9 +743,19 @@ function escHtml(str) {
         <% if(editSoru && editSoru.unite) { %><option value="<%= editSoru.unite %>" selected><%= editSoru.unite %></option><% } %>
       </select>
       <br><br>
-      Konu: <select name="konu" id="se_konu" class="input-sm" style="min-width:200px;">
+      Konu: <select name="konu" id="se_konu" class="input-sm" onchange="konuDegisti()" style="min-width:200px;">
         <option value="">-- Konu Seçin (Opsiyonel) --</option>
         <% if(editSoru && editSoru.konu) { %><option value="<%= editSoru.konu %>" selected><%= editSoru.konu %></option><% } %>
+      </select>
+      <br><br>
+      Öğrenme Çıktısı: <select name="ogrenmeCiktisi" id="se_cikti" class="input-sm" onchange="ciktiDegisti()" style="min-width:280px;">
+        <option value="">-- Öğrenme Çıktısı (Opsiyonel) --</option>
+        <% if(editSoru && editSoru.ogrenmeCiktisi) { %><option value="<%= editSoru.ogrenmeCiktisi %>" selected><%= editSoru.ogrenmeCiktisi %></option><% } %>
+      </select>
+      <br><br>
+      Süreç Bileşeni: <select name="surecBileseni" id="se_surec" class="input-sm" style="min-width:280px;">
+        <option value="">-- Süreç Bileşeni (Opsiyonel) --</option>
+        <% if(editSoru && editSoru.surecBileseni) { %><option value="<%= editSoru.surecBileseni %>" selected><%= editSoru.surecBileseni %></option><% } %>
       </select>
       <br><br>
       <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:10px 12px; margin-bottom:12px;">
@@ -1023,6 +1033,8 @@ function escHtml(str) {
   var _editDers  = '<%- editSoru ? (editSoru.ders||"") : "" %>';
   var _editUnite = '<%- editSoru ? (editSoru.unite||"") : "" %>';
   var _editKonu  = '<%- editSoru ? (editSoru.konu||"") : "" %>';
+  var _editCikti = '<%- editSoru ? (editSoru.ogrenmeCiktisi||"") : "" %>';
+  var _editSurec = '<%- editSoru ? (editSoru.surecBileseni||"") : "" %>';
 
   // v4.3.29: Soru ekle — sınıf dropdownı da ünitelerden gelir.
   function seSiniflariYukle(seciliSinif, sonraCallback) {
@@ -1044,7 +1056,7 @@ function escHtml(str) {
       ['catch'](function(){});
   }
 
-  function sinifDegisti(hedefUnite, hedefKonu) {
+  function sinifDegisti(hedefUnite, hedefKonu, hedefCikti, hedefSurec) {
     var sinif = document.getElementById('se_sinif').value;
     fetch('/api/unite-bilgi?sinif=' + sinif)
       .then(function(r){ return r.json(); })
@@ -1064,12 +1076,12 @@ function escHtml(str) {
           });
           if (!dersSelect.value) dersSelect.selectedIndex = 0;
         }
-        dersDegisti(hedefUnite || '', hedefKonu || '');
+        dersDegisti(hedefUnite || '', hedefKonu || '', hedefCikti, hedefSurec);
       })
       ['catch'](function(){});
   }
 
-  function dersDegisti(hedefUnite, hedefKonu) {
+  function dersDegisti(hedefUnite, hedefKonu, hedefCikti, hedefSurec) {
     var sinif = document.getElementById('se_sinif').value;
     var ders  = document.getElementById('se_ders').value;
     var uniteSelect = document.getElementById('se_unite');
@@ -1085,10 +1097,10 @@ function escHtml(str) {
         if (u.uniteAdi === secilenUnite) opt.selected = true;
         uniteSelect.appendChild(opt);
       });
-    uniteDegisti(hedefKonu || '');
+    uniteDegisti(hedefKonu || '', hedefCikti, hedefSurec);
   }
 
-  function uniteDegisti(hedefKonu) {
+  function uniteDegisti(hedefKonu, hedefCikti, hedefSurec) {
     var sinif = document.getElementById('se_sinif').value;
     var ders  = document.getElementById('se_ders').value;
     var unite = document.getElementById('se_unite').value;
@@ -1104,6 +1116,58 @@ function escHtml(str) {
         opt.value = k; opt.textContent = k;
         if (k === secilenKonu) opt.selected = true;
         konuSelect.appendChild(opt);
+      });
+    }
+    konuDegisti(hedefCikti, hedefSurec);
+  }
+
+  // v4.16.14: Konu seçilince o konunun öğrenme çıktıları gelir
+  function konuDegisti(hedefCikti, hedefSurec) {
+    var sinif = document.getElementById('se_sinif').value;
+    var ders  = document.getElementById('se_ders').value;
+    var unite = document.getElementById('se_unite').value;
+    var konu  = document.getElementById('se_konu').value;
+    var ciktiSelect = document.getElementById('se_cikti');
+    var secilenCikti = (hedefCikti !== undefined) ? hedefCikti : ciktiSelect.value;
+    ciktiSelect.innerHTML = '<option value="">-- Öğrenme Çıktısı (Opsiyonel) --</option>';
+    var seciliUnite = _tumUniteler.find(function(u){
+      return u.ders === ders && u.uniteAdi === unite && (!u.sinif || String(u.sinif) === String(sinif));
+    });
+    var kd = seciliUnite && (seciliUnite.konuDetay || []).find(function(d){ return d.konu === konu; });
+    if (kd) {
+      (kd.ciktilar || []).forEach(function(c){
+        var deg = c.kod || c.metin;
+        var opt = document.createElement('option');
+        opt.value = deg; opt.textContent = c.metin || c.kod;
+        if (deg === secilenCikti) opt.selected = true;
+        ciktiSelect.appendChild(opt);
+      });
+    }
+    ciktiDegisti(hedefSurec);
+  }
+
+  // v4.16.14: Öğrenme çıktısı seçilince a/b/c... süreç bileşenleri gelir
+  function ciktiDegisti(hedefSurec) {
+    var sinif = document.getElementById('se_sinif').value;
+    var ders  = document.getElementById('se_ders').value;
+    var unite = document.getElementById('se_unite').value;
+    var konu  = document.getElementById('se_konu').value;
+    var cikti = document.getElementById('se_cikti').value;
+    var surecSelect = document.getElementById('se_surec');
+    var secilenSurec = (hedefSurec !== undefined) ? hedefSurec : surecSelect.value;
+    surecSelect.innerHTML = '<option value="">-- Süreç Bileşeni (Opsiyonel) --</option>';
+    var seciliUnite = _tumUniteler.find(function(u){
+      return u.ders === ders && u.uniteAdi === unite && (!u.sinif || String(u.sinif) === String(sinif));
+    });
+    var kd = seciliUnite && (seciliUnite.konuDetay || []).find(function(d){ return d.konu === konu; });
+    var c = kd && (kd.ciktilar || []).find(function(x){ return (x.kod || x.metin) === cikti; });
+    if (c) {
+      (c.surecler || []).forEach(function(p){
+        var deg = p.harf || p.metin;
+        var opt = document.createElement('option');
+        opt.value = deg; opt.textContent = (p.harf ? p.harf + ' ' : '') + p.metin;
+        if (deg === secilenSurec) opt.selected = true;
+        surecSelect.appendChild(opt);
       });
     }
   }
@@ -1132,7 +1196,7 @@ function escHtml(str) {
     // v4.3.29: Önce sınıf listesini ünitelerden yükle, sonra zinciri başlat.
     // editSoru varsa o sınıf seçili gelir, yoksa ilk sınıf.
     seSiniflariYukle(_editSinif, function(){
-      sinifDegisti(_editUnite, _editKonu);
+      sinifDegisti(_editUnite, _editKonu, _editCikti, _editSurec);
     });
   });
 

@@ -205,7 +205,7 @@ router.post('/soru-ekle', async (req, res) => {
     if (hata) return res.send("<script>alert('" + hata + "'); window.history.back();</script>");
     // v4.8.14: soruNo — en kucuk bos numarayi doldur (silinen numara tekrar kullanilir)
     const [yeniNo] = await bosSoruNo(1);
-    await new Soru({ soruNo: yeniNo, sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
+    await new Soru({ soruNo: yeniNo, sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, ogrenmeCiktisi: req.body.ogrenmeCiktisi||'', surecBileseni: req.body.surecBileseni||'', unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
     res.redirect('/admin?mod=soruListesi');
 });
 
@@ -221,7 +221,7 @@ router.post('/soru-guncelle', async (req, res) => {
         const [bosNo] = await bosSoruNo(1);
         ekGuncelleme.soruNo = bosNo;
     }
-    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap), ...ekGuncelleme });
+    await Soru.findByIdAndUpdate(req.body.id, { sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, ogrenmeCiktisi: req.body.ogrenmeCiktisi||'', surecBileseni: req.body.surecBileseni||'', unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap), ...ekGuncelleme });
     res.redirect('/admin?mod=soruListesi');
 });
 
@@ -568,14 +568,22 @@ router.get('/unite-sablon-indir', async (req, res) => {
             satirlar.push(['8', 'Matematik', '1', 'Çarpanlar ve Katlar', 'Asal Çarpanlar', '', '']);
         } else {
             uniteler.forEach(u => {
+                // v4.16.14: konuDetay'dan çıktı/süreç sütunları da yazılır (round-trip)
+                const kd = {};
+                (u.konuDetay || []).forEach(d => { kd[d.konu] = d.ciktilar || []; });
                 const konular = (u.konular && u.konular.length > 0) ? u.konular : [''];
-                konular.forEach((konu, idx) => {
-                    if (idx === 0) {
-                        // İlk konu satırında ünite bilgileri yazılır
-                        satirlar.push([u.sinif || '', u.ders || '', u.uniteNo || '', u.uniteAdi || '', konu || '', '', '']);
+                let ilk = true;
+                konular.forEach(konu => {
+                    const ciktilar = kd[konu] || [];
+                    const uniteHuc = () => ilk ? [u.sinif || '', u.ders || '', u.uniteNo || '', u.uniteAdi || ''] : ['', '', '', ''];
+                    if (ciktilar.length === 0) {
+                        satirlar.push([...uniteHuc(), konu || '', '', '']); ilk = false;
                     } else {
-                        // Aynı ünitenin diğer konuları — ünite sütunları boş (devam eder)
-                        satirlar.push(['', '', '', '', konu || '', '', '']);
+                        ciktilar.forEach((c, ci) => {
+                            const surecMetni = (c.surecler || []).map(p => (p.harf ? p.harf + ' ' : '') + (p.metin || '')).join('\n');
+                            satirlar.push([...uniteHuc(), ci === 0 ? (konu || '') : '', c.metin || '', surecMetni]);
+                            ilk = false;
+                        });
                     }
                 });
             });
@@ -602,7 +610,20 @@ router.post('/unite-excel-yukle', uploadExcel.single('excelDosyasi'), async (req
         const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const satirlar = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        let sonSinif = '', sonDers = '', sonUnite = '', sonUniteAdi = '';
+        // v4.16.14: Süreç Bileşenleri hücresini a/b/c... maddelerine ayırır.
+        const surecAyir = (t) => {
+            if (!t) return [];
+            return String(t).split(/\r?\n/).map(x => x.trim()).filter(Boolean).map(satir => {
+                const m = satir.match(/^([\wçğıöşüÇĞİÖŞÜ]{1,3}[\).])\s*(.*)$/);
+                return m ? { harf: m[1], metin: m[2].trim() } : { harf: '', metin: satir };
+            });
+        };
+        // v4.16.14: Öğrenme Çıktısı metninden kod (MAT.6.1.1 gibi) çeker.
+        const ciktiKodu = (t) => {
+            const m = String(t || '').match(/^\s*([A-ZÇĞİÖŞÜ]{2,4}\.[\d.]+)/);
+            return m ? m[1] : '';
+        };
+        let sonSinif = '', sonDers = '', sonUnite = '', sonUniteAdi = '', sonKonu = '';
         const uniteMap = {};
         for (let i = 1; i < satirlar.length; i++) {
             const s = satirlar[i];
@@ -612,17 +633,34 @@ router.post('/unite-excel-yukle', uploadExcel.single('excelDosyasi'), async (req
             const uniteStr = s[2] != null ? String(s[2]).trim() : sonUnite;
             const uniteAdi = s[3] != null ? String(s[3]).trim() : sonUniteAdi;
             const konu     = s[4] != null ? String(s[4]).trim() : '';
+            // v4.16.14: 6.-7. sütun — Öğrenme Çıktıları + Süreç Bileşenleri
+            const ciktiMetni = s[5] != null ? String(s[5]).trim() : '';
+            const surecMetni = s[6] != null ? String(s[6]).trim() : '';
             if (!ders && !uniteStr && !uniteAdi) continue;
             const uniteNoEslesen = uniteStr.match(/^(\d+)/);
             const uniteNo = uniteNoEslesen ? parseInt(uniteNoEslesen[1]) : 0;
             const anahtar = `${sinif}||${ders}||${uniteNo}||${uniteAdi || uniteStr}`;
             if (!uniteMap[anahtar]) {
-                uniteMap[anahtar] = { sinif, ders, uniteNo, uniteAdi: uniteAdi || uniteStr, konular: [] };
+                uniteMap[anahtar] = { sinif, ders, uniteNo, uniteAdi: uniteAdi || uniteStr, konular: [], konuDetay: [], _kdMap: {} };
             }
-            if (konu) uniteMap[anahtar].konular.push(konu);
+            const U = uniteMap[anahtar];
+            // Konu hücresi boşsa önceki konuyu sürdür (aynı konunun çoklu çıktı satırları)
+            const aktifKonu = konu || sonKonu;
+            // konular: yalnız benzersiz konu adları (eski çıktı birebir korunur)
+            if (konu && U.konular.indexOf(konu) === -1) U.konular.push(konu);
+            // konuDetay: çıktı veya süreç dolu satırları ilgili konuya bağlar
+            if (aktifKonu && (ciktiMetni || surecMetni)) {
+                if (!U._kdMap[aktifKonu]) {
+                    U._kdMap[aktifKonu] = { konu: aktifKonu, ciktilar: [] };
+                    U.konuDetay.push(U._kdMap[aktifKonu]);
+                }
+                U._kdMap[aktifKonu].ciktilar.push({ kod: ciktiKodu(ciktiMetni), metin: ciktiMetni, surecler: surecAyir(surecMetni) });
+            }
             sonSinif = sinif; sonDers = ders; sonUnite = uniteStr; sonUniteAdi = uniteAdi;
+            if (konu) sonKonu = konu;
         }
-        const onizleme = Object.values(uniteMap);
+        // _kdMap yardımcı alanını çıktıdan ayıkla
+        const onizleme = Object.values(uniteMap).map(u => { const { _kdMap, ...rest } = u; return rest; });
         res.json({ ok: true, onizleme, toplamUnite: onizleme.length, toplamKonu: onizleme.reduce((t, u) => t + u.konular.length, 0) });
     } catch (err) {
         console.error('[Excel Yükleme Hatası]', err.message);
@@ -644,7 +682,8 @@ router.post('/unite-kaydet', async (req, res) => {
             ders: u.ders || 'Belirtilmedi',
             uniteNo: parseInt(u.uniteNo) || 0,
             uniteAdi: u.uniteAdi,
-            konular: u.konular || []
+            konular: u.konular || [],
+            konuDetay: Array.isArray(u.konuDetay) ? u.konuDetay : []
         }));
         await Unite.insertMany(kayitlar);
         res.json({ ok: true, kaydedilen: kayitlar.length });
