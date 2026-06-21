@@ -1056,6 +1056,17 @@ function escHtml(str) {
       ['catch'](function(){});
   }
 
+  // v4.16.20: restore'da, kayıtlı değer güncel listede yoksa onu seçili seçenek olarak koru
+  function _seEnsureSecili(sel, val) {
+    if (!val) return;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === val) { sel.options[i].selected = true; return; }
+    }
+    var opt = document.createElement('option');
+    opt.value = val; opt.textContent = val + ' (eski)'; opt.selected = true;
+    sel.appendChild(opt);
+  }
+
   function sinifDegisti(hedefUnite, hedefKonu, hedefCikti, hedefSurec) {
     var sinif = document.getElementById('se_sinif').value;
     fetch('/api/unite-bilgi?sinif=' + sinif)
@@ -1076,6 +1087,7 @@ function escHtml(str) {
           });
           if (!dersSelect.value) dersSelect.selectedIndex = 0;
         }
+        if (hedefUnite !== undefined && _editDers) _seEnsureSecili(dersSelect, _editDers);
         dersDegisti(hedefUnite || '', hedefKonu || '', hedefCikti, hedefSurec);
       })
       ['catch'](function(){});
@@ -1097,6 +1109,7 @@ function escHtml(str) {
         if (u.uniteAdi === secilenUnite) opt.selected = true;
         uniteSelect.appendChild(opt);
       });
+    if (hedefUnite !== undefined) _seEnsureSecili(uniteSelect, secilenUnite);
     uniteDegisti(hedefKonu || '', hedefCikti, hedefSurec);
   }
 
@@ -1118,6 +1131,7 @@ function escHtml(str) {
         konuSelect.appendChild(opt);
       });
     }
+    if (hedefKonu !== undefined) _seEnsureSecili(konuSelect, secilenKonu);
     konuDegisti(hedefCikti, hedefSurec);
   }
 
@@ -1143,6 +1157,7 @@ function escHtml(str) {
         ciktiSelect.appendChild(opt);
       });
     }
+    if (hedefCikti !== undefined) _seEnsureSecili(ciktiSelect, secilenCikti);
     ciktiDegisti(hedefSurec);
   }
 
@@ -1170,6 +1185,7 @@ function escHtml(str) {
         surecSelect.appendChild(opt);
       });
     }
+    if (hedefSurec !== undefined) _seEnsureSecili(surecSelect, secilenSurec);
   }
 
   function ekle(alanId, html, imlecGeri) {
