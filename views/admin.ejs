@@ -2789,7 +2789,7 @@ function gosterExcelHata(msg) {
             <td style="padding:8px; color:<%= durumRenk %>;"><%= s.durum||'-' %></td>
             <td style="padding:8px; text-align:center; white-space:nowrap;">
               <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">ÖNİZLE</button>
-              <a href="/admin?duzenle=<%= s._id %>&filSinif=<%= encodeURIComponent(filSinif||'') %>&filDers=<%= encodeURIComponent(filDers||'') %>&filUnite=<%= encodeURIComponent(filUnite||'') %>&filKonu=<%= encodeURIComponent(filKonu||'') %>&filCikti=<%= encodeURIComponent(filCikti||'') %>&filSurec=<%= encodeURIComponent(filSurec||'') %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
+              <a href="/admin?duzenle=<%= s._id %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
               <%# v4.5.3: "Çözenler" butonu — alttaki gizli satırı aç/kapat %>
               <button type="button" onclick="cozumlerAcKapa('<%= s._id %>', this)" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#43a047; color:white;">▼ ÇÖZENLER</button>
             </td>
@@ -3092,7 +3092,7 @@ function gosterExcelHata(msg) {
         </div>
         <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
-          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle&filSinif=<%= encodeURIComponent(filSinif||'') %>&filDers=<%= encodeURIComponent(filDers||'') %>&filUnite=<%= encodeURIComponent(filUnite||'') %>&filKonu=<%= encodeURIComponent(filKonu||'') %>&filCikti=<%= encodeURIComponent(filCikti||'') %>&filSurec=<%= encodeURIComponent(filSurec||'') %>" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <% var _d = s.durum || 'taslak'; %>
           <% if (_d !== 'yayinda') { %>
           <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
@@ -3136,7 +3136,7 @@ function gosterExcelHata(msg) {
         </div>
         <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
-          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle&filSinif=<%= encodeURIComponent(filSinif||'') %>&filDers=<%= encodeURIComponent(filDers||'') %>&filUnite=<%= encodeURIComponent(filUnite||'') %>&filKonu=<%= encodeURIComponent(filKonu||'') %>&filCikti=<%= encodeURIComponent(filCikti||'') %>&filSurec=<%= encodeURIComponent(filSurec||'') %>" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <% var _d = s.durum || 'taslak'; %>
           <% if (_d !== 'yayinda') { %>
           <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
@@ -3180,7 +3180,7 @@ function gosterExcelHata(msg) {
         </div>
         <div class="admin-soru-sag" onclick="event.stopPropagation();">
           <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle">ÖNİZLE</button>
-          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
+          <a href="/admin?duzenle=<%= s._id %>&mod=soruEkle&filSinif=<%= encodeURIComponent(filSinif||'') %>&filDers=<%= encodeURIComponent(filDers||'') %>&filUnite=<%= encodeURIComponent(filUnite||'') %>&filKonu=<%= encodeURIComponent(filKonu||'') %>&filCikti=<%= encodeURIComponent(filCikti||'') %>&filSurec=<%= encodeURIComponent(filSurec||'') %>" class="admin-btn admin-btn-duzenle">DÜZENLE</a>
           <% var _d = s.durum || 'taslak'; %>
           <% if (_d !== 'yayinda') { %>
           <form action="/soru-durum-degistir?<%= _filtreQS %>" method="POST" style="display:inline;">
