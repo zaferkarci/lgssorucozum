@@ -177,7 +177,7 @@ router.get('/admin', async (req, res) => {
         filKullaniciSinif,
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
-        tumUniteler: await Unite.find().sort({ ders:1, uniteNo:1 }),
+        tumUniteler: await Unite.find().sort({ ders:1, sira:1, uniteNo:1 }),
         tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi,
         aktiviteOzetiData
     });
@@ -791,6 +791,25 @@ router.post('/unite-guncelle', async (req, res) => {
         res.status(500).send('Hata: ' + err.message);
     }
 });
+router.post('/unite-sirala', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { id, yon } = req.body;
+        const u = await Unite.findById(id).lean();
+        if (!u) return res.redirect('/admin?mod=uniteler');
+        const grup = await Unite.find({ ders: u.ders }).sort({ sira: 1, uniteNo: 1 }).lean();
+        const idx = grup.findIndex(x => String(x._id) === String(id));
+        const hedef = idx + (yon === 'yukari' ? -1 : 1);
+        if (hedef < 0 || hedef >= grup.length) return res.redirect('/admin?mod=uniteler');
+        const t = grup[idx]; grup[idx] = grup[hedef]; grup[hedef] = t;
+        await Promise.all(grup.map((x, i) => Unite.findByIdAndUpdate(x._id, { sira: i })));
+        res.redirect('/admin?mod=uniteler');
+    } catch (err) {
+        console.error('[Ünite Sırala Hatası]', err.message);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 
 // ── Sınıfa göre ünite/konu verisi ────────────────────────────────────────────
 // v4.8.7: Konu Izinleri — agac verisi (Unite'den beslenir, durum KonuIzin'den).

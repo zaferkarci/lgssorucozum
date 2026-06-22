@@ -1617,6 +1617,10 @@ function escHtml(str) {
             </td>
             <% if (ki === 0) { %>
               <td rowspan="<%= _konuListe.length %>" style="text-align:center; white-space:nowrap;">
+                <div style="margin-bottom:4px;">
+                  <form action="/unite-sirala" method="POST" style="display:inline;"><input type="hidden" name="id" value="<%= u._id %>"><input type="hidden" name="yon" value="yukari"><button type="submit" title="Yukarı taşı" class="btn" style="background:#eef2ff; color:#1565c0; padding:3px 8px; font-size:12px;">&#8593;</button></form>
+                  <form action="/unite-sirala" method="POST" style="display:inline;"><input type="hidden" name="id" value="<%= u._id %>"><input type="hidden" name="yon" value="asagi"><button type="submit" title="Aşağı taşı" class="btn" style="background:#eef2ff; color:#1565c0; padding:3px 8px; font-size:12px;">&#8595;</button></form>
+                </div>
                 <button type="button" onclick="uniteDuzenleAc('<%= u._id %>')" class="btn" style="background:#1a73e8; color:white; padding:4px 10px; font-size:12px; margin-bottom:4px;">DÜZENLE</button>
                 <form action="/unite-sil" method="POST" style="display:inline;">
                   <input type="hidden" name="id" value="<%= u._id %>">
@@ -1672,15 +1676,19 @@ function kEdRender(key){
   var e=_kEd[key]; if(!e || !e.box) return; var H='';
   e.konular.forEach(function(k, ki){
     H += '<div style="border:1px solid #cfd8e3; border-radius:8px; padding:10px 12px;">';
-    H += '<div style="display:flex; gap:8px; align-items:center;">';
+    H += '<div style="display:flex; gap:6px; align-items:center;">';
     H += '<input value="'+kEsc(k.ad)+'" placeholder="Konu (icerik cercevesi)" oninput="kEdSet(\''+key+'\','+ki+',-1,-1,this.value)" style="flex:1; padding:6px 9px; border:1px solid #ccc; border-radius:6px;">';
+    H += '<button type="button" onclick="kEdMoveKonu(\''+key+'\','+ki+',-1)" title="Yukari" style="padding:5px 9px; background:#eef2ff; color:#1565c0; border:1px solid #c5cae9; border-radius:6px; cursor:pointer;">&#8593;</button>';
+    H += '<button type="button" onclick="kEdMoveKonu(\''+key+'\','+ki+',1)" title="Asagi" style="padding:5px 9px; background:#eef2ff; color:#1565c0; border:1px solid #c5cae9; border-radius:6px; cursor:pointer;">&#8595;</button>';
     H += '<button type="button" onclick="kEdDelKonu(\''+key+'\','+ki+')" title="Konuyu sil" style="padding:5px 10px; background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; cursor:pointer;">Sil</button>';
     H += '</div>';
     H += '<div style="margin:8px 0 0 10px; display:flex; flex-direction:column; gap:8px;">';
     (k.ciktilar||[]).forEach(function(c, ci){
       H += '<div style="border-left:2px solid #90caf9; padding-left:10px;">';
-      H += '<div style="display:flex; gap:8px; align-items:center;">';
+      H += '<div style="display:flex; gap:6px; align-items:center;">';
       H += '<input value="'+kEsc(c.metin)+'" placeholder="Ogrenme ciktisi (MAT.6.1.1. ...)" oninput="kEdSet(\''+key+'\','+ki+','+ci+',-1,this.value)" style="flex:1; padding:6px 9px; border:1px solid #ccc; border-radius:6px;">';
+      H += '<button type="button" onclick="kEdMoveCikti(\''+key+'\','+ki+','+ci+',-1)" title="Yukari" style="padding:5px 9px; background:#eef2ff; color:#1565c0; border:1px solid #c5cae9; border-radius:6px; cursor:pointer;">&#8593;</button>';
+      H += '<button type="button" onclick="kEdMoveCikti(\''+key+'\','+ki+','+ci+',1)" title="Asagi" style="padding:5px 9px; background:#eef2ff; color:#1565c0; border:1px solid #c5cae9; border-radius:6px; cursor:pointer;">&#8595;</button>';
       H += '<button type="button" onclick="kEdDelCikti(\''+key+'\','+ki+','+ci+')" title="Ciktiyi sil" style="padding:5px 10px; background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; cursor:pointer;">Sil</button>';
       H += '</div>';
       H += '<div style="margin:6px 0 0 8px; display:flex; flex-direction:column; gap:5px;">';
@@ -1688,6 +1696,8 @@ function kEdRender(key){
         H += '<div style="display:flex; gap:6px; align-items:center;">';
         H += '<input value="'+kEsc(p.harf)+'" placeholder="a)" oninput="kEdSetSurec(\''+key+'\','+ki+','+ci+','+pi+',\'harf\',this.value)" style="width:52px; padding:6px; border:1px solid #ccc; border-radius:6px;">';
         H += '<input value="'+kEsc(p.metin)+'" placeholder="Surec bileseni" oninput="kEdSetSurec(\''+key+'\','+ki+','+ci+','+pi+',\'metin\',this.value)" style="flex:1; padding:6px 9px; border:1px solid #ccc; border-radius:6px;">';
+        H += '<button type="button" onclick="kEdMoveSurec(\''+key+'\','+ki+','+ci+','+pi+',-1)" title="Yukari" style="padding:4px 8px; background:#eef2ff; color:#1565c0; border:1px solid #c5cae9; border-radius:6px; cursor:pointer;">&#8593;</button>';
+        H += '<button type="button" onclick="kEdMoveSurec(\''+key+'\','+ki+','+ci+','+pi+',1)" title="Asagi" style="padding:4px 8px; background:#eef2ff; color:#1565c0; border:1px solid #c5cae9; border-radius:6px; cursor:pointer;">&#8595;</button>';
         H += '<button type="button" onclick="kEdDelSurec(\''+key+'\','+ki+','+ci+','+pi+')" title="Sil" style="padding:4px 9px; background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; cursor:pointer;">x</button>';
         H += '</div>';
       });
@@ -1716,6 +1726,9 @@ function kEdAddCikti(key, ki){ _kEd[key].konular[ki].ciktilar.push({metin:'',sur
 function kEdDelCikti(key, ki, ci){ _kEd[key].konular[ki].ciktilar.splice(ci,1); kEdRender(key); }
 function kEdAddSurec(key, ki, ci){ _kEd[key].konular[ki].ciktilar[ci].surecler.push({harf:'',metin:''}); kEdRender(key); }
 function kEdDelSurec(key, ki, ci, pi){ _kEd[key].konular[ki].ciktilar[ci].surecler.splice(pi,1); kEdRender(key); }
+function kEdMoveKonu(key, ki, yon){ var a=_kEd[key].konular; var j=ki+yon; if(j<0||j>=a.length)return; var t=a[ki];a[ki]=a[j];a[j]=t; kEdRender(key); }
+function kEdMoveCikti(key, ki, ci, yon){ var a=_kEd[key].konular[ki].ciktilar; var j=ci+yon; if(j<0||j>=a.length)return; var t=a[ci];a[ci]=a[j];a[j]=t; kEdRender(key); }
+function kEdMoveSurec(key, ki, ci, pi, yon){ var a=_kEd[key].konular[ki].ciktilar[ci].surecler; var j=pi+yon; if(j<0||j>=a.length)return; var t=a[pi];a[pi]=a[j];a[j]=t; kEdRender(key); }
 kEdBaslat('yeni','kEd_yeni','kHidden_yeni', [{ad:'',ciktilar:[]}]);
 
 // v4.3.26: Ünite düzenleme satırı aç/kapat
