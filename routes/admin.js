@@ -177,7 +177,7 @@ router.get('/admin', async (req, res) => {
         filKullaniciSinif,
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
-        tumUniteler: await Unite.find().sort({ ders:1, sira:1, uniteNo:1 }),
+        tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
         tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi,
         aktiviteOzetiData
     });
@@ -797,7 +797,7 @@ router.post('/unite-sirala', async (req, res) => {
         const { id, yon } = req.body;
         const u = await Unite.findById(id).lean();
         if (!u) return res.redirect('/admin?mod=uniteler');
-        const grup = await Unite.find({ ders: u.ders }).sort({ sira: 1, uniteNo: 1 }).lean();
+        const grup = await Unite.find({ sinif: u.sinif, ders: u.ders }).sort({ sira: 1, uniteNo: 1 }).lean();
         const idx = grup.findIndex(x => String(x._id) === String(id));
         const hedef = idx + (yon === 'yukari' ? -1 : 1);
         if (hedef < 0 || hedef >= grup.length) return res.redirect('/admin?mod=uniteler');
