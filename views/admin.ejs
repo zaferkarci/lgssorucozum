@@ -727,7 +727,7 @@ function escHtml(str) {
   <div class="card">
     <h3><%= editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle' %></h3>
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
-      <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><% } %>
+      <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><input type="hidden" name="filSinif" value="<%= filSinif %>"><input type="hidden" name="filDers" value="<%= filDers %>"><input type="hidden" name="filUnite" value="<%= filUnite %>"><input type="hidden" name="filKonu" value="<%= filKonu %>"><input type="hidden" name="filCikti" value="<%= filCikti %>"><input type="hidden" name="filSurec" value="<%= filSurec %>"><% } %>
       Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
         <% if (editSoru && editSoru.sinif) { %><option value="<%= editSoru.sinif %>" selected><%= editSoru.sinif %>. Sınıf</option><% } %>
         <option value="">— Yükleniyor… —</option>
@@ -2789,7 +2789,7 @@ function gosterExcelHata(msg) {
             <td style="padding:8px; color:<%= durumRenk %>;"><%= s.durum||'-' %></td>
             <td style="padding:8px; text-align:center; white-space:nowrap;">
               <button type="button" onclick="soruOnizle('<%= s._id %>')" class="admin-btn admin-btn-onizle" style="font-size:10px; padding:3px 8px;">ÖNİZLE</button>
-              <a href="/admin?duzenle=<%= s._id %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
+              <a href="/admin?duzenle=<%= s._id %>&filSinif=<%= encodeURIComponent(filSinif||'') %>&filDers=<%= encodeURIComponent(filDers||'') %>&filUnite=<%= encodeURIComponent(filUnite||'') %>&filKonu=<%= encodeURIComponent(filKonu||'') %>&filCikti=<%= encodeURIComponent(filCikti||'') %>&filSurec=<%= encodeURIComponent(filSurec||'') %>" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#1a73e8; color:white; text-decoration:none;">DÜZENLE</a>
               <%# v4.5.3: "Çözenler" butonu — alttaki gizli satırı aç/kapat %>
               <button type="button" onclick="cozumlerAcKapa('<%= s._id %>', this)" class="admin-btn" style="font-size:10px; padding:3px 8px; background:#43a047; color:white;">▼ ÇÖZENLER</button>
             </td>
