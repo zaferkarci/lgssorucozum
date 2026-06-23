@@ -738,6 +738,19 @@ function escHtml(str) {
       <a href="/admin?mod=soruListesi&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; color:#666; text-decoration:none; font-size:13px;">Listeye don</a>
     </div>
 <% } } %>
+<% if (editSoru) { %>
+    <div style="font-size:12px; color:#888; margin:0 0 6px; font-weight:600;">Soru Önizleme</div>
+    <div id="soruEkleOnizleme" style="border:1px solid #e0e0e0; border-radius:8px; padding:14px 16px; margin-bottom:16px; background:#fafbfc;">Yükleniyor...</div>
+    <script>
+    window.addEventListener('DOMContentLoaded', function(){
+      var hedef = document.getElementById('soruEkleOnizleme'); if (!hedef) return;
+      fetch('/api/soru/<%= editSoru._id %>', { credentials:'same-origin' })
+        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+        .then(function(s){ hedef.innerHTML = _soruOnizleHtml(s); if (typeof adminMathRender==='function') adminMathRender(hedef); })
+        .catch(function(e){ hedef.innerHTML = '<div style="color:#c62828; font-size:13px;">Önizleme yüklenemedi: '+e.message+'</div>'; });
+    });
+    </script>
+<% } %>
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
       <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><input type="hidden" name="filSinif" value="<%= filSinif %>"><input type="hidden" name="filDers" value="<%= filDers %>"><input type="hidden" name="filUnite" value="<%= filUnite %>"><input type="hidden" name="filKonu" value="<%= filKonu %>"><input type="hidden" name="filCikti" value="<%= filCikti %>"><input type="hidden" name="filSurec" value="<%= filSurec %>"><% } %>
       Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
