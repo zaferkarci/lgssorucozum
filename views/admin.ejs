@@ -726,6 +726,18 @@ function escHtml(str) {
 <% } else if (mod === 'soruEkle') { %>
   <div class="card">
     <h3><%= editSoru ? 'Soru Düzenle' : 'Yeni Soru Ekle' %></h3>
+<% if (editSoru) {
+   var _fqs = 'filSinif='+encodeURIComponent(filSinif||'')+'&filDers='+encodeURIComponent(filDers||'')+'&filUnite='+encodeURIComponent(filUnite||'')+'&filKonu='+encodeURIComponent(filKonu||'')+'&filCikti='+encodeURIComponent(filCikti||'')+'&filSurec='+encodeURIComponent(filSurec||'');
+   var _navIdx = tumSorular.findIndex(function(s){ return String(s._id) === String(editSoru._id); });
+   var _navN = tumSorular.length;
+   if (_navIdx >= 0 && _navN > 1) { %>
+    <div style="display:flex; align-items:center; gap:8px; background:#f1f5fb; border:1px solid #d9e2f0; border-radius:8px; padding:8px 12px; margin-bottom:12px; flex-wrap:wrap;">
+      <% if (_navIdx > 0) { %><a href="/admin?mod=soruEkle&duzenle=<%= tumSorular[_navIdx-1]._id %>&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #c5cae9; border-radius:6px; color:#1565c0; text-decoration:none; font-size:13px;">&#9664; Onceki</a><% } else { %><span style="padding:6px 12px; background:#f5f5f5; border:1px solid #eee; border-radius:6px; color:#bbb; font-size:13px;">&#9664; Onceki</span><% } %>
+      <div style="flex:1; text-align:center; font-size:13px; color:#444; min-width:120px;"><b style="color:#1a73e8;"><%= _navIdx+1 %> / <%= _navN %></b><span style="color:#888; margin-left:8px;">Soru No: <%= editSoru.soruNo || '-' %></span></div>
+      <% if (_navIdx < _navN-1) { %><a href="/admin?mod=soruEkle&duzenle=<%= tumSorular[_navIdx+1]._id %>&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #c5cae9; border-radius:6px; color:#1565c0; text-decoration:none; font-size:13px;">Sonraki &#9654;</a><% } else { %><span style="padding:6px 12px; background:#f5f5f5; border:1px solid #eee; border-radius:6px; color:#bbb; font-size:13px;">Sonraki &#9654;</span><% } %>
+      <a href="/admin?mod=soruListesi&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; color:#666; text-decoration:none; font-size:13px;">Listeye don</a>
+    </div>
+<% } } %>
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
       <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><input type="hidden" name="filSinif" value="<%= filSinif %>"><input type="hidden" name="filDers" value="<%= filDers %>"><input type="hidden" name="filUnite" value="<%= filUnite %>"><input type="hidden" name="filKonu" value="<%= filKonu %>"><input type="hidden" name="filCikti" value="<%= filCikti %>"><input type="hidden" name="filSurec" value="<%= filSurec %>"><% } %>
       Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
@@ -3065,6 +3077,13 @@ function gosterExcelHata(msg) {
     </script>
   </div>
 
+  <% var _fqsL = 'filSinif='+encodeURIComponent(filSinif||'')+'&filDers='+encodeURIComponent(filDers||'')+'&filUnite='+encodeURIComponent(filUnite||'')+'&filKonu='+encodeURIComponent(filKonu||'')+'&filCikti='+encodeURIComponent(filCikti||'')+'&filSurec='+encodeURIComponent(filSurec||''); %>
+  <% if (tumSorular.length > 0) { %>
+  <div class="admin-card" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <span style="font-size:13px; color:#444;"><b style="color:#1a73e8;"><%= tumSorular.length %></b> soru &mdash; eklenme sirasina gore tek tek duzenle (filtreyi koruyarak)</span>
+    <a href="/admin?mod=soruEkle&duzenle=<%= tumSorular[0]._id %>&<%= _fqsL %>" style="margin-left:auto; padding:8px 16px; background:#1a73e8; color:#fff; border-radius:8px; text-decoration:none; font-size:13px; font-weight:500;">Ilk soruyu duzenle &#9654;</a>
+  </div>
+  <% } %>
   <div class="admin-card">
     <div class="admin-card-title">Sorular</div>
 
@@ -3250,11 +3269,11 @@ function _soruOnizleHtml(s){
       var harfler = ['A','B','C','D'];
       var html = '';
       if (s.soruOnculu1) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu1 + '</div>';
-      if (s.soruOnculu1Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu1Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
+      if (s.soruOnculu1Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu1Resmi + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; cursor:zoom-in;"></div>';
       if (s.soruOnculu2) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu2 + '</div>';
-      if (s.soruOnculu2Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu2Resmi + '" style="max-width:100%; max-height:200px; border-radius:8px;"></div>';
+      if (s.soruOnculu2Resmi) html += '<div style="text-align:center; margin-bottom:8px;"><img src="' + s.soruOnculu2Resmi + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; cursor:zoom-in;"></div>';
       if (s.soruOnculu3) html += '<div style="background:transparent; padding:10px; border-radius:6px; margin-bottom:8px; font-size:14px; white-space:pre-wrap;">' + s.soruOnculu3 + '</div>';
-      if (s.soruOnculu3Resmi) html += '<div style="text-align:center; margin-bottom:10px;"><img src="' + s.soruOnculu3Resmi + '" style="max-width:100%; max-height:250px; border-radius:8px;"></div>';
+      if (s.soruOnculu3Resmi) html += '<div style="text-align:center; margin-bottom:10px;"><img src="' + s.soruOnculu3Resmi + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; cursor:zoom-in;"></div>';
       html += '<h3 style="font-size:17px; margin:12px 0; white-space:pre-wrap;">' + s.soruMetni + '</h3>';
       if (s.tabloBaslik && s.tabloBaslik.length > 0) {
         html += '<div style="margin-bottom:4px;"><table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:3px 0; width:48px;"></td>';
@@ -3279,14 +3298,14 @@ function _soruOnizleHtml(s){
         if (sadeceGorsel) {
           html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left; display:flex; flex-direction:column; align-items:flex-start;">';
           html += '<b style="font-size:14px; margin-bottom:8px;">' + harfler[i] + ')</b>';
-          html += '<img src="' + sikGorsel + '" style="max-width:100%; align-self:center;">';
+          html += '<img src="' + sikGorsel + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:50vh; align-self:center; cursor:zoom-in;">';
           html += '</div>';
         } else {
           html += '<div style="padding:10px 14px; border:' + border + '; border-radius:8px; background:' + bgRenk + '; text-align:left;">';
           if (tabloMu) html += '<b style="display:block; margin-bottom:6px;">' + harfler[i] + ')</b>';
           else html += '<b>' + harfler[i] + ')</b>' + (sikMetin ? ' ' : '');
           if (sikMetin) html += sikMetin;
-          if (sikGorsel) html += (sikMetin ? '<br>' : '') + '<img src="' + sikGorsel + '" style="max-width:150px;' + (sikMetin ? ' margin-top:5px;' : '') + '">';
+          if (sikGorsel) html += (sikMetin ? '<br>' : '') + '<img src="' + sikGorsel + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:300px; cursor:zoom-in;' + (sikMetin ? ' margin-top:5px;' : '') + '">';
           html += '</div>';
         }
       }
@@ -3417,5 +3436,12 @@ function adminCikisYap(e) {
 </script>
 
 </div>
+<div id="gorselLightbox" onclick="gorselKapat()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center; cursor:zoom-out; padding:16px;">
+  <img id="gorselLightboxImg" src="" alt="Büyütülmüş görsel" style="max-width:96vw; max-height:92vh; border-radius:8px; object-fit:contain;">
+</div>
+<script>
+function gorselBuyut(src){ if(!src) return; var lb=document.getElementById("gorselLightbox"); document.getElementById("gorselLightboxImg").src=src; lb.style.display="flex"; }
+function gorselKapat(){ document.getElementById("gorselLightbox").style.display="none"; }
+</script>
 </body>
 </html>
