@@ -733,7 +733,12 @@ function escHtml(str) {
    if (_navIdx >= 0 && _navN > 1) { %>
     <div style="display:flex; align-items:center; gap:8px; background:#f1f5fb; border:1px solid #d9e2f0; border-radius:8px; padding:8px 12px; margin-bottom:12px; flex-wrap:wrap;">
       <% if (_navIdx > 0) { %><a href="/admin?mod=soruEkle&duzenle=<%= tumSorular[_navIdx-1]._id %>&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #c5cae9; border-radius:6px; color:#1565c0; text-decoration:none; font-size:13px;">&#9664; Onceki</a><% } else { %><span style="padding:6px 12px; background:#f5f5f5; border:1px solid #eee; border-radius:6px; color:#bbb; font-size:13px;">&#9664; Onceki</span><% } %>
-      <div style="flex:1; text-align:center; font-size:13px; color:#444; min-width:120px;"><b style="color:#1a73e8;"><%= _navIdx+1 %> / <%= _navN %></b><span style="color:#888; margin-left:8px;">Soru No: <%= editSoru.soruNo || '-' %></span></div>
+      <div style="flex:1; text-align:center; font-size:13px; color:#444; min-width:170px; display:flex; align-items:center; justify-content:center; gap:6px;">
+        <select onchange="if(this.value){location.href=this.value;}" title="Soruya git" style="max-width:240px; font-size:13px; padding:5px 8px; border:1px solid #c5cae9; border-radius:6px;">
+          <% tumSorular.forEach(function(_s, _i){ %><option value="/admin?mod=soruEkle&duzenle=<%= _s._id %>&<%= _fqs %>"<%= String(_s._id)===String(editSoru._id)?' selected':'' %>><%= _i+1 %>. soru &middot; No: <%= _s.soruNo %></option><% }); %>
+        </select>
+        <span style="color:#888; white-space:nowrap;">/ <%= _navN %></span>
+      </div>
       <% if (_navIdx < _navN-1) { %><a href="/admin?mod=soruEkle&duzenle=<%= tumSorular[_navIdx+1]._id %>&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #c5cae9; border-radius:6px; color:#1565c0; text-decoration:none; font-size:13px;">Sonraki &#9654;</a><% } else { %><span style="padding:6px 12px; background:#f5f5f5; border:1px solid #eee; border-radius:6px; color:#bbb; font-size:13px;">Sonraki &#9654;</span><% } %>
       <a href="/admin?mod=soruListesi&<%= _fqs %>" style="padding:6px 12px; background:#fff; border:1px solid #ddd; border-radius:6px; color:#666; text-decoration:none; font-size:13px;">Listeye don</a>
     </div>
