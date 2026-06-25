@@ -128,17 +128,20 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
         }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const anahtar = (apiKey || '').trim();
+    console.log('[Gemini] anahtar onek:', anahtar.slice(0, 6) + '...', '| uzunluk:', anahtar.length);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
 
     const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': anahtar },
         body: JSON.stringify(body)
     });
 
+    console.log('[Gemini] yanit durumu:', response.status);
     if (!response.ok) {
         const hata = await response.text();
-        throw new Error('Gemini API hatası: ' + hata);
+        throw new Error('Gemini API hatası (HTTP ' + response.status + '): ' + hata);
     }
 
     const veri = await response.json();
