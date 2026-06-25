@@ -130,7 +130,9 @@ Bilgi: Sınıf=${sinif}, Ders=${ders}, Konu=${konu || 'Belirtilmedi'}`;
 
     const anahtar = (apiKey || '').trim();
     console.log('[Gemini] anahtar onek:', anahtar.slice(0, 6) + '...', '| uzunluk:', anahtar.length);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+    const gBase = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+    const url = gBase + '/v1beta/models/gemini-2.5-flash:generateContent';
+    console.log('[Gemini] base:', gBase);
 
     const response = await fetch(url, {
         method: 'POST',
