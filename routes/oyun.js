@@ -14,6 +14,7 @@ const OyunOyuncu = require('../models/OyunOyuncu');
 const OyunKilit = require('../models/OyunKilit');
 const Kullanici = require('../models/Kullanici');
 const CevapKaydi = require('../models/CevapKaydi');
+const DuelloKayit = require('../models/DuelloKayit');
 
 // ---- sabitler ----
 const DW = 400, DH = 200;
@@ -670,6 +671,14 @@ router.post('/oyun/duello', async (req, res) => {
             await kusatmaIsle(ben, sinif, x, y, BEN); // duello ile kapanan cep otomatik fethedilsin
         }
         const ro = await OyunOyuncu.findOne({ sinif, kullaniciAdi: RAKIP }, 'rumuz').lean();
+        try {
+            await DuelloKayit.create({
+                sinif, saldiranAd: BEN, saldiranRumuz: (ben && ben.rumuz) || '',
+                rakipAd: RAKIP, rakipRumuz: (ro && ro.rumuz) || '',
+                soruId: secId, saldiranSure: benSure, rakipSure: rakipSure,
+                kazananAd: kazandi ? BEN : RAKIP
+            });
+        } catch (kErr) { console.error('[duello kayit]', kErr.message); }
         res.json({ ok: true, kazandi, benSure, rakipSure, rakipRumuz: (ro && ro.rumuz) || RAKIP });
     } catch (e) {
         console.error('[oyun duello]', e.message);

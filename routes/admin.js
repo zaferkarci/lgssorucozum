@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Kullanici = require('../models/Kullanici');
+const OyunOyuncu = require('../models/OyunOyuncu');
+const OyunHucre = require('../models/OyunHucre');
+const DuelloKayit = require('../models/DuelloKayit');
 const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
@@ -134,6 +137,33 @@ router.get('/admin', async (req, res) => {
     const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
+
+    // v4.16.33: Düello ekranı verisi (rumuz<->kullanici, hucre sayilari, duello istatistikleri)
+    let duelloVeri = null;
+    if (mod === 'duello') {
+        const dSinif = (req.query.dSinif || '').trim();
+        const oyuncuFiltre = dSinif ? { sinif: dSinif } : {};
+        const oyuncular = await OyunOyuncu.find(oyuncuFiltre).sort({ sinif: 1, rumuz: 1 }).lean();
+        const hucreGrup = await OyunHucre.aggregate([
+            ...(dSinif ? [{ $match: { sinif: dSinif } }] : []),
+            { $group: { _id: { sinif: '$sinif', sahip: '$sahip' }, n: { $sum: 1 } } }
+        ]);
+        const hucreMap = {};
+        hucreGrup.forEach(h => { hucreMap[h._id.sinif + '|' + h._id.sahip] = h.n; });
+        oyuncular.forEach(o => { o.hucreSayisi = hucreMap[o.sinif + '|' + o.kullaniciAdi] || 0; });
+        const kayitFiltre = dSinif ? { sinif: dSinif } : {};
+        const kayitlar = await DuelloKayit.find(kayitFiltre).sort({ tarih: -1 }).limit(300).lean();
+        const istat = {};
+        const gir = (ad, rumuz) => { if (!istat[ad]) istat[ad] = { ad, rumuz: rumuz || ad, toplam: 0, galip: 0, maglup: 0 }; return istat[ad]; };
+        kayitlar.forEach(k => {
+            const a = gir(k.saldiranAd, k.saldiranRumuz), r = gir(k.rakipAd, k.rakipRumuz);
+            a.toplam++; r.toplam++;
+            if (k.kazananAd === k.saldiranAd) { a.galip++; r.maglup++; } else { r.galip++; a.maglup++; }
+        });
+        const istatListe = Object.values(istat).sort((x, y) => y.galip - x.galip || y.toplam - x.toplam);
+        const dSiniflar = (await OyunOyuncu.distinct('sinif')).filter(Boolean).sort();
+        duelloVeri = { dSinif, oyuncular, kayitlar, istatListe, dSiniflar };
+    }
     // Tüm sekmelerde nav rozeti için okunmamış sayısı
     const okunmamisMesajSayisi = await Mesaj.countDocuments({ okundu: false });
     // v4.3.29: Filtre seçenekleri (sınıf/ders/ünite/konu) artık Unite
@@ -178,7 +208,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi,
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri,
         aktiviteOzetiData
     });
     } catch (err) {

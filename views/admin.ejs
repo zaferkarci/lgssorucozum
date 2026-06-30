@@ -146,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="/admin?mod=konuIzinleri" class="admin-alt-link <%= mod==='konuIzinleri'?'active':'' %>">🔓 Konu İzinleri</a>
     <a href="/admin?mod=soruDagilim" class="admin-alt-link <%= mod==='soruDagilim'?'active':'' %>">📊 Soru Dağılımı</a>
     <a href="/oyun" class="admin-alt-link">🪐 Oyun (Önizleme)</a>
+    <a href="/admin?mod=duello" class="admin-alt-link <%= mod==='duello'?'active':'' %>">⚔️ Düello</a>
   <% } else if (aktifGrup === 'kullanicilar') { %>
     <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
     <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
@@ -3266,6 +3267,115 @@ function gosterExcelHata(msg) {
     </div><!-- /soru-liste-duzen -->
 
   </div>
+<% } else if (mod === 'duello') { %>
+  <% function dtFmt(d){ if(!d) return '-'; try { return new Date(d).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(e){ return '-'; } } %>
+  <% var dv = duelloVeri || { oyuncular:[], istatListe:[], kayitlar:[], dSiniflar:[], dSinif:'' }; %>
+
+  <div class="admin-card">
+    <div class="admin-card-title">⚔️ Düello</div>
+    <form method="GET" action="/admin" style="margin:6px 0 2px;">
+      <input type="hidden" name="mod" value="duello">
+      <label style="font-size:13px;">Sınıf:
+        <select name="dSinif" onchange="this.form.submit()" style="padding:5px 8px; margin-left:6px;">
+          <option value="">Tümü</option>
+          <% (dv.dSiniflar||[]).forEach(function(sn){ %>
+            <option value="<%= sn %>" <%= dv.dSinif===sn?'selected':'' %>><%= sn %>. sınıf</option>
+          <% }); %>
+        </select>
+      </label>
+    </form>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-title">Oyuncular (Rumuz ↔ Kullanıcı)</div>
+    <% if (!dv.oyuncular || !dv.oyuncular.length) { %>
+      <div style="padding:18px; color:#888;">Kayıtlı oyuncu yok.</div>
+    <% } else { %>
+    <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid #eee; color:#555;">
+        <th style="padding:7px 8px;">Rumuz</th><th>Kullanıcı adı</th><th>Sınıf</th><th>Renk</th><th>Hücre</th><th>Son saldırı</th>
+      </tr></thead>
+      <tbody>
+      <% dv.oyuncular.forEach(function(o){ %>
+        <tr style="border-bottom:1px solid #f3f3f3;">
+          <td style="padding:7px 8px;"><b><%= o.rumuz || '-' %></b></td>
+          <td><%= o.kullaniciAdi %></td>
+          <td><%= o.sinif %></td>
+          <td><span style="display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:middle; background:<%= o.renk || '#ccc' %>;"></span></td>
+          <td><%= o.hucreSayisi %></td>
+          <td><%= dtFmt(o.sonSaldiriTarih) %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-title">Düello istatistikleri</div>
+    <% if (!dv.istatListe || !dv.istatListe.length) { %>
+      <div style="padding:18px; color:#888;">Henüz düello kaydı yok. Bu özellik eklendikten sonra yapılan düellolar burada birikir.</div>
+    <% } else { %>
+    <div style="overflow-x:auto; margin-bottom:18px;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid #eee; color:#555;">
+        <th style="padding:7px 8px;">Oyuncu (rumuz / kullanıcı)</th><th>Toplam</th><th>Galibiyet</th><th>Mağlubiyet</th><th>Oran</th>
+      </tr></thead>
+      <tbody>
+      <% dv.istatListe.forEach(function(it){ %>
+        <tr style="border-bottom:1px solid #f3f3f3;">
+          <td style="padding:7px 8px;"><b><%= it.rumuz %></b> <span style="color:#999;">(<%= it.ad %>)</span></td>
+          <td><%= it.toplam %></td>
+          <td style="color:#2e7d32;"><%= it.galip %></td>
+          <td style="color:#c62828;"><%= it.maglup %></td>
+          <td><%= it.toplam ? Math.round(it.galip*100/it.toplam) : 0 %>%</td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    </div>
+    <div class="admin-card-title" style="font-size:14px; margin-top:4px;">Son düellolar</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid #eee; color:#555;">
+        <th style="padding:7px 8px;">Tarih</th><th>Saldıran</th><th>Rakip</th><th>Kazanan</th><th>Süreler (sn)</th><th>Soru</th>
+      </tr></thead>
+      <tbody>
+      <% dv.kayitlar.forEach(function(k){ var kazRumuz = (k.kazananAd===k.saldiranAd ? (k.saldiranRumuz||k.saldiranAd) : (k.rakipRumuz||k.rakipAd)); %>
+        <tr style="border-bottom:1px solid #f3f3f3;">
+          <td style="padding:7px 8px; white-space:nowrap;"><%= dtFmt(k.tarih) %></td>
+          <td><b><%= k.saldiranRumuz || k.saldiranAd %></b> <span style="color:#999;">(<%= k.saldiranAd %>)</span></td>
+          <td><b><%= k.rakipRumuz || k.rakipAd %></b> <span style="color:#999;">(<%= k.rakipAd %>)</span></td>
+          <td><b style="color:#2e7d32;"><%= kazRumuz %></b></td>
+          <td><%= k.saldiranSure==null?'-':k.saldiranSure %> — <%= k.rakipSure==null?'-':k.rakipSure %></td>
+          <td><% if (k.soruId) { %><button type="button" onclick="duelloSoruOnizle('<%= k.soruId %>')" style="background:#1a73e8; color:#fff; border:none; border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer;">Önizle</button><% } else { %>-<% } %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+
+  <div id="duelloSoruModal" onclick="if(event.target===this)this.style.display='none'" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:9000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; border-radius:12px; max-width:760px; width:100%; max-height:88vh; overflow:auto; padding:18px 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <b>Düello sorusu</b>
+        <button type="button" onclick="document.getElementById('duelloSoruModal').style.display='none'" style="background:#eee; border:none; border-radius:5px; padding:4px 12px; cursor:pointer;">Kapat</button>
+      </div>
+      <div id="duelloSoruIcerik">Yükleniyor...</div>
+    </div>
+  </div>
+  <script>
+  function duelloSoruOnizle(id){
+    if(!id) return;
+    var m=document.getElementById('duelloSoruModal'), ic=document.getElementById('duelloSoruIcerik');
+    ic.innerHTML='Yükleniyor...'; m.style.display='flex';
+    fetch('/api/soru/'+id,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(sr){ var s=sr&&sr.soru?sr.soru:sr; ic.innerHTML=(typeof _soruOnizleHtml==='function')?_soruOnizleHtml(s):'<pre>'+JSON.stringify(s,null,2)+'</pre>'; if(typeof adminMathRender==='function') adminMathRender(ic); }).catch(function(e){ ic.innerHTML='Önizleme yüklenemedi.'; });
+  }
+  </script>
 <% } %>
 
 <!-- v4.3.56: Soru Önizleme Modal — TÜM admin sayfalarında erişilebilir.
