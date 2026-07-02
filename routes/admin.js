@@ -927,6 +927,30 @@ router.get('/admin/soru-dagilim-veri', async (req, res) => {
     }
 });
 
+// v4.16.34: Hangi sorular tanimli unite/konuya ESLESMIYOR — duzelt linkleriyle liste.
+router.get('/admin/eslesmeyen-sorular', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uniteler = await Unite.find().lean();
+        const gecerli = new Set();
+        uniteler.forEach(u => {
+            (u.konular || []).forEach(kn => {
+                gecerli.add((String(u.sinif||''))+'|'+(u.ders||'')+'|'+(u.uniteAdi||'')+'|'+kn);
+            });
+        });
+        const sorular = await Soru.find({}, 'soruNo sinif ders unite konu durum').lean();
+        const eslesmeyenler = sorular.filter(so => {
+            const key = (so.sinif||'')+'|'+(so.ders||'')+'|'+(so.unite||'')+'|'+(so.konu||'');
+            return !gecerli.has(key);
+        }).map(so => ({ _id: so._id, soruNo: so.soruNo, sinif: so.sinif||'', ders: so.ders||'', unite: so.unite||'', konu: so.konu||'', durum: so.durum||'' }));
+        eslesmeyenler.sort((a,b) => (a.sinif+'|'+a.ders+'|'+a.unite+'|'+a.konu).localeCompare(b.sinif+'|'+b.ders+'|'+b.unite+'|'+b.konu,'tr') || ((a.soruNo||0)-(b.soruNo||0)));
+        res.json({ ok: true, eslesmeyenler });
+    } catch (e) {
+        console.error('[eslesmeyen-sorular] HATA:', e.message);
+        res.status(500).json({ ok: false, hata: e.message });
+    }
+});
+
 router.get('/api/unite-bilgi', async (req, res) => {
     try {
         const { sinif } = req.query;

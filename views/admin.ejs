@@ -759,6 +759,12 @@ function escHtml(str) {
 <% } %>
     <form action="<%= editSoru ? '/soru-guncelle' : '/soru-ekle' %>" method="POST">
       <% if (editSoru) { %><input type="hidden" name="id" value="<%= editSoru._id %>"><input type="hidden" name="filSinif" value="<%= filSinif %>"><input type="hidden" name="filDers" value="<%= filDers %>"><input type="hidden" name="filUnite" value="<%= filUnite %>"><input type="hidden" name="filKonu" value="<%= filKonu %>"><input type="hidden" name="filCikti" value="<%= filCikti %>"><input type="hidden" name="filSurec" value="<%= filSurec %>"><% } %>
+      <% if (editSoru) { %>
+      <div style="margin:2px 0 14px; padding-bottom:12px; border-bottom:1px dashed #e0e0e0;">
+        <button type="submit" class="btn btn-success" style="padding:8px 28px;">💾 Kaydet</button>
+        <span style="font-size:12px; color:#888; margin-left:8px;">Aynı kaydet butonu sayfanın en altında da var.</span>
+      </div>
+      <% } %>
       Sınıf: <select name="sinif" id="se_sinif" class="input-sm" onchange="sinifDegisti()">
         <% if (editSoru && editSoru.sinif) { %><option value="<%= editSoru.sinif %>" selected><%= editSoru.sinif %>. Sınıf</option><% } %>
         <option value="">— Yükleniyor… —</option>
@@ -981,8 +987,8 @@ function escHtml(str) {
         <div>
           Şık Dizilimi:
           <select name="sikDizilimi" class="input-sm">
-            <option value="dikey" <%= (!editSoru || editSoru.sikDizilimi==='dikey' || !editSoru.sikDizilimi) ? 'selected' : '' %>>Dikey (Alt Alta)</option>
-            <option value="yatay" <%= (editSoru && editSoru.sikDizilimi==='yatay') ? 'selected' : '' %>>Yatay (Yan Yana)</option>
+            <option value="dikey" <%= (editSoru && editSoru.sikDizilimi==='dikey') ? 'selected' : '' %>>Dikey (Alt Alta)</option>
+            <option value="yatay" <%= (!editSoru || !editSoru.sikDizilimi || editSoru.sikDizilimi==='yatay') ? 'selected' : '' %>>Yatay (Yan Yana)</option>
             <option value="ikili" <%= (editSoru && editSoru.sikDizilimi==='ikili') ? 'selected' : '' %>>İkili (A-B üste, C-D altta)</option>
           </select>
         </div>
@@ -2048,8 +2054,27 @@ function gosterExcelHata(msg) {
       html+='<tr style="border-bottom:1px solid #eee;"><td style="padding:6px 8px;">'+esc(r.sinif)+'</td><td style="padding:6px 8px;">'+esc(r.ders)+'</td><td style="padding:6px 8px;">'+(r.uniteNo?esc(r.uniteNo)+'. ':'')+esc(r.unite)+'</td><td style="padding:6px 8px;">'+esc(r.konu)+'</td><td style="padding:6px 8px; text-align:right; '+renk+'">'+r.toplam+'</td><td style="padding:6px 8px; text-align:right;">'+r.yayinda+'</td></tr>';
     });
     html+='</tbody><tfoot><tr style="background:#fafafa; font-weight:600; border-top:2px solid #ddd;"><td colspan="4" style="padding:6px 8px; text-align:right;">Toplam</td><td style="padding:6px 8px; text-align:right;">'+tT+'</td><td style="padding:6px 8px; text-align:right;">'+tY+'</td></tr></tfoot></table>';
-    if(meta.eslesmeyen){ html+='<p style="font-size:12px; color:#e65100; margin-top:10px;">⚠️ '+meta.eslesmeyen+' soru tanımlı bir ünite/konuya eşleşmiyor (raporda görünmez). Bu soruların sınıf/ders/ünite/konu adlarını Üniteler ile birebir aynı yap.</p>'; }
+    if(meta.eslesmeyen){ html+='<p style="font-size:12px; color:#e65100; margin-top:10px;">⚠️ '+meta.eslesmeyen+' soru tanımlı bir ünite/konuya eşleşmiyor (raporda görünmez). Bu soruların sınıf/ders/ünite/konu adlarını Üniteler ile birebir aynı yap. <button type="button" onclick="sdEslesmeyenGoster()" style="margin-left:6px; background:#e65100; color:#fff; border:none; border-radius:5px; padding:3px 10px; font-size:12px; cursor:pointer;">Hangileri? Göster</button></p><div id="sdEslesmeyenList" style="margin-top:8px;"></div>'; }
     document.getElementById('sdTablo').innerHTML=html;
+  };
+  window.sdEslesmeyenGoster=function(){
+    var box=document.getElementById('sdEslesmeyenList');
+    if(!box) return;
+    box.innerHTML='Yükleniyor…';
+    fetch('/admin/eslesmeyen-sorular',{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var list=(d&&d.ok&&d.eslesmeyenler)?d.eslesmeyenler:[];
+        if(!list.length){ box.innerHTML='<span style="color:#2e7d32;">Eşleşmeyen soru kalmadı.</span>'; return; }
+        var h='<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:4px;">';
+        h+='<thead><tr style="background:#fff3e0; text-align:left;"><th style="padding:5px 7px;">No</th><th>Sınıf</th><th>Ders</th><th>Ünite</th><th>Konu</th><th>Durum</th><th></th></tr></thead><tbody>';
+        list.forEach(function(x){
+          h+='<tr style="border-bottom:1px solid #eee;"><td style="padding:5px 7px;">'+esc(x.soruNo)+'</td><td>'+esc(x.sinif)+'</td><td>'+esc(x.ders)+'</td><td>'+esc(x.unite)+'</td><td>'+esc(x.konu)+'</td><td>'+esc(x.durum)+'</td><td><a href="/admin?duzenle='+encodeURIComponent(x._id)+'&mod=soruEkle" style="color:#1a73e8; white-space:nowrap;">Düzenle ▶</a></td></tr>';
+        });
+        h+='</tbody></table>';
+        box.innerHTML=h;
+      })
+      .catch(function(e){ box.innerHTML='<span style="color:#c62828;">Yüklenemedi: '+esc(e.message)+'</span>'; });
   };
   yukle();
 })();
