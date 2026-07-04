@@ -237,6 +237,18 @@ router.post('/soru-ekle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     var hata = soruDogrula(req.body);
     if (hata) return res.send("<script>alert('" + hata + "'); window.history.back();</script>");
+    // v4.16.35: ONLEME — ayni metin+siklar (ayni sinif/ders) zaten var mi?
+    try {
+        const { soruImza } = require('../services/duplicateTespit');
+        const yeniImza = soruImza({ soruMetni: req.body.soruMetni, secenekler: [
+            { metin: req.body.metin0 }, { metin: req.body.metin1 }, { metin: req.body.metin2 }, { metin: req.body.metin3 }
+        ] }).tam;
+        const adaylar = await Soru.find({ sinif: req.body.sinif, ders: req.body.ders }, 'soruNo soruMetni secenekler').lean();
+        const ayni = adaylar.find(a => soruImza(a).tam === yeniImza);
+        if (ayni) {
+            return res.send("<script>alert('Bu soru zaten kayitli (Soru No: " + (ayni.soruNo || '?') + "). Ayni metin ve siklara sahip soru tekrar eklenemez.'); window.history.back();</script>");
+        }
+    } catch (e) { console.error('[soru-ekle dup-kontrol]', e.message); }
     // v4.8.14: soruNo — en kucuk bos numarayi doldur (silinen numara tekrar kullanilir)
     const [yeniNo] = await bosSoruNo(1);
     await new Soru({ soruNo: yeniNo, sinif: req.body.sinif, ders: req.body.ders, konu: req.body.konu, ogrenmeCiktisi: req.body.ogrenmeCiktisi||'', surecBileseni: req.body.surecBileseni||'', unite: req.body.unite||'', soruOnculu1: req.body.soruOnculu1||'', soruOnculu1Resmi: req.body.soruOnculu1Resmi||'', soruOnculu2: req.body.soruOnculu2||'', soruOnculu2Resmi: req.body.soruOnculu2Resmi||'', soruOnculu3: req.body.soruOnculu3||'', soruOnculu3Resmi: req.body.soruOnculu3Resmi||'', soruMetni: req.body.soruMetni, sikDizilimi: req.body.sikDizilimi||'dikey', durum: req.body.durum||'taslak', tabloBaslik: req.body.tabloBaslik ? JSON.parse(req.body.tabloBaslik) : [], secenekler: [{ metin: req.body.metin0, gorsel: req.body.gorsel0 }, { metin: req.body.metin1, gorsel: req.body.gorsel1 }, { metin: req.body.metin2, gorsel: req.body.gorsel2 }, { metin: req.body.metin3, gorsel: req.body.gorsel3 }], dogruCevapIndex: parseInt(req.body.dogruCevap) }).save();
@@ -247,6 +259,18 @@ router.post('/soru-guncelle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     var hata = soruDogrula(req.body);
     if (hata) return res.send("<script>alert('" + hata + "'); window.history.back();</script>");
+    // v4.16.35: ONLEME — guncelleme sonrasi BASKA bir soruyla ayni metin+siklar olmasin
+    try {
+        const { soruImza } = require('../services/duplicateTespit');
+        const yeniImza = soruImza({ soruMetni: req.body.soruMetni, secenekler: [
+            { metin: req.body.metin0 }, { metin: req.body.metin1 }, { metin: req.body.metin2 }, { metin: req.body.metin3 }
+        ] }).tam;
+        const adaylar = await Soru.find({ sinif: req.body.sinif, ders: req.body.ders, _id: { $ne: req.body.id } }, 'soruNo soruMetni secenekler').lean();
+        const ayni = adaylar.find(a => soruImza(a).tam === yeniImza);
+        if (ayni) {
+            return res.send("<script>alert('Bu degisiklik baska bir soruyla ayni olurdu (Soru No: " + (ayni.soruNo || '?') + "). Kaydedilmedi.'); window.history.back();</script>");
+        }
+    } catch (e) { console.error('[soru-guncelle dup-kontrol]', e.message); }
     var ekGuncelleme = {};
     if (req.body.durum === 'yayinda') ekGuncelleme.yayinTarih = new Date();
     // Numarasız soruya numara ata (özellikle PDF'den gelen taslakta soruNo yoksa)
@@ -1639,6 +1663,116 @@ router.get('/admin/duplicate-sorular', async (req, res) => {
     } catch (err) {
         console.error('[duplicate-sorular] hata:', err);
         res.status(500).send('Hata: ' + err.message);
+    }
+});
+
+// v4.16.35: TEKRAR EDEN SORU TELAFISI — kuru calisma (varsayilan) + ?uygula=1 ile uygula.
+//   Ayni sinif+ders + ayni imza (metin+siklar) gruplarinda: ayni kullanici birden fazla
+//   kopyayi cozmusse ILK cozumu tutar, SONRAKI cozumleri siler; silinen dogru cevaplarin
+//   puani (kazanilanPuan) kullanicidan geri alinir, soruIndex 1 azaltilir. Kopya sorular
+//   arsivlenir (durum='arsiv') -> bir daha servis/rapor edilmez. Hicbir istatistik BIRLESTIRILMEZ.
+router.get('/admin/duplicate-telafi', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { soruImza } = require('../services/duplicateTespit');
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        const sorular = await Soru.find({}, 'soruNo soruMetni secenekler sinif ders durum').lean();
+        const gruplar = {};
+        sorular.forEach(s => {
+            const key = (s.sinif||'') + '||' + (s.ders||'') + '||' + soruImza(s).tam;
+            (gruplar[key] = gruplar[key] || []).push(s);
+        });
+        const dupGruplar = Object.values(gruplar).filter(g => g.length > 1);
+
+        const rapor = [];
+        let toplamSilinecek = 0, toplamPuan = 0, toplamArsiv = 0;
+        const etkilenen = new Set();
+        const kullaniciDelta = {};
+
+        for (const grup of dupGruplar) {
+            grup.sort((a, b) => (a.soruNo || 0) - (b.soruNo || 0));
+            const canonical = grup[0];
+            const duplar = grup.slice(1);
+            const grupIdler = grup.map(g => String(g._id));
+
+            const cevaplar = await CevapKaydi.find({ soruId: { $in: grupIdler } },
+                'soruId kullaniciAdi dogruMu kazanilanPuan tarih').lean();
+            const perUser = {};
+            cevaplar.forEach(c => { (perUser[c.kullaniciAdi] = perUser[c.kullaniciAdi] || []).push(c); });
+
+            let grupSil = 0, grupPuan = 0, grupOverlap = 0;
+            const silIdler = [];
+            Object.keys(perUser).forEach(ku => {
+                const list = perUser[ku].sort((a, b) => new Date(a.tarih) - new Date(b.tarih));
+                if (list.length <= 1) return;
+                grupOverlap++; etkilenen.add(ku);
+                for (let i = 1; i < list.length; i++) {
+                    const c = list[i];
+                    silIdler.push(c._id); grupSil++;
+                    const p = Number(c.kazanilanPuan || 0);
+                    grupPuan += p;
+                    if (!kullaniciDelta[ku]) kullaniciDelta[ku] = { puan: 0, soruIndex: 0 };
+                    kullaniciDelta[ku].puan -= p;
+                    kullaniciDelta[ku].soruIndex -= 1;
+                }
+            });
+
+            toplamSilinecek += grupSil; toplamPuan += grupPuan; toplamArsiv += duplar.length;
+            rapor.push({
+                sinif: canonical.sinif, ders: canonical.ders,
+                tutulanNo: canonical.soruNo, kopyaNo: duplar.map(d => d.soruNo).join(', '),
+                kopyaSayisi: grup.length, overlap: grupOverlap, silinecek: grupSil,
+                puanGeri: Math.round(grupPuan * 100) / 100
+            });
+
+            if (uygula) {
+                if (silIdler.length) await CevapKaydi.deleteMany({ _id: { $in: silIdler } });
+                if (duplar.length) await Soru.updateMany({ _id: { $in: duplar.map(d => d._id) } }, { $set: { durum: 'arsiv' } });
+            }
+        }
+
+        if (uygula) {
+            for (const ku of Object.keys(kullaniciDelta)) {
+                const d = kullaniciDelta[ku];
+                await Kullanici.updateOne({ kullaniciAdi: ku }, { $inc: { puan: d.puan, soruIndex: d.soruIndex } });
+            }
+        }
+
+        // HTML rapor
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Tekrar Eden Soru Telafisi</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>&#9851; Tekrar Eden Soru Telafisi</h2>';
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + toplamSilinecek + ' fazla cevap silindi, ' + (Math.round(toplamPuan*100)/100) + ' puan geri alindi, ' + toplamArsiv + ' kopya soru arsivlendi, ' + etkilenen.size + ' kullanici guncellendi.</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU CALISMA</b> (onizleme). Asagidaki islemler <b>henuz yapilmadi</b>. Uygulamak icin en alttaki butona bas.</p>';
+        }
+        h += '<div class="ozet"><b>Ozet:</b> ' + dupGruplar.length + ' tekrar grubu &middot; ' + toplamArsiv + ' kopya (arsivlenecek) &middot; ' + toplamSilinecek + ' fazla cevap (silinecek) &middot; <b>' + (Math.round(toplamPuan*100)/100) + '</b> puan geri alinacak &middot; ' + etkilenen.size + ' kullanici etkilenecek.</div>';
+        if (!rapor.length) {
+            h += '<p style="color:#2e7d32;">Tekrar eden soru bulunamadi. Sistem temiz.</p>';
+        } else {
+            h += '<table><thead><tr><th>Sinif</th><th>Ders</th><th>Tutulan No</th><th>Kopya No</th><th>Kopya</th><th>Cift cozen kullanici</th><th>Silinecek cevap</th><th>Geri alinan puan</th></tr></thead><tbody>';
+            rapor.forEach(r => {
+                h += '<tr><td>' + esc(r.sinif) + '</td><td>' + esc(r.ders) + '</td><td><b>' + esc(r.tutulanNo) + '</b></td><td>' + esc(r.kopyaNo) + '</td><td>' + esc(r.kopyaSayisi) + '</td><td>' + esc(r.overlap) + '</td><td>' + esc(r.silinecek) + '</td><td>' + esc(r.puanGeri) + '</td></tr>';
+            });
+            h += '</tbody></table>';
+            if (!uygula) {
+                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/duplicate-telafi?uygula=1" onclick="return confirm(\'Fazla cevaplar silinecek, puanlar geri alinacak, kopyalar arsivlenecek. Bu islem geri alinamaz. Devam?\');">&#9851; TELAFIYI UYGULA</a> <a class="btn geri" href="/admin/duplicate-sorular">Geri</a></p>';
+            } else {
+                h += '<p style="margin-top:20px;"><a class="btn geri" href="/admin/duplicate-sorular">Tekrar Eden Sorular ekranina don</a></p>';
+            }
+        }
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[duplicate-telafi] HATA:', e.message);
+        res.status(500).send('Telafi hatasi: ' + e.message);
     }
 });
 
