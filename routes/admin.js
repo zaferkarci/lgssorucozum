@@ -1722,7 +1722,8 @@ router.get('/admin/duplicate-telafi', async (req, res) => {
             toplamSilinecek += grupSil; toplamPuan += grupPuan; toplamArsiv += duplar.length;
             rapor.push({
                 sinif: canonical.sinif, ders: canonical.ders,
-                tutulanNo: canonical.soruNo, kopyaNo: duplar.map(d => d.soruNo).join(', '),
+                tutulanNo: canonical.soruNo, tutulanId: String(canonical._id),
+                kopyalar: duplar.map(d => ({ no: d.soruNo, id: String(d._id), durum: d.durum || '' })),
                 kopyaSayisi: grup.length, overlap: grupOverlap, silinecek: grupSil,
                 puanGeri: Math.round(grupPuan * 100) / 100
             });
@@ -1759,7 +1760,9 @@ router.get('/admin/duplicate-telafi', async (req, res) => {
         } else {
             h += '<table><thead><tr><th>Sinif</th><th>Ders</th><th>Tutulan No</th><th>Kopya No</th><th>Kopya</th><th>Cift cozen kullanici</th><th>Silinecek cevap</th><th>Geri alinan puan</th></tr></thead><tbody>';
             rapor.forEach(r => {
-                h += '<tr><td>' + esc(r.sinif) + '</td><td>' + esc(r.ders) + '</td><td><b>' + esc(r.tutulanNo) + '</b></td><td>' + esc(r.kopyaNo) + '</td><td>' + esc(r.kopyaSayisi) + '</td><td>' + esc(r.overlap) + '</td><td>' + esc(r.silinecek) + '</td><td>' + esc(r.puanGeri) + '</td></tr>';
+                const tut = '<a href="/admin?duzenle=' + r.tutulanId + '&mod=soruEkle" target="_blank">' + esc(r.tutulanNo) + ' \u{1F517}</a>';
+                const kop = (r.kopyalar || []).map(k => '<a href="/admin?duzenle=' + k.id + '&mod=soruEkle" target="_blank">' + esc(k.no) + '</a>' + (k.durum ? ' <span style="color:#888;">(' + esc(k.durum) + ')</span>' : '')).join(', ');
+                h += '<tr><td>' + esc(r.sinif) + '</td><td>' + esc(r.ders) + '</td><td><b>' + tut + '</b></td><td>' + kop + '</td><td>' + esc(r.kopyaSayisi) + '</td><td>' + esc(r.overlap) + '</td><td>' + esc(r.silinecek) + '</td><td>' + esc(r.puanGeri) + '</td></tr>';
             });
             h += '</tbody></table>';
             if (!uygula) {
