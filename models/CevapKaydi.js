@@ -23,5 +23,7 @@ const CevapKaydiSchema = new mongoose.Schema({
 
 // Compound index — ham puan hesabı için (soruId + dogruMu)
 CevapKaydiSchema.index({ soruId: 1, dogruMu: 1 });
+// v4.16.38: cron Adım 2 — kullanıcı bazlı sıralı okuma (find+sort tarih) hızlansın
+CevapKaydiSchema.index({ kullaniciAdi: 1, tarih: 1 });
 
 module.exports = mongoose.model('CevapKaydi', CevapKaydiSchema);

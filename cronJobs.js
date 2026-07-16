@@ -83,17 +83,24 @@ async function soruIstatistikHesapla() {
 
 // --- Adım 2: Her kullanıcının puanını yeni zorluklara göre yeniden hesapla ---
 async function kullaniciPuanHesapla() {
+    // v4.16.38: Olceklenme — tum sorular TEK sorguda Map'e; her cevapta ayri
+    //   Soru.findById YOK. CevapKaydi puan guncellemeleri bulkWrite ile toplu (500'luk).
+    const _soruDocs = await Soru.find({}, 'ders ortalamaSure zorlukKatsayisi cozumSureleriTum').lean();
+    const soruMap = new Map(_soruDocs.map(sd => [String(sd._id), sd]));
+    let _cevapOps = [];
+    const _flushCevap = async () => { if (_cevapOps.length) { await CevapKaydi.bulkWrite(_cevapOps, { ordered: false }); _cevapOps = []; } };
+
     const tumKullanicilar = await Kullanici.find({});
 
     for (const k of tumKullanicilar) {
-        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 });
+        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 }).lean();
 
         let toplamPuan = 0;
         let toplamSure = 0;
         const dersMap = {};
 
         for (const kayit of kayitlar) {
-            const s = await Soru.findById(kayit.soruId).lean();
+            const s = soruMap.get(String(kayit.soruId));
             if (!s) continue;
 
             toplamSure += kayit.sure || 0;
@@ -142,13 +149,13 @@ async function kullaniciPuanHesapla() {
 
                 // CevapKaydi'na yeni puanı yaz (istatistik tablosunun toplamla eşleşmesi için)
                 if (kayit.kazanilanPuan !== kazanilanPuan) {
-                    kayit.kazanilanPuan = kazanilanPuan;
-                    await kayit.save();
+                    _cevapOps.push({ updateOne: { filter: { _id: kayit._id }, update: { $set: { kazanilanPuan: kazanilanPuan } } } });
+                    if (_cevapOps.length >= 500) await _flushCevap();
                 }
             } else if (kayit.kazanilanPuan && kayit.kazanilanPuan !== 0) {
                 // Yanlış cevaplarda puan 0 olmalı (eski hatalı kayıtları temizle)
-                kayit.kazanilanPuan = 0;
-                await kayit.save();
+                _cevapOps.push({ updateOne: { filter: { _id: kayit._id }, update: { $set: { kazanilanPuan: 0 } } } });
+                if (_cevapOps.length >= 500) await _flushCevap();
             }
         }
 
@@ -159,6 +166,7 @@ async function kullaniciPuanHesapla() {
         k.markModified('dersPuanlari');
         await k.save();
     }
+    await _flushCevap();
 }
 
 // --- Adım 3: Sorunun ham puan ortalamasını yeniden hesapla ---
