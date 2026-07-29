@@ -237,6 +237,7 @@ async function siralamaCacheHesapla() {
         ortTop: lgsAgirlikliOrtalama(u.dersPuanlari || []),
         toplamSoru: toplamSoru(u),
         nitelikli: (toplamSoru(u) >= MIN_SORU) && (esik30 < 0 || son30Ort(u) > esik30),
+        son30Yeterli: (esik30 < 0 || son30Ort(u) > esik30),
         dersOrt: {},
         dersSoruSayisi: {}
     }));
@@ -270,7 +271,7 @@ async function siralamaCacheHesapla() {
         uMap.forEach(x => {
             const s = String(Number(x.u.sinif) || '');
             if (!dersTurkiyeListeleriPerSinif[dersAdi][s]) dersTurkiyeListeleriPerSinif[dersAdi][s] = [];
-            if (x.dersSoruSayisi[dersAdi] >= MIN_SORU) {
+            if (x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli) {
                 dersTurkiyeListeleriPerSinif[dersAdi][s].push(x);
             }
         });
@@ -325,12 +326,12 @@ async function siralamaCacheHesapla() {
 
         const dersSiralamalari = {};
         for (const dersAdi of tumDersler) {
-            const kDersNitelikli = obj.dersSoruSayisi[dersAdi] >= MIN_SORU;
+            const kDersNitelikli = obj.dersSoruSayisi[dersAdi] >= MIN_SORU && obj.son30Yeterli;
             const dersList     = dersTurkiyeListeleriPerSinif[dersAdi][String(uSinif)] || [];
-            const dersIlList    = ayniIl.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
-            const dersIlceList  = ayniIlce.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
-            const dersOkulList  = ayniOkul.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
-            const dersSinifList = ayniSinif.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersIlList    = ayniIl.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersIlceList  = ayniIlce.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersOkulList  = ayniOkul.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            const dersSinifList = ayniSinif.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
 
             dersSiralamalari[dersAdi] = {
                 turkiye: kDersNitelikli ? dersList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
