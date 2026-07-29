@@ -4,6 +4,7 @@
 const Soru = require('./models/Soru');
 const Kullanici = require('./models/Kullanici');
 const CevapKaydi = require('./models/CevapKaydi');
+const Ayar = require('./models/Ayar');
 const { lgsAgirlikliOrtalama } = require('./services/lgsOrtalama');
 
 function stdSapma(dizi) {
@@ -197,6 +198,37 @@ async function siralamaCacheHesapla() {
         return (u.dersPuanlari || []).reduce((t,d) => t + (d.soruSayisi||0), 0);
     }
 
+    // v4.16.40: 30 GÜNLÜK ORTALAMA EŞİĞİ — Sistem>Ayarlar'dan. Bu değer ve altında
+    //   30 günlük ortalamaya sahip öğrenciler sıralamalarda GÖSTERİLMEZ.
+    //   esik < 0  => filtre KAPALI (varsayılan; kimse çıkarılmaz).
+    //   30 günlük ortalama = son 30 gün soru sayısı / bölen (bölen=min(30,üyelik günü)),
+    //   gunlukHedef.js ile aynı formül. analiz cevapları hariç. TEK aggregate — ölçeklenir.
+    let esik30 = -1;
+    try {
+        const _a = await Ayar.findOne({ anahtar: 'siralama_min_ort30' }).lean();
+        if (_a && typeof _a.deger === 'number') esik30 = _a.deger;
+    } catch (e) { esik30 = -1; }
+    const _d30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    let _son30Map = new Map();
+    if (esik30 >= 0) {
+        const _agg = await CevapKaydi.aggregate([
+            { $match: { tarih: { $gte: _d30 }, analiz: { $ne: true } } },
+            { $group: { _id: '$kullaniciAdi', n: { $sum: 1 } } }
+        ]);
+        _son30Map = new Map(_agg.map(x => [x._id, x.n]));
+    }
+    function son30Ort(u) {
+        const n = _son30Map.get(u.kullaniciAdi) || 0;
+        let bolen = 30;
+        try {
+            if (u._id && typeof u._id.getTimestamp === 'function') {
+                const gun = Math.ceil((Date.now() - u._id.getTimestamp().getTime()) / (24 * 60 * 60 * 1000));
+                bolen = Math.min(30, Math.max(1, gun));
+            }
+        } catch (e) {}
+        return n / bolen;
+    }
+
     // Her kullanıcı için ortalamaları + nitelik bilgisi önden hesapla (O(n))
     const uMap = tumKullanicilar.map(u => ({
         u,
@@ -204,7 +236,7 @@ async function siralamaCacheHesapla() {
         // diye geçiyor), ama içeriği LGS ağırlıklı ortalama.
         ortTop: lgsAgirlikliOrtalama(u.dersPuanlari || []),
         toplamSoru: toplamSoru(u),
-        nitelikli: toplamSoru(u) >= MIN_SORU,
+        nitelikli: (toplamSoru(u) >= MIN_SORU) && (esik30 < 0 || son30Ort(u) > esik30),
         dersOrt: {},
         dersSoruSayisi: {}
     }));

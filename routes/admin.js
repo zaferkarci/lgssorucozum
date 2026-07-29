@@ -4,6 +4,7 @@ const Kullanici = require('../models/Kullanici');
 const OyunOyuncu = require('../models/OyunOyuncu');
 const OyunHucre = require('../models/OyunHucre');
 const DuelloKayit = require('../models/DuelloKayit');
+const Ayar = require('../models/Ayar');
 const Soru = require('../models/Soru');
 const Okul = require('../models/Okul');
 const Unite = require('../models/Unite');
@@ -135,6 +136,11 @@ router.get('/admin', async (req, res) => {
         });
     }
     const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
+    // v4.16.40: Sistem>Ayarlar — sıralama 30 günlük ortalama eşiği
+    let ayarMinOrt30 = -1;
+    if (mod === 'ayarlar') {
+        try { const _a = await Ayar.findOne({ anahtar: 'siralama_min_ort30' }).lean(); if (_a && typeof _a.deger === 'number') ayarMinOrt30 = _a.deger; } catch (e) {}
+    }
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
 
@@ -208,7 +214,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri,
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30,
         aktiviteOzetiData
     });
     } catch (err) {
@@ -285,6 +291,21 @@ router.post('/soru-guncelle', async (req, res) => {
     const _gqs = new URLSearchParams({ mod: 'soruEkle', duzenle: String(req.body.id || '') });
     ['filSinif','filDers','filUnite','filKonu','filCikti','filSurec'].forEach(f => { if (req.body[f]) _gqs.set(f, req.body[f]); });
     res.redirect('/admin?' + _gqs.toString());
+});
+
+// v4.16.40: Sistem ayarlarini kaydet (30 gunluk ortalama esigi). deger < 0 => filtre kapali.
+router.post('/admin/ayar-kaydet', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        let ham = (req.body.siralamaMinOrt30 == null ? '' : String(req.body.siralamaMinOrt30)).trim().replace(',', '.');
+        let deger = (ham === '') ? -1 : parseFloat(ham);
+        if (!isFinite(deger)) deger = -1;
+        await Ayar.updateOne({ anahtar: 'siralama_min_ort30' }, { $set: { deger: deger, guncelleme: new Date() } }, { upsert: true });
+        res.redirect('/admin?mod=ayarlar&kaydedildi=1');
+    } catch (e) {
+        console.error('[ayar-kaydet] HATA:', e.message);
+        res.send("<script>alert('Ayar kaydedilemedi: " + e.message + "'); location.href='/admin?mod=ayarlar';</script>");
+    }
 });
 
 router.post('/soru-sil', async (req, res) => {
