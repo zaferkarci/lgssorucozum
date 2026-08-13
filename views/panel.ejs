@@ -2993,7 +2993,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <% if ((typeof analizTamamlandi === 'undefined' || analizTamamlandi) && enZayifKonu) { %>
       <!-- "Eksiklerini Kapat" — sadece zayıf konuda çözülmemiş soru varsa -->
-      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&eksik=<%= encodeURIComponent(enZayifKonu.ders + '|' + enZayifKonu.konu) %>"
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&eksik=<%= encodeURIComponent(enZayifKonu.ders + '|' + (enZayifKonu.unite||'') + '|' + (enZayifKonu.konuGercek||'')) %>"
          style="display:block; text-decoration:none; background: linear-gradient(135deg,#fff8e1 0%, #fff3c4 100%); border:1.5px solid #ffd54f; border-radius:14px; padding:18px 22px; margin-bottom:14px;">
         <div style="display:flex; align-items:center; gap:14px;">
           <div style="font-size:30px;">🎯</div>

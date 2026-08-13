@@ -140,7 +140,7 @@ async function sinifOrtalamaHesapla(ogrenciAdlari) {
         const soruDersMap = {}, soruKonuMap = {};
         sorular.forEach(sr => {
             soruDersMap[String(sr._id)] = sr.ders || 'Diğer';
-            soruKonuMap[String(sr._id)] = sr.konu || 'Genel';
+            soruKonuMap[String(sr._id)] = sr.konu || sr.unite || 'Genel';
         });
         let genelDogru = 0, genelToplam = 0;
         const konuSayac = {};
@@ -404,9 +404,14 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             cozulmemisSorular = cozulmemisSorular.filter(s => (s.konu || '') === konuFiltre);
         }
         if (eksikFiltre) {
-            const [eDers, eKonu] = eksikFiltre.split('|');
+            const _ep = eksikFiltre.split('|');
+            const eDers = _ep[0] || '';
+            const eUnite = (_ep.length >= 3) ? (_ep[1] || '') : null; // ders|unite|konu (yeni) veya ders|konu (eski)
+            const eKonu = (_ep.length >= 3) ? (_ep[2] || '') : (_ep[1] || '');
             cozulmemisSorular = cozulmemisSorular.filter(s =>
-                (s.ders || '') === eDers && (s.konu || '') === eKonu
+                (s.ders || '') === eDers &&
+                (eUnite === null || (s.unite || '') === eUnite) &&
+                (s.konu || '') === eKonu
             );
         }
     }
@@ -808,25 +813,25 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     let enZayifKonu = null; // { ders, konu, oran, kalanSoru }
     if (!ogretmen && !moderator && !demo && cozulmemisDersDagilim) {
         try {
-            // Konu bazında doğru/toplam say
-            const konuStat = {}; // anahtar: "ders|konu" → { dogru, toplam }
-            const soruIdToDersKonu = {};
-            // Önce yayındaki sorular için ders/konu eşle
+            // v4.16.42: Konu boşsa ünite/tema bazında değerlendir (asla 'Genel'e düşme).
+            const konuStat = {}; // anahtar → { dogru, toplam, ders, unite, konu, etiket, konuBos }
+            const soruIdToDK = {};
             yayindaSorular.forEach(s => {
-                soruIdToDersKonu[String(s._id)] = { ders: s.ders || '', konu: s.konu || '' };
+                soruIdToDK[String(s._id)] = { ders: s.ders || '', unite: s.unite || '', konu: s.konu || '' };
             });
-            // Cevaplardan konu istatistiği bina et
             tumCevaplar.forEach(c => {
-                const dk = soruIdToDersKonu[String(c.soruId)];
-                if (!dk || !dk.ders || !dk.konu) return;
-                const anahtar = dk.ders + '|' + dk.konu;
-                if (!konuStat[anahtar]) konuStat[anahtar] = { dogru: 0, toplam: 0, ders: dk.ders, konu: dk.konu };
+                const dk = soruIdToDK[String(c.soruId)];
+                if (!dk || !dk.ders) return;
+                const etiket = dk.konu || dk.unite; // konu varsa konu, yoksa ünite
+                if (!etiket) return;
+                const konuBos = !dk.konu;
+                const anahtar = dk.ders + '|' + dk.unite + '|' + dk.konu;
+                if (!konuStat[anahtar]) konuStat[anahtar] = { dogru: 0, toplam: 0, ders: dk.ders, unite: dk.unite, konu: dk.konu, etiket: etiket, konuBos: konuBos };
                 konuStat[anahtar].toplam++;
                 if (c.dogruMu) konuStat[anahtar].dogru++;
             });
-            // Konuları zayıftan güçlüye sırala
             const konuListesi = Object.values(konuStat).map(kk => ({
-                ders: kk.ders, konu: kk.konu,
+                ders: kk.ders, unite: kk.unite, konu: kk.konu, etiket: kk.etiket, konuBos: kk.konuBos,
                 oran: kk.toplam > 0 ? Math.round((kk.dogru / kk.toplam) * 100) : 0,
                 toplam: kk.toplam
             }))
@@ -844,10 +849,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 const kalanSoru = yayindaSorular.filter(s =>
                     !cozulenIds.has(String(s._id)) &&
                     (s.ders || '') === kn.ders &&
+                    (s.unite || '') === kn.unite &&
                     (s.konu || '') === kn.konu
                 ).length;
                 if (kalanSoru > 0) {
-                    enZayifKonu = { ders: kn.ders, konu: kn.konu, oran: kn.oran, kalanSoru, gercektenEnZayif: !dahaZayifAtlandi };
+                    enZayifKonu = { ders: kn.ders, konu: kn.etiket, unite: kn.unite, konuGercek: kn.konu, oran: kn.oran, kalanSoru, gercektenEnZayif: !dahaZayifAtlandi };
                     break;
                 }
                 dahaZayifAtlandi = true;
