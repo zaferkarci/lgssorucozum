@@ -14,6 +14,7 @@ router.use(function (req, res, next) {
 const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const CevapKaydi = require('../models/CevapKaydi');
+const Ayar = require('../models/Ayar');
 const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
 const KonuIzin = require('../models/KonuIzin');
@@ -551,13 +552,42 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             const kOrtTop = ortToplamHesapla(k);
             const MIN_SORU = 10;
 
+            // v4.16.43: Canlı fallback'e de 30 günlük ortalama eşiğini uygula
+            //   (cron'daki siralamaCacheHesapla ile AYNI mantık — admin/profil tutarlılığı).
+            let esik30 = -1;
+            try {
+                const _a = await Ayar.findOne({ anahtar: 'siralama_min_ort30' }).lean();
+                if (_a && typeof _a.deger === 'number') esik30 = _a.deger;
+            } catch (e) { esik30 = -1; }
+            let _son30Map = new Map();
+            if (esik30 >= 0) {
+                const _d30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                const _agg = await CevapKaydi.aggregate([
+                    { $match: { tarih: { $gte: _d30 }, analiz: { $ne: true } } },
+                    { $group: { _id: '$kullaniciAdi', n: { $sum: 1 } } }
+                ]);
+                _son30Map = new Map(_agg.map(x => [x._id, x.n]));
+            }
+            const son30YeterliFn = (u) => {
+                if (esik30 < 0) return true;
+                const n = _son30Map.get(u.kullaniciAdi) || 0;
+                let bolen = 30;
+                try {
+                    if (u._id && typeof u._id.getTimestamp === 'function') {
+                        const gun = Math.ceil((Date.now() - u._id.getTimestamp().getTime()) / (24 * 60 * 60 * 1000));
+                        bolen = Math.min(30, Math.max(1, gun));
+                    }
+                } catch (e) {}
+                return (n / bolen) > esik30;
+            };
+
             // Toplam soru sayısı = tüm derslerdeki soruSayisi'nın toplamı
             const toplamSoruFn = (u) => (u.dersPuanlari||[]).reduce((t,d) => t + (d.soruSayisi||0), 0);
             const kToplamSoru = toplamSoruFn(k);
             const kNitelikli = kToplamSoru >= MIN_SORU;
 
             // Genel sıralama listeleri — sadece en az MIN_SORU çözmüş olanlar
-            const nitelikliFiltre = (u) => toplamSoruFn(u) >= MIN_SORU;
+            const nitelikliFiltre = (u) => toplamSoruFn(u) >= MIN_SORU && son30YeterliFn(u);
             // v4.3.16: Sınıf filtresi okul ve şube dolu olmalı (boş okul/şube farklı kişileri eşleyemez)
             const sinifFiltre = (u) => u.okul && k.okul && u.okul === k.okul && Number(u.sinif) === Number(k.sinif) && (k.sube ? (u.sube && u.sube === k.sube) : true);
 
@@ -605,7 +635,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 const kDersSoruSayisi = dersSoruSayisiFn(k);
                 const kDersNitelikli = kDersSoruSayisi >= MIN_SORU;
 
-                const dersNitelikliFiltre = (u) => dersSoruSayisiFn(u) >= MIN_SORU;
+                const dersNitelikliFiltre = (u) => dersSoruSayisiFn(u) >= MIN_SORU && son30YeterliFn(u);
                 const tList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
                 const iList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.il === k.il && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
                 const ilList = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.ilce === k.ilce && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
@@ -734,7 +764,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         const sb = soruBilgiMap[String(c.soruId)];
         if (!sb) return;
         const ders = sb.ders || 'Diğer';
-        const konu = sb.konu || 'Genel';
+        const konu = sb.konu || sb.unite || 'Genel';
         if (!dersIstatMap[ders]) dersIstatMap[ders] = { toplamDogru: 0, toplamYanlis: 0, toplamPuan: 0, konular: {} };
         if (!dersIstatMap[ders].konular[konu]) dersIstatMap[ders].konular[konu] = { dogru: 0, yanlis: 0, toplamSure: 0 };
         if (c.dogruMu) { dersIstatMap[ders].toplamDogru++; dersIstatMap[ders].konular[konu].dogru++; }
