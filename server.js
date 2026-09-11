@@ -647,8 +647,9 @@ const express = require('express');
 const path = require('path');
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// v4.16.46: Duyuru görseli base64 olarak POST edildiğinden varsayılan 100kb limiti yetersiz.
+app.use(express.json({ limit: '12mb' }));
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));

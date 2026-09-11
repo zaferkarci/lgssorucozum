@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler', 'konuIzinleri', 'soruDagilim'];
     var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
     var iletisimModlari    = ['haberler', 'mesajlar'];
-    var sistemModlari      = ['sifirla', 'ayarlar'];
+    var sistemModlari      = ['sifirla', 'ayarlar', 'duyuru'];
 
     var aktifGrup = 'icerik';
     if (kullaniciModlari.indexOf(mod) !== -1) aktifGrup = 'kullanicilar';
@@ -163,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <% } else if (aktifGrup === 'sistem') { %>
     <a href="/admin/puan-simulasyon" class="admin-alt-link <%= mod==='puanSimulasyon'?'active':'' %>">📊 Puan Simülasyonu</a>
     <a href="/admin?mod=ayarlar" class="admin-alt-link <%= mod==='ayarlar'?'active':'' %>">⚙️ Ayarlar</a>
+    <a href="/admin?mod=duyuru" class="admin-alt-link <%= mod==='duyuru'?'active':'' %>">📢 Duyuru</a>
     <a href="/admin/sinif-atlat" class="admin-alt-link">🎓 Sınıf Atlatma</a>
     <a href="/admin?mod=sifirla" class="admin-alt-link danger <%= mod==='sifirla'?'active':'' %>">🗑️ Sıfırla</a>
   <% } %>
@@ -2447,6 +2448,98 @@ function gosterExcelHata(msg) {
     <% } %>
   </div>
 
+<% } else if (mod === 'duyuru') { %>
+  <% var _d = aktifDuyuru || null; %>
+  <div class="admin-card" style="max-width:820px;">
+    <div class="admin-card-title">📢 Önemli Duyuru (Pop-up)</div>
+
+    <% if (_d) { %>
+      <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:12px 14px; margin-bottom:16px;">
+        <b style="color:#2e7d32;">Şu anda YAYINDA</b>
+        <div style="font-size:13px; color:#555; margin-top:6px;">
+          Mod: <b><%= _d.kilitli ? 'Kilitli (kapatılamaz)' : 'Kapatılabilir' %></b> &middot;
+          Hedef: <b><% if (_d.hedefTip==='hepsi') { %>Tüm öğrenciler<% } else if (_d.hedefTip==='sinif') { %><%= (_d.hedefSiniflar||[]).map(function(x){return x===13?'Mezun':(x+'. Sınıf');}).join(', ') %><% } else { %><%= (_d.hedefKullanicilar||[]).length %> kişi<% } %></b>
+        </div>
+        <% if (_d.metin) { %><div style="margin-top:8px; font-size:13px; white-space:pre-wrap; color:#333;"><%= _d.metin %></div><% } %>
+        <% if (_d.gorselUrl) { %><div style="margin-top:8px;"><img src="<%= _d.gorselUrl %>" style="max-width:220px; border-radius:6px;"></div><% } %>
+        <form method="POST" action="/admin/duyuru-kaldir" style="margin-top:12px;" onsubmit="return confirm('Duyuru yayından kaldırılacak. Emin misiniz?');">
+          <button type="submit" style="background:#c62828; color:#fff; border:none; border-radius:6px; padding:7px 16px; font-weight:600; cursor:pointer;">Yayından Kaldır</button>
+        </form>
+      </div>
+    <% } else { %>
+      <div style="background:#f5f5f5; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:#666;">Şu anda yayında duyuru yok.</div>
+    <% } %>
+
+    <form method="POST" action="/admin/duyuru-yayinla" id="duyuruForm">
+      <input type="hidden" name="gorselVeri" id="duyuruGorselVeri">
+      <input type="hidden" name="mevcutGorselUrl" value="<%= _d ? _d.gorselUrl : '' %>">
+
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Duyuru metni</label>
+      <textarea name="metin" rows="4" style="width:100%; padding:9px; font-size:14px; border:1px solid #ddd; border-radius:6px;" placeholder="Örn: Sınıf atlatma işlemi yapılıyor, kısa süre sonra sistem normale dönecek."><%= _d ? _d.metin : '' %></textarea>
+      <p style="font-size:12px; color:#888; margin:6px 0 16px;">Sadece metin girersen pop-up ekran genişliğinin ~1/4'ü kadar olur.</p>
+
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Görsel (isteğe bağlı)</label>
+      <input type="file" accept="image/*" id="duyuruGorselSec" style="font-size:13px;">
+      <div id="duyuruGorselOnizleme" style="margin-top:10px;"><% if (_d && _d.gorselUrl) { %><img src="<%= _d.gorselUrl %>" style="max-width:260px; border-radius:6px;"><div style="font-size:12px; color:#888; margin-top:4px;">Mevcut görsel (değiştirmek için yeni dosya seçin)</div><% } %></div>
+      <p style="font-size:12px; color:#888; margin:6px 0 16px;">Görsel yüklersen pop-up görselin kendi boyutunda açılır (ekrana sığmazsa küçültülür).</p>
+
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Pop-up davranışı</label>
+      <label style="display:block; font-size:13px; margin-bottom:4px;"><input type="radio" name="kilitli" value="0" <%= (!_d || !_d.kilitli) ? 'checked' : '' %>> Kapatılabilir — kullanıcı kapatıp siteyi kullanabilir</label>
+      <label style="display:block; font-size:13px; margin-bottom:16px;"><input type="radio" name="kilitli" value="1" <%= (_d && _d.kilitli) ? 'checked' : '' %>> <b>Kilitli</b> — kapatılamaz, sayfa kullanılamaz (bakım için)</label>
+
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Kimler görsün?</label>
+      <label style="display:block; font-size:13px; margin-bottom:4px;"><input type="radio" name="hedefTip" value="hepsi" <%= (!_d || _d.hedefTip==='hepsi') ? 'checked' : '' %> onchange="duyuruHedefDegisti()"> Tüm öğrenciler</label>
+      <label style="display:block; font-size:13px; margin-bottom:4px;"><input type="radio" name="hedefTip" value="sinif" <%= (_d && _d.hedefTip==='sinif') ? 'checked' : '' %> onchange="duyuruHedefDegisti()"> Seçili sınıf seviyeleri</label>
+      <div id="duyuruSinifKutu" style="display:none; margin:6px 0 10px 22px; flex-wrap:wrap; gap:10px;">
+        <% for (var sv=1; sv<=13; sv++) { %>
+          <label style="font-size:13px; margin-right:10px;"><input type="checkbox" name="hedefSiniflar" value="<%= sv %>" <%= (_d && _d.hedefTip==='sinif' && (_d.hedefSiniflar||[]).indexOf(sv)!==-1) ? 'checked' : '' %>> <%= sv===13 ? 'Mezun' : (sv + '. Sınıf') %></label>
+        <% } %>
+      </div>
+      <label style="display:block; font-size:13px; margin-bottom:4px;"><input type="radio" name="hedefTip" value="kullanicilar" <%= (_d && _d.hedefTip==='kullanicilar') ? 'checked' : '' %> onchange="duyuruHedefDegisti()"> Seçili kişiler</label>
+      <div id="duyuruKullaniciKutu" style="display:none; margin:6px 0 14px 22px;">
+        <input type="text" id="duyuruKullaniciAra" placeholder="Kullanıcı ara…" style="width:260px; padding:6px 9px; font-size:13px; border:1px solid #ddd; border-radius:6px; margin-bottom:6px;" oninput="duyuruKullaniciFiltrele()">
+        <div id="duyuruKullaniciListe" style="max-height:220px; overflow:auto; border:1px solid #eee; border-radius:6px; padding:8px;">
+          <% (duyuruOgrenciler || []).forEach(function(o){ %>
+            <label class="duyuru-k-satir" data-ad="<%= (o.kullaniciAdi||'').toLowerCase() %>" style="display:block; font-size:13px; padding:2px 0;">
+              <input type="checkbox" name="hedefKullanicilar" value="<%= o.kullaniciAdi %>" <%= (_d && _d.hedefTip==='kullanicilar' && (_d.hedefKullanicilar||[]).indexOf(o.kullaniciAdi)!==-1) ? 'checked' : '' %>>
+              <%= o.kullaniciAdi %> <span style="color:#999;">(<%= Number(o.sinif)===13 ? 'Mezun' : (o.sinif + '. sınıf') %>)</span>
+            </label>
+          <% }); %>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success" style="padding:9px 24px;">📢 Duyuruyu Yayınla</button>
+      <span style="font-size:12px; color:#888; margin-left:8px;">Yayınlayınca önceki duyuru otomatik kaldırılır.</span>
+    </form>
+  </div>
+
+  <script>
+    function duyuruHedefDegisti(){
+      var t = document.querySelector('input[name="hedefTip"]:checked');
+      var v = t ? t.value : 'hepsi';
+      document.getElementById('duyuruSinifKutu').style.display = (v==='sinif') ? 'flex' : 'none';
+      document.getElementById('duyuruKullaniciKutu').style.display = (v==='kullanicilar') ? 'block' : 'none';
+    }
+    function duyuruKullaniciFiltrele(){
+      var q = (document.getElementById('duyuruKullaniciAra').value||'').toLowerCase();
+      document.querySelectorAll('.duyuru-k-satir').forEach(function(el){
+        el.style.display = (!q || (el.getAttribute('data-ad')||'').indexOf(q)!==-1) ? 'block' : 'none';
+      });
+    }
+    document.getElementById('duyuruGorselSec').addEventListener('change', function(e){
+      var f = e.target.files && e.target.files[0];
+      if(!f) return;
+      var r = new FileReader();
+      r.onload = function(ev){
+        document.getElementById('duyuruGorselVeri').value = ev.target.result;
+        document.getElementById('duyuruGorselOnizleme').innerHTML = '<img src="' + ev.target.result + '" style="max-width:260px; border-radius:6px;"><div style="font-size:12px; color:#888; margin-top:4px;">Yeni görsel (henüz kaydedilmedi)</div>';
+      };
+      r.readAsDataURL(f);
+    });
+    duyuruHedefDegisti();
+    if (location.search.indexOf('yayinlandi=1') !== -1) { alert('Duyuru yayınlandı.'); }
+    if (location.search.indexOf('kaldirildi=1') !== -1) { alert('Duyuru yayından kaldırıldı.'); }
+  </script>
 <% } else if (mod === 'ayarlar') { %>
   <div class="admin-card" style="max-width:680px;">
     <div class="admin-card-title">⚙️ Sıralama Ayarları</div>

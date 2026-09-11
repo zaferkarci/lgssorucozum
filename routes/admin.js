@@ -14,6 +14,7 @@ const CevapKaydi = require('../models/CevapKaydi');
 const ReferansKodu = require('../models/ReferansKodu');
 const Haber = require('../models/Haber');
 const Mesaj = require('../models/Mesaj');
+const Duyuru = require('../models/Duyuru');
 let YasakliKelime = null;
 try {
     YasakliKelime = require('../models/YasakliKelime');
@@ -143,6 +144,17 @@ router.get('/admin', async (req, res) => {
     }
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
+    // v4.16.46: Sistem>Duyuru — aktif duyuru + hedefleme icin ogrenci listesi
+    let aktifDuyuru = null, duyuruOgrenciler = [];
+    if (mod === 'duyuru') {
+        try {
+            aktifDuyuru = await Duyuru.findOne({ aktif: true }).sort({ yayinTarih: -1 }).lean();
+            duyuruOgrenciler = await Kullanici.find(
+                { rol: { $nin: ['ogretmen', 'kurumsal', 'veli', 'moderator'] } },
+                'kullaniciAdi sinif okul'
+            ).sort({ sinif: 1, kullaniciAdi: 1 }).lean();
+        } catch (e) { console.error('[duyuru veri]', e.message); }
+    }
 
     // v4.16.33: Düello ekranı verisi (rumuz<->kullanici, hucre sayilari, duello istatistikleri)
     let duelloVeri = null;
@@ -214,7 +226,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30,
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, aktifDuyuru, duyuruOgrenciler,
         aktiviteOzetiData
     });
     } catch (err) {
@@ -294,6 +306,74 @@ router.post('/soru-guncelle', async (req, res) => {
 });
 
 // v4.16.40: Sistem ayarlarini kaydet (30 gunluk ortalama esigi). deger < 0 => filtre kapali.
+// v4.16.46: DUYURU — yayinla (varsa oncekini pasife ceker) / kaldir.
+//   Gorsel base64 olarak gelir, Cloudinary'ye yuklenir (mevcut altyapi).
+router.post('/admin/duyuru-yayinla', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const metin    = (req.body.metin || '').trim();
+        const kilitli  = req.body.kilitli === '1';
+        const hedefTip = ['hepsi', 'sinif', 'kullanicilar'].includes(req.body.hedefTip) ? req.body.hedefTip : 'hepsi';
+
+        let hedefSiniflar = [];
+        if (hedefTip === 'sinif') {
+            const ham = req.body.hedefSiniflar;
+            const dizi = Array.isArray(ham) ? ham : (ham ? [ham] : []);
+            hedefSiniflar = dizi.map(x => Number(x)).filter(x => Number.isFinite(x) && x >= 1 && x <= 13);
+            if (!hedefSiniflar.length) {
+                return res.send("<script>alert('En az bir sinif seviyesi secmelisiniz.'); window.history.back();</script>");
+            }
+        }
+        let hedefKullanicilar = [];
+        if (hedefTip === 'kullanicilar') {
+            const ham = req.body.hedefKullanicilar;
+            const dizi = Array.isArray(ham) ? ham : (ham ? [ham] : []);
+            hedefKullanicilar = dizi.map(x => String(x).trim()).filter(Boolean);
+            if (!hedefKullanicilar.length) {
+                return res.send("<script>alert('En az bir kullanici secmelisiniz.'); window.history.back();</script>");
+            }
+        }
+
+        // Gorsel: yeni base64 geldiyse yukle, yoksa mevcut url korunur
+        let gorselUrl = (req.body.mevcutGorselUrl || '').trim();
+        const gorselVeri = (req.body.gorselVeri || '').trim();
+        if (gorselVeri) {
+            try {
+                const { gorselYukle } = require('../services/cloudinaryYukle');
+                gorselUrl = await gorselYukle(gorselVeri, 'lgs-duyuru');
+            } catch (ge) {
+                console.error('[duyuru gorsel]', ge.message);
+                return res.send("<script>alert('Gorsel yuklenemedi: " + String(ge.message).replace(/'/g, "") + "'); window.history.back();</script>");
+            }
+        }
+
+        if (!metin && !gorselUrl) {
+            return res.send("<script>alert('Duyuru icin en az bir metin veya gorsel gerekli.'); window.history.back();</script>");
+        }
+
+        await Duyuru.updateMany({ aktif: true }, { $set: { aktif: false } });
+        await new Duyuru({
+            aktif: true, metin, gorselUrl, kilitli, hedefTip, hedefSiniflar, hedefKullanicilar
+        }).save();
+
+        res.redirect('/admin?mod=duyuru&yayinlandi=1');
+    } catch (e) {
+        console.error('[duyuru-yayinla] HATA:', e.message);
+        res.status(500).send('Duyuru yayinlanamadi: ' + e.message);
+    }
+});
+
+router.post('/admin/duyuru-kaldir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        await Duyuru.updateMany({ aktif: true }, { $set: { aktif: false } });
+        res.redirect('/admin?mod=duyuru&kaldirildi=1');
+    } catch (e) {
+        console.error('[duyuru-kaldir] HATA:', e.message);
+        res.status(500).send('Duyuru kaldirilamadi: ' + e.message);
+    }
+});
+
 router.post('/admin/ayar-kaydet', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
@@ -1863,18 +1943,23 @@ router.get('/admin/sinif-atlat', async (req, res) => {
 
         const gruplar = {}; // eskiSinif -> { eskiSinif, yeniSinif, sayi }
         let mezunSayisi = 0, gecersizSayisi = 0;
+        // v4.16.45: Okul geçiş noktaları — 5 (ilkokul->ortaokul), 9 (ortaokul->lise),
+        //   13/Mezun (lise->mezuniyet). Bu seviyelere geçenlerin okul/şube bağı kesilir;
+        //   kendileri yeni okullarını "Konum bilgileri" kartından seçer (mevcut akış).
+        const OKUL_GECIS_SEVIYELERI = [5, 9, 13];
         kullanicilar.forEach(u => {
             const s = Number(u.sinif);
             if (!Number.isFinite(s) || s < 1 || s > 13) { gecersizSayisi++; return; }
             if (s === 13) { mezunSayisi++; return; }
             const yeni = (s >= 12) ? 13 : (s + 1);
             const key = String(s);
-            if (!gruplar[key]) gruplar[key] = { eskiSinif: s, yeniSinif: yeni, sayi: 0 };
+            if (!gruplar[key]) gruplar[key] = { eskiSinif: s, yeniSinif: yeni, sayi: 0, okulKesilecek: OKUL_GECIS_SEVIYELERI.includes(yeni) };
             gruplar[key].sayi++;
         });
         const grupListe = Object.values(gruplar).sort((a, b) => a.eskiSinif - b.eskiSinif);
         const toplamAtlayacak = grupListe.reduce((t, g) => t + g.sayi, 0);
         const mezunOlacak = gruplar['12'] ? gruplar['12'].sayi : 0;
+        const okulKesilecekSayi = grupListe.filter(g => g.okulKesilecek).reduce((t, g) => t + g.sayi, 0);
 
         if (uygula) {
             const simdi = new Date();
@@ -1883,9 +1968,11 @@ router.get('/admin/sinif-atlat', async (req, res) => {
                 sonSinifAtlamaTarihi: simdi, siralamaCache: null, siralamaCacheTarih: null
             };
             for (const g of grupListe) {
+                const set = Object.assign({ sinif: g.yeniSinif }, resetAlan);
+                if (g.okulKesilecek) { set.okul = ''; set.sube = ''; }
                 await Kullanici.updateMany(
                     { rol: { $nin: HARIC_ROLLER }, sinif: g.eskiSinif },
-                    { $set: Object.assign({ sinif: g.yeniSinif }, resetAlan) }
+                    { $set: set }
                 );
             }
         }
@@ -1900,31 +1987,33 @@ router.get('/admin/sinif-atlat', async (req, res) => {
         h += '<h2>🎓 Sınıf Atlatma</h2>';
 
         if (uygula) {
-            h += '<p class="ok">UYGULANDI. ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirildi (bunlardan ' + mezunOlacak + ' kişi Mezun oldu). Kişisel puan/ders istatistikleri ve geçilen sorular sıfırlandı; geçmiş cevap kayıtları korunuyor (soru istatistiklerini beslemeye devam eder).</p>';
+            h += '<p class="ok">UYGULANDI. ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirildi (bunlardan ' + mezunOlacak + ' kişi Mezun oldu). Kişisel puan/ders istatistikleri ve geçilen sorular sıfırlandı; geçmiş cevap kayıtları korunuyor (soru istatistiklerini beslemeye devam eder). ' + okulKesilecekSayi + ' öğrencinin okul bağı kesildi (5./9./Mezun geçişi) — kendi okullarını profillerinden seçecekler.</p>';
         } else {
             h += '<p style="color:#666;">Bu bir <b>KURU ÇALIŞMA</b> (önizleme). Hiçbir şey henüz değişmedi.</p>';
         }
 
-        h += '<div class="ozet"><b>Özet:</b> ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçecek (bunlardan <b>' + mezunOlacak + '</b> kişi Mezun olacak) &middot; ' + mezunSayisi + ' kişi zaten Mezun (atlanmayacak)' + (gecersizSayisi ? ' &middot; ' + gecersizSayisi + ' kişide sınıf bilgisi geçersiz/eksik (atlanmadı)' : '') + '.</div>';
+        h += '<div class="ozet"><b>Özet:</b> ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçecek (bunlardan <b>' + mezunOlacak + '</b> kişi Mezun olacak) &middot; ' + mezunSayisi + ' kişi zaten Mezun (atlanmayacak)' + (gecersizSayisi ? ' &middot; ' + gecersizSayisi + ' kişide sınıf bilgisi geçersiz/eksik (atlanmadı)' : '') + ' &middot; <b>' + okulKesilecekSayi + '</b> öğrencinin okul bağı kesilecek (5./9./Mezun geçişi).</div>';
 
         h += '<div class="ozet" style="background:#fff8e1; border-color:#ffe082;"><b>Sınıf atlatınca ne olur:</b><br>';
         h += '&bull; Sınıf bir üst seviyeye geçer (12 &rarr; Mezun).<br>';
         h += '&bull; Kişisel puan, ders/konu istatistikleri ve geçilen sorular sıfırlanır — <b>sıfırdan başlar</b>.<br>';
         h += '&bull; Oyun otomatik sıfırdan başlar (yeni sınıfta oyuncu kaydı yoktur).<br>';
         h += '&bull; Geçmiş cevap kayıtları SİLİNMEZ — sorunun kendi istatistikleri (zorluk, ortalama süre, doğru oranı) geçmiş+yeni veriyle güncellenmeye devam eder.<br>';
-        h += '&bull; Mezun (13) olanlar yalnız Türkiye sıralamasına (kendi aralarında) girer; il/ilçe/okul/sınıf sıralamalarında görünmezler.</div>';
+        h += '&bull; Mezun (13) olanlar yalnız Türkiye sıralamasına (kendi aralarında) girer; il/ilçe/okul/sınıf sıralamalarında görünmezler.<br>';
+        h += '&bull; 5., 9. sınıfa veya Mezun\'a geçenlerin <b>okul/şube bağı kesilir</b> (il/ilçe kalır) — kendi yeni okullarını profillerindeki "Konum bilgileri" kartından seçerler.</div>';
 
         if (!grupListe.length) {
             h += '<p style="color:#2e7d32;">Atlatılacak öğrenci yok.</p>';
         } else {
-            h += '<table><thead><tr><th>Şu anki sınıf</th><th>Yeni sınıf</th><th>Öğrenci sayısı</th></tr></thead><tbody>';
+            h += '<table><thead><tr><th>Şu anki sınıf</th><th>Yeni sınıf</th><th>Öğrenci sayısı</th><th>Okul bağı</th></tr></thead><tbody>';
             grupListe.forEach(g => {
                 const yeniEtiket = (g.yeniSinif === 13) ? 'Mezun' : (g.yeniSinif + '. Sınıf');
-                h += '<tr><td>' + esc(g.eskiSinif) + '. Sınıf</td><td><b>' + yeniEtiket + '</b></td><td>' + esc(g.sayi) + '</td></tr>';
+                const okulNotu = g.okulKesilecek ? '<span style="color:#c62828; font-weight:600;">Kesilecek</span>' : '<span style="color:#999;">Korunur</span>';
+                h += '<tr><td>' + esc(g.eskiSinif) + '. Sınıf</td><td><b>' + yeniEtiket + '</b></td><td>' + esc(g.sayi) + '</td><td>' + okulNotu + '</td></tr>';
             });
             h += '</tbody></table>';
             if (!uygula) {
-                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/sinif-atlat?uygula=1" onclick="return confirm(\'' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirilecek, kişisel istatistikleri ve oyun ilerlemesi sıfırlanacak. Bu işlem geri alınamaz. Devam edilsin mi?\');">🎓 SINIF ATLATMAYI UYGULA</a> <a class="btn geri" href="/admin?mod=ayarlar">Geri</a></p>';
+                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/sinif-atlat?uygula=1" onclick="return confirm(\'' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirilecek, kişisel istatistikleri ve oyun ilerlemesi sıfırlanacak, ' + okulKesilecekSayi + ' öğrencinin okul bağı kesilecek. Bu işlem geri alınamaz. Devam edilsin mi?\');">🎓 SINIF ATLATMAYI UYGULA</a> <a class="btn geri" href="/admin?mod=ayarlar">Geri</a></p>';
             } else {
                 h += '<p style="margin-top:20px;"><a class="btn geri" href="/admin?mod=kullanicilar">Kullanıcılar ekranına dön</a></p>';
             }

@@ -15,6 +15,7 @@ const Kullanici = require('../models/Kullanici');
 const Soru = require('../models/Soru');
 const CevapKaydi = require('../models/CevapKaydi');
 const Ayar = require('../models/Ayar');
+const Duyuru = require('../models/Duyuru');
 const ReferansKodu = require('../models/ReferansKodu');
 const Unite = require('../models/Unite');
 const KonuIzin = require('../models/KonuIzin');
@@ -1215,8 +1216,22 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     }
 
+    // v4.16.46: Aktif duyuru pop-up'i — hedeflemeye gore bu kullaniciya gosterilecek mi?
+    let duyuruGoster = null;
+    try {
+        const _dy = await Duyuru.findOne({ aktif: true }).sort({ yayinTarih: -1 }).lean();
+        if (_dy) {
+            let uygun = false;
+            if (_dy.hedefTip === 'hepsi') uygun = true;
+            else if (_dy.hedefTip === 'sinif') uygun = (_dy.hedefSiniflar || []).indexOf(Number(k.sinif)) !== -1;
+            else if (_dy.hedefTip === 'kullanicilar') uygun = (_dy.hedefKullanicilar || []).indexOf(k.kullaniciAdi) !== -1;
+            if (uygun) duyuruGoster = { metin: _dy.metin || '', gorselUrl: _dy.gorselUrl || '', kilitli: !!_dy.kilitli };
+        }
+    } catch (e) { console.error('[duyuru goster]', e.message); }
+
     res.render('panel', {
         k,
+        duyuruGoster,
         // v4.11.0: Oyun acildi duyurusu acilir penceresi - ogrenci/demo, henuz
         //   "bir daha gosterme" dememisse.
         oyunDuyuruGoster: ((k.rol === 'ogrenci' || k.rol === 'demo') && !k.oyunDuyuruGoruldu),

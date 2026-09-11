@@ -3686,5 +3686,37 @@ function sfEsles() {
 function gorselBuyut(src){ if(!src) return; var lb=document.getElementById("gorselLightbox"); document.getElementById("gorselLightboxImg").src=src; lb.style.display="flex"; }
 function gorselKapat(){ document.getElementById("gorselLightbox").style.display="none"; }
 </script>
+<%# v4.16.46: Onemli duyuru pop-up — arka plan bulanik (site kapali havasi olmasin),
+     gorsel varsa kendi boyutunda, sadece metin varsa ekranin ~1/4'u genisliginde. %>
+<% if (typeof duyuruGoster !== 'undefined' && duyuruGoster) { %>
+<div id="onemliDuyuruKatman" style="position:fixed; inset:0; z-index:11000; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(15,23,42,0.35); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);">
+  <div style="background:#fff; border-radius:16px; box-shadow:0 18px 50px rgba(0,0,0,0.28); max-width:92vw; max-height:90vh; overflow:auto; text-align:center; <% if (!duyuruGoster.gorselUrl) { %>width:25vw; min-width:280px;<% } %> padding:<%= duyuruGoster.gorselUrl ? "12px" : "26px 28px" %>;">
+    <% if (duyuruGoster.gorselUrl) { %>
+      <img src="<%= duyuruGoster.gorselUrl %>" alt="Duyuru" style="display:block; max-width:100%; max-height:<%= duyuruGoster.metin ? "66vh" : "80vh" %>; border-radius:10px; margin:0 auto;">
+    <% } %>
+    <% if (duyuruGoster.metin) { %>
+      <div style="font-size:15px; line-height:1.65; color:#1f2937; white-space:pre-wrap; <%= duyuruGoster.gorselUrl ? "margin-top:14px; padding:0 10px 4px;" : "" %>"><%= duyuruGoster.metin %></div>
+    <% } %>
+    <% if (!duyuruGoster.kilitli) { %>
+      <button type="button" onclick="onemliDuyuruKapat()" style="margin-top:18px; background:#1a73e8; color:#fff; border:none; border-radius:22px; padding:10px 30px; font-size:14px; font-weight:600; cursor:pointer;">Tamam</button>
+    <% } else { %>
+      <div style="margin-top:16px; font-size:12px; color:#9ca3af;">Bu duyuru kapatılamaz.</div>
+    <% } %>
+  </div>
+</div>
+<script>
+  (function(){
+    var kilitli = <%- duyuruGoster.kilitli ? "true" : "false" %>;
+    if (kilitli) {
+      document.body.style.overflow = 'hidden';
+    }
+  })();
+  function onemliDuyuruKapat(){
+    var el = document.getElementById('onemliDuyuruKatman');
+    if (el) el.parentNode.removeChild(el);
+    document.body.style.overflow = '';
+  }
+</script>
+<% } %>
 </body>
 </html>
