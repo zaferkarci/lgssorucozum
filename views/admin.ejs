@@ -163,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <% } else if (aktifGrup === 'sistem') { %>
     <a href="/admin/puan-simulasyon" class="admin-alt-link <%= mod==='puanSimulasyon'?'active':'' %>">📊 Puan Simülasyonu</a>
     <a href="/admin?mod=ayarlar" class="admin-alt-link <%= mod==='ayarlar'?'active':'' %>">⚙️ Ayarlar</a>
+    <a href="/admin/sinif-atlat" class="admin-alt-link">🎓 Sınıf Atlatma</a>
     <a href="/admin?mod=sifirla" class="admin-alt-link danger <%= mod==='sifirla'?'active':'' %>">🗑️ Sıfırla</a>
   <% } %>
 </div>
@@ -1334,7 +1335,7 @@ function escHtml(str) {
            var s = aktiviteOzetiData.sinifOzeti[sinif];
       %>
         <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:10px 14px; min-width:160px;">
-          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;"><%= sinif %>. Sınıf</div>
+          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.3px; font-weight:600;"><%= Number(sinif)===13 ? 'Mezun' : (sinif + '. Sınıf') %></div>
           <div style="font-size:13px; color:#333; margin-top:4px;">
             <b style="color:#1a73e8;"><%= s.girisYapan %></b>/<%= s.toplam %> giriş
           </div>
@@ -1406,10 +1407,10 @@ function escHtml(str) {
       <!-- v4.3.60: Sınıf seviyesi filtresi -->
       <select name="kullaniciSinif" onchange="this.form.submit()" class="input-sm">
         <option value="">Tüm Sınıflar</option>
-        <option value="5" <%= filKullaniciSinif==='5'?'selected':'' %>>5. Sınıf</option>
-        <option value="6" <%= filKullaniciSinif==='6'?'selected':'' %>>6. Sınıf</option>
-        <option value="7" <%= filKullaniciSinif==='7'?'selected':'' %>>7. Sınıf</option>
-        <option value="8" <%= filKullaniciSinif==='8'?'selected':'' %>>8. Sınıf</option>
+        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(sOpt){ %>
+        <option value="<%= sOpt %>" <%= filKullaniciSinif===String(sOpt)?'selected':'' %>><%= sOpt %>. Sınıf</option>
+        <% }); %>
+        <option value="13" <%= filKullaniciSinif==='13'?'selected':'' %>>Mezun</option>
       </select>
     </form>
     <%
@@ -1479,7 +1480,7 @@ function escHtml(str) {
               <% if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">👪 VELİ</span><% } %>
               <% if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">🧪 DEMO</span><% } %>
             </td>
-            <td style="text-align:center;"><% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">ÖĞR</span><% } else if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1; color:#00695c; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">YÖN</span><% } else if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">VELİ</span><% } else if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">DEMO</span><% } else { %><%= k.sinif %><% } %></td>
+            <td style="text-align:center;"><% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">ÖĞR</span><% } else if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1; color:#00695c; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">YÖN</span><% } else if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">VELİ</span><% } else if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">DEMO</span><% } else { %><%= Number(k.sinif)===13 ? 'Mezun' : k.sinif %><% } %></td>
             <td><%= k.il||'-' %></td>
             <td><%= k.ilce||'-' %></td>
             <td><%= k.okul||'-' %></td>

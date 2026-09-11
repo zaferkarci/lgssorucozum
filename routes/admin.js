@@ -1845,6 +1845,98 @@ router.get('/admin/duplicate-telafi', async (req, res) => {
     }
 });
 
+// v4.16.44: SINIF ATLATMA — tüm öğrencileri (ogrenci+demo) bir üst sınıfa geçirir.
+//   12. sınıf -> Mezun (13). Mezun olan bir daha atlatılmaz. Kuru çalışma (varsayılan)
+//   + ?uygula=1 ile gerçek uygulama. Kişisel puan/ders istatistikleri ve gecilenSorular
+//   sıfırlanır (sonSinifAtlamaTarihi=şimdi -> kişisel hesaplar artık bu tarihten sonraki
+//   cevaplardan yapılır). ESKİ CEVAP KAYITLARI SİLİNMEZ — soru istatistiklerini (zorluk,
+//   ortalama süre, doğru oranı) beslemeye devam eder. Oyun kaydı sınıf değiştiği için
+//   otomatik sıfırdan başlar (OyunOyuncu {sinif,kullaniciAdi} ikilisine bağlı).
+router.get('/admin/sinif-atlat', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const HARIC_ROLLER = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
+
+        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC_ROLLER } }, 'sinif rol').lean();
+
+        const gruplar = {}; // eskiSinif -> { eskiSinif, yeniSinif, sayi }
+        let mezunSayisi = 0, gecersizSayisi = 0;
+        kullanicilar.forEach(u => {
+            const s = Number(u.sinif);
+            if (!Number.isFinite(s) || s < 1 || s > 13) { gecersizSayisi++; return; }
+            if (s === 13) { mezunSayisi++; return; }
+            const yeni = (s >= 12) ? 13 : (s + 1);
+            const key = String(s);
+            if (!gruplar[key]) gruplar[key] = { eskiSinif: s, yeniSinif: yeni, sayi: 0 };
+            gruplar[key].sayi++;
+        });
+        const grupListe = Object.values(gruplar).sort((a, b) => a.eskiSinif - b.eskiSinif);
+        const toplamAtlayacak = grupListe.reduce((t, g) => t + g.sayi, 0);
+        const mezunOlacak = gruplar['12'] ? gruplar['12'].sayi : 0;
+
+        if (uygula) {
+            const simdi = new Date();
+            const resetAlan = {
+                puan: 0, soruIndex: 0, dersPuanlari: [], gecilenSorular: [],
+                sonSinifAtlamaTarihi: simdi, siralamaCache: null, siralamaCacheTarih: null
+            };
+            for (const g of grupListe) {
+                await Kullanici.updateMany(
+                    { rol: { $nin: HARIC_ROLLER }, sinif: g.eskiSinif },
+                    { $set: Object.assign({ sinif: g.yeniSinif }, resetAlan) }
+                );
+            }
+        }
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Sınıf Atlatma</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px;}th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;margin-right:8px;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}';
+        h += '.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>🎓 Sınıf Atlatma</h2>';
+
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirildi (bunlardan ' + mezunOlacak + ' kişi Mezun oldu). Kişisel puan/ders istatistikleri ve geçilen sorular sıfırlandı; geçmiş cevap kayıtları korunuyor (soru istatistiklerini beslemeye devam eder).</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU ÇALIŞMA</b> (önizleme). Hiçbir şey henüz değişmedi.</p>';
+        }
+
+        h += '<div class="ozet"><b>Özet:</b> ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçecek (bunlardan <b>' + mezunOlacak + '</b> kişi Mezun olacak) &middot; ' + mezunSayisi + ' kişi zaten Mezun (atlanmayacak)' + (gecersizSayisi ? ' &middot; ' + gecersizSayisi + ' kişide sınıf bilgisi geçersiz/eksik (atlanmadı)' : '') + '.</div>';
+
+        h += '<div class="ozet" style="background:#fff8e1; border-color:#ffe082;"><b>Sınıf atlatınca ne olur:</b><br>';
+        h += '&bull; Sınıf bir üst seviyeye geçer (12 &rarr; Mezun).<br>';
+        h += '&bull; Kişisel puan, ders/konu istatistikleri ve geçilen sorular sıfırlanır — <b>sıfırdan başlar</b>.<br>';
+        h += '&bull; Oyun otomatik sıfırdan başlar (yeni sınıfta oyuncu kaydı yoktur).<br>';
+        h += '&bull; Geçmiş cevap kayıtları SİLİNMEZ — sorunun kendi istatistikleri (zorluk, ortalama süre, doğru oranı) geçmiş+yeni veriyle güncellenmeye devam eder.<br>';
+        h += '&bull; Mezun (13) olanlar yalnız Türkiye sıralamasına (kendi aralarında) girer; il/ilçe/okul/sınıf sıralamalarında görünmezler.</div>';
+
+        if (!grupListe.length) {
+            h += '<p style="color:#2e7d32;">Atlatılacak öğrenci yok.</p>';
+        } else {
+            h += '<table><thead><tr><th>Şu anki sınıf</th><th>Yeni sınıf</th><th>Öğrenci sayısı</th></tr></thead><tbody>';
+            grupListe.forEach(g => {
+                const yeniEtiket = (g.yeniSinif === 13) ? 'Mezun' : (g.yeniSinif + '. Sınıf');
+                h += '<tr><td>' + esc(g.eskiSinif) + '. Sınıf</td><td><b>' + yeniEtiket + '</b></td><td>' + esc(g.sayi) + '</td></tr>';
+            });
+            h += '</tbody></table>';
+            if (!uygula) {
+                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/sinif-atlat?uygula=1" onclick="return confirm(\'' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirilecek, kişisel istatistikleri ve oyun ilerlemesi sıfırlanacak. Bu işlem geri alınamaz. Devam edilsin mi?\');">🎓 SINIF ATLATMAYI UYGULA</a> <a class="btn geri" href="/admin?mod=ayarlar">Geri</a></p>';
+            } else {
+                h += '<p style="margin-top:20px;"><a class="btn geri" href="/admin?mod=kullanicilar">Kullanıcılar ekranına dön</a></p>';
+            }
+        }
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[sinif-atlat] HATA:', e.message);
+        res.status(500).send('Sınıf atlatma hatası: ' + e.message);
+    }
+});
+
 // v4.5.3: Bir sorunun çözüm detayları — kim, ne zaman, kaç saniyede çözmüş.
 // Zorluk Raporu ve Soru Puan Detayı sayfalarındaki "açılır iç tablo"
 // için JSON döner. Sadece DOĞRU cevaplar listelenir.

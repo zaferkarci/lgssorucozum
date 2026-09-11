@@ -1147,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (k.rol === 'ogretmen' && oğretmenIstekDurum && oğretmenIstekDurum !== 'kabul') beyanGizle = true;
           if (k.rol === 'ogrenci' && ogrenciIstekDurum && ogrenciIstekDurum !== 'kabul') beyanGizle = true;
         %>
-        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && k.rol !== 'veli') { %><% if (!beyanGizle) { %><%= k.sinif %>. Sınıf<%= k.sube ? ' / ' + k.sube + ' Şubesi' : '' %> · <% } %><% } %><% if (beyanGizle) { %><span style="color:#999; font-style:italic;">— (kurum onayı bekleniyor)</span> · <%= k.il %> / <%= k.ilce %><% } else { %><% if (k.okul) { %><%= k.okul %> · <% } %><%= k.il %> / <%= k.ilce %><% } %></div>
+        <div class="profil-banner-alt"><% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && k.rol !== 'veli') { %><% if (!beyanGizle) { %><%= Number(k.sinif)===13 ? 'Mezun' : (k.sinif + '. Sınıf' + (k.sube ? ' / ' + k.sube + ' Şubesi' : '')) %> · <% } %><% } %><% if (beyanGizle) { %><span style="color:#999; font-style:italic;">— (kurum onayı bekleniyor)</span> · <%= k.il %> / <%= k.ilce %><% } else { %><% if (k.okul) { %><%= k.okul %> · <% } %><%= k.il %> / <%= k.ilce %><% } %></div>
       </div>
     </div>
     <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal') { %>
@@ -1215,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <% if (k.rol === 'ogretmen' || k.rol === 'kurumsal') { %>
             <!-- Öğretmen: sınıf/şube yok, ek alan da yok -->
           <% } else if (adminGorunum) { %>
-            <% if (k.rol !== 'veli') { %><div class="info-row"><span class="info-label">Sınıf / Şube</span><span class="info-val"><%= k.sinif %><%= k.sube ? '/' + k.sube : '' %></span></div><% } %>
+            <% if (k.rol !== 'veli') { %><div class="info-row"><span class="info-label">Sınıf / Şube</span><span class="info-val"><%= Number(k.sinif)===13 ? 'Mezun' : (k.sinif + (k.sube ? '/' + k.sube : '')) %></span></div><% } %>
           <% } else { %>
           <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
             <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
@@ -1601,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.okul) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.okulKullanici %> öğrenci</div></div></div>
           <% } %>
           <% if (k.okul && k.sube) { %>
-            <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.sinif) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
+            <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= (k.sube && Number(k.sinif)!==13) ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(siralamaVerisi.sinif) %></div><div class="siralama-toplam-yeni">/ <%= siralamaVerisi.sinifKullanici %> öğrenci</div></div></div>
           <% } %>
         </div>
         <% dp.forEach(function(d) {
@@ -1623,7 +1623,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Okul</span><div><div class="siralama-no-yeni"><%= srFmt(sr.okul) %></div><% if(sr.okulKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.okulKullanici %></div><% } %></div></div>
           <% } %>
           <% if (k.okul && k.sube) { %>
-            <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= k.sube ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(sr.sinif) %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
+            <div class="siralama-satir-yeni"><span class="siralama-kapsam-yeni">Sınıf<%= (k.sube && Number(k.sinif)!==13) ? ' ('+k.sinif+'-'+k.sube+')' : '' %></span><div><div class="siralama-no-yeni"><%= srFmt(sr.sinif) %></div><% if(sr.sinifKullanici){ %><div class="siralama-toplam-yeni">/ <%= sr.sinifKullanici %></div><% } %></div></div>
           <% } %>
         </div>
         <% }); %>

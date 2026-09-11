@@ -94,7 +94,11 @@ async function kullaniciPuanHesapla() {
     const tumKullanicilar = await Kullanici.find({});
 
     for (const k of tumKullanicilar) {
-        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi }).sort({ tarih: 1 }).lean();
+        // v4.16.44: Sınıf atlatma sonrası kişisel istatistikler yalnız o tarihten
+        //   SONRAKİ cevaplardan hesaplanır. Eski cevaplar silinmez, soru istatistik
+        //   hesabını (aşağıdaki soruIstatistikHesapla/hamPuanHesapla) etkilemeye devam eder.
+        const _kisiselBaslangic = k.sonSinifAtlamaTarihi || new Date(0);
+        const kayitlar = await CevapKaydi.find({ kullaniciAdi: k.kullaniciAdi, tarih: { $gte: _kisiselBaslangic } }).sort({ tarih: 1 }).lean();
 
         let toplamPuan = 0;
         let toplamSure = 0;
@@ -291,6 +295,9 @@ async function siralamaCacheHesapla() {
     for (const obj of uMap) {
         const u = obj.u;
         const uSinif = Number(u.sinif);
+        // v4.16.44: Mezun (sınıf 13) — yalnız Türkiye sıralamasına (kendi arasında,
+        //   sınıf bazlı gruplama zaten bunu sağlıyor) tabi; il/ilçe/okul/sınıf'ta GÖSTERİLMEZ.
+        const uMezun = (uSinif === 13);
         const uIl    = normStr(u.il);
         const uIlce  = normStr(u.ilce);
         const uOkul  = normStr(u.okul);
@@ -310,10 +317,10 @@ async function siralamaCacheHesapla() {
 
         const genel = {
             turkiye: obj.nitelikli ? turkiyeListesiSinif.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-            il:      obj.nitelikli ? [...ilNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-            ilce:    obj.nitelikli ? [...ilceNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-            okul:    obj.nitelikli ? [...okulNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-            sinif:   obj.nitelikli ? [...sinifNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            il:      (obj.nitelikli && !uMezun) ? [...ilNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            ilce:    (obj.nitelikli && !uMezun) ? [...ilceNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            okul:    (obj.nitelikli && !uMezun) ? [...okulNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+            sinif:   (obj.nitelikli && !uMezun) ? [...sinifNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             toplamKullanici: turkiyeListesiSinif.length,
             ilKullanici:     ilNitelikli.length,
             ilceKullanici:   ilceNitelikli.length,
@@ -335,10 +342,10 @@ async function siralamaCacheHesapla() {
 
             dersSiralamalari[dersAdi] = {
                 turkiye: kDersNitelikli ? dersList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-                il:      kDersNitelikli ? dersIlList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-                ilce:    kDersNitelikli ? dersIlceList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-                okul:    kDersNitelikli ? dersOkulList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-                sinif:   kDersNitelikli ? dersSinifList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                il:      (kDersNitelikli && !uMezun) ? dersIlList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                ilce:    (kDersNitelikli && !uMezun) ? dersIlceList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                okul:    (kDersNitelikli && !uMezun) ? dersOkulList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
+                sinif:   (kDersNitelikli && !uMezun) ? dersSinifList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
                 toplamKullanici: dersList.length,
                 ilKullanici:     dersIlList.length,
                 ilceKullanici:   dersIlceList.length,

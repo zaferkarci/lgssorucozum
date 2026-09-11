@@ -76,7 +76,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <div class="d-satir"><span class="d-etiket">Kullanıcı adı</span><span class="d-deger"><%= k.kullaniciAdi %></span></div>
         <div class="d-satir"><span class="d-etiket">E-posta</span><span class="d-deger"><%= k.email||'-' %></span></div>
         <% if (k.rol !== 'ogretmen') { %>
-        <div class="d-satir"><span class="d-etiket">Sınıf / Şube</span><span class="d-deger"><%= k.sinif %>. Sınıf<%= k.sube ? ' / '+k.sube+' Şubesi' : '' %></span></div>
+        <div class="d-satir"><span class="d-etiket">Sınıf / Şube</span><span class="d-deger"><%= Number(k.sinif)===13 ? 'Mezun' : (k.sinif + '. Sınıf' + (k.sube ? ' / '+k.sube+' Şubesi' : '')) %></span></div>
         <% } %>
         <div class="d-satir"><span class="d-etiket">İl / İlçe</span><span class="d-deger"><%= k.il||'-' %> / <%= k.ilce||'-' %></span></div>
         <div class="d-satir"><span class="d-etiket"><%= k.rol === 'ogretmen' ? 'Görev yaptığı okul' : 'Okul' %></span><span class="d-deger"><%= k.okul||'-' %></span></div>
@@ -108,9 +108,10 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
           <div class="form-alan">
             <label>Sınıf</label>
             <select name="sinif">
-              <% [5,6,7,8].forEach(function(s) { %>
+              <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
                 <option value="<%= s %>" <%= k.sinif==s?'selected':'' %>><%= s %>. Sınıf</option>
               <% }); %>
+              <option value="13" <%= k.sinif==13?'selected':'' %>>Mezun</option>
             </select>
           </div>
           <div class="form-alan">

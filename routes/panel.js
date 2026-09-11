@@ -585,6 +585,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             const toplamSoruFn = (u) => (u.dersPuanlari||[]).reduce((t,d) => t + (d.soruSayisi||0), 0);
             const kToplamSoru = toplamSoruFn(k);
             const kNitelikli = kToplamSoru >= MIN_SORU;
+            // v4.16.44: Mezun (sınıf 13) — yalnız Türkiye sıralamasına (kendi arasında,
+            //   sınıf bazlı gruplama zaten bunu sağlıyor) tabi; il/ilçe/okul/sınıf'ta GÖSTERİLMEZ.
+            const kMezun = Number(k.sinif) === 13;
 
             // Genel sıralama listeleri — sadece en az MIN_SORU çözmüş olanlar
             const nitelikliFiltre = (u) => toplamSoruFn(u) >= MIN_SORU && son30YeterliFn(u);
@@ -604,10 +607,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
 
             siralamaVerisi = {
                 turkiye:         kNitelikli ? turkiyeListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                il:              kNitelikli ? ilListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                ilce:            kNitelikli ? ilceListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                okul:            (kNitelikli && okulGecerli)  ? okulListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                sinif:           (kNitelikli && sinifGecerli) ? sinifListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
+                il:              (kNitelikli && !kMezun) ? ilListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
+                ilce:            (kNitelikli && !kMezun) ? ilceListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
+                okul:            (kNitelikli && !kMezun && okulGecerli)  ? okulListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
+                sinif:           (kNitelikli && !kMezun && sinifGecerli) ? sinifListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 toplamKullanici: turkiyeListesi.length,
                 ilKullanici:     ilListesi.length,
                 ilceKullanici:   ilceListesi.length,
@@ -644,10 +647,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 const sList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && sinifFiltre(u)).map(dersOrtFn).sort((a,b) => b-a);
                 dersSiralamalari[dersAdi] = {
                     turkiye:        kDersNitelikli ? tList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    il:             kDersNitelikli ? iList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    ilce:           kDersNitelikli ? ilList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    okul:           (kDersNitelikli && okulGecerli)  ? oList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    sinif:          (kDersNitelikli && sinifGecerli) ? sList.findIndex(p => p <= kDersOrt) + 1 : 0,
+                    il:             (kDersNitelikli && !kMezun) ? iList.findIndex(p => p <= kDersOrt) + 1 : 0,
+                    ilce:           (kDersNitelikli && !kMezun) ? ilList.findIndex(p => p <= kDersOrt) + 1 : 0,
+                    okul:           (kDersNitelikli && !kMezun && okulGecerli)  ? oList.findIndex(p => p <= kDersOrt) + 1 : 0,
+                    sinif:          (kDersNitelikli && !kMezun && sinifGecerli) ? sList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     toplamKullanici: tList.length,
                     ilKullanici:    iList.length,
                     ilceKullanici:  ilList.length,
@@ -732,8 +735,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // v4.1.37: Projection eklendi — sadece kullanılan 5 alan çekiliyor (önceden tüm
     // belge alanları geliyordu). Satır sayısı aynı kalır, payload ~%60 küçülür.
     // Hesaplamalar (toplamCozulen, dogruluk, ders kırılımı, bugün) etkilenmez.
+    // v4.16.44: Sınıf atlatma sonrası ders/konu istatistikleri de yalnız o tarihten
+    //   SONRAKİ cevaplardan hesaplanır (kişisel ilerleme sıfırlanmış görünür).
     const tumCevaplar = await CevapKaydi.find(
-        { kullaniciAdi: k.kullaniciAdi },
+        { kullaniciAdi: k.kullaniciAdi, tarih: { $gte: k.sonSinifAtlamaTarihi || new Date(0) } },
         'soruId dogruMu sure kazanilanPuan tarih'
     ).lean();
 
