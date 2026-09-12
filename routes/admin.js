@@ -43,6 +43,16 @@ const uploadOkulExcel = multer({
     }
 });
 
+// v4.16.47: Yedek (JSON) yükleme — veritabanı büyüyebileceği için limit geniş tutuldu.
+const uploadYedek = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 200 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.match(/\.json$/i)) cb(null, true);
+        else cb(new Error('Sadece .json yedek dosyası kabul edilir.'));
+    }
+});
+
 // ── Yetki kontrolü ───────────────────────────────────────────────────────────
 // v4.1.24: Bir kez başarılı Basic Auth girilince session'a "adminGirisli" işareti
 // koyuluyor. Sonraki admin isteklerinde browser şifre sormuyor (session 7 gün geçerli).
@@ -308,6 +318,74 @@ router.post('/soru-guncelle', async (req, res) => {
 // v4.16.40: Sistem ayarlarini kaydet (30 gunluk ortalama esigi). deger < 0 => filtre kapali.
 // v4.16.46: DUYURU — yayinla (varsa oncekini pasife ceker) / kaldir.
 //   Gorsel base64 olarak gelir, Cloudinary'ye yuklenir (mevcut altyapi).
+// v4.16.47: YEDEKLEME — tum koleksiyonlari JSON olarak indir.
+router.get('/admin/yedek-al', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { yedekAl } = require('../services/yedekleme');
+        const yedek = await yedekAl();
+        const d = new Date();
+        const p = (n) => String(n).padStart(2, '0');
+        const dosyaAdi = 'lgs-yedek-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.json';
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="' + dosyaAdi + '"');
+        res.send(JSON.stringify(yedek));
+    } catch (e) {
+        console.error('[yedek-al] HATA:', e.message);
+        res.status(500).send('Yedek alinamadi: ' + e.message);
+    }
+});
+
+// v4.16.47: GERI YUKLEME — yuklenen JSON yedegini uygular.
+//   mod 'birlestir' (varsayilan): ayni _id uzerine yazilir, digerleri korunur.
+//   mod 'sifirla': koleksiyonlar once TAMAMEN silinir, sonra yedek yazilir.
+router.post('/admin/yedek-geri-yukle', uploadYedek.single('yedekDosya'), async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        if (!req.file || !req.file.buffer) {
+            return res.send("<script>alert('Yedek dosyasi secilmedi.'); window.history.back();</script>");
+        }
+        const onay = (req.body.onayMetni || '').trim();
+        if (onay !== 'GERI YUKLE') {
+            return res.send("<script>alert('Onay metni hatali. Kutuya tam olarak: GERI YUKLE yazmalisiniz.'); window.history.back();</script>");
+        }
+        const mod = (req.body.yukleModu === 'sifirla') ? 'sifirla' : 'birlestir';
+
+        let yedek;
+        try {
+            yedek = JSON.parse(req.file.buffer.toString('utf8'));
+        } catch (pe) {
+            return res.send("<script>alert('Dosya okunamadi: gecerli bir JSON yedegi degil.'); window.history.back();</script>");
+        }
+
+        const { geriYukle } = require('../services/yedekleme');
+        const sonuc = await geriYukle(yedek, mod);
+
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Geri Yukleme Sonucu</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:820px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;background:#eee;color:#333;margin-top:18px;}</style></head><body>';
+        h += '<h2>♻️ Geri Yukleme Tamamlandi</h2>';
+        h += '<p class="ok">Yedek uygulandi. Mod: <b>' + (mod === 'sifirla' ? 'Sifirla ve yukle' : 'Birlestir (uzerine yaz)') + '</b>';
+        if (yedek && yedek.tarih) h += ' &middot; Yedek tarihi: ' + esc(yedek.tarih);
+        h += '</p>';
+        h += '<table><thead><tr><th>Koleksiyon</th><th>Kayit</th><th>Durum</th></tr></thead><tbody>';
+        sonuc.forEach(r => {
+            h += '<tr><td>' + esc(r.koleksiyon) + '</td><td>' + esc(r.adet) + '</td><td>' + esc(r.durum) + '</td></tr>';
+        });
+        h += '</tbody></table>';
+        h += '<p style="font-size:13px; color:#666; margin-top:14px;">Not: Siralamalar ve puanlar bir sonraki gece hesabinda ya da admin panelindeki "⏰ Hesapla" ile tazelenir.</p>';
+        h += '<a class="btn" href="/admin?mod=yedek">Yedekleme ekranina don</a>';
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[yedek-geri-yukle] HATA:', e.message);
+        res.status(500).send('Geri yukleme hatasi: ' + e.message);
+    }
+});
+
 router.post('/admin/duyuru-yayinla', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {

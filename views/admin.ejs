@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler', 'konuIzinleri', 'soruDagilim'];
     var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
     var iletisimModlari    = ['haberler', 'mesajlar'];
-    var sistemModlari      = ['sifirla', 'ayarlar', 'duyuru'];
+    var sistemModlari      = ['sifirla', 'ayarlar', 'duyuru', 'yedek'];
 
     var aktifGrup = 'icerik';
     if (kullaniciModlari.indexOf(mod) !== -1) aktifGrup = 'kullanicilar';
@@ -164,6 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="/admin/puan-simulasyon" class="admin-alt-link <%= mod==='puanSimulasyon'?'active':'' %>">📊 Puan Simülasyonu</a>
     <a href="/admin?mod=ayarlar" class="admin-alt-link <%= mod==='ayarlar'?'active':'' %>">⚙️ Ayarlar</a>
     <a href="/admin?mod=duyuru" class="admin-alt-link <%= mod==='duyuru'?'active':'' %>">📢 Duyuru</a>
+    <a href="/admin?mod=yedek" class="admin-alt-link <%= mod==='yedek'?'active':'' %>">💾 Yedekleme</a>
     <a href="/admin/sinif-atlat" class="admin-alt-link">🎓 Sınıf Atlatma</a>
     <a href="/admin?mod=sifirla" class="admin-alt-link danger <%= mod==='sifirla'?'active':'' %>">🗑️ Sıfırla</a>
   <% } %>
@@ -2448,6 +2449,45 @@ function gosterExcelHata(msg) {
     <% } %>
   </div>
 
+<% } else if (mod === 'yedek') { %>
+  <div class="admin-card" style="max-width:760px;">
+    <div class="admin-card-title">💾 Yedek Al</div>
+    <p style="font-size:13px; color:#555; line-height:1.7;">
+      Tüm veritabanını (kullanıcılar, sorular, cevap kayıtları, üniteler, oyun, ayarlar…)
+      tek bir <b>JSON dosyası</b> olarak indirir. Riskli bir işlem yapmadan önce (örn. sınıf
+      atlatma) mutlaka yedek alın.
+    </p>
+    <a href="/admin/yedek-al" class="btn btn-success" style="display:inline-block; padding:10px 24px; text-decoration:none;">⬇️ Yedeği İndir (JSON)</a>
+    <p style="font-size:12px; color:#888; margin-top:10px;">Veritabanı büyükse indirme birkaç saniye sürebilir. Dosyayı güvenli bir yerde saklayın.</p>
+  </div>
+
+  <div class="admin-card" style="max-width:760px; border:2px solid #ffcdd2;">
+    <div class="admin-card-title" style="color:#c62828;">♻️ Yedekten Geri Yükle</div>
+    <div style="background:#ffebee; border:1px solid #ef9a9a; border-radius:8px; padding:12px 14px; font-size:13px; color:#b71c1c; line-height:1.6; margin-bottom:14px;">
+      <b>Dikkat:</b> Bu işlem mevcut verilerin üzerine yazar ve <b>geri alınamaz</b>.
+      İşleme başlamadan önce mevcut durumun da yedeğini almanız önerilir.
+    </div>
+    <form method="POST" action="/admin/yedek-geri-yukle" enctype="multipart/form-data" onsubmit="return yedekOnayla();">
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Yedek dosyası (.json)</label>
+      <input type="file" name="yedekDosya" accept=".json,application/json" required style="font-size:13px; margin-bottom:16px;">
+
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Yükleme modu</label>
+      <label style="display:block; font-size:13px; margin-bottom:4px;"><input type="radio" name="yukleModu" value="birlestir" checked> <b>Birleştir</b> — aynı kayıtların üzerine yazılır, yedekte olmayan yeni kayıtlar korunur (daha güvenli)</label>
+      <label style="display:block; font-size:13px; margin-bottom:16px;"><input type="radio" name="yukleModu" value="sifirla"> <b>Sıfırla ve yükle</b> — koleksiyonlar önce tamamen silinir, sonra yedek yazılır (yedeğin birebir kopyası)</label>
+
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Onay</label>
+      <p style="font-size:12px; color:#888; margin:0 0 6px;">Devam etmek için kutuya tam olarak <b>GERI YUKLE</b> yazın.</p>
+      <input type="text" name="onayMetni" placeholder="GERI YUKLE" required style="width:220px; padding:8px 10px; font-size:14px; border:1px solid #ddd; border-radius:6px; margin-bottom:16px;">
+
+      <button type="submit" style="display:block; background:#c62828; color:#fff; border:none; border-radius:6px; padding:10px 24px; font-weight:600; cursor:pointer;">♻️ Geri Yükle</button>
+    </form>
+  </div>
+
+  <script>
+    function yedekOnayla(){
+      return confirm('Yedek geri yuklenecek ve mevcut verilerin uzerine yazilacak. Bu islem GERI ALINAMAZ. Devam edilsin mi?');
+    }
+  </script>
 <% } else if (mod === 'duyuru') { %>
   <% var _d = aktifDuyuru || null; %>
   <div class="admin-card" style="max-width:820px;">
