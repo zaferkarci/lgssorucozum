@@ -2010,6 +2010,91 @@ router.get('/admin/duplicate-telafi', async (req, res) => {
 //   cevaplardan yapılır). ESKİ CEVAP KAYITLARI SİLİNMEZ — soru istatistiklerini (zorluk,
 //   ortalama süre, doğru oranı) beslemeye devam eder. Oyun kaydı sınıf değiştiği için
 //   otomatik sıfırdan başlar (OyunOyuncu {sinif,kullaniciAdi} ikilisine bağlı).
+// v4.16.48: SINIF KURTARMA — v4.16.47'deki kaskad hatasi sonrasi eski sinif tespiti.
+//   Ogrencinin GECMIS cevap kayitlarindaki sorularin sinif bilgisinden (en cok cozdugu
+//   sinif) eski sinifi tahmin eder ve +1 atlatilmis halini hesaplar.
+//   Varsayilan kuru calisma; ?uygula=1 ile yazar.
+router.get('/admin/sinif-kurtar', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const HARIC_ROLLER = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
+
+        const sorular = await Soru.find({}, 'sinif').lean();
+        const soruSinif = new Map(sorular.map(s => [String(s._id), Number(s.sinif)]));
+
+        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC_ROLLER } }, 'kullaniciAdi sinif').lean();
+        const satirlar = [];
+
+        for (const u of kullanicilar) {
+            const kayitlar = await CevapKaydi.find({ kullaniciAdi: u.kullaniciAdi }, 'soruId').lean();
+            const sayac = {};
+            kayitlar.forEach(c => {
+                const sn = soruSinif.get(String(c.soruId));
+                if (Number.isFinite(sn) && sn >= 1 && sn <= 12) sayac[sn] = (sayac[sn] || 0) + 1;
+            });
+            const adaylar = Object.keys(sayac).map(k => ({ sinif: Number(k), adet: sayac[k] }))
+                                   .sort((a, b) => b.adet - a.adet);
+            if (!adaylar.length) {
+                satirlar.push({ ad: u.kullaniciAdi, simdiki: Number(u.sinif), tahmin: null, yeni: null, kanit: 0, not: 'cevap kaydi yok - dokunulmaz' });
+                continue;
+            }
+            const eski = adaylar[0].sinif;
+            const yeni = (eski >= 12) ? 13 : (eski + 1);
+            satirlar.push({
+                ad: u.kullaniciAdi, simdiki: Number(u.sinif), tahmin: eski, yeni,
+                kanit: adaylar[0].adet,
+                not: (Number(u.sinif) === yeni) ? 'zaten dogru' : 'duzeltilecek'
+            });
+        }
+
+        const duzeltilecek = satirlar.filter(r => r.not === 'duzeltilecek');
+        const dokunulmaz  = satirlar.filter(r => r.not !== 'duzeltilecek');
+
+        if (uygula) {
+            for (const r of duzeltilecek) {
+                await Kullanici.updateOne({ kullaniciAdi: r.ad }, { $set: { sinif: r.yeni } });
+            }
+        }
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Sinif Kurtarma</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;margin-right:8px;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}';
+        h += '.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>\u267b\ufe0f S\u0131n\u0131f Kurtarma (cevap ge\u00e7mi\u015finden)</h2>';
+
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + duzeltilecek.length + ' \u00f6\u011frencinin s\u0131n\u0131f\u0131 d\u00fczeltildi.</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU \u00c7ALI\u015eMA</b> (\u00f6nizleme). Hi\u00e7bir \u015fey de\u011fi\u015fmedi.</p>';
+        }
+        h += '<div class="ozet"><b>Nas\u0131l \u00e7al\u0131\u015f\u0131r:</b> Her \u00f6\u011frencinin ge\u00e7mi\u015f cevap kay\u0131tlar\u0131ndaki sorular\u0131n s\u0131n\u0131f seviyesine bak\u0131l\u0131r; en \u00e7ok \u00e7\u00f6zd\u00fc\u011f\u00fc seviye eski s\u0131n\u0131f\u0131 kabul edilir, \u00fczerine +1 eklenerek atlat\u0131lm\u0131\u015f hali yaz\u0131l\u0131r. Hi\u00e7 cevap kayd\u0131 olmayanlara <b>dokunulmaz</b> (elle d\u00fczeltilmeli).<br>';
+        h += '<b>\u00d6zet:</b> ' + duzeltilecek.length + ' d\u00fczeltilecek &middot; ' + dokunulmaz.length + ' dokunulmayacak.</div>';
+
+        h += '<table><thead><tr><th>Kullan\u0131c\u0131</th><th>\u015eu anki</th><th>Tahmini eski</th><th>Olmas\u0131 gereken</th><th>Kan\u0131t (cevap)</th><th>Durum</th></tr></thead><tbody>';
+        satirlar.sort((a, b) => (a.not === 'duzeltilecek' ? -1 : 1) - (b.not === 'duzeltilecek' ? -1 : 1) || String(a.ad).localeCompare(String(b.ad), 'tr'));
+        satirlar.forEach(r => {
+            const renk = r.not === 'duzeltilecek' ? '#c62828' : '#999';
+            h += '<tr><td>' + esc(r.ad) + '</td><td>' + esc(r.simdiki === 13 ? 'Mezun' : r.simdiki) + '</td><td>' + esc(r.tahmin == null ? '-' : r.tahmin) + '</td><td><b>' + esc(r.yeni == null ? '-' : (r.yeni === 13 ? 'Mezun' : r.yeni)) + '</b></td><td>' + esc(r.kanit) + '</td><td style="color:' + renk + ';">' + esc(r.not) + '</td></tr>';
+        });
+        h += '</tbody></table>';
+
+        if (!uygula && duzeltilecek.length) {
+            h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/sinif-kurtar?uygula=1" onclick="return confirm(\'' + duzeltilecek.length + ' ogrencinin sinifi duzeltilecek. Devam?\');">\u267b\ufe0f KURTARMAYI UYGULA</a> <a class="btn geri" href="/admin?mod=yedek">Geri</a></p>';
+        }
+        h += '<p style="font-size:12px;color:#888;margin-top:14px;">Not: Puan ve ders istatistikleri s\u0131n\u0131f atlatmada zaten s\u0131f\u0131rlan\u0131yordu (beklenen davran\u0131\u015f). Bu ara\u00e7 yaln\u0131zca S\u0131n\u0131f alan\u0131n\u0131 onar\u0131r.</p>';
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[sinif-kurtar] HATA:', e.message);
+        res.status(500).send('Kurtarma hatasi: ' + e.message);
+    }
+});
+
 router.get('/admin/sinif-atlat', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
@@ -2045,7 +2130,12 @@ router.get('/admin/sinif-atlat', async (req, res) => {
                 puan: 0, soruIndex: 0, dersPuanlari: [], gecilenSorular: [],
                 sonSinifAtlamaTarihi: simdi, siralamaCache: null, siralamaCacheTarih: null
             };
-            for (const g of grupListe) {
+            // v4.16.48 KRİTİK DÜZELTME: sınıfları BÜYÜKTEN KÜÇÜĞE işle.
+            //   Küçükten büyüğe gidilirse 5->6 yapıldıktan sonra 6->7 adımı, az önce
+            //   6'ya taşınanları da yakalar ve herkes zincirleme en üst sınıfa itilir.
+            //   Azalan sırada bu çakışma imkansızdır (hedef sınıf henüz işlenmiştir).
+            const azalanGruplar = [...grupListe].sort((a, b) => b.eskiSinif - a.eskiSinif);
+            for (const g of azalanGruplar) {
                 const set = Object.assign({ sinif: g.yeniSinif }, resetAlan);
                 if (g.okulKesilecek) { set.okul = ''; set.sube = ''; }
                 await Kullanici.updateMany(
