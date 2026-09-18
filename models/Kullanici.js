@@ -18,6 +18,9 @@ const KullaniciSchema = new mongoose.Schema({
     //   kullanicilarda bir daha gosterilmez.
     oyunDuyuruGoruldu: { type: Boolean, default: false },
     sube: { type: String, default: '' },
+    // v4.16.49: Üyelik tipi — şimdilik yalnızca GÖSTERİM amaçlı; hiçbir davranışı
+    //   (soru limiti, sıralama, erişim) etkilemez. 'standart' | 'premium'
+    uyelikTipi: { type: String, default: 'standart' },
     soruIndex: { type: Number, default: 0 },
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },

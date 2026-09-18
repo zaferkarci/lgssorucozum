@@ -149,8 +149,11 @@ router.get('/admin', async (req, res) => {
     const yasakliKelimeler = (mod === 'kullanicilar' && YasakliKelime) ? await YasakliKelime.find().sort({ _id: -1 }).lean() : [];
     // v4.16.40: Sistem>Ayarlar — sıralama 30 günlük ortalama eşiği
     let ayarMinOrt30 = -1;
+    let ayarStandartLimit = 2; // v4.16.50: varsayilan 2 soru/gun
     if (mod === 'ayarlar') {
         try { const _a = await Ayar.findOne({ anahtar: 'siralama_min_ort30' }).lean(); if (_a && typeof _a.deger === 'number') ayarMinOrt30 = _a.deger; } catch (e) {}
+        // v4.16.50: Standart uyeler icin gunluk toplam soru limiti
+        try { const _b = await Ayar.findOne({ anahtar: 'standart_gunluk_limit' }).lean(); if (_b && typeof _b.deger === 'number') ayarStandartLimit = _b.deger; } catch (e) {}
     }
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
@@ -236,7 +239,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, aktifDuyuru, duyuruOgrenciler,
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, ayarStandartLimit, aktifDuyuru, duyuruOgrenciler,
         aktiviteOzetiData
     });
     } catch (err) {
@@ -459,6 +462,14 @@ router.post('/admin/ayar-kaydet', async (req, res) => {
         let deger = (ham === '') ? -1 : parseFloat(ham);
         if (!isFinite(deger)) deger = -1;
         await Ayar.updateOne({ anahtar: 'siralama_min_ort30' }, { $set: { deger: deger, guncelleme: new Date() } }, { upsert: true });
+
+        // v4.16.50: Standart uye gunluk toplam soru limiti (1-500, gecersizse 2)
+        let hamLimit = (req.body.standartGunlukLimit == null ? '' : String(req.body.standartGunlukLimit)).trim();
+        let limit = parseInt(hamLimit, 10);
+        if (!Number.isFinite(limit) || limit < 1) limit = 2;
+        if (limit > 500) limit = 500;
+        await Ayar.updateOne({ anahtar: 'standart_gunluk_limit' }, { $set: { deger: limit, guncelleme: new Date() } }, { upsert: true });
+
         res.redirect('/admin?mod=ayarlar&kaydedildi=1');
     } catch (e) {
         console.error('[ayar-kaydet] HATA:', e.message);
@@ -1502,7 +1513,9 @@ router.post('/kullanici-guncelle', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
         const { kullaniciAdi, il, ilce, okul, sinif, sube } = req.body;
-        await Kullanici.updateOne({ kullaniciAdi }, { il, ilce, okul, sinif: parseInt(sinif)||8, sube: sube||'' });
+        // v4.16.49: uyelikTipi — yalnizca gecerli iki degerden biri kabul edilir.
+        const uyelikTipi = (req.body.uyelikTipi === 'premium') ? 'premium' : 'standart';
+        await Kullanici.updateOne({ kullaniciAdi }, { il, ilce, okul, sinif: parseInt(sinif)||8, sube: sube||'', uyelikTipi });
         res.redirect('/kullanici-detay?kullaniciAdi=' + encodeURIComponent(kullaniciAdi));
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });

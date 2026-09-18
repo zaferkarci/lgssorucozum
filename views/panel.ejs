@@ -276,7 +276,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="height:100%; width:<%= toplamIlerleme %>%; background:<%= anaRenk %>; transition:width 0.3s;"></div>
       </div>
 
-      <!-- Ders ders ilerleme -->
+      <!-- Ders ders ilerleme (v4.16.50: standart uyede ders bazli hedef yok, gizlenir) -->
+      <% if (!ghd.standartMod) { %>
       <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.4px; font-weight:600; margin-bottom:10px;">Ders ders ilerleme</div>
 
       <div style="display:flex; flex-direction:column; gap:8px;">
@@ -298,6 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         <% }); %>
       </div>
+      <% } %>
 
       <!-- Alt: ortalama + kalan -->
       <div style="margin-top:16px; padding-top:14px; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -1138,7 +1140,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="profil-banner-sol">
       <div class="profil-avatar-yeni"><%= k.kullaniciAdi.substring(0,2).toUpperCase() %></div>
       <div>
-        <div class="profil-banner-isim"><%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> <span style="font-size:12px; background:#f3e5f5; color:#6a1b9a; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">👩‍🏫 Öğretmen</span><% } else if (k.rol === 'kurumsal') { %> <span style="font-size:12px; background:#e0f2f1; color:#00695c; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">🏛️ Kurumsal</span><% } %></div>
+        <div class="profil-banner-isim"><%= k.kullaniciAdi %><% if (k.rol === 'ogretmen') { %> <span style="font-size:12px; background:#f3e5f5; color:#6a1b9a; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">👩‍🏫 Öğretmen</span><% } else if (k.rol === 'kurumsal') { %> <span style="font-size:12px; background:#e0f2f1; color:#00695c; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">🏛️ Kurumsal</span><% } else if (k.rol === 'ogrenci' || k.rol === 'demo') { %><% if (k.uyelikTipi === 'premium') { %> <span style="font-size:12px; background:linear-gradient(135deg,#ffd54f,#ffb300); color:#5d4037; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:700;">⭐ Premium Üye</span><% } else { %> <span style="font-size:12px; background:#eceff1; color:#546e7a; padding:3px 10px; border-radius:10px; margin-left:8px; font-weight:600;">Standart Üye</span><% } %><% } %></div>
         <%
           // v4.3.10: Eğer kullanıcının bu kuruma yönelik isteği var ve onaylanmadıysa
           // (beklemede/red/cikarildi), okul beyanı ve sınıf bilgileri gizli kalır.
@@ -1216,6 +1218,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <!-- Öğretmen: sınıf/şube yok, ek alan da yok -->
           <% } else if (adminGorunum) { %>
             <% if (k.rol !== 'veli') { %><div class="info-row"><span class="info-label">Sınıf / Şube</span><span class="info-val"><%= Number(k.sinif)===13 ? 'Mezun' : (k.sinif + (k.sube ? '/' + k.sube : '')) %></span></div><% } %>
+            <% if (k.rol === 'ogrenci' || k.rol === 'demo') { %><div class="info-row"><span class="info-label">Üyelik</span><span class="info-val"><% if (k.uyelikTipi === 'premium') { %><b style="color:#ef6c00;">⭐ Premium</b><% } else { %>Standart<% } %></span></div><% } %>
           <% } else { %>
           <form method="POST" action="/profil/sube-guncelle" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
             <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">

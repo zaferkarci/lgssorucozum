@@ -106,6 +106,13 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
           <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
           <% if (k.rol !== 'ogretmen') { %>
           <div class="form-alan">
+            <label>Üyelik Tipi</label>
+            <select name="uyelikTipi">
+              <option value="standart" <%= k.uyelikTipi !== 'premium' ? 'selected' : '' %>>Standart Üye</option>
+              <option value="premium" <%= k.uyelikTipi === 'premium' ? 'selected' : '' %>>⭐ Premium Üye</option>
+            </select>
+          </div>
+          <div class="form-alan">
             <label>Sınıf</label>
             <select name="sinif">
               <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>

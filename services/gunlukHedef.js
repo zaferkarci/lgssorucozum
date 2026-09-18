@@ -77,8 +77,11 @@ async function gunlukHedefHesap(kullaniciAdi) {
     //   bolunup haksiz dusuk ortalama almasin diye bolen = min(30, uyelik gunu).
     //   Uyelik tarihi _id'nin olusturulma zamanindan alinir (ayri alan yok).
     let bolen = ARALIK_GUN;
+    // v4.16.50: uyelikTipi de ayni sorgudan okunur (ek sorgu yok).
+    let uyelikTipi = 'standart';
     try {
-        const ku = await Kullanici.findOne({ kullaniciAdi }, '_id').lean();
+        const ku = await Kullanici.findOne({ kullaniciAdi }, '_id uyelikTipi').lean();
+        if (ku && ku.uyelikTipi === 'premium') uyelikTipi = 'premium';
         if (ku && ku._id && typeof ku._id.getTimestamp === 'function') {
             const uyelik = ku._id.getTimestamp();
             const gunFarki = Math.ceil((Date.now() - uyelik.getTime()) / (24 * 60 * 60 * 1000));
@@ -108,6 +111,16 @@ async function gunlukHedefHesap(kullaniciAdi) {
     //   - Bilinen LGS dersleri doğru sıra+katsayı ile önce gelir; ünitede olan
     //     diğer (özel) dersler sona eklenir (katsayı varsayılan 1).
     //   - Hiç ünite yoksa (uç durum) eski 6 LGS dersine güvenli geri dönüş.
+    // v4.16.50: Standart uyeler icin Sistem>Ayarlar'daki gunluk toplam limit.
+    let standartLimit = 2;
+    if (uyelikTipi !== 'premium') {
+        try {
+            const Ayar = require('../models/Ayar');
+            const a = await Ayar.findOne({ anahtar: 'standart_gunluk_limit' }).lean();
+            if (a && typeof a.deger === 'number' && a.deger >= 1) standartLimit = Math.floor(a.deger);
+        } catch (e) { standartLimit = 2; }
+    }
+
     let aktifDersler;
     try {
         const uniteDersleri = await Unite.distinct('ders');
@@ -162,17 +175,38 @@ async function gunlukHedefHesap(kullaniciAdi) {
         };
     });
 
-    const toplamHedef = dersler.reduce((t, d) => t + d.hedef, 0);
     const toplamBugun = dersler.reduce((t, d) => t + d.bugunCozulen, 0);
-    const toplamTamamlandi = dersler.every(d => d.tamamlandi);
     const genelOrtalama = Math.round((toplamSon30 / bolen) * 10) / 10;
+
+    // v4.16.50: STANDART uye -> ders bazli hedef yok; TUM derslerden toplam
+    //   gunluk limit gecerli (Sistem>Ayarlar). PREMIUM uye -> eski davranis:
+    //   her ders icin max(2, floor(30g ortalama)+1).
+    if (uyelikTipi !== 'premium') {
+        const derslerStandart = dersler.map(d => Object.assign({}, d, {
+            hedef: 0, kalan: 0, tamamlandi: false, ilerleme: 0
+        }));
+        return {
+            dersler: derslerStandart,
+            toplamHedef: standartLimit,
+            toplamBugun,
+            toplamTamamlandi: toplamBugun >= standartLimit,
+            genelOrtalama,
+            standartMod: true,
+            gunlukLimit: standartLimit
+        };
+    }
+
+    const toplamHedef = dersler.reduce((t, d) => t + d.hedef, 0);
+    const toplamTamamlandi = dersler.every(d => d.tamamlandi);
 
     return {
         dersler,
         toplamHedef,
         toplamBugun,
         toplamTamamlandi,
-        genelOrtalama
+        genelOrtalama,
+        standartMod: false,
+        gunlukLimit: 0
     };
 }
 
