@@ -2027,6 +2027,86 @@ router.get('/admin/duplicate-telafi', async (req, res) => {
 //   Ogrencinin GECMIS cevap kayitlarindaki sorularin sinif bilgisinden (en cok cozdugu
 //   sinif) eski sinifi tahmin eder ve +1 atlatilmis halini hesaplar.
 //   Varsayilan kuru calisma; ?uygula=1 ile yazar.
+// v4.16.52: OYUN DUNYA TEMIZLIGI — sahibi artik o sinifta olmayan hucre/oyuncu
+//   kayitlarini bulur ve siler. (Sinif atlatma oncesi surumlerde bu temizlik
+//   yapilmadigi icin eski dunyalarda "hayalet topraklar" kalmisti.)
+//   Varsayilan kuru calisma; ?uygula=1 ile siler.
+router.get('/admin/oyun-temizle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        const kullanicilar = await Kullanici.find({}, 'kullaniciAdi sinif').lean();
+        const guncelSinif = new Map(kullanicilar.map(u => [u.kullaniciAdi, String(u.sinif)]));
+
+        const hucreler = await OyunHucre.find({}, 'sinif sahip').lean();
+        const oyuncular = await OyunOyuncu.find({}, 'sinif kullaniciAdi').lean();
+
+        // sinif|sahip -> { sinif, sahip, hucre, sebep }
+        const hatali = {};
+        const ekle = (sinif, ad, tip) => {
+            const gs = guncelSinif.get(ad);
+            const sebep = (gs === undefined) ? 'kullanici yok' : 'simdi ' + (gs === '13' ? 'Mezun' : gs + '. sinif');
+            if (gs !== undefined && gs === String(sinif)) return; // dogru dunyada, dokunma
+            const key = String(sinif) + '|' + ad;
+            if (!hatali[key]) hatali[key] = { sinif: String(sinif), sahip: ad, hucre: 0, oyuncuKaydi: false, sebep };
+            if (tip === 'hucre') hatali[key].hucre++;
+            else hatali[key].oyuncuKaydi = true;
+        };
+        hucreler.forEach(h => ekle(h.sinif, h.sahip, 'hucre'));
+        oyuncular.forEach(o => ekle(o.sinif, o.kullaniciAdi, 'oyuncu'));
+
+        const liste = Object.values(hatali).sort((a, b) =>
+            (a.sinif.localeCompare(b.sinif)) || b.hucre - a.hucre);
+        const toplamHucre = liste.reduce((t, r) => t + r.hucre, 0);
+        const toplamOyuncu = liste.filter(r => r.oyuncuKaydi).length;
+
+        if (uygula) {
+            for (const r of liste) {
+                if (r.hucre > 0) await OyunHucre.deleteMany({ sinif: r.sinif, sahip: r.sahip });
+                if (r.oyuncuKaydi) await OyunOyuncu.deleteMany({ sinif: r.sinif, kullaniciAdi: r.sahip });
+            }
+        }
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Oyun Temizligi</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;margin-right:8px;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}';
+        h += '.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>\U0001f9f9 Oyun D\u00fcnya Temizli\u011fi</h2>';
+
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + toplamHucre + ' h\u00fccre ve ' + toplamOyuncu + ' oyuncu kayd\u0131 temizlendi.</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU \u00c7ALI\u015eMA</b> (\u00f6nizleme). Hi\u00e7bir \u015fey de\u011fi\u015fmedi.</p>';
+        }
+
+        h += '<div class="ozet"><b>Ne yap\u0131yor:</b> Bir \u00f6\u011frencinin art\u0131k bulunmad\u0131\u011f\u0131 s\u0131n\u0131f d\u00fcnyas\u0131ndaki fethedilmi\u015f h\u00fccreleri ve oyuncu kayd\u0131n\u0131 siler. \u00d6rnek: 6. s\u0131n\u0131ftan 7\'ye ge\u00e7en \u00f6\u011frencinin 6. s\u0131n\u0131f haritas\u0131ndaki topraklar\u0131 bo\u015fa \u00e7\u0131kar\u0131l\u0131r. \u00d6\u011frencinin <b>kendi g\u00fcncel s\u0131n\u0131f\u0131ndaki</b> ilerlemesine dokunulmaz.<br>';
+        h += '<b>\u00d6zet:</b> ' + liste.length + ' kay\u0131t grubu &middot; ' + toplamHucre + ' h\u00fccre &middot; ' + toplamOyuncu + ' oyuncu kayd\u0131.</div>';
+
+        if (!liste.length) {
+            h += '<p style="color:#2e7d32;">Temizlenecek bir \u015fey yok. Oyun d\u00fcnyalar\u0131 tutarl\u0131.</p>';
+        } else {
+            h += '<table><thead><tr><th>D\u00fcnya (s\u0131n\u0131f)</th><th>Oyuncu</th><th>H\u00fccre</th><th>Oyuncu kayd\u0131</th><th>Sebep</th></tr></thead><tbody>';
+            liste.forEach(r => {
+                h += '<tr><td>' + esc(r.sinif === '13' ? 'Mezun' : r.sinif + '. s\u0131n\u0131f') + '</td><td>' + esc(r.sahip) + '</td><td>' + esc(r.hucre) + '</td><td>' + (r.oyuncuKaydi ? 'var' : '-') + '</td><td style="color:#888;">' + esc(r.sebep) + '</td></tr>';
+            });
+            h += '</tbody></table>';
+            if (!uygula) {
+                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/oyun-temizle?uygula=1" onclick="return confirm(\'' + toplamHucre + ' hucre ve ' + toplamOyuncu + ' oyuncu kaydi silinecek. Devam?\');">\U0001f9f9 TEM\u0130ZL\u0130\u011e\u0130 UYGULA</a> <a class="btn geri" href="/admin?mod=duello">Geri</a></p>';
+            }
+        }
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[oyun-temizle] HATA:', e.message);
+        res.status(500).send('Oyun temizligi hatasi: ' + e.message);
+    }
+});
+
 router.get('/admin/sinif-kurtar', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
@@ -2115,7 +2195,7 @@ router.get('/admin/sinif-atlat', async (req, res) => {
         const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const HARIC_ROLLER = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
 
-        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC_ROLLER } }, 'sinif rol').lean();
+        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC_ROLLER } }, 'kullaniciAdi sinif rol').lean();
 
         const gruplar = {}; // eskiSinif -> { eskiSinif, yeniSinif, sayi }
         let mezunSayisi = 0, gecersizSayisi = 0;
@@ -2129,8 +2209,9 @@ router.get('/admin/sinif-atlat', async (req, res) => {
             if (s === 13) { mezunSayisi++; return; }
             const yeni = (s >= 12) ? 13 : (s + 1);
             const key = String(s);
-            if (!gruplar[key]) gruplar[key] = { eskiSinif: s, yeniSinif: yeni, sayi: 0, okulKesilecek: OKUL_GECIS_SEVIYELERI.includes(yeni) };
+            if (!gruplar[key]) gruplar[key] = { eskiSinif: s, yeniSinif: yeni, sayi: 0, adlar: [], okulKesilecek: OKUL_GECIS_SEVIYELERI.includes(yeni) };
             gruplar[key].sayi++;
+            if (u.kullaniciAdi) gruplar[key].adlar.push(u.kullaniciAdi);
         });
         const grupListe = Object.values(gruplar).sort((a, b) => a.eskiSinif - b.eskiSinif);
         const toplamAtlayacak = grupListe.reduce((t, g) => t + g.sayi, 0);
@@ -2155,6 +2236,15 @@ router.get('/admin/sinif-atlat', async (req, res) => {
                     { rol: { $nin: HARIC_ROLLER }, sinif: g.eskiSinif },
                     { $set: set }
                 );
+                // v4.16.52: OYUN SIFIRLAMA — eski sinif dunyasindaki hucreler ve
+                //   oyuncu kaydi silinir. Aksi halde ogrenci yeni dunyada sifirdan
+                //   baslasa da ESKI dunyada topraklari uzerinde kalmaya devam ediyordu.
+                if (g.adlar && g.adlar.length) {
+                    try {
+                        await OyunHucre.deleteMany({ sahip: { $in: g.adlar } });
+                        await OyunOyuncu.deleteMany({ kullaniciAdi: { $in: g.adlar } });
+                    } catch (oe) { console.error('[sinif-atlat oyun temizlik]', oe.message); }
+                }
             }
         }
 

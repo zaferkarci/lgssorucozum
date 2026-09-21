@@ -703,7 +703,12 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         && gunlukHedefData && (gunlukHedefData.toplamHedef || 0) > 0
         && (gunlukHedefData.toplamBugun || 0) >= gunlukHedefData.toplamHedef) {
         const fazla = (gunlukHedefData.toplamBugun || 0) - (gunlukHedefData.toplamHedef || 0);
-        if (fazla >= 1 || req.query.bitir === '1') {
+        // v4.16.53: STANDART uyede "+1 soru" teklifi YOK — limit dolunca dogrudan durur.
+        //   (+1 teklifi premium icin tasarlanmis tek seferlik bonus; ?ekstra=1 de yok sayilir.)
+        if (gunlukHedefData.standartMod) {
+            sorular = [];
+            gunlukHedefDolduMu = true;
+        } else if (fazla >= 1 || req.query.bitir === '1') {
             sorular = [];
             gunlukHedefDolduMu = true;
         } else if (req.query.ekstra === '1') {
@@ -1329,6 +1334,24 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) +
                     '?basla=true&sonuc=' + (sonKayit.dogruMu ? 'dogru' : 'yanlis') +
                     '&z=' + encodeURIComponent(zD.toFixed(1)));
+            }
+        }
+
+        // v4.16.53: STANDART UYE GUNLUK LIMIT — sunucu tarafi koruma.
+        //   Soru servisi limit dolunca soru vermiyor; ama limit dolmadan once acilmis
+        //   sayfadan cevap gonderilmesini de burada durduruyoruz. Analiz (seviye
+        //   tespit) cevaplari hedefe sayilmadigi icin MUAF tutulur.
+        if (s && k && k.rol === 'ogrenci' && k.uyelikTipi !== 'premium') {
+            let analizde = false;
+            try { analizde = await analizModundaMi(k); } catch (e) { analizde = false; }
+            if (!analizde) {
+                try {
+                    const { gunlukHedefHesap } = require('../services/gunlukHedef');
+                    const ghd = await gunlukHedefHesap(k.kullaniciAdi);
+                    if (ghd && ghd.standartMod && (ghd.toplamBugun || 0) >= (ghd.toplamHedef || 0)) {
+                        return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=soru&bitir=1');
+                    }
+                } catch (e) { console.error('[cevap standart limit]', e.message); }
             }
         }
 
