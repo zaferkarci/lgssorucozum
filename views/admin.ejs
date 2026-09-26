@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var icerikModlari      = ['soruListesi', 'zorlukRapor', 'soruEkle', 'pdfYukle', 'uniteler', 'konuIzinleri', 'soruDagilim'];
     var kullaniciModlari   = ['kullanicilar', 'referans', 'okullar'];
     var iletisimModlari    = ['haberler', 'mesajlar'];
-    var sistemModlari      = ['sifirla', 'ayarlar', 'duyuru', 'yedek'];
+    var sistemModlari      = ['sifirla', 'ayarlar', 'ayar-siralama', 'ayar-limit', 'ayar-tam-ogrenme', 'duyuru', 'yedek'];
 
     var aktifGrup = 'icerik';
     if (kullaniciModlari.indexOf(mod) !== -1) aktifGrup = 'kullanicilar';
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </a>
   <% } else if (aktifGrup === 'sistem') { %>
     <a href="/admin/puan-simulasyon" class="admin-alt-link <%= mod==='puanSimulasyon'?'active':'' %>">📊 Puan Simülasyonu</a>
-    <a href="/admin?mod=ayarlar" class="admin-alt-link <%= mod==='ayarlar'?'active':'' %>">⚙️ Ayarlar</a>
+    <a href="/admin?mod=ayarlar" class="admin-alt-link <%= (mod==='ayarlar'||mod==='ayar-siralama'||mod==='ayar-limit'||mod==='ayar-tam-ogrenme')?'active':'' %>">⚙️ Ayarlar</a>
     <a href="/admin?mod=duyuru" class="admin-alt-link <%= mod==='duyuru'?'active':'' %>">📢 Duyuru</a>
     <a href="/admin?mod=yedek" class="admin-alt-link <%= mod==='yedek'?'active':'' %>">💾 Yedekleme</a>
     <a href="/admin/sinif-atlat" class="admin-alt-link">🎓 Sınıf Atlatma</a>
@@ -2583,34 +2583,147 @@ function gosterExcelHata(msg) {
     if (location.search.indexOf('kaldirildi=1') !== -1) { alert('Duyuru yayından kaldırıldı.'); }
   </script>
 <% } else if (mod === 'ayarlar') { %>
+  <% var _esikAcik = (typeof ayarMinOrt30 !== 'undefined' && ayarMinOrt30 != null && ayarMinOrt30 >= 0); %>
+  <% var _stdL = (typeof ayarStandartLimit !== 'undefined' && ayarStandartLimit) ? ayarStandartLimit : 2; %>
+  <% var _anaL = (typeof ayarAnalizLimit !== 'undefined' && ayarAnalizLimit) ? ayarAnalizLimit : 20; %>
+  <% var _tamSoru = (typeof ayarTamSoru !== 'undefined' && ayarTamSoru != null) ? ayarTamSoru : 10; %>
+  <% var _tamEsik = (typeof ayarTamEsik !== 'undefined' && ayarTamEsik) ? ayarTamEsik : 85; %>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; max-width:900px;">
+
+    <a href="/admin?mod=ayar-siralama" style="text-decoration:none; color:inherit;">
+      <div class="admin-card" style="height:100%; cursor:pointer; transition:box-shadow .15s, transform .15s;" onmouseover="this.style.boxShadow='0 6px 18px rgba(0,0,0,.10)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.boxShadow=''; this.style.transform='';">
+        <div class="admin-card-title">⚙️ Sıralama Ayarları</div>
+        <p style="font-size:13px; color:#555; line-height:1.6; margin-top:4px;">
+          30 günlük ortalaması belirlediğin değerin altında kalan öğrenciler sıralamalarda gösterilmez.
+          Böylece bir kez birkaç soru çözüp pasif kalanlar sıralamada takılı kalmaz.
+        </p>
+        <div style="margin-top:12px; font-size:13px;">
+          <% if (_esikAcik) { %>
+            <span style="background:#ffebee; color:#c62828; padding:3px 10px; border-radius:10px; font-weight:600;">AÇIK</span>
+            <span style="color:#666; margin-left:6px;">eşik: <b><%= ayarMinOrt30 %></b></span>
+          <% } else { %>
+            <span style="background:#e8f5e9; color:#2e7d32; padding:3px 10px; border-radius:10px; font-weight:600;">KAPALI</span>
+            <span style="color:#666; margin-left:6px;">herkes gösteriliyor</span>
+          <% } %>
+        </div>
+        <div style="margin-top:14px; color:#1a73e8; font-weight:600; font-size:13px;">Düzenle →</div>
+      </div>
+    </a>
+
+    <a href="/admin?mod=ayar-limit" style="text-decoration:none; color:inherit;">
+      <div class="admin-card" style="height:100%; cursor:pointer; transition:box-shadow .15s, transform .15s;" onmouseover="this.style.boxShadow='0 6px 18px rgba(0,0,0,.10)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.boxShadow=''; this.style.transform='';">
+        <div class="admin-card-title">📚 Günlük Soru Limitleri</div>
+        <p style="font-size:13px; color:#555; line-height:1.6; margin-top:4px;">
+          Standart üyelerin tüm derslerden toplam günlük soru hakkı ve seviye tespiti (analiz)
+          sürerken geçerli olan ayrı limit. Premium üyeler bundan etkilenmez.
+        </p>
+        <div style="margin-top:12px; font-size:13px; color:#666;">
+          Normal: <b style="color:#1a2236;"><%= _stdL %></b> soru/gün
+          &nbsp;&middot;&nbsp; Analizde: <b style="color:#1a2236;"><%= _anaL %></b> soru/gün
+        </div>
+        <div style="margin-top:14px; color:#1a73e8; font-weight:600; font-size:13px;">Düzenle →</div>
+      </div>
+    </a>
+
+    <a href="/admin?mod=ayar-tam-ogrenme" style="text-decoration:none; color:inherit;">
+      <div class="admin-card" style="height:100%; cursor:pointer; transition:box-shadow .15s, transform .15s;" onmouseover="this.style.boxShadow='0 6px 18px rgba(0,0,0,.10)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.boxShadow=''; this.style.transform='';">
+        <div class="admin-card-title">🎯 Tam Öğrenme</div>
+        <p style="font-size:13px; color:#555; line-height:1.6; margin-top:4px;">
+          1. ünite 1. konudan başlayarak her konuyu hedef başarıyla tamamlatan çalışma modu.
+          Her blok sonunda eski konulardan tekrar sorusu gelir.
+        </p>
+        <div style="margin-top:12px; font-size:13px;">
+          <% if (_tamSoru > 0) { %>
+            <span style="background:#e3f2fd; color:#1565c0; padding:3px 10px; border-radius:10px; font-weight:600;">AÇIK</span>
+            <span style="color:#666; margin-left:6px;">konu başına <b><%= _tamSoru %></b> soru &middot; eşik <b>%<%= _tamEsik %></b></span>
+          <% } else { %>
+            <span style="background:#eceff1; color:#546e7a; padding:3px 10px; border-radius:10px; font-weight:600;">PASİF</span>
+            <span style="color:#666; margin-left:6px;">öğrencilere gösterilmez</span>
+          <% } %>
+        </div>
+        <div style="margin-top:14px; color:#1a73e8; font-weight:600; font-size:13px;">Düzenle →</div>
+      </div>
+    </a>
+
+  </div>
+  <script>
+    if (location.search.indexOf('kaydedildi=1') !== -1) { alert('Ayar kaydedildi.'); }
+  </script>
+
+<% } else if (mod === 'ayar-tam-ogrenme') { %>
+  <% var _tamSoru = (typeof ayarTamSoru !== 'undefined' && ayarTamSoru != null) ? ayarTamSoru : 10; %>
+  <% var _tamEsik = (typeof ayarTamEsik !== 'undefined' && ayarTamEsik) ? ayarTamEsik : 85; %>
   <div class="admin-card" style="max-width:680px;">
-    <div class="admin-card-title">⚙️ Sıralama Ayarları</div>
+    <a href="/admin?mod=ayarlar" style="font-size:13px; color:#1a73e8; text-decoration:none;">← Ayarlar</a>
+    <div class="admin-card-title" style="margin-top:10px;">🎯 Tam Öğrenme</div>
+    <p style="font-size:13px; color:#555; line-height:1.7;">
+      Öğrenci seçtiği derste <b>1. ünitenin 1. konusundan</b> başlar; sorular kolaydan zora gelir.
+      Bir konuda hedef soru sayısı tamamlandığında başarısı eşiğin üzerindeyse bir sonraki konuya geçer.
+      Her blok sonunda, tamamlanan konulardan <b>2’şer tekrar sorusu</b> gelir; bir konu eşiğin altına
+      düşerse sıra tekrar o konuya döner. Böylece tüm konular hedef başarıyla kapanır.
+    </p>
+    <form method="POST" action="/admin/ayar-kaydet" style="margin-top:10px;">
+      <input type="hidden" name="donus" value="/admin?mod=ayar-tam-ogrenme">
+      <label style="font-size:14px; display:block; margin-bottom:10px;">
+        Konu başına soru sayısı:
+        <input type="number" name="tamOgrenmeSoru" min="0" max="200" value="<%= _tamSoru %>" style="width:110px; padding:7px 10px; margin-left:8px; font-size:15px;">
+      </label>
+      <div style="font-size:12px; color:#888; margin-bottom:18px;"><b>0</b> yazarsan özellik <b>pasif</b> olur ve kart öğrencilere gösterilmez. Varsayılan: 10.</div>
+      <label style="font-size:14px; display:block; margin-bottom:10px;">
+        Başarı eşiği (%):
+        <input type="number" name="tamOgrenmeEsik" min="1" max="100" value="<%= _tamEsik %>" style="width:110px; padding:7px 10px; margin-left:8px; font-size:15px;">
+      </label>
+      <div style="font-size:12px; color:#888; margin-bottom:18px;">Konunun tamamlanmış sayılması için gereken başarı yüzdesi. Varsayılan: 85.</div>
+      <button type="submit" class="btn btn-success" style="padding:8px 22px;">💾 Kaydet</button>
+    </form>
+    <p style="font-size:12px; color:#999; margin-top:14px;">Not: Başarı yüzdesi, öğrencinin o konudaki <b>tüm</b> cevapları üzerinden hesaplanır. Bir konuda yayındaki soru sayısı hedeften azsa, o konudaki tüm sorular çözüldüğünde konu tamamlanmış sayılır.</p>
+  </div>
+  <script>
+    if (location.search.indexOf('kaydedildi=1') !== -1) { alert('Ayar kaydedildi.'); }
+  </script>
+
+<% } else if (mod === 'ayar-siralama') { %>
+  <div class="admin-card" style="max-width:680px;">
+    <a href="/admin?mod=ayarlar" style="font-size:13px; color:#1a73e8; text-decoration:none;">← Ayarlar</a>
+    <div class="admin-card-title" style="margin-top:10px;">⚙️ Sıralama Ayarları</div>
     <p style="font-size:13px; color:#555; line-height:1.7;">
       <b>30 günlük ortalama eşiği.</b> Son 30 günlük ortalaması <b>bu değer ve altında</b> olan öğrenciler
-      Türkiye, il, ilçe, okul ve sınıf sıralamalarında <b>gösterilmez</b>. Böylece bir kez birkaç soru çözüp
-      pasif kalan öğrenciler sıralamada takılı kalmaz.
+      Türkiye, il, ilçe, okul ve sınıf sıralamalarında <b>gösterilmez</b>.
       <br>• <b>0</b> → hiç aktivitesi olmayanları (0,0) çıkarır.
       <br>• <b>2</b> → 30 günlük ortalaması 2,0 ve altında olanları çıkarır.
       <br>• <b>Boş bırak</b> veya <b>-1</b> → filtre <b>kapalı</b> (kimse çıkarılmaz).
     </p>
     <form method="POST" action="/admin/ayar-kaydet" style="margin-top:10px;">
+      <input type="hidden" name="donus" value="/admin?mod=ayar-siralama">
       <label style="font-size:14px; display:block; margin-bottom:10px;">
         30 günlük ortalama eşiği:
         <input type="text" name="siralamaMinOrt30" value="<%= (ayarMinOrt30 != null && ayarMinOrt30 >= 0) ? ayarMinOrt30 : '' %>" placeholder="kapalı" style="width:120px; padding:7px 10px; margin-left:8px; font-size:15px;">
       </label>
-      <div style="font-size:12px; color:#888; margin-bottom:14px;">Şu anki durum:
+      <div style="font-size:12px; color:#888; margin-bottom:16px;">Şu anki durum:
         <% if (ayarMinOrt30 != null && ayarMinOrt30 >= 0) { %>
           <b style="color:#c62828;">AÇIK</b> — ortalaması <b><%= ayarMinOrt30 %></b> ve altındakiler sıralamada gizli.
         <% } else { %>
           <b style="color:#2e7d32;">KAPALI</b> — herkes gösteriliyor.
         <% } %>
       </div>
-      <hr style="border:none; border-top:1px solid #eee; margin:22px 0 18px;">
+      <button type="submit" class="btn btn-success" style="padding:8px 22px;">💾 Kaydet</button>
+    </form>
+    <p style="font-size:12px; color:#999; margin-top:14px;">Not: Değişiklik bir sonraki gece hesaplamasında ya da üstteki “⏰ Hesapla” ile sıralamalara yansır.</p>
+  </div>
+  <script>
+    if (location.search.indexOf('kaydedildi=1') !== -1) { alert('Ayar kaydedildi.'); }
+  </script>
 
-      <div class="admin-card-title" style="font-size:15px; margin-bottom:8px;">📚 Standart Üye Günlük Soru Limiti</div>
-      <p style="font-size:13px; color:#555; line-height:1.7; margin-top:0;">
+<% } else if (mod === 'ayar-limit') { %>
+  <div class="admin-card" style="max-width:680px;">
+    <a href="/admin?mod=ayarlar" style="font-size:13px; color:#1a73e8; text-decoration:none;">← Ayarlar</a>
+    <div class="admin-card-title" style="margin-top:10px;">📚 Günlük Soru Limitleri</div>
+    <form method="POST" action="/admin/ayar-kaydet" style="margin-top:6px;">
+      <input type="hidden" name="donus" value="/admin?mod=ayar-limit">
+
+      <p style="font-size:13px; color:#555; line-height:1.7;">
         Standart üyeler <b>tüm derslerden toplam</b> günde en fazla kaç soru çözebilsin?
-        Günlük soru hedefi bu değere göre oluşturulur (hedef dolunca öğrenciye bilgi verilir).
+        Günlük soru hedefi bu değere göre oluşturulur.
         <br>• <b>Premium</b> üyeler bundan etkilenmez — onlarda hedef her ders için ayrı hesaplanır
         ve 30 günlük ortalamalarına göre artar.
       </p>
@@ -2618,18 +2731,25 @@ function gosterExcelHata(msg) {
         Günlük toplam soru:
         <input type="number" name="standartGunlukLimit" min="1" max="500" value="<%= (typeof ayarStandartLimit !== 'undefined' && ayarStandartLimit) ? ayarStandartLimit : 2 %>" style="width:110px; padding:7px 10px; margin-left:8px; font-size:15px;">
       </label>
-      <div style="font-size:12px; color:#888; margin-bottom:16px;">Varsayılan: 2 soru/gün. Boş veya geçersiz değer girilirse 2’ye döner.</div>
+      <div style="font-size:12px; color:#888; margin-bottom:18px;">Varsayılan: 2 soru/gün. Boş veya geçersiz değer girilirse 2’ye döner.</div>
+
+      <hr style="border:none; border-top:1px solid #eee; margin:18px 0;">
+
+      <label style="font-size:14px; display:block; margin-bottom:10px;">
+        Seviye tespiti (analiz) sürerken günlük limit:
+        <input type="number" name="analizGunlukLimit" min="1" max="999" value="<%= (typeof ayarAnalizLimit !== 'undefined' && ayarAnalizLimit) ? ayarAnalizLimit : 20 %>" style="width:110px; padding:7px 10px; margin-left:8px; font-size:15px;">
+      </label>
+      <div style="font-size:12px; color:#888; margin-bottom:18px;">
+        Yeni kaydolan veya sınıf atlayan öğrenci seviye tespitini bitirene kadar bu limit geçerlidir;
+        analiz bitince yukarıdaki normal limite düşer. Varsayılan: 20. Çok yüksek bir değer (ör. 999)
+        girersen analiz sırasında pratikte sınırsız olur.
+      </div>
 
       <button type="submit" class="btn btn-success" style="padding:8px 22px;">💾 Kaydet</button>
     </form>
-    <p style="font-size:12px; color:#999; margin-top:14px;">Not: Değişiklik bir sonraki gece hesaplamasında ya da üstteki “⏰ Hesapla” ile sıralamalara yansır.</p>
   </div>
   <script>
-    if (location.search.indexOf('kaydedildi=1') !== -1) {
-      var _n=document.createElement('div'); _n.textContent='✓ Ayar kaydedildi.';
-      _n.style.cssText='background:#2e7d32;color:#fff;padding:8px 14px;border-radius:6px;margin:0 0 12px;font-size:13px;';
-      var c=document.querySelector('.admin-card'); if(c) c.insertBefore(_n, c.children[1]||null);
-    }
+    if (location.search.indexOf('kaydedildi=1') !== -1) { alert('Ayar kaydedildi.'); }
   </script>
 <% } else if (mod === 'sifirla') { %>
   <!-- v4.2.3: Hesaplama butonu üst sağa taşındı, bu sayfada sadece yıkıcı işlemler kaldı.

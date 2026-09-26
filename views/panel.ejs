@@ -3006,6 +3006,41 @@ document.addEventListener('DOMContentLoaded', function() {
       </a>
       <% } %>
 
+      <%# v4.17.0: TAM ÖĞRENME kartı — zayıf konu kartının yanında, öğrenci seçer %>
+      <% if (typeof tamOgrenmeKart !== 'undefined' && tamOgrenmeKart) { %>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&tamOgrenme=<%= encodeURIComponent(tamOgrenmeKart.ders) %>"
+         style="display:block; text-decoration:none; background:linear-gradient(135deg,#e8f5fe 0%, #d6ebfb 100%); border-radius:14px; padding:16px 18px; margin-bottom:12px; border:1px solid #b3d9f2;">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="font-size:30px;">🎯</div>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:600; color:#0d47a1; margin-bottom:3px;">Tam Öğrenme · <%= tamOgrenmeKart.ders %></div>
+            <% if (tamOgrenmeKart.bitti) { %>
+              <div style="font-size:13px; color:#1565c0;">Tüm konuları %<%= tamOgrenmeKart.esik %> başarıyla tamamladın 🎉</div>
+            <% } else if (tamOgrenmeKart.hedef) { %>
+              <div style="font-size:13px; color:#1565c0;">
+                Sıradaki: <b><%= tamOgrenmeKart.hedef.unite %> · <%= tamOgrenmeKart.hedef.konu %></b>
+              </div>
+              <div style="font-size:12px; color:#3f7fb5; margin-top:2px;">
+                Bu konuda <%= tamOgrenmeKart.hedef.cevap %>/<%= tamOgrenmeKart.hedefSoru %> soru
+                <% if (tamOgrenmeKart.hedef.cevap > 0) { %>· başarı %<%= tamOgrenmeKart.hedef.basari %><% } %>
+                · <%= tamOgrenmeKart.tamamlanan %>/<%= tamOgrenmeKart.toplam %> konu tamam
+              </div>
+            <% } %>
+          </div>
+          <div style="color:#1565c0; font-size:22px;">→</div>
+        </div>
+      </a>
+      <% if ((tamOgrenmeKart.dersler || []).length > 1) { %>
+        <div style="margin:-6px 0 14px; font-size:12px; color:#666;">
+          Ders:
+          <% tamOgrenmeKart.dersler.forEach(function(dd){ %>
+            <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?toDers=<%= encodeURIComponent(dd) %>"
+               style="margin-left:6px; text-decoration:none; padding:2px 9px; border-radius:9px; <%= dd===tamOgrenmeKart.ders ? 'background:#1565c0; color:#fff;' : 'background:#eceff1; color:#546e7a;' %>"><%= dd %></a>
+          <% }); %>
+        </div>
+      <% } %>
+      <% } %>
+
       <% if ((typeof analizTamamlandi === 'undefined' || analizTamamlandi) && enZayifKonu) { %>
       <!-- "Eksiklerini Kapat" — sadece zayıf konuda çözülmemiş soru varsa -->
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&eksik=<%= encodeURIComponent(enZayifKonu.ders + '|' + (enZayifKonu.unite||'') + '|' + (enZayifKonu.konuGercek||'')) %>"

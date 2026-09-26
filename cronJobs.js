@@ -206,7 +206,9 @@ async function siralamaCacheHesapla() {
     //   30 günlük ortalamaya sahip öğrenciler sıralamalarda GÖSTERİLMEZ.
     //   esik < 0  => filtre KAPALI (varsayılan; kimse çıkarılmaz).
     //   30 günlük ortalama = son 30 gün soru sayısı / bölen (bölen=min(30,üyelik günü)),
-    //   gunlukHedef.js ile aynı formül. analiz cevapları hariç. TEK aggregate — ölçeklenir.
+    //   gunlukHedef.js ile aynı formül. v4.16.57: analiz cevapları DA sayılır
+    //   (her çözüm aktiflik sayılır) — kart ile sıralama aynı ortalamayı kullanır.
+    //   TEK aggregate — ölçeklenir.
     let esik30 = -1;
     try {
         const _a = await Ayar.findOne({ anahtar: 'siralama_min_ort30' }).lean();
@@ -216,7 +218,7 @@ async function siralamaCacheHesapla() {
     let _son30Map = new Map();
     if (esik30 >= 0) {
         const _agg = await CevapKaydi.aggregate([
-            { $match: { tarih: { $gte: _d30 }, analiz: { $ne: true } } },
+            { $match: { tarih: { $gte: _d30 } } },
             { $group: { _id: '$kullaniciAdi', n: { $sum: 1 } } }
         ]);
         _son30Map = new Map(_agg.map(x => [x._id, x.n]));

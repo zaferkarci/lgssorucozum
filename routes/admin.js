@@ -150,10 +150,16 @@ router.get('/admin', async (req, res) => {
     // v4.16.40: Sistem>Ayarlar — sıralama 30 günlük ortalama eşiği
     let ayarMinOrt30 = -1;
     let ayarStandartLimit = 2; // v4.16.50: varsayilan 2 soru/gun
-    if (mod === 'ayarlar') {
+    let ayarAnalizLimit = 20;  // v4.16.56: analiz surerken gunluk limit
+    let ayarTamSoru = 10;      // v4.17.0: tam ogrenme konu basina soru (0 = pasif)
+    let ayarTamEsik = 85;      // v4.17.0: tam ogrenme basari esigi (%)
+    if (mod === 'ayarlar' || mod === 'ayar-siralama' || mod === 'ayar-limit' || mod === 'ayar-tam-ogrenme') {
         try { const _a = await Ayar.findOne({ anahtar: 'siralama_min_ort30' }).lean(); if (_a && typeof _a.deger === 'number') ayarMinOrt30 = _a.deger; } catch (e) {}
         // v4.16.50: Standart uyeler icin gunluk toplam soru limiti
         try { const _b = await Ayar.findOne({ anahtar: 'standart_gunluk_limit' }).lean(); if (_b && typeof _b.deger === 'number') ayarStandartLimit = _b.deger; } catch (e) {}
+        try { const _c = await Ayar.findOne({ anahtar: 'analiz_gunluk_limit' }).lean(); if (_c && typeof _c.deger === 'number') ayarAnalizLimit = _c.deger; } catch (e) {}
+        try { const _d = await Ayar.findOne({ anahtar: 'tam_ogrenme_soru' }).lean(); if (_d && typeof _d.deger === 'number') ayarTamSoru = _d.deger; } catch (e) {}
+        try { const _e = await Ayar.findOne({ anahtar: 'tam_ogrenme_esik' }).lean(); if (_e && typeof _e.deger === 'number') ayarTamEsik = _e.deger; } catch (e) {}
     }
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
     const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
@@ -239,7 +245,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, ayarStandartLimit, aktifDuyuru, duyuruOgrenciler,
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, ayarStandartLimit, ayarAnalizLimit, ayarTamSoru, ayarTamEsik, aktifDuyuru, duyuruOgrenciler,
         aktiviteOzetiData
     });
     } catch (err) {
@@ -455,22 +461,54 @@ router.post('/admin/duyuru-kaldir', async (req, res) => {
     }
 });
 
+// v4.16.58: Ayarlar kart/alt-sayfa yapisina bolundu. Her alt sayfa KENDI alanini
+//   gonderdigi icin, burada SADECE gonderilen alanlar guncellenir. (Onceki surumde
+//   ucu birden yazildigindan, tek alanli form digerlerini varsayilana dondururdu.)
 router.post('/admin/ayar-kaydet', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        let ham = (req.body.siralamaMinOrt30 == null ? '' : String(req.body.siralamaMinOrt30)).trim().replace(',', '.');
-        let deger = (ham === '') ? -1 : parseFloat(ham);
-        if (!isFinite(deger)) deger = -1;
-        await Ayar.updateOne({ anahtar: 'siralama_min_ort30' }, { $set: { deger: deger, guncelleme: new Date() } }, { upsert: true });
+        const yaz = async (anahtar, deger) => {
+            await Ayar.updateOne({ anahtar }, { $set: { deger, guncelleme: new Date() } }, { upsert: true });
+        };
 
-        // v4.16.50: Standart uye gunluk toplam soru limiti (1-500, gecersizse 2)
-        let hamLimit = (req.body.standartGunlukLimit == null ? '' : String(req.body.standartGunlukLimit)).trim();
-        let limit = parseInt(hamLimit, 10);
-        if (!Number.isFinite(limit) || limit < 1) limit = 2;
-        if (limit > 500) limit = 500;
-        await Ayar.updateOne({ anahtar: 'standart_gunluk_limit' }, { $set: { deger: limit, guncelleme: new Date() } }, { upsert: true });
+        if (Object.prototype.hasOwnProperty.call(req.body, 'siralamaMinOrt30')) {
+            let ham = String(req.body.siralamaMinOrt30 == null ? '' : req.body.siralamaMinOrt30).trim().replace(',', '.');
+            let deger = (ham === '') ? -1 : parseFloat(ham);
+            if (!isFinite(deger)) deger = -1;
+            await yaz('siralama_min_ort30', deger);
+        }
 
-        res.redirect('/admin?mod=ayarlar&kaydedildi=1');
+        if (Object.prototype.hasOwnProperty.call(req.body, 'standartGunlukLimit')) {
+            let limit = parseInt(String(req.body.standartGunlukLimit == null ? '' : req.body.standartGunlukLimit).trim(), 10);
+            if (!Number.isFinite(limit) || limit < 1) limit = 2;
+            if (limit > 500) limit = 500;
+            await yaz('standart_gunluk_limit', limit);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'tamOgrenmeSoru')) {
+            let t = parseInt(String(req.body.tamOgrenmeSoru == null ? '' : req.body.tamOgrenmeSoru).trim(), 10);
+            if (!Number.isFinite(t) || t < 0) t = 10;
+            if (t > 200) t = 200;
+            await yaz('tam_ogrenme_soru', t);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'tamOgrenmeEsik')) {
+            let e2 = parseInt(String(req.body.tamOgrenmeEsik == null ? '' : req.body.tamOgrenmeEsik).trim(), 10);
+            if (!Number.isFinite(e2) || e2 < 1) e2 = 85;
+            if (e2 > 100) e2 = 100;
+            await yaz('tam_ogrenme_esik', e2);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'analizGunlukLimit')) {
+            let aLimit = parseInt(String(req.body.analizGunlukLimit == null ? '' : req.body.analizGunlukLimit).trim(), 10);
+            if (!Number.isFinite(aLimit) || aLimit < 1) aLimit = 20;
+            if (aLimit > 999) aLimit = 999;
+            await yaz('analiz_gunluk_limit', aLimit);
+        }
+
+        const donus = (typeof req.body.donus === 'string' && req.body.donus.indexOf('/admin') === 0)
+            ? req.body.donus : '/admin?mod=ayarlar';
+        res.redirect(donus + (donus.indexOf('?') === -1 ? '?' : '&') + 'kaydedildi=1');
     } catch (e) {
         console.error('[ayar-kaydet] HATA:', e.message);
         res.send("<script>alert('Ayar kaydedilemedi: " + e.message + "'); location.href='/admin?mod=ayarlar';</script>");

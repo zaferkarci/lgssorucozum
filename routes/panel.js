@@ -304,8 +304,12 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     //   4) Unite tablosunda olmayan ünite/konu sona düşer (güvenlik ağı)
     const dersFiltre = (req.query.ders || '').trim();
     const eksikFiltre = (req.query.eksik || '').trim(); // "ders|konu" formatı
+    // v4.17.0: Tam Ogrenme modu — ?tamOgrenme=<ders>
+    const tamOgrenmeDers = (req.query.tamOgrenme || '').trim();
     const uniteFiltre = (req.query.unite || '').trim(); // v4.15.0: manuel unite secimi
     const konuFiltre  = (req.query.konu  || '').trim(); // v4.15.0: manuel konu secimi
+    let tamOgrenmeHedef = null;   // v4.17.0
+    let tamOgrenmeBitti = false;  // v4.17.0
     const gercekOgrenci = (!ogretmen && !moderator && !demo);
 
     // v4.8.7: Konu izinleri — admin'in kapattigi konular ogrenciye gelmez (varsayilan acik).
@@ -415,6 +419,25 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 (eUnite === null || (s.unite || '') === eUnite) &&
                 (s.konu || '') === eKonu
             );
+        }
+
+        // v4.17.0: TAM OGRENME — sirasi gelen konudan (veya tekrar turundan) soru ver.
+        if (tamOgrenmeDers) {
+            try {
+                const { sonrakiKonu } = require('../services/tamOgrenme');
+                const hedefKonu = await sonrakiKonu(k, tamOgrenmeDers);
+                if (hedefKonu) {
+                    cozulmemisSorular = cozulmemisSorular.filter(s =>
+                        (s.ders || '') === tamOgrenmeDers &&
+                        (s.unite || '') === hedefKonu.unite &&
+                        (s.konu || '') === hedefKonu.konu
+                    );
+                    tamOgrenmeHedef = hedefKonu;
+                } else {
+                    cozulmemisSorular = [];
+                    tamOgrenmeBitti = true;
+                }
+            } catch (e) { console.error('[tam ogrenme soru]', e.message); }
         }
     }
 
@@ -564,7 +587,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             if (esik30 >= 0) {
                 const _d30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
                 const _agg = await CevapKaydi.aggregate([
-                    { $match: { tarih: { $gte: _d30 }, analiz: { $ne: true } } },
+                    { $match: { tarih: { $gte: _d30 } } }, // v4.16.57: analiz de sayilir (cron ile ayni)
                     { $group: { _id: '$kullaniciAdi', n: { $sum: 1 } } }
                 ]);
                 _son30Map = new Map(_agg.map(x => [x._id, x.n]));
@@ -672,7 +695,9 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     if (k.rol === 'ogrenci' || k.rol === 'demo') {
         try {
             const { gunlukHedefHesap } = require('../services/gunlukHedef');
-            gunlukHedefData = await gunlukHedefHesap(k.kullaniciAdi);
+            // v4.16.56: analiz durumu YUKARIDA zaten hesaplandi (analizTamamlandi);
+            //   servise gecirerek ayni agir hesabin tekrarlanmasini onluyoruz.
+            gunlukHedefData = await gunlukHedefHesap(k.kullaniciAdi, { analizde: !analizTamamlandi });
         } catch (e) {
             console.warn('[panel] gunlukHedef hesaplanamadi:', e.message);
         }
@@ -699,16 +724,21 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     //   tek derse odaklanan (ders/unite/konu kartiyla) ogrenci de hedef+1'de durur;
     //   onerilen ile ders karti AYNI kurala tabi olur. (Yorumdaki tasarim buydu;
     //   eski kod yanlislikla 'tum dersler bitsin' istiyordu.)
-    if (gercekOgrenci && mod === 'soru' && analizTamamlandi
+    // v4.16.54: STANDART LIMIT, analiz durumundan BAGIMSIZ calisir.
+    //   Onceki surumde blok 'analizTamamlandi' sartina bagliydi; analiz her acik
+    //   konudan 2 soru istedigi icin bu sart uzun sure saglanmiyor ve limit pratikte
+    //   hic devreye girmiyordu. Analiz cevaplari zaten 'analiz' bayragiyla gunluk
+    //   sayima katilmadigindan (toplamBugun), analizdeki ogrenci dogal olarak muaftir.
+    if (gercekOgrenci && mod === 'soru' && gunlukHedefData && gunlukHedefData.standartMod
+        && (gunlukHedefData.toplamHedef || 0) > 0
+        && (gunlukHedefData.toplamBugun || 0) >= gunlukHedefData.toplamHedef) {
+        sorular = [];
+        gunlukHedefDolduMu = true;
+    } else if (gercekOgrenci && mod === 'soru' && analizTamamlandi
         && gunlukHedefData && (gunlukHedefData.toplamHedef || 0) > 0
         && (gunlukHedefData.toplamBugun || 0) >= gunlukHedefData.toplamHedef) {
         const fazla = (gunlukHedefData.toplamBugun || 0) - (gunlukHedefData.toplamHedef || 0);
-        // v4.16.53: STANDART uyede "+1 soru" teklifi YOK — limit dolunca dogrudan durur.
-        //   (+1 teklifi premium icin tasarlanmis tek seferlik bonus; ?ekstra=1 de yok sayilir.)
-        if (gunlukHedefData.standartMod) {
-            sorular = [];
-            gunlukHedefDolduMu = true;
-        } else if (fazla >= 1 || req.query.bitir === '1') {
+        if (fazla >= 1 || req.query.bitir === '1') {
             sorular = [];
             gunlukHedefDolduMu = true;
         } else if (req.query.ekstra === '1') {
@@ -1234,9 +1264,36 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     } catch (e) { console.error('[duyuru goster]', e.message); }
 
+    // v4.17.0: Tam Ogrenme kart verisi — ozellik acikken ve gercek ogrenciyse.
+    let tamOgrenmeKart = null;
+    try {
+        if (gercekOgrenci) {
+            const TO = require('../services/tamOgrenme');
+            const ayar = await TO.ayarlariOku();
+            if (ayar.aktif) {
+                // Ogrencinin sinifinda yayinda sorusu olan dersler
+                const dersler = await Soru.distinct('ders', { sinif: String(k.sinif), durum: 'yayinda' });
+                const secili = (req.query.toDers || '').trim();
+                const aktifDers = (secili && dersler.indexOf(secili) !== -1) ? secili : (dersler[0] || '');
+                if (aktifDers) {
+                    const d = await TO.durumHesapla(k, aktifDers);
+                    if (d && d.aktif && !d.konuYok) {
+                        tamOgrenmeKart = {
+                            ders: aktifDers, dersler,
+                            hedef: d.hedef, bitti: d.bitti,
+                            tamamlanan: d.tamamlananSayi, toplam: d.toplamKonu,
+                            hedefSoru: ayar.hedefSoru, esik: ayar.esik
+                        };
+                    }
+                }
+            }
+        }
+    } catch (e) { console.error('[tam ogrenme kart]', e.message); }
+
     res.render('panel', {
         k,
         duyuruGoster,
+        tamOgrenmeKart, tamOgrenmeHedef, tamOgrenmeBitti,
         // v4.11.0: Oyun acildi duyurusu acilir penceresi - ogrenci/demo, henuz
         //   "bir daha gosterme" dememisse.
         oyunDuyuruGoster: ((k.rol === 'ogrenci' || k.rol === 'demo') && !k.oyunDuyuruGoruldu),
@@ -1339,20 +1396,17 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
 
         // v4.16.53: STANDART UYE GUNLUK LIMIT — sunucu tarafi koruma.
         //   Soru servisi limit dolunca soru vermiyor; ama limit dolmadan once acilmis
-        //   sayfadan cevap gonderilmesini de burada durduruyoruz. Analiz (seviye
-        //   tespit) cevaplari hedefe sayilmadigi icin MUAF tutulur.
+        //   sayfadan cevap gonderilmesini de burada durduruyoruz.
+        // v4.16.55: Analiz muafiyeti KALDIRILDI — analiz cevaplari da sayaca girdigi
+        //   icin limit onlari da kapsar (sayac ile koruma tutarli olsun).
         if (s && k && k.rol === 'ogrenci' && k.uyelikTipi !== 'premium') {
-            let analizde = false;
-            try { analizde = await analizModundaMi(k); } catch (e) { analizde = false; }
-            if (!analizde) {
-                try {
-                    const { gunlukHedefHesap } = require('../services/gunlukHedef');
-                    const ghd = await gunlukHedefHesap(k.kullaniciAdi);
-                    if (ghd && ghd.standartMod && (ghd.toplamBugun || 0) >= (ghd.toplamHedef || 0)) {
-                        return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=soru&bitir=1');
-                    }
-                } catch (e) { console.error('[cevap standart limit]', e.message); }
-            }
+            try {
+                const { gunlukHedefHesap } = require('../services/gunlukHedef');
+                const ghd = await gunlukHedefHesap(k.kullaniciAdi);
+                if (ghd && ghd.standartMod && (ghd.toplamBugun || 0) >= (ghd.toplamHedef || 0)) {
+                    return res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=soru&bitir=1');
+                }
+            } catch (e) { console.error('[cevap standart limit]', e.message); }
         }
 
         if (s && k) {

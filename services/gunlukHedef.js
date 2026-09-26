@@ -65,7 +65,7 @@ function aralikBaslangic(gun = ARALIK_GUN) {
  *   genelOrtalama: 8.4          // son 30 gün toplam / 30
  * }
  */
-async function gunlukHedefHesap(kullaniciAdi) {
+async function gunlukHedefHesap(kullaniciAdi, opts) {
     if (!kullaniciAdi) {
         return { dersler: [], toplamHedef: 0, toplamBugun: 0, toplamTamamlandi: false, genelOrtalama: 0 };
     }
@@ -79,8 +79,10 @@ async function gunlukHedefHesap(kullaniciAdi) {
     let bolen = ARALIK_GUN;
     // v4.16.50: uyelikTipi de ayni sorgudan okunur (ek sorgu yok).
     let uyelikTipi = 'standart';
+    let _ku = null;
     try {
-        const ku = await Kullanici.findOne({ kullaniciAdi }, '_id uyelikTipi').lean();
+        const ku = await Kullanici.findOne({ kullaniciAdi }, '_id uyelikTipi rol sinif').lean();
+        _ku = ku;
         if (ku && ku.uyelikTipi === 'premium') uyelikTipi = 'premium';
         if (ku && ku._id && typeof ku._id.getTimestamp === 'function') {
             const uyelik = ku._id.getTimestamp();
@@ -94,11 +96,11 @@ async function gunlukHedefHesap(kullaniciAdi) {
     const kayitlar = await CevapKaydi.find(
         {
             kullaniciAdi,
-            tarih: { $gte: aralikBas },
-            // v4.8.19: zorunlu analiz sirasinda verilen cevaplar hedefe sayilmaz
-            //   (ne bugunku sayaca ne ortalamaya). Eski kayitlarda alan yok ->
-            //   $ne:true ile normal sayilirlar.
-            analiz: { $ne: true }
+            tarih: { $gte: aralikBas }
+            // v4.16.55: Analiz (seviye tespit) cevaplari ARTIK SAYILIR — hem bugunku
+            //   sayaca hem 30 gunluk ortalamaya girer; ilerleme cubugu analizde de
+            //   hareket eder. (v4.8.19'daki `analiz: { $ne: true }` filtresi kaldirildi.)
+            //   Sonuc: gunluk limit analiz sorularini da kapsar.
             // Not: ikinciKezMi olan kayıtlar BURADA da hesaba dahil edilir —
             // öğrenci "çözüm yaptı", görev açısından önemli. Sorunun
             // istatistiklerini bozmaz ama günlük hedefe sayılır.
@@ -113,12 +115,33 @@ async function gunlukHedefHesap(kullaniciAdi) {
     //   - Hiç ünite yoksa (uç durum) eski 6 LGS dersine güvenli geri dönüş.
     // v4.16.50: Standart uyeler icin Sistem>Ayarlar'daki gunluk toplam limit.
     let standartLimit = 2;
+    // v4.16.56: Analiz (seviye tespit) surerken AYRI ve daha yuksek limit.
+    //   Amac: yeni/atlatilmis ogrenci seviye tespitini makul surede bitirsin,
+    //   ama limit yine de tamamen delinmesin.
+    let analizModu = false;
     if (uyelikTipi !== 'premium') {
+        let analizLimit = 20;
         try {
             const Ayar = require('../models/Ayar');
             const a = await Ayar.findOne({ anahtar: 'standart_gunluk_limit' }).lean();
             if (a && typeof a.deger === 'number' && a.deger >= 1) standartLimit = Math.floor(a.deger);
-        } catch (e) { standartLimit = 2; }
+            const b = await Ayar.findOne({ anahtar: 'analiz_gunluk_limit' }).lean();
+            if (b && typeof b.deger === 'number' && b.deger >= 1) analizLimit = Math.floor(b.deger);
+        } catch (e) { standartLimit = standartLimit || 2; }
+        // analizde bilgisi disaridan gelirse tekrar hesaplama (panel.js zaten biliyor)
+        if (opts && typeof opts.analizde === 'boolean') {
+            analizModu = opts.analizde;
+        } else {
+            try {
+                const { analizModundaMi } = require('./analizDurumu');
+                analizModu = await analizModundaMi({
+                    kullaniciAdi,
+                    rol: (_ku && _ku.rol) || 'ogrenci',
+                    sinif: _ku && _ku.sinif
+                });
+            } catch (e) { analizModu = false; }
+        }
+        if (analizModu) standartLimit = analizLimit;
     }
 
     let aktifDersler;
@@ -192,7 +215,8 @@ async function gunlukHedefHesap(kullaniciAdi) {
             toplamTamamlandi: toplamBugun >= standartLimit,
             genelOrtalama,
             standartMod: true,
-            gunlukLimit: standartLimit
+            gunlukLimit: standartLimit,
+            analizModu: analizModu
         };
     }
 
