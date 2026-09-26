@@ -3007,7 +3007,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <% } %>
 
       <%# v4.17.0: TAM ÖĞRENME kartı — zayıf konu kartının yanında, öğrenci seçer %>
-      <% if (typeof tamOgrenmeKart !== 'undefined' && tamOgrenmeKart) { %>
+      <% if ((typeof analizTamamlandi === 'undefined' || analizTamamlandi) && typeof tamOgrenmeKart !== 'undefined' && tamOgrenmeKart) { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru&basla=true&tamOgrenme=<%= encodeURIComponent(tamOgrenmeKart.ders) %>"
          style="display:block; text-decoration:none; background:linear-gradient(135deg,#e8f5fe 0%, #d6ebfb 100%); border-radius:14px; padding:16px 18px; margin-bottom:12px; border:1px solid #b3d9f2;">
         <div style="display:flex; align-items:center; gap:14px;">
