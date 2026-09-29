@@ -1,3 +1,8 @@
+// v4.17.2: Kendi sunucuda (VPS) .env dosyasini oku. Render gibi ortam
+//   degiskenlerini kendisi enjekte eden platformlarda bu satir ZARARSIZDIR:
+//   dotenv mevcut process.env degerlerinin UZERINE YAZMAZ, .env yoksa sessizce gecer.
+try { require('dotenv').config(); } catch (e) { /* dotenv kurulu degilse yoksay */ }
+
 // --- LGS HAZIRLIK PLATFORMU - VERSİYON 4.5.3 (Modüler Yapı) ---
 // v4.5.3 değişiklikleri (Soru çözenler aç-kapa tablosu):
 //   • Yeni endpoint: GET /admin/soru-cozumler/:soruId
