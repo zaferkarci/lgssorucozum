@@ -2841,6 +2841,23 @@ function gosterExcelHata(msg) {
       <button class="ekle-btn">Kod Üret</button>
       <span style="font-size:12px; color:#888;">adet (max 500)</span>
     </form>
+
+    <%# v4.17.4: Kesip dağıtılabilir kart çıktısı %>
+    <div style="margin-top:14px; padding-top:14px; border-top:1px dashed #e2e8f0;">
+      <form action="/admin/referans-yazdir" method="GET" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:13px; font-weight:600;">🖨️ Yazdırmak için:</span>
+        <input type="number" name="adet" value="120" min="1" max="500" style="width:90px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
+        <select name="tip" style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; background:white;">
+          <option value="veli">👪 Veli</option>
+          <option value="ogrenci">👨‍🎓 Öğrenci</option>
+          <option value="ogretmen">👩‍🏫 Öğretmen</option>
+          <option value="kurumsal">🏛️ Kurumsal</option>
+          <option value="demo">🧪 Demo</option>
+        </select>
+        <button class="ekle-btn" formtarget="_blank">Kart Çıktısı Al</button>
+        <span style="font-size:12px; color:#888;">kullanılmamış kod yetmezse otomatik üretilir</span>
+      </form>
+    </div>
     <% if (bekleyenler.length > 0) { %>
     <form action="/referans-toplu-sil" method="POST" style="margin-top:10px;">
       <button onclick="return confirm('Tüm bekleyen kodlar silinsin mi?')" style="background:#fbeaea; color:#a32d2d; border:1px solid #f5c6c6; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;">🗑 Tüm Bekleyenleri Sil (<%= bekleyenler.length %>)</button>

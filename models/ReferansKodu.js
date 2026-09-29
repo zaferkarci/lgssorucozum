@@ -12,6 +12,10 @@ const ReferansKoduSchema = new mongoose.Schema({
     kullanildi:     { type: Boolean, default: false },
     kullanan:       { type: String, default: null },
     kopyalandi:     { type: Boolean, default: false },
+    // v4.17.5: Kart ciktisi alindi mi? Ayni kodun iki kez yazdirilip iki kisiye
+    //   dagitilmasini onler. Yazdirma ekrani varsayilan olarak yazdirilmamislari verir.
+    yazdirildi:      { type: Boolean, default: false, index: true },
+    yazdirilmaTarih: { type: Date, default: null },
     kopyalanmaTarih: { type: Date, default: null },
     olusturmaTarih: { type: Date, default: Date.now },
     kullanimTarih:  { type: Date, default: null }

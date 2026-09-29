@@ -1234,6 +1234,106 @@ router.get('/api/soru/:id', async (req, res) => {
 });
 
 // TEK SEFERLİK MIGRATION v4 — çalıştır sonra sil
+// v4.17.4: REFERANS KODU YAZDIRMA — kesip dagitilabilir kartlar.
+//   /admin/referans-yazdir?tip=veli&adet=120
+//   Kullanilmamis kod sayisi yetersizse EKSIK KADAR otomatik uretir.
+//   A4'e 12 kart (3x4) sigar; yazdirma CSS'i ile kesme cizgileri gorunur.
+router.get('/admin/referans-yazdir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo'];
+        const tip = gecerliTipler.includes(req.query.tip) ? req.query.tip : 'veli';
+        let adet = parseInt(req.query.adet, 10);
+        if (!Number.isFinite(adet) || adet < 1) adet = 20;
+        if (adet > 500) adet = 500;
+
+        // v4.17.5: Varsayilan olarak DAHA ONCE YAZDIRILMAMIS kodlar verilir; boylece
+        //   ertesi gun yeni kod istendiginde ayni kodlar tekrar cikmaz.
+        //   ?tekrar=1 -> yazdirilmis kodlar da dahil (cikti kaybolduysa yeniden basmak icin).
+        const tekrar = req.query.tekrar === '1';
+        const filtre = tekrar
+            ? { tip, kullanildi: false }
+            : { tip, kullanildi: false, yazdirildi: { $ne: true } };
+        let kodlar = await ReferansKodu.find(filtre).sort({ olusturmaTarih: 1 }).limit(adet).lean();
+        if (kodlar.length < adet) {
+            const eksik = adet - kodlar.length;
+            await referansKoduUret('admin', eksik, tip);
+            kodlar = await ReferansKodu.find(filtre).sort({ olusturmaTarih: 1 }).limit(adet).lean();
+        }
+        // Bu partiyi 'yazdirildi' isaretle (tekrar modunda da tarih guncellenir)
+        if (kodlar.length) {
+            try {
+                await ReferansKodu.updateMany(
+                    { _id: { $in: kodlar.map(k => k._id) } },
+                    { $set: { yazdirildi: true, yazdirilmaTarih: new Date() } }
+                );
+            } catch (me) { console.error('[referans-yazdir isaretleme]', me.message); }
+        }
+        const kalanYazdirilmamis = await ReferansKodu.countDocuments({ tip, kullanildi: false, yazdirildi: { $ne: true } });
+
+        const base = (process.env.SITE_URL || ('https://' + req.get('host'))).replace(/\/+$/, '');
+        const esc = (x) => String(x == null ? '' : x)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const tipAd = { veli: 'Veli', ogrenci: 'Öğrenci', ogretmen: 'Öğretmen', kurumsal: 'Kurumsal', demo: 'Demo' }[tip] || tip;
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">';
+        h += '<meta name="viewport" content="width=device-width, initial-scale=1">';
+        h += '<title>' + esc(tipAd) + ' Davet Kodları — Yazdır</title>';
+        h += '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>';
+        h += '<style>';
+        h += '*{box-sizing:border-box}body{margin:0;background:#eef1f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1a2236}';
+        h += '.ust{background:#fff;padding:16px 20px;border-bottom:1px solid #dde3ea;position:sticky;top:0;z-index:5}';
+        h += '.ust h1{font-size:17px;margin:0 0 6px}.ust p{margin:4px 0;font-size:13px;color:#5b6673}';
+        h += '.btn{display:inline-block;background:#1a73e8;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:8px}';
+        h += '.sayfa{max-width:820px;margin:18px auto;padding:0 12px}';
+        h += '.izgara{display:grid;grid-template-columns:repeat(3,1fr);gap:0}';
+        h += '.kart{border:1px dashed #9aa4b2;padding:12px 10px;text-align:center;background:#fff;min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}';
+        h += '.marka{font-size:11px;font-weight:700;color:#1a73e8;letter-spacing:.4px}';
+        h += '.rol{font-size:10px;color:#6b7280;margin-top:2px}';
+        h += '.qr{margin:8px 0}.qr img,.qr canvas{display:block;margin:0 auto}';
+        h += '.kod{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;font-weight:700;letter-spacing:1px;background:#f1f5f9;border-radius:6px;padding:4px 10px;margin:2px 0}';
+        h += '.link{font-size:9px;color:#6b7280;word-break:break-all;line-height:1.35;margin-top:4px}';
+        h += '@media print{body{background:#fff}.ust{display:none}.sayfa{margin:0;max-width:none;padding:0}';
+        h += '.izgara{grid-template-columns:repeat(3,1fr)}.kart{break-inside:avoid;page-break-inside:avoid;min-height:88mm}}';
+        h += '@page{size:A4;margin:8mm}';
+        h += '</style></head><body>';
+
+        h += '<div class="ust">';
+        h += '<h1>🖨️ ' + esc(tipAd) + ' Davet Kodları — ' + kodlar.length + ' adet</h1>';
+        h += '<p>Yazdırıp kesikli çizgilerden keserek dağıtabilirsin. Her kartta bir kod, bağlantı ve QR vardır.</p>';
+        h += '<p style="color:#166534;">Bu parti <b>yazdırıldı</b> olarak işaretlendi — bir dahaki çıktıda <b>farklı</b> kodlar gelir. ' +
+            'Henüz yazdırılmamış kod: <b>' + kalanYazdirilmamis + '</b></p>';
+        h += '<p style="color:#b45309;">Kodlar tek kullanımlıktır. Bu çıktıyı kaybedersen aynı kodları yeniden basmak için ' +
+            '<a href="/admin/referans-yazdir?tip=' + encodeURIComponent(tip) + '&adet=' + adet + '&tekrar=1">tekrar bas</a> bağlantısını kullan.</p>';
+        h += '<button class="btn" onclick="window.print()">Yazdır</button> ';
+        h += '<a class="btn" style="background:#6b7280;" href="/admin?mod=referans">Geri</a>';
+        h += '</div>';
+
+        h += '<div class="sayfa"><div class="izgara">';
+        kodlar.forEach((k, i) => {
+            const link = base + '/kayit?ref=' + encodeURIComponent(k.kod);
+            h += '<div class="kart">';
+            h += '<div><div class="marka">LGS HAZIRLIK</div><div class="rol">' + esc(tipAd) + ' Davet Kodu</div></div>';
+            h += '<div class="qr" id="qr' + i + '" data-link="' + esc(link) + '"></div>';
+            h += '<div><div class="kod">' + esc(k.kod) + '</div>';
+            h += '<div class="link">' + esc(link) + '</div></div>';
+            h += '</div>';
+        });
+        h += '</div></div>';
+
+        h += '<script>(function(){';
+        h += 'if(typeof QRCode==="undefined")return;';
+        h += 'document.querySelectorAll(".qr").forEach(function(el){';
+        h += 'try{ new QRCode(el,{text:el.getAttribute("data-link"),width:96,height:96,correctLevel:QRCode.CorrectLevel.M}); }catch(e){}';
+        h += '});})();</script>';
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[referans-yazdir] HATA:', e.message);
+        res.status(500).send('Yazdirma hatasi: ' + e.message);
+    }
+});
+
 router.post('/referans-uret', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
