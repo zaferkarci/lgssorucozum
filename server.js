@@ -656,6 +656,39 @@ const app = express();
 app.use(express.json({ limit: '12mb' }));
 app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// v4.17.3: TASINMA MODU — eski adres (Render) icin. TASINDI=1 ise tum istekler
+//   bilgilendirme sayfasi gorur ve 5 sn sonra yeni adrese yonlendirilir.
+//   Bu modda cron da calismaz (asagida), boylece ayni veritabaninda cift hesap olmaz.
+const TASINDI = process.env.TASINDI === '1';
+const YENI_ADRES = process.env.YENI_ADRES || 'https://elcezeri.net';
+if (TASINDI) {
+    app.use((req, res) => {
+        const hedef = YENI_ADRES.replace(/\/+$/, '') + req.originalUrl;
+        res.status(200).send('<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<meta http-equiv="refresh" content="5;url=' + hedef + '">' +
+            '<title>Adresimiz degisti</title><style>' +
+            'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;' +
+            'background:linear-gradient(135deg,#1a73e8,#0d47a1);color:#fff;' +
+            'font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:20px;}' +
+            '.k{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);' +
+            'border-radius:18px;padding:34px 30px;max-width:460px;text-align:center;}' +
+            'h1{font-size:22px;margin:0 0 10px;}p{font-size:15px;line-height:1.7;margin:10px 0;opacity:.95;}' +
+            'a.b{display:inline-block;margin-top:18px;background:#fff;color:#0d47a1;text-decoration:none;' +
+            'padding:12px 28px;border-radius:24px;font-weight:700;font-size:15px;}' +
+            '.s{font-size:12px;opacity:.8;margin-top:16px;}' +
+            '</style></head><body><div class="k">' +
+            '<div style="font-size:44px;">&#128640;</div>' +
+            '<h1>Adresimiz degisti</h1>' +
+            '<p>LGS Hazirlik artik yeni adresinde:<br><b>' + YENI_ADRES.replace(/^https?:\/\//, '') + '</b></p>' +
+            '<p>Birkac saniye icinde otomatik yonlendirileceksin.</p>' +
+            '<a class="b" href="' + hedef + '">Hemen git</a>' +
+            '<div class="s">Yer imlerini guncellemeyi unutma.</div>' +
+            '</div></body></html>');
+    });
+}
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -713,6 +746,9 @@ app.get('/health', (req, res) => res.json({ durum: 'hazir' }));
 // Günlük cron job — her gün 05:10 (Europe/Istanbul)
 const cron = require('node-cron');
 const { gunlukHesapla } = require('./cronJobs');
+if (TASINDI) {
+    console.log('\u26a0\ufe0f TASINMA MODU: cron kurulmadi (yeni sunucuda calisiyor).');
+} else {
 cron.schedule('10 5 * * *', async () => {
     console.log('⏰ Cron tetiklendi (05:10 Istanbul):', new Date().toISOString());
     try {
@@ -721,6 +757,7 @@ cron.schedule('10 5 * * *', async () => {
         console.error('❌ Cron çalıştırma hatası:', err && err.stack || err);
     }
 }, { timezone: 'Europe/Istanbul' });
+}
 
 // Sunucu açıldıktan sonra: son hesaplama 24 saatten eskiyse otomatik tetikle
 // (Render uyandırma / restart durumunda 05:10 kaçırıldıysa kurtarma)
@@ -744,7 +781,7 @@ async function basladiktanSonraKontrol() {
     }
 }
 // 30 sn gecikmeyle çalıştır — sunucu tamamen ayağa kalksın
-setTimeout(basladiktanSonraKontrol, 30 * 1000);
+if (!TASINDI) setTimeout(basladiktanSonraKontrol, 30 * 1000);
 
 // Manuel tetikleme (admin için)
 // v4.1.24: önce session kontrolü; admin paneline girişli kullanıcı tekrar
