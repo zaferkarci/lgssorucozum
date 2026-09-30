@@ -1,8 +1,18 @@
 const nodemailer = require('nodemailer');
 
 // Gmail SMTP transporter
+// v4.17.7: 'service: gmail' varsayilan olarak 465 (SSL) kullanir. Bazi sunucularda
+//   (or. Hetzner) 465 disariya kapali oldugundan baglanti timeout'a dusuyordu.
+//   Bu yuzden acik olan 587 (STARTTLS) portu ACIKCA belirtildi.
+//   Port env ile degistirilebilir: SMTP_HOST / SMTP_PORT
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10) || 587;
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,   // 465 -> SSL, 587 -> STARTTLS
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
     auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD

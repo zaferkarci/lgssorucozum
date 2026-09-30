@@ -213,7 +213,7 @@
       <% } %>
       <% if (refTip === 'veli') { %>
       <div style="background:#fff3e0; border:1px solid #ffcc80; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#e65100; line-height:1.5;">
-        💡 İl/İlçe/Okul alanları veli için <b>opsiyoneldir</b>, boş bırakabilirsiniz.
+        💡 İl ve ilçe bilgisi veli için <b>opsiyoneldir</b>, boş bırakabilirsiniz.
       </div>
       <% } else if (!ogretmenVeyaKurumsal) { %>
       <div style="background:#e3f2fd; border:1px solid #90caf9; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#1565c0; line-height:1.5;">
@@ -233,10 +233,13 @@
       <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" <% if (ogretmenVeyaKurumsal) { %>required<% } %> class="input">
         <option value="">İlçe Seçiniz</option>
       </select>
+      <%# v4.17.6: Veli bir okula bagli olmadigi icin okul secimi gosterilmez. %>
+      <% if (refTip !== 'veli') { %>
       <label class="k-label"><%= refTip === 'ogretmen' ? 'Görev Yaptığınız Okul' : (refTip === 'kurumsal' ? 'Yönettiğiniz Kurum (Okul)' : 'Okul') %><% if (!ogretmenVeyaKurumsal) { %> <span style="color:#888; font-weight:400;">(opsiyonel)</span><% } %></label>
       <select name="okul" id="okulListesi" class="input" <% if (ogretmenVeyaKurumsal) { %>required<% } %>>
         <option value=""><%= ogretmenVeyaKurumsal ? 'Kurumu seçiniz' : 'Okul Seçiniz' %></option>
       </select>
+      <% } %>
       <button type="submit" class="giris-btn-yeni" style="margin-top:16px;">Kaydı Tamamla</button>
     </form>
     <p style="text-align:center; font-size:13px; color:#888; margin-top:14px;">Zaten hesabın var mı? <a href="/" style="color:#1a73e8; font-weight:500; text-decoration:none;">Giriş Yap</a></p>
