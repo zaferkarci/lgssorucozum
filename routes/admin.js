@@ -2178,6 +2178,340 @@ router.post('/admin/duplicate-cift', async (req, res) => {
     }
 });
 
+// v4.16.52: OYUN DUNYA TEMIZLIGI — sahibi artik o sinifta olmayan hucre/oyuncu
+//   kayitlarini bulur ve siler. (Sinif atlatma oncesi surumlerde bu temizlik
+//   yapilmadigi icin eski dunyalarda "hayalet topraklar" kalmisti.)
+//   Varsayilan kuru calisma; ?uygula=1 ile siler.
+router.get('/admin/oyun-temizle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        const kullanicilar = await Kullanici.find({}, 'kullaniciAdi sinif').lean();
+        const guncelSinif = new Map(kullanicilar.map(u => [u.kullaniciAdi, String(u.sinif)]));
+
+        const hucreler = await OyunHucre.find({}, 'sinif sahip').lean();
+        const oyuncular = await OyunOyuncu.find({}, 'sinif kullaniciAdi').lean();
+
+        // sinif|sahip -> { sinif, sahip, hucre, sebep }
+        const hatali = {};
+        const ekle = (sinif, ad, tip) => {
+            const gs = guncelSinif.get(ad);
+            const sebep = (gs === undefined) ? 'kullanici yok' : 'simdi ' + (gs === '13' ? 'Mezun' : gs + '. sinif');
+            if (gs !== undefined && gs === String(sinif)) return; // dogru dunyada, dokunma
+            const key = String(sinif) + '|' + ad;
+            if (!hatali[key]) hatali[key] = { sinif: String(sinif), sahip: ad, hucre: 0, oyuncuKaydi: false, sebep };
+            if (tip === 'hucre') hatali[key].hucre++;
+            else hatali[key].oyuncuKaydi = true;
+        };
+        hucreler.forEach(h => ekle(h.sinif, h.sahip, 'hucre'));
+        oyuncular.forEach(o => ekle(o.sinif, o.kullaniciAdi, 'oyuncu'));
+
+        const liste = Object.values(hatali).sort((a, b) =>
+            (a.sinif.localeCompare(b.sinif)) || b.hucre - a.hucre);
+        const toplamHucre = liste.reduce((t, r) => t + r.hucre, 0);
+        const toplamOyuncu = liste.filter(r => r.oyuncuKaydi).length;
+
+        if (uygula) {
+            for (const r of liste) {
+                if (r.hucre > 0) await OyunHucre.deleteMany({ sinif: r.sinif, sahip: r.sahip });
+                if (r.oyuncuKaydi) await OyunOyuncu.deleteMany({ sinif: r.sinif, kullaniciAdi: r.sahip });
+            }
+        }
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Oyun Temizligi</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;margin-right:8px;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}';
+        h += '.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>\U0001f9f9 Oyun D\u00fcnya Temizli\u011fi</h2>';
+
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + toplamHucre + ' h\u00fccre ve ' + toplamOyuncu + ' oyuncu kayd\u0131 temizlendi.</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU \u00c7ALI\u015eMA</b> (\u00f6nizleme). Hi\u00e7bir \u015fey de\u011fi\u015fmedi.</p>';
+        }
+
+        h += '<div class="ozet"><b>Ne yap\u0131yor:</b> Bir \u00f6\u011frencinin art\u0131k bulunmad\u0131\u011f\u0131 s\u0131n\u0131f d\u00fcnyas\u0131ndaki fethedilmi\u015f h\u00fccreleri ve oyuncu kayd\u0131n\u0131 siler. \u00d6rnek: 6. s\u0131n\u0131ftan 7\'ye ge\u00e7en \u00f6\u011frencinin 6. s\u0131n\u0131f haritas\u0131ndaki topraklar\u0131 bo\u015fa \u00e7\u0131kar\u0131l\u0131r. \u00d6\u011frencinin <b>kendi g\u00fcncel s\u0131n\u0131f\u0131ndaki</b> ilerlemesine dokunulmaz.<br>';
+        h += '<b>\u00d6zet:</b> ' + liste.length + ' kay\u0131t grubu &middot; ' + toplamHucre + ' h\u00fccre &middot; ' + toplamOyuncu + ' oyuncu kayd\u0131.</div>';
+
+        if (!liste.length) {
+            h += '<p style="color:#2e7d32;">Temizlenecek bir \u015fey yok. Oyun d\u00fcnyalar\u0131 tutarl\u0131.</p>';
+        } else {
+            h += '<table><thead><tr><th>D\u00fcnya (s\u0131n\u0131f)</th><th>Oyuncu</th><th>H\u00fccre</th><th>Oyuncu kayd\u0131</th><th>Sebep</th></tr></thead><tbody>';
+            liste.forEach(r => {
+                h += '<tr><td>' + esc(r.sinif === '13' ? 'Mezun' : r.sinif + '. s\u0131n\u0131f') + '</td><td>' + esc(r.sahip) + '</td><td>' + esc(r.hucre) + '</td><td>' + (r.oyuncuKaydi ? 'var' : '-') + '</td><td style="color:#888;">' + esc(r.sebep) + '</td></tr>';
+            });
+            h += '</tbody></table>';
+            if (!uygula) {
+                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/oyun-temizle?uygula=1" onclick="return confirm(\'' + toplamHucre + ' hucre ve ' + toplamOyuncu + ' oyuncu kaydi silinecek. Devam?\');">\U0001f9f9 TEM\u0130ZL\u0130\u011e\u0130 UYGULA</a> <a class="btn geri" href="/admin?mod=duello">Geri</a></p>';
+            }
+        }
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[oyun-temizle] HATA:', e.message);
+        res.status(500).send('Oyun temizligi hatasi: ' + e.message);
+    }
+});
+
+router.get('/admin/sinif-kurtar', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const HARIC_ROLLER = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
+
+        const sorular = await Soru.find({}, 'sinif').lean();
+        const soruSinif = new Map(sorular.map(s => [String(s._id), Number(s.sinif)]));
+
+        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC_ROLLER } }, 'kullaniciAdi sinif').lean();
+        const satirlar = [];
+
+        for (const u of kullanicilar) {
+            const kayitlar = await CevapKaydi.find({ kullaniciAdi: u.kullaniciAdi }, 'soruId').lean();
+            const sayac = {};
+            kayitlar.forEach(c => {
+                const sn = soruSinif.get(String(c.soruId));
+                if (Number.isFinite(sn) && sn >= 1 && sn <= 12) sayac[sn] = (sayac[sn] || 0) + 1;
+            });
+            const adaylar = Object.keys(sayac).map(k => ({ sinif: Number(k), adet: sayac[k] }))
+                                   .sort((a, b) => b.adet - a.adet);
+            if (!adaylar.length) {
+                satirlar.push({ ad: u.kullaniciAdi, simdiki: Number(u.sinif), tahmin: null, yeni: null, kanit: 0, not: 'cevap kaydi yok - dokunulmaz' });
+                continue;
+            }
+            const eski = adaylar[0].sinif;
+            const yeni = (eski >= 12) ? 13 : (eski + 1);
+            satirlar.push({
+                ad: u.kullaniciAdi, simdiki: Number(u.sinif), tahmin: eski, yeni,
+                kanit: adaylar[0].adet,
+                not: (Number(u.sinif) === yeni) ? 'zaten dogru' : 'duzeltilecek'
+            });
+        }
+
+        const duzeltilecek = satirlar.filter(r => r.not === 'duzeltilecek');
+        const dokunulmaz  = satirlar.filter(r => r.not !== 'duzeltilecek');
+
+        if (uygula) {
+            for (const r of duzeltilecek) {
+                await Kullanici.updateOne({ kullaniciAdi: r.ad }, { $set: { sinif: r.yeni } });
+            }
+        }
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Sinif Kurtarma</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;margin-right:8px;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}';
+        h += '.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>\u267b\ufe0f S\u0131n\u0131f Kurtarma (cevap ge\u00e7mi\u015finden)</h2>';
+
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + duzeltilecek.length + ' \u00f6\u011frencinin s\u0131n\u0131f\u0131 d\u00fczeltildi.</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU \u00c7ALI\u015eMA</b> (\u00f6nizleme). Hi\u00e7bir \u015fey de\u011fi\u015fmedi.</p>';
+        }
+        h += '<div class="ozet"><b>Nas\u0131l \u00e7al\u0131\u015f\u0131r:</b> Her \u00f6\u011frencinin ge\u00e7mi\u015f cevap kay\u0131tlar\u0131ndaki sorular\u0131n s\u0131n\u0131f seviyesine bak\u0131l\u0131r; en \u00e7ok \u00e7\u00f6zd\u00fc\u011f\u00fc seviye eski s\u0131n\u0131f\u0131 kabul edilir, \u00fczerine +1 eklenerek atlat\u0131lm\u0131\u015f hali yaz\u0131l\u0131r. Hi\u00e7 cevap kayd\u0131 olmayanlara <b>dokunulmaz</b> (elle d\u00fczeltilmeli).<br>';
+        h += '<b>\u00d6zet:</b> ' + duzeltilecek.length + ' d\u00fczeltilecek &middot; ' + dokunulmaz.length + ' dokunulmayacak.</div>';
+
+        h += '<table><thead><tr><th>Kullan\u0131c\u0131</th><th>\u015eu anki</th><th>Tahmini eski</th><th>Olmas\u0131 gereken</th><th>Kan\u0131t (cevap)</th><th>Durum</th></tr></thead><tbody>';
+        satirlar.sort((a, b) => (a.not === 'duzeltilecek' ? -1 : 1) - (b.not === 'duzeltilecek' ? -1 : 1) || String(a.ad).localeCompare(String(b.ad), 'tr'));
+        satirlar.forEach(r => {
+            const renk = r.not === 'duzeltilecek' ? '#c62828' : '#999';
+            h += '<tr><td>' + esc(r.ad) + '</td><td>' + esc(r.simdiki === 13 ? 'Mezun' : r.simdiki) + '</td><td>' + esc(r.tahmin == null ? '-' : r.tahmin) + '</td><td><b>' + esc(r.yeni == null ? '-' : (r.yeni === 13 ? 'Mezun' : r.yeni)) + '</b></td><td>' + esc(r.kanit) + '</td><td style="color:' + renk + ';">' + esc(r.not) + '</td></tr>';
+        });
+        h += '</tbody></table>';
+
+        if (!uygula && duzeltilecek.length) {
+            h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/sinif-kurtar?uygula=1" onclick="return confirm(\'' + duzeltilecek.length + ' ogrencinin sinifi duzeltilecek. Devam?\');">\u267b\ufe0f KURTARMAYI UYGULA</a> <a class="btn geri" href="/admin?mod=yedek">Geri</a></p>';
+        }
+        h += '<p style="font-size:12px;color:#888;margin-top:14px;">Not: Puan ve ders istatistikleri s\u0131n\u0131f atlatmada zaten s\u0131f\u0131rlan\u0131yordu (beklenen davran\u0131\u015f). Bu ara\u00e7 yaln\u0131zca S\u0131n\u0131f alan\u0131n\u0131 onar\u0131r.</p>';
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[sinif-kurtar] HATA:', e.message);
+        res.status(500).send('Kurtarma hatasi: ' + e.message);
+    }
+});
+
+router.get('/admin/sinif-atlat', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const uygula = req.query.uygula === '1';
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const HARIC_ROLLER = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
+
+        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC_ROLLER } }, 'kullaniciAdi sinif rol').lean();
+
+        const gruplar = {}; // eskiSinif -> { eskiSinif, yeniSinif, sayi }
+        let mezunSayisi = 0, gecersizSayisi = 0;
+        // v4.16.45: Okul geçiş noktaları — 5 (ilkokul->ortaokul), 9 (ortaokul->lise),
+        //   13/Mezun (lise->mezuniyet). Bu seviyelere geçenlerin okul/şube bağı kesilir;
+        //   kendileri yeni okullarını "Konum bilgileri" kartından seçer (mevcut akış).
+        const OKUL_GECIS_SEVIYELERI = [5, 9, 13];
+        kullanicilar.forEach(u => {
+            const s = Number(u.sinif);
+            if (!Number.isFinite(s) || s < 1 || s > 13) { gecersizSayisi++; return; }
+            if (s === 13) { mezunSayisi++; return; }
+            const yeni = (s >= 12) ? 13 : (s + 1);
+            const key = String(s);
+            if (!gruplar[key]) gruplar[key] = { eskiSinif: s, yeniSinif: yeni, sayi: 0, adlar: [], okulKesilecek: OKUL_GECIS_SEVIYELERI.includes(yeni) };
+            gruplar[key].sayi++;
+            if (u.kullaniciAdi) gruplar[key].adlar.push(u.kullaniciAdi);
+        });
+        const grupListe = Object.values(gruplar).sort((a, b) => a.eskiSinif - b.eskiSinif);
+        const toplamAtlayacak = grupListe.reduce((t, g) => t + g.sayi, 0);
+        const mezunOlacak = gruplar['12'] ? gruplar['12'].sayi : 0;
+        const okulKesilecekSayi = grupListe.filter(g => g.okulKesilecek).reduce((t, g) => t + g.sayi, 0);
+
+        if (uygula) {
+            const simdi = new Date();
+            const resetAlan = {
+                puan: 0, soruIndex: 0, dersPuanlari: [], gecilenSorular: [],
+                sonSinifAtlamaTarihi: simdi, siralamaCache: null, siralamaCacheTarih: null
+            };
+            // v4.16.48 KRİTİK DÜZELTME: sınıfları BÜYÜKTEN KÜÇÜĞE işle.
+            //   Küçükten büyüğe gidilirse 5->6 yapıldıktan sonra 6->7 adımı, az önce
+            //   6'ya taşınanları da yakalar ve herkes zincirleme en üst sınıfa itilir.
+            //   Azalan sırada bu çakışma imkansızdır (hedef sınıf henüz işlenmiştir).
+            const azalanGruplar = [...grupListe].sort((a, b) => b.eskiSinif - a.eskiSinif);
+            for (const g of azalanGruplar) {
+                const set = Object.assign({ sinif: g.yeniSinif }, resetAlan);
+                if (g.okulKesilecek) { set.okul = ''; set.sube = ''; }
+                await Kullanici.updateMany(
+                    { rol: { $nin: HARIC_ROLLER }, sinif: g.eskiSinif },
+                    { $set: set }
+                );
+                // v4.16.52: OYUN SIFIRLAMA — eski sinif dunyasindaki hucreler ve
+                //   oyuncu kaydi silinir. Aksi halde ogrenci yeni dunyada sifirdan
+                //   baslasa da ESKI dunyada topraklari uzerinde kalmaya devam ediyordu.
+                if (g.adlar && g.adlar.length) {
+                    try {
+                        await OyunHucre.deleteMany({ sahip: { $in: g.adlar } });
+                        await OyunOyuncu.deleteMany({ kullaniciAdi: { $in: g.adlar } });
+                    } catch (oe) { console.error('[sinif-atlat oyun temizlik]', oe.message); }
+                }
+            }
+        }
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Sınıf Atlatma</title>';
+        h += '<style>body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px;}th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left;}';
+        h += 'th{background:#f5f5f5;}.ozet{background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;padding:14px 16px;margin:14px 0;}';
+        h += '.btn{display:inline-block;padding:9px 18px;border-radius:6px;text-decoration:none;font-weight:600;margin-right:8px;}';
+        h += '.uygula{background:#c62828;color:#fff;}.geri{background:#eee;color:#333;}';
+        h += '.ok{background:#2e7d32;color:#fff;padding:10px 14px;border-radius:8px;}</style></head><body>';
+        h += '<h2>🎓 Sınıf Atlatma</h2>';
+
+        if (uygula) {
+            h += '<p class="ok">UYGULANDI. ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirildi (bunlardan ' + mezunOlacak + ' kişi Mezun oldu). Kişisel puan/ders istatistikleri ve geçilen sorular sıfırlandı; geçmiş cevap kayıtları korunuyor (soru istatistiklerini beslemeye devam eder). ' + okulKesilecekSayi + ' öğrencinin okul bağı kesildi (5./9./Mezun geçişi) — kendi okullarını profillerinden seçecekler.</p>';
+        } else {
+            h += '<p style="color:#666;">Bu bir <b>KURU ÇALIŞMA</b> (önizleme). Hiçbir şey henüz değişmedi.</p>';
+        }
+
+        h += '<div class="ozet"><b>Özet:</b> ' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçecek (bunlardan <b>' + mezunOlacak + '</b> kişi Mezun olacak) &middot; ' + mezunSayisi + ' kişi zaten Mezun (atlanmayacak)' + (gecersizSayisi ? ' &middot; ' + gecersizSayisi + ' kişide sınıf bilgisi geçersiz/eksik (atlanmadı)' : '') + ' &middot; <b>' + okulKesilecekSayi + '</b> öğrencinin okul bağı kesilecek (5./9./Mezun geçişi).</div>';
+
+        h += '<div class="ozet" style="background:#fff8e1; border-color:#ffe082;"><b>Sınıf atlatınca ne olur:</b><br>';
+        h += '&bull; Sınıf bir üst seviyeye geçer (12 &rarr; Mezun).<br>';
+        h += '&bull; Kişisel puan, ders/konu istatistikleri ve geçilen sorular sıfırlanır — <b>sıfırdan başlar</b>.<br>';
+        h += '&bull; Oyun otomatik sıfırdan başlar (yeni sınıfta oyuncu kaydı yoktur).<br>';
+        h += '&bull; Geçmiş cevap kayıtları SİLİNMEZ — sorunun kendi istatistikleri (zorluk, ortalama süre, doğru oranı) geçmiş+yeni veriyle güncellenmeye devam eder.<br>';
+        h += '&bull; Mezun (13) olanlar yalnız Türkiye sıralamasına (kendi aralarında) girer; il/ilçe/okul/sınıf sıralamalarında görünmezler.<br>';
+        h += '&bull; 5., 9. sınıfa veya Mezun\'a geçenlerin <b>okul/şube bağı kesilir</b> (il/ilçe kalır) — kendi yeni okullarını profillerindeki "Konum bilgileri" kartından seçerler.</div>';
+
+        if (!grupListe.length) {
+            h += '<p style="color:#2e7d32;">Atlatılacak öğrenci yok.</p>';
+        } else {
+            h += '<table><thead><tr><th>Şu anki sınıf</th><th>Yeni sınıf</th><th>Öğrenci sayısı</th><th>Okul bağı</th></tr></thead><tbody>';
+            grupListe.forEach(g => {
+                const yeniEtiket = (g.yeniSinif === 13) ? 'Mezun' : (g.yeniSinif + '. Sınıf');
+                const okulNotu = g.okulKesilecek ? '<span style="color:#c62828; font-weight:600;">Kesilecek</span>' : '<span style="color:#999;">Korunur</span>';
+                h += '<tr><td>' + esc(g.eskiSinif) + '. Sınıf</td><td><b>' + yeniEtiket + '</b></td><td>' + esc(g.sayi) + '</td><td>' + okulNotu + '</td></tr>';
+            });
+            h += '</tbody></table>';
+            if (!uygula) {
+                h += '<p style="margin-top:20px;"><a class="btn uygula" href="/admin/sinif-atlat?uygula=1" onclick="return confirm(\'' + toplamAtlayacak + ' öğrenci bir üst sınıfa geçirilecek, kişisel istatistikleri ve oyun ilerlemesi sıfırlanacak, ' + okulKesilecekSayi + ' öğrencinin okul bağı kesilecek. Bu işlem geri alınamaz. Devam edilsin mi?\');">🎓 SINIF ATLATMAYI UYGULA</a> <a class="btn geri" href="/admin?mod=ayarlar">Geri</a></p>';
+            } else {
+                h += '<p style="margin-top:20px;"><a class="btn geri" href="/admin?mod=kullanicilar">Kullanıcılar ekranına dön</a></p>';
+            }
+        }
+        h += '</body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[sinif-atlat] HATA:', e.message);
+        res.status(500).send('Sınıf atlatma hatası: ' + e.message);
+    }
+});
+
+// v4.17.11: KESME TARIHI (sinif atlatma) goruntule/ayarla.
+//   Sinif/ders istatistikleri bu tarihten SONRAKI cevaplardan hesaplanir.
+//   Tarihi bos olan ogrencilerde ESKI SINIF cevaplari da sayilir ve basari
+//   duser. Bu ekrandan toplu veya tekil olarak tarih atanabilir.
+router.get('/admin/kesme-tarihi', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const HARIC = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
+        const kullanicilar = await Kullanici.find({ rol: { $nin: HARIC } },
+            'kullaniciAdi sinif sonSinifAtlamaTarihi').sort({ sinif: 1, kullaniciAdi: 1 }).lean();
+        const bosOlan = kullanicilar.filter(u => !u.sonSinifAtlamaTarihi).length;
+        const dt = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('tr-TR'); } catch (e) { return '—'; } };
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">';
+        h += '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Kesme Tarihi</title><style>';
+        h += 'body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:0 auto;padding:22px 16px 60px;color:#1a2236;background:#f4f6f9}';
+        h += '.k{background:#fff;border:1px solid #e3e8ef;border-radius:12px;padding:16px 18px;margin-bottom:16px}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 9px;border-bottom:1px solid #eee;text-align:left}';
+        h += 'th{background:#f5f7fa;color:#5b6673}.uy{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.6;margin:10px 0}';
+        h += 'button{background:#c62828;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-weight:600;cursor:pointer;font-size:13px}';
+        h += 'input[type=date]{padding:7px 10px;border:1px solid #d7dde5;border-radius:8px;font-size:14px}';
+        h += '.bos{color:#c62828;font-weight:600}</style></head><body>';
+
+        h += '<div class="k"><h2 style="margin:0 0 6px;">📅 Kesme Tarihi (sınıf atlatma)</h2>';
+        h += '<p style="font-size:13px;color:#5b6673;margin:6px 0;">Ders/konu ve sınıf başarı istatistikleri <b>bu tarihten sonraki</b> cevaplardan hesaplanır. Tarihi boş olan öğrencilerde geçen yılın cevapları da sayılır ve başarı düşük görünür.</p>';
+        h += '<div class="uy"><b>Durum:</b> ' + kullanicilar.length + ' öğrenciden <b class="bos">' + bosOlan + '</b> tanesinde kesme tarihi yok.</div>';
+        h += '<form method="POST" action="/admin/kesme-tarihi-uygula" onsubmit="return confirm(\'Seçilen tarih uygulanacak. Bu tarihten önceki cevaplar istatistiklerde sayılmayacak. Devam?\');">';
+        h += '<label style="font-size:13px;">Kesme tarihi: <input type="date" name="tarih" required></label> ';
+        h += '<label style="font-size:13px;margin-left:12px;"><input type="radio" name="kapsam" value="bos" checked> Sadece tarihi boş olanlara</label> ';
+        h += '<label style="font-size:13px;margin-left:10px;"><input type="radio" name="kapsam" value="hepsi"> Tüm öğrencilere</label><br>';
+        h += '<button type="submit" style="margin-top:12px;">Uygula</button></form>';
+        h += '<p style="font-size:12px;color:#888;margin-top:10px;">Öneri: bu öğretim yılının başlangıcı (ör. 01.09.2026). Cevap kayıtları SİLİNMEZ — yalnız istatistik hesabı bu tarihten başlar; soru istatistikleri etkilenmez.</p></div>';
+
+        h += '<div class="k"><table><thead><tr><th>Öğrenci</th><th>Sınıf</th><th>Kesme tarihi</th></tr></thead><tbody>';
+        kullanicilar.forEach(u => {
+            h += '<tr><td>' + esc(u.kullaniciAdi) + '</td><td>' + (Number(u.sinif) === 13 ? 'Mezun' : esc(u.sinif)) + '</td>';
+            h += '<td' + (u.sonSinifAtlamaTarihi ? '' : ' class="bos"') + '>' + esc(dt(u.sonSinifAtlamaTarihi)) + '</td></tr>';
+        });
+        h += '</tbody></table></div></body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[kesme-tarihi] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
+router.post('/admin/kesme-tarihi-uygula', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const HARIC = ['ogretmen', 'kurumsal', 'veli', 'moderator'];
+        const t = new Date(String(req.body.tarih || ''));
+        if (isNaN(t.getTime())) return res.send("<script>alert('Gecersiz tarih.'); history.back();</script>");
+        const filtre = (req.body.kapsam === 'hepsi')
+            ? { rol: { $nin: HARIC } }
+            : { rol: { $nin: HARIC }, $or: [{ sonSinifAtlamaTarihi: null }, { sonSinifAtlamaTarihi: { $exists: false } }] };
+        const sonuc = await Kullanici.updateMany(filtre, { $set: { sonSinifAtlamaTarihi: t } });
+        res.send("<script>alert('" + (sonuc.modifiedCount || 0) + " ogrencide kesme tarihi guncellendi. Siralamalar icin Hesapla calistirabilirsiniz.'); location.href='/admin/kesme-tarihi';</script>");
+    } catch (e) {
+        console.error('[kesme-tarihi-uygula] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
 // v4.5.3: Bir sorunun çözüm detayları — kim, ne zaman, kaç saniyede çözmüş.
 // Zorluk Raporu ve Soru Puan Detayı sayfalarındaki "açılır iç tablo"
 // için JSON döner. Sadece DOĞRU cevaplar listelenir.

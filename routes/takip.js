@@ -380,7 +380,9 @@ router.get('/api/takip/ogrenci-istatistik/:ogrenciAdi', oturumGerekli, async (re
         // Cevap kayıtlarını al ve ders bazlı istatistikleri hesapla
         const CevapKaydi = require('../models/CevapKaydi');
         const Soru = require('../models/Soru');
-        const cevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi }).lean();
+        // v4.17.11: Sinif atlatma oncesi (eski sinif) cevaplari sayilmaz.
+        const _kesme1 = (ogrenci && ogrenci.sonSinifAtlamaTarihi) || new Date(0);
+        const cevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi, tarih: { $gte: _kesme1 } }).lean();
         const soruIds = cevaplar.map(c => c.soruId);
         const sorular = soruIds.length ? await Soru.find({ _id: { $in: soruIds } }, 'ders konu').lean() : [];
         const soruMap = {};
@@ -478,7 +480,9 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
         // panel.js'teki istatistik hesaplama mantığının BİRE BİR aynısı:
         const CevapKaydi = require('../models/CevapKaydi');
         const Soru = require('../models/Soru');
-        const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi }).lean();
+        // v4.17.11: Sinif atlatma oncesi (eski sinif) cevaplari sayilmaz.
+        const _kesme2 = (ogrenci && ogrenci.sonSinifAtlamaTarihi) || new Date(0);
+        const tumCevaplar = await CevapKaydi.find({ kullaniciAdi: ogrenciAdi, tarih: { $gte: _kesme2 } }).lean();
         const soruIdleri = [...new Set(tumCevaplar.map(c => String(c.soruId)))];
         const cevapSorular = soruIdleri.length > 0
             ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu sinif soruNo soruMetni soruOnculu1 soruOnculu1Resmi soruOnculu2 soruOnculu2Resmi soruOnculu3 soruOnculu3Resmi soruResmi secenekler dogruCevapIndex tabloBaslik sikDizilimi _id').lean()
@@ -491,7 +495,7 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
             const sb = soruBilgiMap[String(c.soruId)];
             if (!sb) return;
             const ders = sb.ders || 'Diğer';
-            const konu = sb.konu || 'Genel';
+            const konu = sb.konu || sb.unite || 'Genel';
             if (!dersIstatMap[ders]) dersIstatMap[ders] = { toplamDogru: 0, toplamYanlis: 0, toplamPuan: 0, konular: {} };
             if (!dersIstatMap[ders].konular[konu]) dersIstatMap[ders].konular[konu] = { dogru: 0, yanlis: 0, toplamSure: 0 };
             if (c.dogruMu) { dersIstatMap[ders].toplamDogru++; dersIstatMap[ders].konular[konu].dogru++; }
