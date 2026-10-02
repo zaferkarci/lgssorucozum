@@ -133,9 +133,20 @@ async function sinifOrtalamaHesapla(ogrenciAdlari) {
     const sonuc = { dersIstat: {}, genelOran: 0, genelToplamCevap: 0 };
     try {
         if (!ogrenciAdlari || ogrenciAdlari.length === 0) return sonuc;
-        const cevaplar = await CevapKaydi.find(
-            { kullaniciAdi: { $in: ogrenciAdlari } }, 'soruId dogruMu'
+        // v4.17.9: Sinif atlatma sonrasi ESKI SINIF cevaplari sayilmaz.
+        //   Ogrencinin sonSinifAtlamaTarihi'nden ONCEKI cevaplari, su an bulundugu
+        //   sinifin basari istatistigini haksiz yere asagi cekiyordu.
+        const _ogrKayit = await Kullanici.find(
+            { kullaniciAdi: { $in: ogrenciAdlari } }, 'kullaniciAdi sonSinifAtlamaTarihi'
         ).lean();
+        const _kesme = new Map(_ogrKayit.map(u => [u.kullaniciAdi, u.sonSinifAtlamaTarihi || null]));
+        const _hamCevaplar = await CevapKaydi.find(
+            { kullaniciAdi: { $in: ogrenciAdlari } }, 'soruId dogruMu kullaniciAdi tarih'
+        ).lean();
+        const cevaplar = _hamCevaplar.filter(c => {
+            const t = _kesme.get(c.kullaniciAdi);
+            return !t || (c.tarih && new Date(c.tarih) >= new Date(t));
+        });
         if (cevaplar.length === 0) return sonuc;
         const soruIdler = [...new Set(cevaplar.map(c => String(c.soruId)))];
         const sorular = await Soru.find({ _id: { $in: soruIdler } }, 'ders konu').lean();
@@ -737,16 +748,11 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     } else if (gercekOgrenci && mod === 'soru' && analizTamamlandi
         && gunlukHedefData && (gunlukHedefData.toplamHedef || 0) > 0
         && (gunlukHedefData.toplamBugun || 0) >= gunlukHedefData.toplamHedef) {
-        const fazla = (gunlukHedefData.toplamBugun || 0) - (gunlukHedefData.toplamHedef || 0);
-        if (fazla >= 1 || req.query.bitir === '1') {
-            sorular = [];
-            gunlukHedefDolduMu = true;
-        } else if (req.query.ekstra === '1') {
-            // +1 soru hakki kullaniliyor — havuza dokunma
-        } else {
-            sorular = [];
-            gunlukHedefEkstraSoru = true;
-        }
+        // v4.17.9: "+1 soru" teklifi TAMAMEN KALDIRILDI. Hedef dolunca (standart ya da
+        //   premium fark etmeksizin) dogrudan "bugunluk bu kadar" ekrani gosterilir.
+        //   ?ekstra=1 parametresi de artik yok sayilir.
+        sorular = [];
+        gunlukHedefDolduMu = true;
     }
 
     // v4.6.8: Öğretmen için otomatik günlük davet kodu üretimi tamamen kaldırıldı.
@@ -2079,12 +2085,42 @@ router.post('/profil/konum-guncelle', oturumKontrol, async (req, res) => {
         if (req.session.kullaniciAdi !== kullaniciAdi) {
             return res.status(403).send('Yetkisiz işlem');
         }
+        const mevcut = await Kullanici.findOne({ kullaniciAdi }, 'rol sinif il ilce okul konumDegisiklikSinif').lean();
+        if (!mevcut) return res.status(404).send('Kullanici bulunamadi');
+
+        // v4.17.10: Konum degisiklik politikasi — SINIF SEVIYESI basina BIR kez.
+        //   - Zorunlu alanlardan biri BOSSA: her zaman doldurulabilir (hak harcanmaz).
+        //   - Hepsi doluysa: ayni sinif seviyesinde ikinci degisiklik REDDEDILIR.
+        //   - Sinif atlatilinca kayitli seviye eskidigi icin hak kendiliginden yenilenir.
+        //   (Veli bir okula bagli olmadigi icin onda okul zorunlu degildir.)
+        const okulGerekli = (mevcut.rol !== 'veli');
+        const bosAlanVar = !String(mevcut.il || '').trim()
+            || !String(mevcut.ilce || '').trim()
+            || (okulGerekli && !String(mevcut.okul || '').trim());
+
+        if (!bosAlanVar && mevcut.konumDegisiklikSinif != null
+            && Number(mevcut.konumDegisiklikSinif) === Number(mevcut.sinif)) {
+            return res.send("<script>alert('Konum bilgilerini her sinif seviyesinde yalnizca BIR kez degistirebilirsin. " +
+                "Bu seviyede hakkini kullandin; bir ust sinifa gecince yeniden degistirebilirsin. " +
+                "Hatali bir bilgi varsa ogretmenine bildir.'); " +
+                "location.href='/panel/" + encodeURIComponent(kullaniciAdi) + "?mod=profil';</script>");
+        }
+
         const guncelleme = {};
         if (typeof il   === 'string') guncelleme.il   = il.trim();
         if (typeof ilce === 'string') guncelleme.ilce = ilce.trim();
         if (typeof okul === 'string') guncelleme.okul = okul.trim();
+        // Hak yalnizca bilgiler TAMAMLANDIGINDA harcanir; eksik doldurma hak yakmaz
+        const sonrasiTam = String(guncelleme.il || mevcut.il || '').trim()
+            && String(guncelleme.ilce || mevcut.ilce || '').trim()
+            && (!okulGerekli || String(guncelleme.okul || mevcut.okul || '').trim());
+        if (sonrasiTam && !bosAlanVar) {
+            guncelleme.konumDegisiklikSinif = Number(mevcut.sinif);
+            guncelleme.konumDegisiklikTarih = new Date();
+        }
+
         await Kullanici.findOneAndUpdate({ kullaniciAdi }, guncelleme);
-        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil');
+        res.redirect('/panel/' + encodeURIComponent(kullaniciAdi) + '?mod=profil&konum=1');
     } catch (err) { res.status(500).send('Hata: ' + err.message); }
 });
 

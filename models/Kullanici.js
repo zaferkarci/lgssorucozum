@@ -21,6 +21,9 @@ const KullaniciSchema = new mongoose.Schema({
     // v4.16.49: Üyelik tipi — şimdilik yalnızca GÖSTERİM amaçlı; hiçbir davranışı
     //   (soru limiti, sıralama, erişim) etkilemez. 'standart' | 'premium'
     uyelikTipi: { type: String, default: 'standart' },
+    // v4.17.9: Konum (il/ilce/okul) son degisiklik tarihi. Bilgiler EKSIKSE her zaman
+    //   doldurulabilir; tamamsa yilda BIR kez degistirilebilir (sik degisimi onlemek icin).
+    konumGuncellemeTarih: { type: Date, default: null },
     soruIndex: { type: Number, default: 0 },
     puan: { type: Number, default: 0 },
     toplamSure: { type: Number, default: 0 },
@@ -48,6 +51,11 @@ const KullaniciSchema = new mongoose.Schema({
     //   önceki cevaplar SİLİNMEZ — soru istatistiklerini (zorluk, ortalama süre,
     //   doğru oranı) beslemeye devam eder, yalnızca kişisel ilerleme "sıfırlanmış" görünür.
     sonSinifAtlamaTarihi: { type: Date, default: null },
+    // v4.17.9: Konum (il/ilce/okul) degisikligi her SINIF SEVIYESINDE yalnizca BIR kez.
+    //   Burada degisikligin yapildigi sinif tutulur; ayni sinifta ikinci degisiklik reddedilir.
+    //   Sinif atlayinca deger eskidigi icin hak kendiliginden yenilenir.
+    konumDegisiklikSinif:  { type: Number, default: null },
+    konumDegisiklikTarih:  { type: Date, default: null },
     // v4.4.0: Geçilen sorular — öğrenci "Geç" butonuna basıp soruyu atladığında
     //   buraya eklenir. Sıralamada bu soru o ders/ünite/konu'nun en sonuna
     //   itilir. Soru 2. kez çözüldüğünde puan = kazanılan/5 olur (3+ ise 0).

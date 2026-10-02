@@ -1418,8 +1418,20 @@ document.addEventListener('DOMContentLoaded', function() {
         <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && !adminGorunum) { %>
         <div class="profil-kart-yeni" id="konumBilgileriKart">
           <p class="profil-kart-baslik-yeni">Konum bilgileri <% if (eksikBilgiVar) { %><span style="color:#f57c00; font-size:12px; font-weight:600; margin-left:8px;">⚠️ Eksik</span><% } %></p>
-          <p style="font-size:12px; color:#888; margin-bottom:12px; line-height:1.5;">Okulun değiştiyse buradan güncelleyebilirsin. Bu bilgiler okul/il/ilçe sıralamasında görünmen için gereklidir. Yarın 05:10'dan sonra sıralaman güncellenecektir.</p>
-          <form method="POST" action="/profil/konum-guncelle">
+          <%# v4.17.10: Eksik bilgi her zaman doldurulabilir; tamamsa Sınıf seviyesi başına BIR kez. %>
+          <% var _okulGerekli = (k.rol !== 'veli');
+             var _bosAlanVar = !(k.il||'').trim() || !(k.ilce||'').trim() || (_okulGerekli && !(k.okul||'').trim());
+             var _hakBitti = (!_bosAlanVar && k.konumDegisiklikSinif != null
+                              && Number(k.konumDegisiklikSinif) === Number(k.sinif)); %>
+          <% if (_bosAlanVar) { %>
+            <p style="font-size:12px; color:#b45309; margin-bottom:12px; line-height:1.5;">Eksik bilgilerini doldurman gerekiyor. Tamamlamadan okul/il/ilçe sıralamalarında görünmezsin.</p>
+          <% } else if (_hakBitti) { %>
+            <p style="font-size:12px; color:#888; margin-bottom:12px; line-height:1.5;">Bilgilerin tamam. Konum bilgilerini <b>her sınıf seviyesinde yalnızca bir kez</b> değiştirebilirsin ve bu seviyedeki hakkını kullandın. Bir üst sınıfa geçince yeniden değiştirebilirsin. Hatalı bir bilgi varsa öğretmenine bildir.</p>
+          <% } else { %>
+            <p style="font-size:12px; color:#888; margin-bottom:12px; line-height:1.5;">Okulun değiştiyse buradan güncelleyebilirsin. ⚠️ Bu bilgileri <b>her sınıf seviyesinde yalnızca BİR kez</b> değiştirebilirsin — dikkatli seç.</p>
+          <% } %>
+          <form method="POST" action="/profil/konum-guncelle"
+                <% if (!_bosAlanVar) { %>onsubmit="return confirm('Konum bilgilerini her s\u0131n\u0131f seviyesinde yaln\u0131zca B\u0130R kez de\u011fi\u015ftirebilirsin. Bu de\u011fi\u015fiklik hakk\u0131n\u0131 kullanacak. Devam edilsin mi?')"<% } %>>
             <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
 
             <div style="margin-bottom:10px;">
