@@ -199,15 +199,24 @@ document.addEventListener('DOMContentLoaded', function() {
         <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=atandigimSiniflar" class="ptopbar-link <%= mod==='atandigimSiniflar'?'aktif':'' %>">📚 Sınıflarım</a>
       <% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
+      <%# v4.17.15: Mesajlar — okunmamis admin cevabi varsa kırmızı rozet %>
+      <% var _okunmamisCevap = (typeof benimMesajlarim !== 'undefined' ? (benimMesajlarim||[]) : []).filter(function(mm){ return !mm.ogrenciOkudu; }).length; %>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil#mesajlarimKart" class="ptopbar-link" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else if (k.rol === 'veli') { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=veliPanel" class="ptopbar-link <%= mod==='veliPanel'?'aktif':'' %>">👪 Veli Paneli</a>
+      <%# v4.17.15: Mesajlar — okunmamis admin cevabi varsa kırmızı rozet %>
+      <% var _okunmamisCevap = (typeof benimMesajlarim !== 'undefined' ? (benimMesajlarim||[]) : []).filter(function(mm){ return !mm.ogrenciOkudu; }).length; %>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil#mesajlarimKart" class="ptopbar-link" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
       <% if (k.rol === 'ogrenci' || k.rol === 'demo') { %><a href="/oyun" class="ptopbar-link" style="background:linear-gradient(135deg,#7b1fa2,#1565c0);color:#fff;border-radius:14px;">🪐 Oyun</a><% } %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=takip" class="ptopbar-link <%= mod==='takip'?'aktif':'' %>" id="takipNavLink" style="position:relative;">Takip<span id="bekleyenBadge" style="display:none; position:absolute; top:6px; right:4px; background:#e24b4a; color:white; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;">0</span></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
+      <%# v4.17.15: Mesajlar — okunmamis admin cevabi varsa kırmızı rozet %>
+      <% var _okunmamisCevap = (typeof benimMesajlarim !== 'undefined' ? (benimMesajlarim||[]) : []).filter(function(mm){ return !mm.ogrenciOkudu; }).length; %>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil#mesajlarimKart" class="ptopbar-link" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } %>
     <% if (adminGorunum) { %>
@@ -325,17 +334,13 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="font-size:14px; color:#555; line-height:1.5; margin-bottom:20px;">
           Bugünkü hedefini başarıyla tamamladın.<br>
           Tüm derslerden günlük görevlerini bitirdin.<br><br>
-          Devam etmek ister misin?
+          Yarın yeni hedefinle devam edebilirsin.
         </div>
         <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
           <button onclick="document.getElementById('hedef-modal').style.display='none';"
                   style="background:#f5f5f5; color:#555; border:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer;">
-            Yeter, dinleneceğim
+            Tamam
           </button>
-          <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?basla=true"
-             style="background:#43a047; color:#fff; text-decoration:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:600;">
-            Devam et 🚀
-          </a>
         </div>
       </div>
     </div>
@@ -1416,6 +1421,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- v4.1.26: Konum bilgileri (öğrenci için — opsiyonel olduğundan sonradan tamamlama) -->
         <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && !adminGorunum) { %>
+        <%# v4.17.14: Mesajlarım — panel içi yazışma (yalnız kullanıcı ve yönetici görür) %>
+        <% if (typeof benimMesajlarim !== 'undefined') { %>
+        <div class="profil-kart-yeni" id="mesajlarimKart">
+          <p class="profil-kart-baslik-yeni">✉️ Mesajlarım
+            <% var _yeniCevap = (benimMesajlarim||[]).filter(function(m){ return !m.ogrenciOkudu; }).length; %>
+            <% if (_yeniCevap) { %><span style="background:#e53935;color:#fff;font-size:11px;padding:2px 8px;border-radius:9px;margin-left:8px;"><%= _yeniCevap %> yeni cevap</span><% } %>
+          </p>
+          <p style="font-size:12px; color:#888; margin-bottom:10px; line-height:1.5;">Soru, öneri veya sorunların için yaz. Yazışmayı yalnızca sen ve yönetici görür.</p>
+
+          <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:12px;">
+            <textarea id="yeniMesajMetin" rows="2" placeholder="Mesajını yaz…"
+                      style="flex:1; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
+            <button type="button" onclick="mesajGonder()" style="background:#1a73e8; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;">Gönder</button>
+          </div>
+
+          <% if (!(benimMesajlarim||[]).length) { %>
+            <div style="font-size:12px; color:#9aa4b2;">Henüz mesajın yok.</div>
+          <% } else { %>
+            <% benimMesajlarim.forEach(function(m) { %>
+              <div style="border:1px solid #eceff3; border-radius:8px; padding:9px 11px; margin-bottom:8px;">
+                <div style="font-size:11px; color:#9aa4b2; margin-bottom:3px;">
+                  <%= new Date(m.yazilmaTarih).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) %>
+                  <% if (m.kaynak === 'hatali-soru') { %> · <span style="color:#c62828;">⚠️ Hatalı soru</span><% } %>
+                  <% if (m.soruBilgi) { %> · <%= m.soruBilgi %><% } %>
+                </div>
+                <% if (m.kaynak === 'admin') { %>
+                  <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px;">
+                    <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici mesajı</div>
+                    <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= m.mesaj %></div>
+                  </div>
+                <% } else { %>
+                <div style="font-size:13px; color:#374151; white-space:pre-wrap;"><%= m.mesaj %></div>
+                <% } %>
+                <% (m.yanitlar||[]).forEach(function(y) { %>
+                  <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px; margin-top:7px;">
+                    <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici cevabı · <%= new Date(y.tarih).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) %></div>
+                    <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= y.metin %></div>
+                  </div>
+                <% }); %>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+        <% } %>
+
         <div class="profil-kart-yeni" id="konumBilgileriKart">
           <p class="profil-kart-baslik-yeni">Konum bilgileri <% if (eksikBilgiVar) { %><span style="color:#f57c00; font-size:12px; font-weight:600; margin-left:8px;">⚠️ Eksik</span><% } %></p>
           <%# v4.17.10: Eksik bilgi her zaman doldurulabilir; tamamsa Sınıf seviyesi başına BIR kez. %>
@@ -1927,11 +1977,9 @@ document.addEventListener('DOMContentLoaded', function() {
                       Soruyu Gör
                     </button>
                   <% } %>
-                  <a href="/iletisim?hata=1&sinif=<%= encodeURIComponent(sb.sinif||'') %>&ders=<%= encodeURIComponent(sb.ders||'') %>&konu=<%= encodeURIComponent(sb.konu||'') %>&soruNo=<%= encodeURIComponent(sb.soruNo||'') %>" target="_blank"
-                    style="background:#ffebee; color:#c62828; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; text-decoration:none; white-space:nowrap; display:inline-block; margin-left:4px;"
-                    title="Bu soruda hata varsa bildir">
-                    ⚠️ Hatalı
-                  </a>
+                  <button type="button" onclick="hataBildir('<%= String(c.soruId) %>', '<%= (sb.ders||'') %> / <%= (sb.konu||'') %> / No <%= (sb.soruNo||'') %>')"
+                    style="background:#ffebee; color:#c62828; border:none; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;"
+                    title="Bu soruda hata varsa bildir">⚠️ Hatalı</button>
                 </td>
               </tr>
               <% }); %>
@@ -3249,7 +3297,9 @@ document.addEventListener('DOMContentLoaded', function() {
         <span class="ep ep-ders">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="ep ep-konu">Konu: <%= soru.konu %></span><% } %>
-        <a href="/iletisim?hata=1&sinif=<%= encodeURIComponent(soru.sinif||'') %>&ders=<%= encodeURIComponent(soru.ders||'') %>&konu=<%= encodeURIComponent(soru.konu||'') %>&soruNo=<%= encodeURIComponent(soru.soruNo||'') %>" target="_blank" class="ep" style="background:#ffebee; color:#c62828; border-color:#ffcdd2; text-decoration:none; margin-left:auto;" title="Bu soruda bir hata varsa bildir">⚠️ Hatalı Bildir</a>
+        <button type="button" onclick="hataBildir('<%= String(soru._id) %>', '<%= (soru.ders||'') %> / <%= (soru.konu||'') %> / No <%= (soru.soruNo||'') %>')"
+           style="background:#ffebee; color:#c62828; border:none; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer;"
+           title="Bu soruda hata varsa bildir">⚠️ Hatalı soru bildir</button>
       </div>
       <div class="soru-govde-yeni">
         <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
@@ -3399,7 +3449,9 @@ document.addEventListener('DOMContentLoaded', function() {
         <span class="ep ep-ders">Ders: <%= soru.ders %></span>
         <% if (soru.unite) { %><span class="ep ep-unite">Ünite: <%= soru.unite %></span><% } %>
         <% if (soru.konu) { %><span class="ep ep-konu">Konu: <%= soru.konu %></span><% } %>
-        <a href="/iletisim?hata=1&sinif=<%= encodeURIComponent(soru.sinif||'') %>&ders=<%= encodeURIComponent(soru.ders||'') %>&konu=<%= encodeURIComponent(soru.konu||'') %>&soruNo=<%= encodeURIComponent(soru.soruNo||'') %>" target="_blank" class="ep" style="background:#ffebee; color:#c62828; border-color:#ffcdd2; text-decoration:none;" title="Bu soruda bir hata varsa bildir">⚠️ Hatalı Bildir</a>
+        <button type="button" onclick="hataBildir('<%= String(soru._id) %>', '<%= (soru.ders||'') %> / <%= (soru.konu||'') %> / No <%= (soru.soruNo||'') %>')"
+           style="background:#ffebee; color:#c62828; border:none; border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer;"
+           title="Bu soruda hata varsa bildir">⚠️ Hatalı soru bildir</button>
         <div style="margin-left:auto; background:rgba(226,75,74,0.1); border:1px solid rgba(226,75,74,0.25); border-radius:20px; padding:4px 14px; font-size:12px; font-weight:600; color:#c0392b; white-space:nowrap;<% if(moderator){ %>display:none;<% } %>">⏱ <span id="timer">00:00</span> / 05:00</div>
       </div>
       <div class="soru-govde-yeni">
@@ -3780,5 +3832,25 @@ function gorselKapat(){ document.getElementById("gorselLightbox").style.display=
   }
 </script>
 <% } %>
+<script>
+  function mesajGonder(){
+    var el=document.getElementById('yeniMesajMetin'); if(!el) return;
+    var t=(el.value||"").trim(); if(!t){ alert("Lütfen mesajını yaz."); return; }
+    fetch('/panel/mesaj-gonder',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mesaj:t})})
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d&&d.ok){ alert("Mesajın iletildi."); location.reload(); } else { alert("Gönderilemedi."+(d&&d.hata?" "+d.hata:"")); } })
+      .catch(function(){ alert("Gönderilemedi."); });
+  }
+  function hataBildir(soruId, bilgi){
+    var aciklama = prompt("Bu soruda ne hatalı? Kısaca yaz:");
+    if(aciklama===null) return;
+    aciklama=(aciklama||"").trim(); if(!aciklama){ alert("Açıklama boş olamaz."); return; }
+    fetch('/panel/mesaj-gonder',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
+      body:JSON.stringify({mesaj:aciklama,kaynak:'hatali-soru',soruId:soruId,soruBilgi:bilgi})})
+      .then(function(r){return r.json();})
+      .then(function(d){ alert(d&&d.ok ? "Bildirimin iletildi, teşekkürler." : "Gönderilemedi."); })
+      .catch(function(){ alert("Gönderilemedi."); });
+  }
+</script>
 </body>
 </html>

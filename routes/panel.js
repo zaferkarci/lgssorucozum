@@ -1296,9 +1296,20 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
         }
     } catch (e) { console.error('[tam ogrenme kart]', e.message); }
 
+    // v4.17.14: Kullanicinin KENDI mesajlari (admin cevaplariyla birlikte).
+    let benimMesajlarim = [];
+    try {
+        if (gercekOgrenci || k.rol === 'veli') {
+            const Mesaj = require('../models/Mesaj');
+            benimMesajlarim = await Mesaj.find({ kullaniciAdi: k.kullaniciAdi })
+                .sort({ yazilmaTarih: -1 }).limit(30).lean();
+        }
+    } catch (e) { console.error('[benim mesajlarim]', e.message); }
+
     res.render('panel', {
         k,
         duyuruGoster,
+        benimMesajlarim,
         tamOgrenmeKart, tamOgrenmeHedef, tamOgrenmeBitti,
         // v4.11.0: Oyun acildi duyurusu acilir penceresi - ogrenci/demo, henuz
         //   "bir daha gosterme" dememisse.
@@ -2078,6 +2089,35 @@ router.post('/profil/sube-guncelle', oturumKontrol, async (req, res) => {
 
 // v4.1.26: Konum (il/ilçe/okul) güncelleme — kayıt formunda opsiyonel olduğu için
 // sonradan profilden tamamlanabilir. Sıralama cron'u 05:10'da yeni değerleri yakalar.
+// v4.17.14: Panel ici mesaj gonderme (ogrenci/veli). Hatali soru bildirimi de
+//   ayni uctan gelir (kaynak='hatali-soru'). Mesajlar admin panelinde gorunur;
+//   admin cevap yazinca kullanici kendi panelinde okur.
+router.post('/panel/mesaj-gonder', oturumKontrol, async (req, res) => {
+    try {
+        const Mesaj = require('../models/Mesaj');
+        const kullaniciAdi = req.session.kullaniciAdi;
+        const k = await Kullanici.findOne({ kullaniciAdi }, 'kullaniciAdi email').lean();
+        if (!k) return res.status(403).json({ ok: false });
+        const metin = String(req.body.mesaj || '').trim();
+        if (!metin) return res.json({ ok: false, hata: 'Mesaj bos olamaz.' });
+        const hataMi = req.body.kaynak === 'hatali-soru';
+        await new Mesaj({
+            adSoyad: kullaniciAdi,
+            email: k.email || '-',
+            konu: hataMi ? 'Hatali soru bildirimi' : 'Panel mesaji',
+            mesaj: metin.slice(0, 4000),
+            kullaniciAdi,
+            kaynak: hataMi ? 'hatali-soru' : 'panel',
+            soruId: req.body.soruId || null,
+            soruBilgi: String(req.body.soruBilgi || '').slice(0, 200)
+        }).save();
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('[panel mesaj-gonder]', e.message);
+        res.status(500).json({ ok: false, hata: e.message });
+    }
+});
+
 router.post('/profil/konum-guncelle', oturumKontrol, async (req, res) => {
     try {
         const { kullaniciAdi, il, ilce, okul } = req.body;

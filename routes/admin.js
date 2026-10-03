@@ -1448,6 +1448,46 @@ router.post('/mesaj-okundu', async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
+// v4.17.15: Admin bir kullaniciya YENI yazisma baslatir. Mesaj kullanicinin
+//   panelinde 'Mesajlarim' kartinda gorunur; kirmizi rozetle haber verilir.
+router.post('/mesaj-baslat', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const hedef = String(req.body.kullaniciAdi || '').trim();
+        const metin = String(req.body.metin || '').trim();
+        if (!hedef || !metin) return res.redirect('/admin?mod=mesajlar');
+        const alici = await Kullanici.findOne({ kullaniciAdi: hedef }, 'kullaniciAdi email').lean();
+        if (!alici) return res.send("<script>alert('Boyle bir kullanici yok.'); history.back();</script>");
+        await new Mesaj({
+            adSoyad: hedef,
+            email: alici.email || '-',
+            konu: 'Yonetici mesaji',
+            mesaj: metin.slice(0, 4000),
+            kullaniciAdi: hedef,
+            kaynak: 'admin',
+            okundu: true,
+            ogrenciOkudu: false
+        }).save();
+        res.redirect('/admin?mod=mesajlar&gonderildi=1');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
+// v4.17.13: Admin mesaja cevap yazar (ic not). Cevap kullaniciya GONDERILMEZ;
+//   sadece admin panelinde, mesajin altinda gorunur. adminKontrol zorunlu.
+router.post('/mesaj-yanitla', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const metin = String(req.body.metin || '').trim();
+        if (!metin) return res.redirect('/admin?mod=mesajlar');
+        await Mesaj.updateOne(
+            { _id: req.body.id },
+            { $push: { yanitlar: { metin: metin.slice(0, 4000), yazan: 'admin', tarih: new Date() } },
+              $set: { okundu: true, ogrenciOkudu: false } }
+        );
+        res.redirect('/admin?mod=mesajlar');
+    } catch (err) { res.status(500).send('Hata: ' + err.message); }
+});
+
 // Admin: mesajı sil
 router.post('/mesaj-sil', async (req, res) => {
     if (!adminKontrol(req, res)) return;
