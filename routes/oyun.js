@@ -182,7 +182,14 @@ function hashStr(s) { let h = 0; s = String(s); for (let i = 0; i < s.length; i+
 const ADJ = ['Mavi', 'Kizil', 'Altin', 'Gumus', 'Parlak', 'Sessiz', 'Hizli', 'Gizemli', 'Yesil', 'Mor', 'Beyaz', 'Turuncu'];
 const NOUN = ['Kuyrukluyildiz', 'Yildiz', 'Nebula', 'Komet', 'Meteor', 'Galaksi', 'Pulsar', 'Yorunge', 'Asteroit', 'Ay'];
 const RENK = ['#e57373', '#64b5f6', '#81c784', '#ffb74d', '#ba68c8', '#4db6ac', '#f06292', '#9575cd', '#aed581', '#4fc3f7', '#ff8a65', '#a1887f'];
-function rumuzUret(id) { const h = hashStr(id); return ADJ[h % ADJ.length] + ' ' + NOUN[(h >> 3) % NOUN.length] + '-' + (h % 90 + 10); }
+// v4.17.18: (h >> 3) isaretli kaydirmaydi; h >= 2^31 iken negatif indeks -> "undefined". >>> ile duzeltildi
+// (h < 2^31 icin sonuc ayni, mevcut duzgun rumuzlar degismez).
+function rumuzUret(id) { const h = hashStr(id); return ADJ[h % ADJ.length] + ' ' + NOUN[(h >>> 3) % NOUN.length] + '-' + (h % 90 + 10); }
+// Eski kayitlarda "undefined" gecen rumuzu gosterimde duzelt
+function rumuzGoster(o, sinif) {
+    if (o && o.rumuz && o.rumuz.indexOf('undefined') !== -1) return rumuzUret(sinif + ':' + o.kullaniciAdi);
+    return o ? o.rumuz : '';
+}
 function renkUret(id) { return RENK[hashStr(id) % RENK.length]; }
 
 async function oyuncuGetir(kullaniciAdi, sinif) {
@@ -195,6 +202,10 @@ async function oyuncuGetir(kullaniciAdi, sinif) {
             renk: (kullaniciAdi === ADMIN_OYUNCU) ? '#ffd54f' : renkUret(id),
             harcananAltin: 0
         }).save();
+    } else if (o.rumuz && o.rumuz.indexOf('undefined') !== -1) {
+        // v4.17.18: eski hatali rumuzu kalici olarak duzelt
+        o.rumuz = rumuzUret(sinif + ':' + kullaniciAdi);
+        await o.save();
     }
     return o;
 }
@@ -240,7 +251,7 @@ router.get('/oyun/veri/:sinif', async (req, res) => {
         }, 'x y sahip').lean();
         const oyuncular = await OyunOyuncu.find({ sinif }, 'kullaniciAdi rumuz renk').lean();
         const players = {};
-        oyuncular.forEach(o => { players[o.kullaniciAdi] = { rumuz: o.rumuz, renk: o.renk }; });
+        oyuncular.forEach(o => { players[o.kullaniciAdi] = { rumuz: rumuzGoster(o, sinif), renk: o.renk }; });
         const klist = await OyunKilit.find({
             x: { $gte: vx, $lt: vx + VP },
             y: { $gte: vy, $lt: vy + VP }
@@ -287,7 +298,7 @@ router.get('/oyun/siralama/:sinif', async (req, res) => {
         ]);
         const oyuncular = await OyunOyuncu.find({ sinif }, 'kullaniciAdi rumuz renk').lean();
         const pm = {};
-        oyuncular.forEach(o => { pm[o.kullaniciAdi] = { rumuz: o.rumuz, renk: o.renk }; });
+        oyuncular.forEach(o => { pm[o.kullaniciAdi] = { rumuz: rumuzGoster(o, sinif), renk: o.renk }; });
         const liste = agg.map(a => ({
             rumuz: (pm[a._id] || {}).rumuz || a._id,
             renk: (pm[a._id] || {}).renk || '#888',
@@ -527,6 +538,9 @@ function kabukHtml(opt) {
 + '.hc.kduzen:hover{background:rgba(255,213,79,.25);}'
 + '.lbl{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;background:rgba(8,12,28,.88);border:1.5px solid #777;border-radius:14px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:5;}'
 + '.lbl .nk{width:8px;height:8px;border-radius:50%;display:inline-block;}'
++ '.tip{position:fixed;display:none;align-items:center;gap:6px;pointer-events:none;z-index:40;background:rgba(8,12,28,.95);border:1.5px solid #777;border-radius:10px;padding:5px 10px;font-size:12px;font-weight:700;color:#e8eaf6;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.5);}'
++ '.tip .nk{width:9px;height:9px;border-radius:50%;display:inline-block;}'
++ '.hc.dolu.vurgu{filter:brightness(1.6);}'
 + '.dpad{display:grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:4px;margin-top:12px;}'
 + '.dpad button{background:rgba(40,46,86,.9);border:1px solid rgba(255,255,255,.12);color:#e8eaf6;border-radius:8px;font-size:16px;cursor:pointer;}'
 + '.dpad button:hover{background:rgba(60,68,120,.95);}'
@@ -556,7 +570,8 @@ function kabukHtml(opt) {
 + '<div class="dpad"><span></span><button onclick="kaydir(0,-3)">&#9650;</button><span></span>'
 + '<button onclick="kaydir(-3,0)">&#9664;</button><span></span><button onclick="kaydir(3,0)">&#9654;</button>'
 + '<span></span><button onclick="kaydir(0,3)">&#9660;</button><span></span></div>'
-+ '<p class="ipucu">Yesil "+" hucreler kendi topragina komsu; tikla = satin al (her hucre, okyanus dahil). Fiyat = 10 x mevcut hucre. Uzak rakipleri gormek icin kaydir.</p>'
++ '<div><button class="abtn" id="etkBtn" onclick="etiketDegistir()">&#127991; Isimleri goster</button></div>'
++ '<p class="ipucu">Imleci bir hucrenin uzerine getir = sahibinin adi. Yesil "+" hucreler kendi topragina komsu; tikla = satin al (her hucre, okyanus dahil). Fiyat = 10 x mevcut hucre. Uzak rakipleri gormek icin kaydir.</p>'
 + (admin ? ('<div><button class="abtn" onclick="testKomsu()">&#128101; Test komsu</button><button class="abtn abtn-tehlike" onclick="sifirla()">&#128465; Sifirla (dunya)</button></div>'
 + '<div style="margin-top:6px;"><button class="abtn" id="kduzenBtn" onclick="kilitDuzenle()">&#128274; Kilit duzenle</button>'
 + '<span id="kilitAraclar" style="display:none;"><button class="abtn" onclick="turkiyeTaslak()">&#127481; Turkiye taslagi</button><button class="abtn abtn-tehlike" onclick="kilitTemizle()">Kilitleri temizle</button></span></div>'
@@ -590,9 +605,9 @@ function scriptBlok(o) {
     const { sinif, vx, vy, HUC, benId } = o;
     return '<script>'
 + 'var SINIF="' + sinif + '",DW=' + DW + ',DH=' + DH + ',VP=' + VP + ',HUC=' + HUC + ',ADMIN=' + JSON.stringify(benId) + ';'
-+ 'var vx=' + vx + ',vy=' + vy + ',MINI=[],kilitMod=false;'
++ 'var vx=' + vx + ',vy=' + vy + ',MINI=[],kilitMod=false,ETK=false;'
 + 'function clamp(v,a,b){return Math.max(a,Math.min(b,v));}'
-+ 'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}'
++ 'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}'
 + 'var NB=[[1,0],[-1,0],[0,1],[0,-1]];'
 + 'function setBg(){document.getElementById("worldbg").style.backgroundPosition=(vx/(DW-VP)*100)+"% "+(vy/(DH-VP)*100)+"%";document.getElementById("konum").textContent=vx+","+vy;updateRect();}'
 + 'function updateRect(){var r=document.getElementById("vprect");var sx=200/DW,sy=100/DH;r.style.left=(vx*sx)+"px";r.style.top=(vy*sy)+"px";r.style.width=(VP*sx)+"px";r.style.height=(VP*sy)+"px";}'
@@ -606,12 +621,23 @@ function scriptBlok(o) {
 + 'function bd(dx,dy){return om[(wx+dx)+","+(wy+dy)]===sahip?"transparent":col2;}'
 + 'var st="background:"+hexA(col2,0.34)+";border-top-color:"+bd(0,-1)+";border-bottom-color:"+bd(0,1)+";border-left-color:"+bd(-1,0)+";border-right-color:"+bd(1,0)+";";'
 + 'var dusman=(sahip!==ADMIN),kb=false;if(dusman){for(var di=0;di<NB.length;di++){if(benim[(wx+NB[di][0])+","+(wy+NB[di][1])]){kb=true;break;}}}'
-+ 'if(dusman&&kb){html+="<div class=\\"hc dolu duello\\" title=\\"Duello: "+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\" onclick=\\"duelloBaslat("+wx+","+wy+")\\"><span class=\\"swd\\">&#9876;</span></div>";}'
-+ 'else{html+="<div class=\\"hc dolu\\" title=\\""+esc(pl.rumuz||sahip)+"\\" style=\\""+st+"\\"></div>";}'
-+ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" title=\\"Kilitli - alinamaz\\"></div>";}else if(beks[key]){html+="<div class=\\"hc bekle\\" title=\\"Altin bekleniyor - otomatik fetih\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
-+ 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else if(d.kusatildi){html+="<div class=\\"hc sicrama\\" title=\\"Uzak sicrama (kusatma kacisi)\\" onclick=\\"al("+wx+","+wy+")\\"><span class=\\"jmp\\">&#11015;</span></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
++ 'if(dusman&&kb){html+="<div class=\\"hc dolu duello\\" data-t=\\"&#9876; Duello: "+esc(pl.rumuz||sahip)+"\\" data-r=\\""+esc(col2)+"\\" data-s=\\""+esc(sahip)+"\\" style=\\""+st+"\\" onclick=\\"duelloBaslat("+wx+","+wy+")\\"><span class=\\"swd\\">&#9876;</span></div>";}'
++ 'else{html+="<div class=\\"hc dolu\\" data-t=\\""+(sahip===ADMIN?"&#128081; ":"")+esc(pl.rumuz||sahip)+(sahip===ADMIN?" (sen)":"")+"\\" data-r=\\""+esc(col2)+"\\" data-s=\\""+esc(sahip)+"\\" style=\\""+st+"\\"></div>";}'
++ '}else if(bs[key]){html+="<div class=\\"hc bloke\\" data-t=\\"Kilitli - alinamaz\\"></div>";}else if(beks[key]){html+="<div class=\\"hc bekle\\" data-t=\\"Altin bekleniyor - otomatik fetih\\"></div>";}else{var al=false;for(var i=0;i<NB.length;i++){if(benim[(wx+NB[i][0])+","+(wy+NB[i][1])]){al=true;break;}}'
++ 'if(al){html+="<div class=\\"hc alinabilir\\" onclick=\\"al("+wx+","+wy+")\\"></div>";}else if(d.kusatildi){html+="<div class=\\"hc sicrama\\" data-t=\\"Uzak sicrama (kusatma kacisi)\\" onclick=\\"al("+wx+","+wy+")\\"><span class=\\"jmp\\">&#11015;</span></div>";}else{html+="<div class=\\"hc\\"></div>";}}}}'
 + 'document.getElementById("grid").innerHTML=html;'
-+ 'cizEtiket(d);cizLejant(d);}'
++ 'if(ETK){cizEtiket(d);}else{document.querySelectorAll(".lbl").forEach(function(e){e.remove();});}cizLejant(d);tipGizle();}'
++ 'function etiketDegistir(){ETK=!ETK;document.getElementById("etkBtn").innerHTML=ETK?"&#127991; Isimleri gizle":"&#127991; Isimleri goster";render();}'
++ 'var TIP=null,TIPS=null,TIPZ=null;'
++ 'function tipEl(){if(!TIP){TIP=document.createElement("div");TIP.className="tip";document.body.appendChild(TIP);}return TIP;}'
++ 'function vurgula(s){if(TIPS===s)return;document.querySelectorAll(".hc.dolu.vurgu").forEach(function(e){e.classList.remove("vurgu");});TIPS=s;if(!s)return;document.querySelectorAll(".hc.dolu").forEach(function(e){if(e.getAttribute("data-s")===s)e.classList.add("vurgu");});}'
++ 'function tipGoster(hc,x,y){var t=hc&&hc.getAttribute("data-t");if(!t){tipGizle();return;}var el=tipEl();var r=hc.getAttribute("data-r");el.innerHTML="";if(r){var dt=document.createElement("span");dt.className="nk";dt.style.background=r;el.appendChild(dt);}el.appendChild(document.createTextNode(t));el.style.borderColor=r||"#777";el.style.display="flex";var w=el.offsetWidth,h=el.offsetHeight;var lx=x+14,ly=y+16;if(lx+w>window.innerWidth-6)lx=x-w-10;if(ly+h>window.innerHeight-6)ly=y-h-10;el.style.left=lx+"px";el.style.top=ly+"px";vurgula(hc.getAttribute("data-s"));}'
++ 'function tipGizle(){if(TIP)TIP.style.display="none";vurgula(null);}'
++ '(function(){var g=document.getElementById("grid");'
++ 'g.addEventListener("mousemove",function(e){tipGoster(e.target.closest(".hc"),e.clientX,e.clientY);});'
++ 'g.addEventListener("mouseleave",tipGizle);'
++ 'g.addEventListener("touchstart",function(e){var hc=e.target.closest(".hc");if(!hc||!hc.getAttribute("data-t"))return;var p=e.touches[0];tipGoster(hc,p.clientX,p.clientY);clearTimeout(TIPZ);TIPZ=setTimeout(tipGizle,2000);},{passive:true});'
++ '})();'
 + 'function hexA(h,a){var m=/^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(h||"");if(!m)return"rgba(120,120,120,"+a+")";return"rgba("+parseInt(m[1],16)+","+parseInt(m[2],16)+","+parseInt(m[3],16)+","+a+")";}'
 + 'function cizEtiket(d){document.querySelectorAll(".lbl").forEach(function(e){e.remove();});if(kilitMod)return;var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;(grp[c.sahip]=grp[c.sahip]||[]).push(c);});var wrap=document.querySelector(".vpwrap");Object.keys(grp).forEach(function(s){var cs=grp[s];var pl=d.players[s]||{renk:"#777",rumuz:s};var sx=0,sy=0;cs.forEach(function(c){sx+=c.x;sy+=c.y;});var cx=sx/cs.length,cy=sy/cs.length;var benim=s===ADMIN;var el=document.createElement("div");el.className="lbl";el.style.left=((cx-vx+0.5)/VP*100)+"%";el.style.top=((cy-vy+0.5)/VP*100)+"%";el.style.borderColor=pl.renk;el.innerHTML=(benim?"&#128081; ":"<span class=\\"nk\\" style=\\"background:"+pl.renk+"\\"></span>")+esc(pl.rumuz||s);wrap.appendChild(el);});}'
 + 'function cizLejant(d){var grp={};d.owned.forEach(function(c){if(c.x<vx||c.x>=vx+VP||c.y<vy||c.y>=vy+VP)return;grp[c.sahip]=(grp[c.sahip]||0)+1;});var h="";Object.keys(grp).forEach(function(s){var pl=d.players[s]||{renk:"#777",rumuz:s};h+="<div style=\\"display:flex;align-items:center;gap:7px;padding:4px 0;\\"><span style=\\"width:13px;height:13px;border-radius:4px;background:"+pl.renk+"\\"></span><span style=\\"color:#e8eaf6\\">"+(s===ADMIN?"&#128081; ":"")+esc(pl.rumuz||s)+"</span><span style=\\"margin-left:auto\\">"+grp[s]+"</span></div>";});document.getElementById("lejant").innerHTML=h||"Bu bolgede kimse yok.";}'
@@ -674,12 +700,12 @@ router.post('/oyun/duello', async (req, res) => {
         try {
             await DuelloKayit.create({
                 sinif, saldiranAd: BEN, saldiranRumuz: (ben && ben.rumuz) || '',
-                rakipAd: RAKIP, rakipRumuz: (ro && ro.rumuz) || '',
+                rakipAd: RAKIP, rakipRumuz: (ro && rumuzGoster({ rumuz: ro.rumuz, kullaniciAdi: RAKIP }, sinif)) || '',
                 soruId: secId, saldiranSure: benSure, rakipSure: rakipSure,
                 kazananAd: kazandi ? BEN : RAKIP
             });
         } catch (kErr) { console.error('[duello kayit]', kErr.message); }
-        res.json({ ok: true, kazandi, benSure, rakipSure, rakipRumuz: (ro && ro.rumuz) || RAKIP });
+        res.json({ ok: true, kazandi, benSure, rakipSure, rakipRumuz: (ro && rumuzGoster({ rumuz: ro.rumuz, kullaniciAdi: RAKIP }, sinif)) || RAKIP });
     } catch (e) {
         console.error('[oyun duello]', e.message);
         res.json({ ok: false, hata: e.message });
