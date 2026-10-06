@@ -82,6 +82,24 @@ async function soruIstatistikHesapla() {
     }
 }
 
+// v4.17.19-1: Yukaridaki kullaniciPuanHesapla icindeki dogru-cevap formulunun BIREBIR
+//   kopyasi (yalniz sinif atlatma oncesi kayitlar icin kullanilir). Formul degisirse
+//   burayi, kullaniciPuanHesapla'yi ve routes/panel.js /cevap'i birlikte guncelle.
+function _cronPuan(s, sure) {
+    const T_ref = s.ortalamaSure || 60;
+    const T_ogr = sure || T_ref;
+    const T_min = 10;
+    const T_ogr_eff = Math.max(T_ogr, T_min);
+    const logHiz = Math.log2(1 + (T_ref / T_ogr_eff));
+    const logMax = Math.log2(1 + (T_ref / T_min)) || 1;
+    const hizBileseni = logMax * Math.tanh(logHiz / logMax);
+    const Z_katsayi = (typeof s.zorlukKatsayisi === 'number') ? s.zorlukKatsayisi : 3;
+    const sigmaSure = stdSapma(s.cozumSureleriTum || []);
+    const GE = 0.02 + 0.08 * Math.min(sigmaSure / (T_ref || 1), 1);
+    const p = Math.max(Z_katsayi * T_ref * hizBileseni * GE, 0);
+    return Math.round(p * 10000) / 10000;
+}
+
 // --- Adım 2: Her kullanıcının puanını yeni zorluklara göre yeniden hesapla ---
 async function kullaniciPuanHesapla() {
     // v4.16.38: Olceklenme — tum sorular TEK sorguda Map'e; her cevapta ayri
@@ -161,6 +179,34 @@ async function kullaniciPuanHesapla() {
                 // Yanlış cevaplarda puan 0 olmalı (eski hatalı kayıtları temizle)
                 _cevapOps.push({ updateOne: { filter: { _id: kayit._id }, update: { $set: { kazanilanPuan: 0 } } } });
                 if (_cevapOps.length >= 500) await _flushCevap();
+            }
+        }
+
+        // v4.17.19-1: Sinif atlatma ONCESI dogru kayitlarin kazanilanPuan'i da guncel Z ile
+        //   yenilenir. Bu kayitlar KISISEL puana (toplamPuan/dersMap) EKLENMEZ — yalniz admin
+        //   cozum tablolari ve sorunun hamPuan ortalamasi (hamPuanHesapla tum dogru kayitlari
+        //   toplar) eski Z'den kalan degerlerle bozulmasin diye. ikinciKezMi kayitlara dokunulmaz.
+        if (k.sonSinifAtlamaTarihi) {
+            const eskiKayitlar = await CevapKaydi.find(
+                { kullaniciAdi: k.kullaniciAdi, tarih: { $lt: k.sonSinifAtlamaTarihi } },
+                'soruId dogruMu sure kazanilanPuan ikinciKezMi'
+            ).lean();
+            for (const kayit of eskiKayitlar) {
+                if (!kayit.dogruMu) {
+                    if (kayit.kazanilanPuan && kayit.kazanilanPuan !== 0) {
+                        _cevapOps.push({ updateOne: { filter: { _id: kayit._id }, update: { $set: { kazanilanPuan: 0 } } } });
+                        if (_cevapOps.length >= 500) await _flushCevap();
+                    }
+                    continue;
+                }
+                if (kayit.ikinciKezMi) continue;
+                const s = soruMap.get(String(kayit.soruId));
+                if (!s) continue;
+                const yeniPuan = _cronPuan(s, kayit.sure);
+                if (kayit.kazanilanPuan !== yeniPuan) {
+                    _cevapOps.push({ updateOne: { filter: { _id: kayit._id }, update: { $set: { kazanilanPuan: yeniPuan } } } });
+                    if (_cevapOps.length >= 500) await _flushCevap();
+                }
             }
         }
 
