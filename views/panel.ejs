@@ -201,13 +201,13 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <%# v4.17.15: Mesajlar — okunmamis admin cevabi varsa kırmızı rozet %>
       <% var _okunmamisCevap = (typeof benimMesajlarim !== 'undefined' ? (benimMesajlarim||[]) : []).filter(function(mm){ return !mm.ogrenciOkudu; }).length; %>
-      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil#mesajlarimKart" class="ptopbar-link" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=mesajlar" class="ptopbar-link <%= mod==='mesajlar'?'aktif':'' %>" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else if (k.rol === 'veli') { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=veliPanel" class="ptopbar-link <%= mod==='veliPanel'?'aktif':'' %>">👪 Veli Paneli</a>
       <%# v4.17.15: Mesajlar — okunmamis admin cevabi varsa kırmızı rozet %>
       <% var _okunmamisCevap = (typeof benimMesajlarim !== 'undefined' ? (benimMesajlarim||[]) : []).filter(function(mm){ return !mm.ogrenciOkudu; }).length; %>
-      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil#mesajlarimKart" class="ptopbar-link" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=mesajlar" class="ptopbar-link <%= mod==='mesajlar'?'aktif':'' %>" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } else { %>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=soru" class="ptopbar-link <%= mod==='soru'?'aktif':'' %>">Soru Çöz</a>
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=haberler" class="ptopbar-link <%= mod==='haberler'?'aktif':'' %>">📰 Haberler</a>
       <%# v4.17.15: Mesajlar — okunmamis admin cevabi varsa kırmızı rozet %>
       <% var _okunmamisCevap = (typeof benimMesajlarim !== 'undefined' ? (benimMesajlarim||[]) : []).filter(function(mm){ return !mm.ogrenciOkudu; }).length; %>
-      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil#mesajlarimKart" class="ptopbar-link" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
+      <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=mesajlar" class="ptopbar-link <%= mod==='mesajlar'?'aktif':'' %>" style="position:relative;">✉️ Mesajlar<% if (_okunmamisCevap) { %><span style="position:absolute; top:6px; right:0px; background:#e24b4a; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:8px; line-height:1.4;"><%= _okunmamisCevap %></span><% } %></a>
       <a href="/panel/<%= encodeURIComponent(k.kullaniciAdi) %>?mod=profil" class="ptopbar-link <%= mod==='profil'?'aktif':'' %>">Profilim</a>
     <% } %>
     <% if (adminGorunum) { %>
@@ -1113,6 +1113,54 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   <% } %>
 
+<% } else if (mod === 'mesajlar') { %>
+  <div style="max-width:760px; margin:0 auto; padding:18px 14px 60px;">
+        <%# v4.17.14: Mesajlarım — panel içi yazışma (yalnız kullanıcı ve yönetici görür) %>
+        <% if (typeof benimMesajlarim !== 'undefined') { %>
+        <div class="profil-kart-yeni" id="mesajlarimKart">
+          <p class="profil-kart-baslik-yeni">✉️ Mesajlarım
+            <% var _yeniCevap = (benimMesajlarim||[]).filter(function(m){ return !m.ogrenciOkudu; }).length; %>
+            <% if (_yeniCevap) { %><span style="background:#e53935;color:#fff;font-size:11px;padding:2px 8px;border-radius:9px;margin-left:8px;"><%= _yeniCevap %> yeni cevap</span><% } %>
+          </p>
+          <p style="font-size:12px; color:#888; margin-bottom:10px; line-height:1.5;">Soru, öneri veya sorunların için yaz. Yazışmayı yalnızca sen ve yönetici görür.</p>
+
+          <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:12px;">
+            <textarea id="yeniMesajMetin" rows="2" placeholder="Mesajını yaz…"
+                      style="flex:1; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
+            <button type="button" onclick="mesajGonder()" style="background:#1a73e8; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;">Gönder</button>
+          </div>
+
+          <% if (!(benimMesajlarim||[]).length) { %>
+            <div style="font-size:12px; color:#9aa4b2;">Henüz mesajın yok.</div>
+          <% } else { %>
+            <% benimMesajlarim.forEach(function(m) { %>
+              <div style="border:1px solid #eceff3; border-radius:8px; padding:9px 11px; margin-bottom:8px;">
+                <div style="font-size:11px; color:#9aa4b2; margin-bottom:3px;">
+                  <%= new Date(m.yazilmaTarih).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) %>
+                  <% if (m.kaynak === 'hatali-soru') { %> · <span style="color:#c62828;">⚠️ Hatalı soru</span><% } %>
+                  <% if (m.soruBilgi) { %> · <%= m.soruBilgi %><% } %>
+                </div>
+                <% if (m.kaynak === 'admin') { %>
+                  <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px;">
+                    <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici mesajı</div>
+                    <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= m.mesaj %></div>
+                  </div>
+                <% } else { %>
+                <div style="font-size:13px; color:#374151; white-space:pre-wrap;"><%= m.mesaj %></div>
+                <% } %>
+                <% (m.yanitlar||[]).forEach(function(y) { %>
+                  <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px; margin-top:7px;">
+                    <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici cevabı · <%= new Date(y.tarih).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) %></div>
+                    <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= y.metin %></div>
+                  </div>
+                <% }); %>
+              </div>
+            <% }); %>
+          <% } %>
+        </div>
+        <% } %>
+  </div>
+
 <% } else if (mod === 'profil') { %>
   <%
     var dp = k.dersPuanlari || [];
@@ -1421,50 +1469,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- v4.1.26: Konum bilgileri (öğrenci için — opsiyonel olduğundan sonradan tamamlama) -->
         <% if (k.rol !== 'ogretmen' && k.rol !== 'kurumsal' && !adminGorunum) { %>
-        <%# v4.17.14: Mesajlarım — panel içi yazışma (yalnız kullanıcı ve yönetici görür) %>
-        <% if (typeof benimMesajlarim !== 'undefined') { %>
-        <div class="profil-kart-yeni" id="mesajlarimKart">
-          <p class="profil-kart-baslik-yeni">✉️ Mesajlarım
-            <% var _yeniCevap = (benimMesajlarim||[]).filter(function(m){ return !m.ogrenciOkudu; }).length; %>
-            <% if (_yeniCevap) { %><span style="background:#e53935;color:#fff;font-size:11px;padding:2px 8px;border-radius:9px;margin-left:8px;"><%= _yeniCevap %> yeni cevap</span><% } %>
-          </p>
-          <p style="font-size:12px; color:#888; margin-bottom:10px; line-height:1.5;">Soru, öneri veya sorunların için yaz. Yazışmayı yalnızca sen ve yönetici görür.</p>
-
-          <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:12px;">
-            <textarea id="yeniMesajMetin" rows="2" placeholder="Mesajını yaz…"
-                      style="flex:1; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
-            <button type="button" onclick="mesajGonder()" style="background:#1a73e8; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;">Gönder</button>
-          </div>
-
-          <% if (!(benimMesajlarim||[]).length) { %>
-            <div style="font-size:12px; color:#9aa4b2;">Henüz mesajın yok.</div>
-          <% } else { %>
-            <% benimMesajlarim.forEach(function(m) { %>
-              <div style="border:1px solid #eceff3; border-radius:8px; padding:9px 11px; margin-bottom:8px;">
-                <div style="font-size:11px; color:#9aa4b2; margin-bottom:3px;">
-                  <%= new Date(m.yazilmaTarih).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) %>
-                  <% if (m.kaynak === 'hatali-soru') { %> · <span style="color:#c62828;">⚠️ Hatalı soru</span><% } %>
-                  <% if (m.soruBilgi) { %> · <%= m.soruBilgi %><% } %>
-                </div>
-                <% if (m.kaynak === 'admin') { %>
-                  <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px;">
-                    <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici mesajı</div>
-                    <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= m.mesaj %></div>
-                  </div>
-                <% } else { %>
-                <div style="font-size:13px; color:#374151; white-space:pre-wrap;"><%= m.mesaj %></div>
-                <% } %>
-                <% (m.yanitlar||[]).forEach(function(y) { %>
-                  <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px; margin-top:7px;">
-                    <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici cevabı · <%= new Date(y.tarih).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) %></div>
-                    <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= y.metin %></div>
-                  </div>
-                <% }); %>
-              </div>
-            <% }); %>
-          <% } %>
-        </div>
-        <% } %>
 
         <div class="profil-kart-yeni" id="konumBilgileriKart">
           <p class="profil-kart-baslik-yeni">Konum bilgileri <% if (eksikBilgiVar) { %><span style="color:#f57c00; font-size:12px; font-weight:600; margin-left:8px;">⚠️ Eksik</span><% } %></p>
