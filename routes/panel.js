@@ -254,8 +254,8 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     k.rol = k.aktifRol;
 
     let mod = req.query.mod || 'soru';
-    // v4.6.0: Veli kullanıcı — veliPanel ve profil sekmelerine erişebilir.
-    if (k.rol === 'veli' && mod !== 'profil') {
+    // v4.17.17: Veli kullanıcı — veliPanel, profil ve mesajlar sekmelerine erişebilir.
+    if (k.rol === 'veli' && mod !== 'profil' && mod !== 'mesajlar') {
         mod = 'veliPanel';
     }
     // Kullanıcının çözdüğü soru ID'lerini CevapKaydi'ndan topla
@@ -1299,7 +1299,7 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // v4.17.14: Kullanicinin KENDI mesajlari (admin cevaplariyla birlikte).
     let benimMesajlarim = [];
     try {
-        if (gercekOgrenci || k.rol === 'veli') {
+        {
             const Mesaj = require('../models/Mesaj');
             benimMesajlarim = await Mesaj.find({ kullaniciAdi: k.kullaniciAdi })
                 .sort({ yazilmaTarih: -1 }).limit(30).lean();
