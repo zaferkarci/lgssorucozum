@@ -13,7 +13,12 @@ const TakipIliskiSchema = new mongoose.Schema({
     durum:          { type: String, default: 'beklemede' },        // 'beklemede' | 'kabul' | 'red'
     kaynak:         { type: String, default: 'bireysel' },         // 'bireysel' | 'sinif'
     istekTarih:     { type: Date, default: Date.now },
-    yanitTarih:     { type: Date, default: null }
+    yanitTarih:     { type: Date, default: null },
+    // v4.17.20: Ogrenci bu takipciyi "evet, velim" diye onayladi mi? (veli guvenligi)
+    ogrenciOnayTarih: { type: Date, default: null },
+    // v4.17.20: Iliski neden/ne zaman sonlandi: 'ogrenci' | 'admin-tarama' | ''
+    ayrilmaSebebi:  { type: String, default: '' },
+    ayrilmaTarih:   { type: Date, default: null }
 });
 
 // Aynı çift için sadece bir aktif kayıt olsun (unique compound index)

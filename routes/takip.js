@@ -226,13 +226,53 @@ router.post('/takip/yanitla', oturumVeyaAdmin, async (req, res) => {
             return res.json({ ok: false, hata: 'Bu istek zaten reddedilmiş.' });
         }
 
+        const oncekiDurum = iliski.durum;
         iliski.durum = yanit;
         iliski.yanitTarih = new Date();
+        // v4.17.20: Takipci veli mi? (ogrenci onayi + bildirim icin)
+        const takipciK = await Kullanici.findOne({ kullaniciAdi: iliski.ogretmenAdi }, 'rol').lean();
+        const takipciVeli = !!(takipciK && takipciK.rol === 'veli') || iliski.isteyenRol === 'veli';
+        if (yanit === 'kabul' && benTarafim === 'ogrenci' && takipciVeli) {
+            iliski.ogrenciOnayTarih = new Date(); // ogrenci veli istegini kendisi kabul etti
+        }
+        if (yanit === 'red' && oncekiDurum === 'kabul') {
+            iliski.ayrilmaSebebi = (benTarafim === 'ogrenci') ? 'ogrenci' : 'takipci';
+            iliski.ayrilmaTarih = new Date();
+        }
         await iliski.save();
 
-        res.json({ ok: true, mesaj: yanit === 'kabul' ? 'İstek kabul edildi.' : 'İstek reddedildi.' });
+        // v4.17.20: Ogrenci bir veliyi takipten cikardiysa veliye sistem bildirimi.
+        if (yanit === 'red' && oncekiDurum === 'kabul' && benTarafim === 'ogrenci' && takipciVeli) {
+            const { sistemBildirimiGonder } = require('../services/sistemBildirim');
+            await sistemBildirimiGonder(iliski.ogretmenAdi,
+                '"' + iliski.ogrenciAdi + '" kullanıcısı sizi takipten çıkardı. Bu öğrencinin bilgilerini artık göremezsiniz. ' +
+                'Sizin çocuğunuzsa Veli Paneli\'nden yeniden takip isteği gönderebilirsiniz; çocuğunuz onaylarsa bağlantı yeniden kurulur.',
+                'Takip bildirimi');
+        }
+
+        res.json({ ok: true, mesaj: yanit === 'kabul' ? 'İstek kabul edildi.' : (oncekiDurum === 'kabul' ? 'Takipten çıkarıldı.' : 'İstek reddedildi.') });
     } catch (err) {
         console.error('[takip-yanitla] hata:', err.message);
+        res.status(500).json({ ok: false, hata: err.message });
+    }
+});
+
+// v4.17.20: Ogrenci, kendisini takip eden veliyi "evet, velim" diye onaylar.
+//   Onaylanan iliski veli taramasinda supheli sayilmaz ve panel uyarisindan kalkar.
+router.post('/takip/veli-onayla', oturumVeyaAdmin, async (req, res) => {
+    try {
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(401).json({ ok: false, hata: 'Oturum gerekli' });
+        const _id = String(req.body.iliskiId || '');
+        if (!/^[a-f0-9]{24}$/i.test(_id)) return res.json({ ok: false, hata: 'Geçersiz kayıt.' });
+        const iliski = await TakipIliski.findById(_id);
+        if (!iliski || iliski.ogrenciAdi !== hedefAd) return res.status(403).json({ ok: false, hata: 'Bu kayıt size ait değil.' });
+        if (iliski.durum !== 'kabul') return res.json({ ok: false, hata: 'Bu takip artık aktif değil.' });
+        iliski.ogrenciOnayTarih = new Date();
+        await iliski.save();
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('[takip-veli-onayla] hata:', err.message);
         res.status(500).json({ ok: false, hata: err.message });
     }
 });
@@ -334,6 +374,7 @@ router.get('/api/takip/kabul-edilenler', oturumVeyaAdmin, async (req, res) => {
                 ogretmenAdi: i.ogretmenAdi,
                 ogrenciAdi: i.ogrenciAdi,
                 kaynak: i.kaynak || 'bireysel',
+                ogrenciOnayTarih: i.ogrenciOnayTarih || null, // v4.17.20
                 ogretmenOkul: ogrenciArayan ? null : d.okul,
                 ogretmenIl: ogrenciArayan ? null : d.il,
                 ogretmenIlce: ogrenciArayan ? null : d.ilce,
@@ -592,4 +633,4 @@ router.get('/takip/aktivite-bugun', oturumGerekli, async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = router;

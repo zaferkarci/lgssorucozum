@@ -151,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <% } else if (aktifGrup === 'kullanicilar') { %>
     <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
     <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
+    <a href="/admin/veli-tarama" class="admin-alt-link">🛡️ Veli Taraması</a>
     <a href="/admin?mod=okullar" class="admin-alt-link <%= mod==='okullar'?'active':'' %>">🏫 Okullar</a>
   <% } else if (aktifGrup === 'iletisim') { %>
     <a href="/admin?mod=haberler" class="admin-alt-link <%= mod==='haberler'?'active':'' %>">📰 Haberler</a>
@@ -2904,14 +2905,19 @@ function gosterExcelHata(msg) {
           <option value="demo">🧪 Demo</option>
         </select>
         <button class="ekle-btn" formtarget="_blank">Kart Çıktısı Al</button>
-        <span style="font-size:12px; color:#888;">kullanılmamış kod yetmezse otomatik üretilir</span>
+        <span style="font-size:12px; color:#888;">her çıktı için yeni yönetici kodları üretilir</span>
       </form>
     </div>
-    <% if (bekleyenler.length > 0) { %>
+    <% var _adminBekleyen = bekleyenler.filter(function(r){ return r.olusturan === 'admin'; }).length; %>
+    <% if (_adminBekleyen > 0) { %>
     <form action="/referans-toplu-sil" method="POST" style="margin-top:10px;">
-      <button onclick="return confirm('Tüm bekleyen kodlar silinsin mi?')" style="background:#fbeaea; color:#a32d2d; border:1px solid #f5c6c6; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;">🗑 Tüm Bekleyenleri Sil (<%= bekleyenler.length %>)</button>
+      <button onclick="return confirm('Yöneticinin ürettiği tüm bekleyen kodlar silinsin mi? (Kullanıcıların kendi davet linkleri silinmez.)')" style="background:#fbeaea; color:#a32d2d; border:1px solid #f5c6c6; border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;">🗑 Yönetici Kodlarını Sil (<%= _adminBekleyen %>)</button>
     </form>
     <% } %>
+    <div style="margin-top:12px; padding:10px 12px; background:#fff8e1; border:1px solid #ffe082; border-radius:8px; font-size:12.5px; color:#6d4c00;">
+      🛡️ <b>Veli takip güvenliği:</b> Velilerin yalnız kendi çocuklarını gördüğünü denetlemek ve şüpheli takipleri ayırmak için
+      <a href="/admin/veli-tarama" style="color:#1a73e8; font-weight:600;">Veli Takip Taraması</a> sayfasını aç.
+    </div>
   </div>
 
   <% if (bekleyenler.length > 0) { %>
@@ -2942,7 +2948,15 @@ function gosterExcelHata(msg) {
           <% } %>
         </div>
         <div class="admin-soru-sag">
+          <%# v4.17.20: Yalniz YONETICI kodu kopyalanabilir. Veli/ogretmen/kurum kodu o kullaniciya aittir;
+              baskasina verilirse kodu ureten kisi o cocugu otomatik takip eder (gizlilik). %>
+          <% if (r.olusturan === 'admin' && !r.yazdirildi) { %>
           <button onclick="adminKopyala('<%= r.kod %>', this)" data-link="<%= baseUrlAdmin %>/kayit?ref=<%= r.kod %>" class="admin-btn admin-btn-duzenle"><%= r.kopyalandi ? '🔁 Tekrar Kopyala' : '🔗 Linki Kopyala' %></button>
+          <% } else if (r.olusturan === 'admin') { %>
+          <span style="font-size:11px; color:#166534; margin-right:8px;" title="Bu kod basılı bir karttadır; tekrar dağıtılmamalı.">🖨️ Kartta basılı</span>
+          <% } else { %>
+          <span style="font-size:11px; color:#a32d2d; margin-right:8px;" title="Bu kod kullanıcıya aittir. Başkasına verilirse kodu üreten kişi o öğrenciyi otomatik takip eder.">🔒 Kullanıcıya ait — dağıtma</span>
+          <% } %>
           <form action="/referans-sil" method="POST" style="display:inline;">
             <input type="hidden" name="id" value="<%= r._id %>">
             <button class="admin-btn admin-btn-sil">Sil</button>

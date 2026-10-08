@@ -162,7 +162,8 @@ router.get('/admin', async (req, res) => {
         try { const _e = await Ayar.findOne({ anahtar: 'tam_ogrenme_esik' }).lean(); if (_e && typeof _e.deger === 'number') ayarTamEsik = _e.deger; } catch (e) {}
     }
     const tumHaberler = (mod === 'haberler') ? await Haber.find().sort({ yayinTarih: -1 }).lean() : [];
-    const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find().sort({ yazilmaTarih: -1 }).lean() : [];
+    // v4.17.20: kaynak:'sistem' kayitlari kullaniciya giden otomatik bildirimlerdir; gelen kutusunda gosterilmez.
+    const tumMesajlar = (mod === 'mesajlar') ? await Mesaj.find({ kaynak: { $ne: 'sistem' } }).sort({ yazilmaTarih: -1 }).lean() : [];
     // v4.16.46: Sistem>Duyuru — aktif duyuru + hedefleme icin ogrenci listesi
     let aktifDuyuru = null, duyuruOgrenciler = [];
     if (mod === 'duyuru') {
@@ -1247,29 +1248,21 @@ router.get('/admin/referans-yazdir', async (req, res) => {
         if (!Number.isFinite(adet) || adet < 1) adet = 20;
         if (adet > 500) adet = 500;
 
-        // v4.17.5: Varsayilan olarak DAHA ONCE YAZDIRILMAMIS kodlar verilir; boylece
-        //   ertesi gun yeni kod istendiginde ayni kodlar tekrar cikmaz.
-        //   ?tekrar=1 -> yazdirilmis kodlar da dahil (cikti kaybolduysa yeniden basmak icin).
-        const tekrar = req.query.tekrar === '1';
-        const filtre = tekrar
-            ? { tip, kullanildi: false }
-            : { tip, kullanildi: false, yazdirildi: { $ne: true } };
-        let kodlar = await ReferansKodu.find(filtre).sort({ olusturmaTarih: 1 }).limit(adet).lean();
-        if (kodlar.length < adet) {
-            const eksik = adet - kodlar.length;
-            await referansKoduUret('admin', eksik, tip);
-            kodlar = await ReferansKodu.find(filtre).sort({ olusturmaTarih: 1 }).limit(adet).lean();
+        // v4.17.20: HER CIKTI YENI KODLARLA. Eskiden mevcut "kullanilmamis" kodlar
+        //   (kim uretmis olursa olsun) karta basiliyordu; velilerin cocuklari icin
+        //   urettigi davet kodlari da kartlara dusup alakasiz kisilere dagitildi.
+        //   Artik bu parti icin SIFIRDAN 'admin' kodu uretilir ve hemen 'yazdirildi'
+        //   isaretlenir: kod baska hicbir listede gosterilmez, ikinci kez basilamaz,
+        //   hicbir veli/ogretmen/kurum koduyla karisamaz. (?tekrar=1 kaldirildi.)
+        const yeniKodlar = await referansKoduUret('admin', adet, tip);
+        if (yeniKodlar.length) {
+            await ReferansKodu.updateMany(
+                { kod: { $in: yeniKodlar }, olusturan: 'admin' },
+                { $set: { yazdirildi: true, yazdirilmaTarih: new Date() } }
+            );
         }
-        // Bu partiyi 'yazdirildi' isaretle (tekrar modunda da tarih guncellenir)
-        if (kodlar.length) {
-            try {
-                await ReferansKodu.updateMany(
-                    { _id: { $in: kodlar.map(k => k._id) } },
-                    { $set: { yazdirildi: true, yazdirilmaTarih: new Date() } }
-                );
-            } catch (me) { console.error('[referans-yazdir isaretleme]', me.message); }
-        }
-        const kalanYazdirilmamis = await ReferansKodu.countDocuments({ tip, kullanildi: false, yazdirildi: { $ne: true } });
+        const kodlar = await ReferansKodu.find({ kod: { $in: yeniKodlar }, olusturan: 'admin' })
+            .sort({ olusturmaTarih: 1 }).lean();
 
         const base = (process.env.SITE_URL || ('https://' + req.get('host'))).replace(/\/+$/, '');
         const esc = (x) => String(x == null ? '' : x)
@@ -1301,10 +1294,10 @@ router.get('/admin/referans-yazdir', async (req, res) => {
         h += '<div class="ust">';
         h += '<h1>🖨️ ' + esc(tipAd) + ' Davet Kodları — ' + kodlar.length + ' adet</h1>';
         h += '<p>Yazdırıp kesikli çizgilerden keserek dağıtabilirsin. Her kartta bir kod, bağlantı ve QR vardır.</p>';
-        h += '<p style="color:#166534;">Bu parti <b>yazdırıldı</b> olarak işaretlendi — bir dahaki çıktıda <b>farklı</b> kodlar gelir. ' +
-            'Henüz yazdırılmamış kod: <b>' + kalanYazdirilmamis + '</b></p>';
-        h += '<p style="color:#b45309;">Kodlar tek kullanımlıktır. Bu çıktıyı kaybedersen aynı kodları yeniden basmak için ' +
-            '<a href="/admin/referans-yazdir?tip=' + encodeURIComponent(tip) + '&adet=' + adet + '&tekrar=1">tekrar bas</a> bağlantısını kullan.</p>';
+        h += '<p style="color:#166534;">Bu kartlardaki kodlar <b>bu çıktı için yeni üretildi</b>. Başka hiçbir listede görünmez, ' +
+            'hiçbir veli/öğretmen koduyla karışmaz ve <b>ikinci kez basılamaz</b>. Her kod tek kullanımlıktır.</p>';
+        h += '<p style="color:#b45309;">Sayfayı yenilersen yeni bir parti üretilir. Yazdırmadan önce kapatırsan bu kodlar kullanılmamış olarak kalır; ' +
+            'yeni çıktı için formdan tekrar iste.</p>';
         h += '<button class="btn" onclick="window.print()">Yazdır</button> ';
         h += '<a class="btn" style="background:#6b7280;" href="/admin?mod=referans">Geri</a>';
         h += '</div>';
@@ -1331,6 +1324,154 @@ router.get('/admin/referans-yazdir', async (req, res) => {
     } catch (e) {
         console.error('[referans-yazdir] HATA:', e.message);
         res.status(500).send('Yazdirma hatasi: ' + e.message);
+    }
+});
+
+// ===================================================================
+// v4.17.20: VELI TAKIP TARAMASI
+//   Velilerin yalniz kendi cocuklarini gordugunu denetler. Supheli takipleri
+//   listeler; secilenler (veya tum "kesin" olanlar) tek tusla takipten ayrilir.
+//   Ayrilan veliye panelinde sistem bildirimi gider (istege bagli).
+// ===================================================================
+router.get('/admin/veli-tarama', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { veliTaramasi } = require('../services/veliTarama');
+        const esik = parseInt(req.query.esik, 10) || 4;
+        const filtreK = ['kesin', 'yuksek', 'orta', 'dusuk'].includes(req.query.k) ? req.query.k : 'supheli';
+        const r = await veliTaramasi({ cocukEsik: esik });
+        const gosterilen = r.satirlar.filter(x => filtreK === 'supheli' ? x.kategori !== 'dusuk' : x.kategori === filtreK);
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const KAT = { kesin: ['Kesin', '#b71c1c', '#ffebee'], yuksek: ['Yüksek', '#e65100', '#fff3e0'], orta: ['Orta', '#8d6e00', '#fff8e1'], dusuk: ['Düşük', '#2e7d32', '#e8f5e9'] };
+        const tarihF = d => d ? new Date(d).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : '-';
+
+        let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+        h += '<title>Veli Takip Taraması — Admin</title><style>';
+        h += '*{box-sizing:border-box}body{margin:0;background:#f0f2f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1d2433;font-size:14px}';
+        h += '.ust{background:#1a73e8;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:16px}.ust a{color:#fff;text-decoration:none;opacity:.85;font-size:13px}.ust h1{font-size:18px;margin:0}';
+        h += '.sayfa{max-width:1280px;margin:18px auto;padding:0 16px;display:flex;flex-direction:column;gap:14px}';
+        h += '.kart{background:#fff;border:1px solid #e3e8ef;border-radius:12px;padding:16px 18px}';
+        h += '.ozet{display:flex;gap:10px;flex-wrap:wrap}.oz{border-radius:10px;padding:10px 16px;text-decoration:none;font-weight:700;border:2px solid transparent}.oz small{display:block;font-weight:500;font-size:12px;opacity:.8}.oz.on{border-color:currentColor}';
+        h += '.btn{border:none;border-radius:8px;padding:9px 16px;font-weight:600;font-size:13px;cursor:pointer}.btn-k{background:#c62828;color:#fff}.btn-g{background:#1a73e8;color:#fff}.btn-a{background:#f1f3f6;color:#1d2433;border:1px solid #d6dce5}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:13px}th{background:#f8f9fb;text-align:left;padding:9px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:#5b6680;position:sticky;top:0}td{padding:9px 10px;border-top:1px solid #eef1f5;vertical-align:top}';
+        h += '.kt{display:inline-block;border-radius:999px;padding:3px 10px;font-weight:700;font-size:11.5px}.is{display:inline-block;border-radius:6px;padding:3px 8px;margin:2px 4px 2px 0;font-size:11.5px;background:#f1f3f6}.is.p{background:#ffebee;color:#b71c1c}.is.n{background:#e8f5e9;color:#2e7d32}';
+        h += '.muted{color:#6b7380;font-size:12px}.uyari{background:#fff8e1;border:1px solid #ffe082;color:#6d4c00;border-radius:10px;padding:12px 14px}.tamam{background:#e8f5e9;border:1px solid #a5d6a7;color:#1b5e20;border-radius:10px;padding:12px 14px}';
+        h += '.tablo{overflow-x:auto;max-height:70vh;overflow-y:auto;border:1px solid #eef1f5;border-radius:10px}';
+        h += '</style></head><body>';
+        h += '<div class="ust"><a href="/admin?mod=referans">&#8592; Admin</a><h1>🛡️ Veli Takip Taraması</h1></div><div class="sayfa">';
+
+        if (req.query.ayrildi !== undefined) h += '<div class="tamam">✅ <b>' + (parseInt(req.query.ayrildi, 10) || 0) + '</b> takip ilişkisi ayrıldı' + (req.query.bildirim === '1' ? ', velilere bildirim gönderildi' : '') + '.</div>';
+        if (req.query.kodCevrildi !== undefined) h += '<div class="tamam">✅ Basılı kartlardaki <b>' + (parseInt(req.query.kodCevrildi, 10) || 0) + '</b> kullanıcı kodu yönetici koduna çevrildi.</div>';
+
+        h += '<div class="kart"><p style="margin:0 0 10px;line-height:1.6;">Her veli–öğrenci takip ilişkisine şüphe puanı verilir. <b>Kesin</b>: öğrenci, velinin kendi kodu basılı karta düştükten sonra o kartla kaydolmuş. ';
+        h += '<b>Yüksek/Orta</b>: çok sayıda çocuk, farklı il/ilçe gibi işaretler. Öğrenci "evet, velim" dediyse veya isteği kendisi kabul ettiyse puan düşer.</p>';
+        h += '<div class="ozet">';
+        const ozLink = (k, ad, n, renk, zemin) => '<a class="oz' + (filtreK === k ? ' on' : '') + '" style="color:' + renk + ';background:' + zemin + '" href="/admin/veli-tarama?k=' + k + '&esik=' + esik + '">' + n + '<small>' + ad + '</small></a>';
+        h += ozLink('supheli', 'Şüpheli (kesin+yüksek+orta)', r.ozet.kesin + r.ozet.yuksek + r.ozet.orta, '#1a56b8', '#e8f0fe');
+        ['kesin', 'yuksek', 'orta', 'dusuk'].forEach(k => { h += ozLink(k, KAT[k][0], r.ozet[k], KAT[k][1], KAT[k][2]); });
+        h += '</div>';
+        h += '<form method="GET" action="/admin/veli-tarama" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" class="muted">';
+        h += '<input type="hidden" name="k" value="' + esc(filtreK) + '">Bir veli <input type="number" name="esik" value="' + esik + '" min="1" max="50" style="width:64px;padding:5px 8px;border:1px solid #d6dce5;border-radius:6px"> çocuktan fazlasını takip ediyorsa işaretle ';
+        h += '<button class="btn btn-a">Yeniden tara</button></form></div>';
+
+        if (r.basiliSahipliKod > 0) {
+            h += '<div class="uyari">🖨️ Dağıtılmış kartlarda <b>' + r.basiliSahipliKod + '</b> adet veli/öğretmen kodu hâlâ kullanılmamış. ';
+            h += 'Kayıt koruması sayesinde bu kodlarla artık otomatik takip <b>kurulmaz</b>. Kartlar geçerli kalsın ama veli panellerinden kalksın istersen yönetici koduna çevir.';
+            h += '<form method="POST" action="/admin/veli-tarama/kod-temizle" style="margin-top:8px" onsubmit="return confirm(\'Basılı kartlardaki ' + r.basiliSahipliKod + ' kullanıcı kodu yönetici koduna çevrilsin mi?\')">';
+            h += '<button class="btn btn-a">Kartlardaki kodları yönetici koduna çevir</button></form></div>';
+        }
+
+        h += '<div class="kart"><form method="POST" action="/admin/veli-tarama/ayir" id="ayirForm">';
+        h += '<input type="hidden" name="esik" value="' + esik + '"><input type="hidden" name="k" value="' + esc(filtreK) + '">';
+        h += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">';
+        h += '<label class="muted"><input type="checkbox" onclick="document.querySelectorAll(\'.sec\').forEach(c=>c.checked=this.checked)"> Tümünü seç</label>';
+        h += '<label class="muted"><input type="checkbox" name="bildirim" value="1" checked> Ayrılan veliye bildirim gönder</label>';
+        h += '<button class="btn btn-g" name="mod" value="secili" onclick="var n=document.querySelectorAll(\'.sec:checked\').length;if(!n){alert(\'Önce satır seç.\');return false;}return confirm(n+\' takip ilişkisi ayrılsın mı?\')">Seçilenleri takipten ayır</button>';
+        h += '<button class="btn btn-k" name="mod" value="kesin" onclick="return confirm(\'Kesin şüpheli ' + r.ozet.kesin + ' ilişkinin tümü ayrılsın mı?\')"' + (r.ozet.kesin ? '' : ' disabled') + '>Kesin şüphelilerin tümünü ayır (' + r.ozet.kesin + ')</button>';
+        h += '<span class="muted">Gösterilen: ' + gosterilen.length + '</span></div>';
+        if (!gosterilen.length) {
+            h += '<p class="muted" style="margin:6px 0">Bu filtrede kayıt yok.</p>';
+        } else {
+            h += '<div class="tablo"><table><thead><tr><th></th><th>Şüphe</th><th>Takip eden</th><th>Öğrenci</th><th>Durum / Kod</th><th>İşaretler</th></tr></thead><tbody>';
+            gosterilen.forEach(x => {
+                const kt = KAT[x.kategori];
+                h += '<tr><td><input type="checkbox" class="sec" name="id" value="' + esc(x.id) + '"' + (x.kategori === 'kesin' ? ' checked' : '') + '></td>';
+                h += '<td><span class="kt" style="color:' + kt[1] + ';background:' + kt[2] + '">' + kt[0] + '</span><div class="muted">puan ' + x.puan + '</div></td>';
+                h += '<td><b>' + (x.takipciRol === 'veli' ? '👪 ' : '👩‍🏫 ') + esc(x.takipci) + '</b><div class="muted">' + esc(x.takipciIl || '-') + ' / ' + esc(x.takipciIlce || '-') + '</div></td>';
+                h += '<td><b>👨‍🎓 ' + esc(x.ogrenci) + '</b><div class="muted">' + esc(x.ogrSinif) + ' · ' + esc(x.ogrOkul || '-') + '<br>' + esc(x.ogrIl || '-') + ' / ' + esc(x.ogrIlce || '-') + '</div></td>';
+                h += '<td>' + (x.durum === 'kabul' ? 'Takipte' : 'Beklemede') + '<div class="muted">' + tarihF(x.istekTarih) + (x.kod ? '<br>kod ' + esc(x.kod) + (x.kodYazdirildi ? ' 🖨️' : '') : '') + '</div></td>';
+                h += '<td>' + (x.isaretler.length ? x.isaretler.map(i => '<span class="is ' + (i.puan > 0 ? 'p' : 'n') + '">' + esc(i.metin) + '</span>').join('') : '<span class="muted">işaret yok</span>') + '</td></tr>';
+            });
+            h += '</tbody></table></div>';
+        }
+        h += '</form></div></div></body></html>';
+        res.send(h);
+    } catch (e) {
+        console.error('[veli-tarama] HATA:', e.message);
+        res.status(500).send('Tarama hatasi: ' + e.message);
+    }
+});
+
+router.post('/admin/veli-tarama/ayir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const TakipIliski = require('../models/TakipIliski');
+        const { veliTaramasi } = require('../services/veliTarama');
+        const { sistemBildirimiGonder } = require('../services/sistemBildirim');
+        const esik = parseInt(req.body.esik, 10) || 4;
+        let ids = req.body.id || [];
+        if (!Array.isArray(ids)) ids = [ids];
+        if (req.body.mod === 'kesin') {
+            const r = await veliTaramasi({ cocukEsik: esik });
+            ids = r.satirlar.filter(x => x.kategori === 'kesin').map(x => x.id);
+        }
+        ids = ids.map(String).filter(x => /^[a-f0-9]{24}$/i.test(x));
+        const bildir = req.body.bildirim === '1';
+        let n = 0;
+        for (const id of ids) {
+            const i = await TakipIliski.findOne({ _id: id, durum: { $in: ['kabul', 'beklemede'] } });
+            if (!i) continue;
+            i.durum = 'red';
+            i.yanitTarih = new Date();
+            i.ayrilmaSebebi = 'admin-tarama';
+            i.ayrilmaTarih = new Date();
+            await i.save();
+            n++;
+            if (bildir) {
+                const t = await Kullanici.findOne({ kullaniciAdi: i.ogretmenAdi }, 'rol').lean();
+                if (t && t.rol === 'veli') {
+                    await sistemBildirimiGonder(i.ogretmenAdi,
+                        '"' + i.ogrenciAdi + '" adlı öğrenciyle takip bağlantınız güvenlik kontrolü sonucunda kaldırıldı. ' +
+                        'Bu öğrenci sizin çocuğunuzsa Veli Paneli\'nden yeniden takip isteği gönderebilirsiniz; çocuğunuz onayladığında bağlantı yeniden kurulur.',
+                        'Takip bildirimi');
+                }
+            }
+        }
+        console.log('[veli-tarama] ayrilan iliski:', n, '(mod=' + (req.body.mod || 'secili') + ')');
+        res.redirect('/admin/veli-tarama?ayrildi=' + n + '&bildirim=' + (bildir ? '1' : '0') + '&esik=' + esik + '&k=' + encodeURIComponent(req.body.k || 'supheli'));
+    } catch (e) {
+        console.error('[veli-tarama ayir] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
+// Basili karta dusmus, kullanilmamis KULLANICI kodlarini yonetici koduna cevirir.
+//   Kart gecerli kalir (sahibi yokmus gibi kayit acar), veli/ogretmen panelinden kalkar.
+router.post('/admin/veli-tarama/kod-temizle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const kodlar = await ReferansKodu.find({ kullanildi: false, yazdirildi: true, olusturan: { $ne: 'admin' } }, 'olusturan').lean();
+        let n = 0;
+        for (const k of kodlar) {
+            const r = await ReferansKodu.updateOne({ _id: k._id, kullanildi: false },
+                { $set: { oncekiOlusturan: k.olusturan, olusturan: 'admin' } });
+            if (r.modifiedCount || r.nModified) n++;
+        }
+        console.log('[veli-tarama] basili kullanici kodu yonetici koduna cevrildi:', n);
+        res.redirect('/admin/veli-tarama?kodCevrildi=' + n);
+    } catch (e) {
+        console.error('[veli-tarama kod-temizle] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
     }
 });
 
@@ -1508,7 +1649,9 @@ router.post('/referans-sil', async (req, res) => {
 router.post('/referans-toplu-sil', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        await ReferansKodu.deleteMany({ kullanildi: false });
+        // v4.17.20: Yalniz YONETICI kodlari silinir; veli/ogretmen/kurum kullanicilarinin
+        //   kendi davet linkleri onlarin panelinde kalir.
+        await ReferansKodu.deleteMany({ kullanildi: false, olusturan: 'admin' });
         res.redirect('/admin?mod=referans');
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });

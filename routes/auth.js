@@ -116,11 +116,27 @@ async function referansKoduUret(olusturan, adet, tip) {
         const kod = crypto.randomBytes(6).toString('hex').toUpperCase().slice(0, 10);
         const varMi = await ReferansKodu.findOne({ kod });
         if (!varMi) {
-            await new ReferansKodu({ kod, olusturan, tip: kodTip }).save();
-            kodlar.push(kod);
+            // v4.17.20: Kod her zaman essiz — 'kod' alani unique index'li; es zamanli
+            //   uretimde cakisma olursa (E11000) bu kod atlanir ve yenisi denenir.
+            try {
+                await new ReferansKodu({ kod, olusturan, tip: kodTip }).save();
+                kodlar.push(kod);
+            } catch (e) {
+                if (!(e && e.code === 11000)) throw e;
+            }
         }
     }
     return kodlar;
+}
+
+// v4.17.20: Basili karta dusmus bir KULLANICI kodu (veli/ogretmen/kurum uretimi)
+//   dagitilmis kart sayilir: sahibi yokmus gibi (yonetici kodu gibi) islenir —
+//   rol tipten belirlenir ve OTOMATIK TAKIP KURULMAZ. Boylece hatayla basilip
+//   dagitilan kartlar, kodu ureten veliye/ogretmene baska cocuklarin verisini acmaz.
+function kodSahibiCoz(ref) {
+    if (!ref) return null;
+    if (ref.yazdirildi && ref.olusturan && ref.olusturan !== 'admin') return 'admin';
+    return ref.olusturan;
 }
 
 router.get('/', async (req, res) => {
@@ -144,7 +160,7 @@ router.get('/kayit', async (req, res) => {
             const ref = await ReferansKodu.findOne({ kod: refKod }).lean();
             if (ref && ref.tip === 'ogretmen') {
                 refTip = 'ogretmen';
-                if (ref.olusturan && ref.olusturan !== 'admin') {
+                if (kodSahibiCoz(ref) && kodSahibiCoz(ref) !== 'admin') {
                     const ogretmenSahip = await Kullanici.findOne(
                         { kullaniciAdi: ref.olusturan, rol: 'ogretmen' },
                         'il ilce okul'
@@ -164,9 +180,10 @@ router.get('/kayit', async (req, res) => {
                 //   • olusturan bir veli kullanıcı → ÖĞRENCİ kaydı (Yol B), öğrenci
                 //     o veliyi otomatik takibe alır. Bu durumda refTip='ogrenci'
                 //     ama view'a velinin adı geçilir.
-                if (ref.olusturan && ref.olusturan !== 'admin') {
+                const _sahip = kodSahibiCoz(ref); // v4.17.20
+                if (_sahip && _sahip !== 'admin') {
                     const olusturanVeli = await Kullanici.findOne(
-                        { kullaniciAdi: ref.olusturan, rol: 'veli' }, 'kullaniciAdi'
+                        { kullaniciAdi: _sahip, rol: 'veli' }, 'kullaniciAdi'
                     ).lean();
                     if (olusturanVeli) {
                         refTip = 'ogrenci';
@@ -225,13 +242,18 @@ router.post('/kayit-yap', async (req, res) => {
         // v4.3.2: 'kurumsal'. v4.3.25/28: 'veli' tipi iki amaçlı —
         //   • admin üretti → yeni VELİ kaydı
         //   • bir veli üretti → ÖĞRENCİ kaydı (Yol B davet linki)
+        // v4.17.20: Basili karta dusmus kullanici kodu -> sahipsiz (yonetici kodu) gibi.
+        const kodSahibi = kodSahibiCoz(ref);
+        if (kodSahibi !== ref.olusturan) {
+            console.warn('[kayit-yap] Basili karttaki kullanici kodu (' + ref.kod + ', sahibi ' + ref.olusturan + ') — otomatik takip KURULMAYACAK.');
+        }
         let rol;
         if (ref.tip === 'ogretmen')      rol = 'ogretmen';
         else if (ref.tip === 'kurumsal') rol = 'kurumsal';
         else if (ref.tip === 'veli') {
-            if (ref.olusturan && ref.olusturan !== 'admin') {
+            if (kodSahibi && kodSahibi !== 'admin') {
                 const olusturanVeli = await Kullanici.findOne(
-                    { kullaniciAdi: ref.olusturan, rol: 'veli' }, 'kullaniciAdi'
+                    { kullaniciAdi: kodSahibi, rol: 'veli' }, 'kullaniciAdi'
                 ).lean();
                 rol = olusturanVeli ? 'ogrenci' : 'veli';
             } else {
@@ -412,7 +434,7 @@ router.post('/kayit-yap', async (req, res) => {
         // otomatik takip ilişkisi kurulur.
         //   • Öğretmen daveti → durum 'beklemede' (öğrenci onaylar)
         //   • Veli daveti     → durum 'kabul' (onaysız — veli zaten çocuğunu davet etti)
-        if (rol === 'ogrenci' && ref.olusturan && ref.olusturan !== 'admin') {
+        if (rol === 'ogrenci' && kodSahibi && kodSahibi !== 'admin') {
             try {
                 const olusturanKullanici = await Kullanici.findOne({ kullaniciAdi: ref.olusturan }).lean();
                 if (olusturanKullanici && (olusturanKullanici.rol === 'ogretmen' || olusturanKullanici.rol === 'veli')) {

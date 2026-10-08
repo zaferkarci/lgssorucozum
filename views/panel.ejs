@@ -247,6 +247,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="panel-main">
 
+  <%# v4.17.20: VELI GUVENLIGI — ogrenciyi takip eden veliler. Onaylanmamis veli varsa
+       (soru cozme ekrani disinda) her sayfada en ustte gorunur. Ogrenci tanimadigi birini
+       tek tusla takipten cikarir; cikarilan veliye sistem bildirimi gider. %>
+  <% var _vt = ((typeof veliTakipleri !== 'undefined') && veliTakipleri) ? veliTakipleri : []; %>
+  <% var _vtOnaysiz = _vt.filter(function(v){ return !v.onayli; }); %>
+  <% if (k.rol === 'ogrenci' && _vtOnaysiz.length && !(mod === 'soru' && basla)) { %>
+  <div id="veliTakipKart" style="max-width:900px; margin:0 auto 16px; background:#fff8e1; border:2px solid #ffb300; border-radius:14px; padding:16px 18px;">
+    <div style="font-weight:700; font-size:15px; color:#6d4c00; margin-bottom:4px;">👪 Seni takip eden veli<%= _vt.length > 1 ? 'ler' : '' %></div>
+    <div style="font-size:13px; color:#7a5c00; margin-bottom:12px; line-height:1.5;">Bu kişiler puanını, çözdüğün soruları ve istatistiklerini görebilir. Annen, baban ya da velin <b>değilse</b> “Takipten çıkar”a bas. Velinse “Evet, velim” de; bu uyarı kalkar.</div>
+    <% _vt.forEach(function(v){ %>
+    <div id="vt-<%= v.id %>" class="vt-satir" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#fff; border:1px solid #ffe082; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+      <span style="font-weight:600; font-size:14px; color:#1d2433;">👪 <%= v.veli %></span>
+      <span style="font-size:12px; color:#8a7a4a;"><%= v.il || '' %><%= v.ilce ? ' / ' + v.ilce : '' %></span>
+      <% if (v.onayli) { %><span style="font-size:12px; color:#2e7d32; font-weight:600;">✓ Velin olarak onayladın</span><% } %>
+      <span style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+        <% if (!v.onayli) { %><button type="button" onclick="veliOnayla('<%= v.id %>')" style="background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:600; cursor:pointer;">✓ Evet, velim</button><% } %>
+        <button type="button" data-ad="<%= v.veli %>" onclick="veliCikar('<%= v.id %>', this)" style="background:#ffebee; color:#b71c1c; border:1px solid #ef9a9a; border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:600; cursor:pointer;">✕ Takipten çıkar</button>
+      </span>
+    </div>
+    <% }); %>
+  </div>
+  <script>
+    function veliOnayla(id) {
+      fetch('/takip/veli-onayla', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'iliskiId=' + encodeURIComponent(id) })
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if (d.ok) location.reload(); else alert(d.hata || 'Hata'); })
+        .catch(function(){ alert('Bağlantı hatası'); });
+    }
+    function veliCikar(id, btn) {
+      var ad = btn.getAttribute('data-ad');
+      if (!confirm(ad + ' artık seni takip edemeyecek ve bilgilerini göremeyecek. Takipten çıkarılsın mı?')) return;
+      fetch('/takip/yanitla', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'iliskiId=' + encodeURIComponent(id) + '&yanit=red' })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (!d.ok) { alert(d.hata || 'Hata'); return; }
+          var el = document.getElementById('vt-' + id); if (el) el.remove();
+          if (!document.querySelector('.vt-satir')) { var c = document.getElementById('veliTakipKart'); if (c) c.remove(); }
+        })
+        .catch(function(){ alert('Bağlantı hatası'); });
+    }
+  </script>
+  <% } %>
+
   <%# v4.5.2: Günlük hedef kartı — öğrenci panele girer girmez görünür
        (mod ne olursa olsun: soru, profil, takip, vs.) %>
   <%# v4.5.0: Günlük hedef kartı — sadece öğrenci için, profil sekmesinde, en üstte %>
@@ -1120,7 +1163,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="profil-kart-yeni" id="mesajlarimKart">
           <p class="profil-kart-baslik-yeni">✉️ Mesajlarım
             <% var _yeniCevap = (benimMesajlarim||[]).filter(function(m){ return !m.ogrenciOkudu; }).length; %>
-            <% if (_yeniCevap) { %><span style="background:#e53935;color:#fff;font-size:11px;padding:2px 8px;border-radius:9px;margin-left:8px;"><%= _yeniCevap %> yeni cevap</span><% } %>
+            <% if (_yeniCevap) { %><span style="background:#e53935;color:#fff;font-size:11px;padding:2px 8px;border-radius:9px;margin-left:8px;"><%= _yeniCevap %> yeni</span><% } %>
           </p>
           <p style="font-size:12px; color:#888; margin-bottom:10px; line-height:1.5;">Soru, öneri veya sorunların için yaz. Yazışmayı yalnızca sen ve yönetici görür.</p>
 
@@ -1140,7 +1183,13 @@ document.addEventListener('DOMContentLoaded', function() {
                   <% if (m.kaynak === 'hatali-soru') { %> · <span style="color:#c62828;">⚠️ Hatalı soru</span><% } %>
                   <% if (m.soruBilgi) { %> · <%= m.soruBilgi %><% } %>
                 </div>
-                <% if (m.kaynak === 'admin') { %>
+                <% if (m.kaynak === 'sistem') { %>
+                  <%# v4.17.20: Otomatik sistem bildirimi (orn. takipten cikarilma) %>
+                  <div style="background:#e8f0fe; border-left:3px solid #1a73e8; border-radius:6px; padding:7px 10px;">
+                    <div style="font-size:11px; color:#1a56b8; font-weight:600;">🔔 Sistem bildirimi<%= m.konu ? ' · ' + m.konu : '' %></div>
+                    <div style="font-size:13px; color:#1d2433; white-space:pre-wrap;"><%= m.mesaj %></div>
+                  </div>
+                <% } else if (m.kaynak === 'admin') { %>
                   <div style="background:#f1f8e9; border-left:3px solid #7cb342; border-radius:6px; padding:7px 10px;">
                     <div style="font-size:11px; color:#558b2f; font-weight:600;">↩ Yönetici mesajı</div>
                     <div style="font-size:13px; color:#33691e; white-space:pre-wrap;"><%= m.mesaj %></div>
@@ -2504,7 +2553,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div id="bekleyenIstekListesi" style="font-size:13px; color:#888;">Yükleniyor…</div>
     </div>
     <div class="profil-kart-yeni" style="max-width:1100px; margin:0 auto;">
-      <p class="profil-kart-baslik-yeni">✅ Beni Takip Eden Öğretmenler</p>
+      <p class="profil-kart-baslik-yeni">✅ Beni Takip Edenler <span style="font-weight:400; font-size:12px; color:#888;">(öğretmen ve veli)</span></p>
       <div id="aktifTakipciler" style="font-size:13px; color:#888;">Yükleniyor…</div>
     </div>
   <% } %>
@@ -2683,7 +2732,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const d = await r.json();
       if (!d.ok) { liste.innerHTML = '<span style="color:#c0392b;">Hata</span>'; return; }
       if (d.takipciler.length === 0) {
-        liste.innerHTML = '<span style="color:#888;">' + (BENIM_ROL === 'ogretmen' ? 'Henüz takip ettiğin öğrenci yok.' : 'Henüz seni takip eden öğretmen yok.') + '</span>';
+        liste.innerHTML = '<span style="color:#888;">' + (BENIM_ROL === 'ogretmen' ? 'Henüz takip ettiğin öğrenci yok.' : 'Henüz seni takip eden kimse yok.') + '</span>';
         return;
       }
       let html;
@@ -2695,9 +2744,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         html += '</tbody></table>';
       } else {
-        html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Öğretmen</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:left;">İl/İlçe</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
+        html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Takip eden</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:left;">İl/İlçe</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
         d.takipciler.forEach(function(o) {
-          html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👩‍🏫 ' + o.ogretmenAdi + '</td><td style="padding:10px;">' + (o.ogretmenOkul||'-') + '</td><td style="padding:10px;">' + (o.ogretmenIl||'-') + ' / ' + (o.ogretmenIlce||'-') + '</td><td style="padding:10px; text-align:right;"><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Takipten Çıkar</button></td></tr>';
+          // v4.17.20: Veli satirlari ayirt edilir (ogrenci tanimadigi veliyi kolayca gorsun)
+          var _veliMi = (o.ogretmenRol === 'veli');
+          html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;' + (_veliMi ? ' background:#fffdf3;' : '') + '"><td style="padding:10px; font-weight:500;">' + (_veliMi ? '👪 ' : '👩‍🏫 ') + o.ogretmenAdi + (_veliMi ? ' <span style="font-size:11px; color:#b26a00; font-weight:600;">Veli' + (o.ogrenciOnayTarih ? ' · ✓ onayladın' : '') + '</span>' : ' <span style="font-size:11px; color:#888;">Öğretmen</span>') + '</td><td style="padding:10px;">' + (o.ogretmenOkul||'-') + '</td><td style="padding:10px;">' + (o.ogretmenIl||'-') + ' / ' + (o.ogretmenIlce||'-') + '</td><td style="padding:10px; text-align:right;"><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Takipten Çıkar</button></td></tr>';
         });
         html += '</tbody></table>';
       }

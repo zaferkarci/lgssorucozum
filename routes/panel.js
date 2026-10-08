@@ -1303,13 +1303,36 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             const Mesaj = require('../models/Mesaj');
             benimMesajlarim = await Mesaj.find({ kullaniciAdi: k.kullaniciAdi })
                 .sort({ yazilmaTarih: -1 }).limit(30).lean();
+            // v4.17.20: Mesajlar sayfasi acildiysa yeni cevaplar/bildirimler OKUNDU sayilir
+            //   (bu acilista hala "yeni" gorunur; ust menu rozeti bir sonraki sayfada kalkar).
+            if (mod === 'mesajlar' && benimMesajlarim.some(m => !m.ogrenciOkudu)) {
+                await Mesaj.updateMany({ kullaniciAdi: k.kullaniciAdi, ogrenciOkudu: false }, { $set: { ogrenciOkudu: true } });
+            }
         }
     } catch (e) { console.error('[benim mesajlarim]', e.message); }
+
+    // v4.17.20: Ogrenciyi takip eden VELILER (gizlilik). Ogrenci tanimadigi birini
+    //   gorurse panelden tek tusla takipten cikarir; "evet, velim" diye de onaylayabilir.
+    let veliTakipleri = [];
+    if (k.rol === 'ogrenci') {
+        try {
+            const TakipIliski = require('../models/TakipIliski');
+            const _vt = await TakipIliski.find({ ogrenciAdi: k.kullaniciAdi, durum: 'kabul' }).lean();
+            if (_vt.length) {
+                const _tk = await Kullanici.find({ kullaniciAdi: { $in: _vt.map(x => x.ogretmenAdi) } }, 'kullaniciAdi rol il ilce').lean();
+                const _tm = {}; _tk.forEach(x => { _tm[x.kullaniciAdi] = x; });
+                veliTakipleri = _vt.filter(x => (_tm[x.ogretmenAdi] && _tm[x.ogretmenAdi].rol === 'veli') || x.isteyenRol === 'veli')
+                    .map(x => ({ id: String(x._id), veli: x.ogretmenAdi, il: (_tm[x.ogretmenAdi] || {}).il || '', ilce: (_tm[x.ogretmenAdi] || {}).ilce || '',
+                                 tarih: x.yanitTarih || x.istekTarih, onayli: !!x.ogrenciOnayTarih }));
+            }
+        } catch (e) { console.error('[veli takipleri]', e.message); }
+    }
 
     res.render('panel', {
         k,
         duyuruGoster,
         benimMesajlarim,
+        veliTakipleri, // v4.17.20
         tamOgrenmeKart, tamOgrenmeHedef, tamOgrenmeBitti,
         // v4.11.0: Oyun acildi duyurusu acilir penceresi - ogrenci/demo, henuz
         //   "bir daha gosterme" dememisse.
@@ -2279,4 +2302,4 @@ router.post('/referans-kopyalandi', async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = router;

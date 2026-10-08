@@ -17,6 +17,9 @@ const ReferansKoduSchema = new mongoose.Schema({
     yazdirildi:      { type: Boolean, default: false, index: true },
     yazdirilmaTarih: { type: Date, default: null },
     kopyalanmaTarih: { type: Date, default: null },
+    // v4.17.20: Basili karta dusmus bir kullanici kodu yonetici kartina cevrildiyse
+    //   eski sahibi burada saklanir (iz kaydi; tarama raporu icin).
+    oncekiOlusturan: { type: String, default: null },
     olusturmaTarih: { type: Date, default: Date.now },
     kullanimTarih:  { type: Date, default: null }
 });
