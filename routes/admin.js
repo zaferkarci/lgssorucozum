@@ -1,5 +1,12 @@
 const express = require('express');
 const router = express.Router();
+// v4.17.21: Yonetici sayfalari (mesajlar dahil) tarayici/proxy onbellegine YAZILMAZ;
+//   ortak bilgisayarda cikistan sonra "geri" tusuyla icerik gorunmesin.
+router.use(function (req, res, next) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    next();
+});
 const Kullanici = require('../models/Kullanici');
 const OyunOyuncu = require('../models/OyunOyuncu');
 const OyunHucre = require('../models/OyunHucre');
@@ -68,9 +75,8 @@ function adminKontrol(req, res) {
         res.status(401).send('Giriş gerekli!');
         return false;
     }
-    const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
-    const [user, pass] = credentials.split(':');
-    if (user === (process.env.ADMIN_USER || 'admin') && pass === (process.env.ADMIN_PASSWORD || '1234')) {
+    // v4.17.21: Varsayilan sifre YOK (services/adminYetki). .env'de tanimli degilse giris kapali.
+    if (require('../services/adminYetki').adminBasicDogruMu(authHeader)) {
         // İlk başarılı girişte session'a kaydet — bir daha şifre sorulmasın
         if (req.session) req.session.adminGirisli = true;
         return true;
@@ -118,9 +124,9 @@ router.get('/admin', async (req, res) => {
     const iller = [...new Set(tumKullanicilar.map(k => k.il).filter(Boolean))].sort();
     const ilceler = filIl ? [...new Set(tumKullanicilar.filter(k => k.il === filIl).map(k => k.ilce).filter(Boolean))].sort() : [];
     const okullar = filIlce ? [...new Set(tumKullanicilar.filter(k => k.ilce === filIlce).map(k => k.okul).filter(Boolean))].sort() : [];
-    const adminToken = req.headers.authorization
-        ? req.headers.authorization.replace('Basic ', '')
-        : Buffer.from(`${process.env.ADMIN_USER||'admin'}:${process.env.ADMIN_PASSWORD||'1234'}`).toString('base64');
+    // v4.17.21: Yonetici sifresi ARTIK SAYFA KAYNAGINA GOMULMEZ (base64 kolayca cozulur).
+    //   Sayfadaki tum AJAX uclari once oturuma (adminGirisli) bakar; baslik gerekmez.
+    const adminToken = '';
     let tumReferanslar = mod === 'referans' ? await ReferansKodu.find().sort({ olusturmaTarih: -1 }).lean() : [];
     // v4.3.30: tip='veli' kodu çift amaçlı. Bir veli kullanıcının ürettiği
     // 'veli' kodu aslında ÖĞRENCİ kaydı yaptırır. Listede doğru etiket için
@@ -1825,7 +1831,7 @@ router.get('/kullanici-detay', async (req, res) => {
         res.render('admin-kullanici-detay', {
             k, tumCevaplar, sayfaCevaplar, soruMap, tumOkullar, iller,
             sayfa, toplamSayfa, sayfaBoyutu: SAYFA_BOYUTU, toplamCevap: tumCevaplar.length,
-            adminToken: req.headers.authorization ? req.headers.authorization.replace('Basic ', '') : ''
+            adminToken: '' // v4.17.21: sifre sayfaya gomulmez
         });
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });

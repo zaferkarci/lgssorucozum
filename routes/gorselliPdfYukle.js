@@ -24,10 +24,8 @@ function adminKontrol(req, res) {
         res.status(401).send('Giriş gerekli!');
         return false;
     }
-    const credentials = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
-    const [user, pass] = credentials.split(':');
-    if (user === (process.env.ADMIN_USER || 'admin') &&
-        pass === (process.env.ADMIN_PASSWORD || '1234')) {
+    // v4.17.21: varsayilan sifre yok (services/adminYetki)
+    if (require('../services/adminYetki').adminBasicDogruMu(authHeader)) {
         if (req.session) req.session.adminGirisli = true;
         return true;
     }

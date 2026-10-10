@@ -37,9 +37,8 @@ function oturumVeyaAdmin(req, res, next) {
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Basic ')) {
         try {
-            const cred = Buffer.from(authHeader.replace('Basic ', ''), 'base64').toString();
-            const [u, p] = cred.split(':');
-            if (u === (process.env.ADMIN_USER || 'admin') && p === (process.env.ADMIN_PASSWORD || '1234')) {
+            // v4.17.21: varsayilan sifre yok (services/adminYetki)
+            if (require('../services/adminYetki').adminBasicDogruMu(authHeader)) {
                 req.adminGorunum = true;
                 if (req.session) req.session.adminGirisli = true; // tutarlılık için işaretle
                 return next();

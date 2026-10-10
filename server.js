@@ -791,8 +791,8 @@ app.post('/admin/cron-tetikle', async (req, res) => {
     if (!yetkili) {
         const auth = req.headers.authorization;
         if (!auth || !auth.startsWith('Basic ')) return res.status(401).send('Yetkisiz');
-        const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
-        if (user !== process.env.ADMIN_USER || pass !== process.env.ADMIN_PASSWORD) return res.status(401).send('Yetkisiz');
+        // v4.17.21: tek kaynak (services/adminYetki)
+        if (!require('./services/adminYetki').adminBasicDogruMu(auth)) return res.status(401).send('Yetkisiz');
         if (req.session) req.session.adminGirisli = true;
         yetkili = true;
     }
@@ -834,4 +834,13 @@ app.get('/unite-sablon-indir', (req, res) => {
     res.send(buf);
 });
 
+// v4.17.21: Guvenlik on kontrolu — eksik/zayif yonetici sifresi ve oturum anahtari uyarisi
+try {
+    if (!require('./services/adminYetki').adminTanimliMi()) {
+        console.error('⛔ ADMIN_USER / ADMIN_PASSWORD .env içinde tanımlı değil (veya zayıf). Yönetici girişi KAPALI.');
+    }
+    if (!process.env.SESSION_SECRET) {
+        console.error('⚠️ SESSION_SECRET .env içinde tanımlı değil — varsayılan anahtar kullanılıyor; uzun rastgele bir değer ekleyin.');
+    }
+} catch (e) { /* yoksay */ }
 app.listen(PORT, () => console.log(`🚀 Sunucu ${PORT} portunda hazır!`));
