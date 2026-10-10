@@ -2886,6 +2886,7 @@ function gosterExcelHata(msg) {
         <option value="ogretmen">👩‍🏫 Öğretmen linki</option>
         <option value="kurumsal">🏛️ Kurumsal linki</option>
         <option value="veli">👪 Veli linki</option>
+        <option value="aile">👨‍👩‍👧 Aile linki (veli + öğrenci)</option>
         <option value="demo">🧪 Demo linki (etkisiz öğrenci hesabı)</option>
       </select>
       <button class="ekle-btn">Kod Üret</button>
@@ -2898,6 +2899,7 @@ function gosterExcelHata(msg) {
         <span style="font-size:13px; font-weight:600;">🖨️ Yazdırmak için:</span>
         <input type="number" name="adet" value="120" min="1" max="500" style="width:90px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
         <select name="tip" style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; background:white;">
+          <option value="aile">👨‍👩‍👧 Aile (veli + öğrenci tek kart)</option>
           <option value="veli">👪 Veli</option>
           <option value="ogrenci">👨‍🎓 Öğrenci</option>
           <option value="ogretmen">👩‍🏫 Öğretmen</option>
@@ -2936,6 +2938,8 @@ function gosterExcelHata(msg) {
             <span style="font-size:10px; background:#fff3e0; color:#e65100; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👪 VELİ</span>
           <% } else if (refGTip === 'demo') { %>
             <span style="font-size:10px; background:#ede7f6; color:#5e35b1; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">🧪 DEMO</span>
+          <% } else if (refGTip === 'aile') { %>
+            <span style="font-size:10px; background:#e8f5e9; color:#1b5e20; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👨‍👩‍👧 AİLE</span>
           <% } else { %>
             <span style="font-size:10px; background:#e3f2fd; color:#1565c0; padding:2px 8px; border-radius:10px; margin-left:6px; font-weight:600;">👨‍🎓 ÖĞRENCİ</span>
           <% } %>

@@ -148,6 +148,7 @@
                    : refTip === 'kurumsal' ? 'Kurumsal Hesap Oluştur'
                    : refTip === 'veli' ? 'Veli Hesabı Oluştur'
                    : refTip === 'demo' ? 'Demo Hesabı Oluştur'
+                   : refTip === 'aile' ? 'Veli ve Öğrenci Hesabı Oluştur'
                    : 'Hesap Oluştur';
   %>
   <div class="kayit-sag">
@@ -170,6 +171,82 @@
         👪 <b>Veliniz sizi takip edecek.</b> <b><%= veliDavetAdi %></b> adlı veli sizi davet etti. Kaydolduğunuzda çalışma istatistikleriniz bu veliyle paylaşılacak.
       </div>
     <% } %>
+    <% if (refTip === 'aile') { %>
+    <%# v4.17.21-1: AILE KARTI — tek formda veli + ogrenci hesabi, ortak ilk sifre %>
+    <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#1b5e20; line-height:1.55;">
+      👪 <b>Aile kartı.</b> Bu tek kartla hem öğrencinin hem velinin hesabı açılır. Veli, çocuğunun çalışmalarını otomatik takip eder.
+      İkisi de aşağıda belirleyeceğiniz şifreyle ilk girişi yapar; ilk girişte her biri kendi şifresini belirler.
+    </div>
+    <form action="/kayit-aile" method="POST" id="kayitForm">
+      <label class="k-label">Kart Kodu</label>
+      <input name="refKod" required class="input" value="<%= refKod %>" readonly style="font-family:monospace; letter-spacing:2px; text-transform:uppercase; background:#f5f7fa;">
+
+      <div style="font-weight:700; font-size:14px; color:#1a73e8; margin:14px 0 6px;">👨‍🎓 Öğrenci</div>
+      <label class="k-label">Öğrencinin Kullanıcı Adı</label>
+      <div style="position:relative;">
+        <input name="ogrenciAdi" id="kullaniciAdiInput" placeholder="örn. elif.yilmaz (min. 4 karakter)" required class="input" style="margin-bottom:4px; padding-right:120px;" oninput="kullaniciAdiKontrolEt(this.value)">
+        <span id="adKontrolMsg" style="position:absolute; right:12px; top:50%; transform:translateY(-60%); font-size:11px; font-weight:600;"></span>
+      </div>
+      <div id="adKontrolAlt" style="font-size:11px; margin-bottom:8px; min-height:16px;"></div>
+      <label class="k-label">Sınıf</label>
+      <select name="sinif" required class="input">
+        <option value="">Sınıf Seçiniz</option>
+        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(s) { %>
+          <option value="<%= s %>" <%= s===8?'selected':'' %>><%= s %>. Sınıf</option>
+        <% }); %>
+      </select>
+      <label class="k-label">Şube (Opsiyonel)</label>
+      <select name="sube" class="input">
+        <option value="">Şube Seçiniz</option>
+        <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h) { %>
+          <option value="<%= h %>"><%= h %> Şubesi</option>
+        <% }); %>
+      </select>
+      <label class="k-label">İl <span style="color:#888; font-weight:400;">(opsiyonel)</span></label>
+      <select name="il" id="ilSelect" onchange="ilDegisti()" class="input"><option value="">İl Seçiniz...</option></select>
+      <label class="k-label">İlçe <span style="color:#888; font-weight:400;">(opsiyonel)</span></label>
+      <select name="ilce" id="ilceSelect" onchange="ilceDegisti()" class="input"><option value="">İlçe Seçiniz</option></select>
+      <label class="k-label">Okul <span style="color:#888; font-weight:400;">(opsiyonel)</span></label>
+      <select name="okul" id="okulListesi" class="input"><option value="">Okul Seçiniz</option></select>
+
+      <div style="font-weight:700; font-size:14px; color:#e65100; margin:14px 0 6px;">👪 Veli</div>
+      <label class="k-label">Velinin Kullanıcı Adı</label>
+      <div style="position:relative;">
+        <input name="veliAdi" id="veliAdInput" placeholder="örn. ayse.yilmaz (min. 4 karakter)" required class="input" style="margin-bottom:4px; padding-right:120px;" oninput="veliAdKontrolEt(this.value)">
+        <span id="veliAdMsg" style="position:absolute; right:12px; top:50%; transform:translateY(-60%); font-size:11px; font-weight:600;"></span>
+      </div>
+      <div id="veliAdAlt" style="font-size:11px; margin-bottom:8px; min-height:16px;"></div>
+      <label class="k-label">Velinin E-postası</label>
+      <input type="email" name="veliEmail" placeholder="veli@mail.com" required class="input">
+      <div style="font-size:11.5px; color:#8a6d00; margin:-4px 0 10px;">Öğrenci şifresini unutursa sıfırlama bağlantısı bu adrese gönderilir.</div>
+
+      <div style="font-weight:700; font-size:14px; color:#374151; margin:14px 0 6px;">🔑 İlk Şifre (ikisi için aynı)</div>
+      <label class="k-label">Şifre</label>
+      <input type="password" name="sifre" placeholder="••••••••" required minlength="4" class="input" autocomplete="new-password">
+      <label class="k-label">Şifre Tekrar</label>
+      <input type="password" name="sifreTekrar" placeholder="••••••••" required minlength="4" class="input" autocomplete="new-password">
+      <button type="submit" class="giris-btn-yeni" style="margin-top:16px;">Hesapları Oluştur</button>
+    </form>
+    <script>
+    var veliKontrolTimeout = null;
+    function veliAdKontrolEt(ad) {
+      clearTimeout(veliKontrolTimeout);
+      var msg = document.getElementById('veliAdMsg'), alt = document.getElementById('veliAdAlt');
+      if (!ad || ad.length < 2) { msg.textContent=''; alt.textContent=''; return; }
+      msg.textContent = '...'; msg.style.color = '#888';
+      veliKontrolTimeout = setTimeout(function() {
+        var ogr = (document.getElementById('kullaniciAdiInput').value || '').trim().toLowerCase();
+        if (ogr && ogr === ad.trim().toLowerCase()) { msg.textContent='✗'; msg.style.color='#c62828'; alt.textContent='Öğrencinin adından farklı olmalı.'; alt.style.color='#c62828'; return; }
+        fetch('/api/kullaniciadi-kontrol?ad='+encodeURIComponent(ad))
+          .then(function(r){ return r.json(); })
+          .then(function(data) {
+            msg.textContent = data.gecerli ? '✓' : '✗'; msg.style.color = data.gecerli ? '#2e7d32' : '#c62828';
+            alt.textContent = data.mesaj; alt.style.color = data.gecerli ? '#2e7d32' : '#c62828';
+          });
+      }, 400);
+    }
+    </script>
+    <% } else { %>
     <form action="/kayit-yap" method="POST" id="kayitForm">
       <input type="hidden" name="rol" value="<%= refTip === 'ogretmen' ? 'ogretmen' : (refTip === 'kurumsal' ? 'kurumsal' : (refTip === 'veli' ? 'veli' : (refTip === 'demo' ? 'demo' : 'ogrenci'))) %>">
       <label class="k-label">Referans Kodu</label>
@@ -242,6 +319,7 @@
       <% } %>
       <button type="submit" class="giris-btn-yeni" style="margin-top:16px;">Kaydı Tamamla</button>
     </form>
+    <% } %>
     <p style="text-align:center; font-size:13px; color:#888; margin-top:14px;">Zaten hesabın var mı? <a href="/" style="color:#1a73e8; font-weight:500; text-decoration:none;">Giriş Yap</a></p>
   </div>
 </div>

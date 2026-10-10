@@ -732,6 +732,15 @@ app.locals.puanFmt = function(p) {
     return String(yuvarlanmis);
 };
 
+// v4.17.21-1: ILK GIRIS SIFRE ZORUNLULUGU — aile kartiyla ortak ilk sifreyle acilan hesap,
+//   kendi sifresini belirleyene kadar yalniz /sifre-belirle ve /cikis'i kullanabilir.
+app.use(function (req, res, next) {
+    if (!req.session || !req.session.kullaniciAdi || !req.session.sifreDegistirmeli) return next();
+    if (req.path === '/sifre-belirle' || req.path === '/cikis') return next();
+    if (req.method === 'GET' && !req.path.startsWith('/api/') && req.accepts('html')) return res.redirect('/sifre-belirle');
+    return res.status(403).json({ ok: false, hata: 'Önce kendi şifreni belirlemelisin.' });
+});
+
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/panel'));
 app.use('/', require('./routes/admin'));

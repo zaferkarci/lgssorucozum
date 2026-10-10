@@ -83,6 +83,18 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <div class="d-satir"><span class="d-etiket">Rol</span><span class="d-deger"><%= k.rol === 'moderator' ? 'Moderatör' : (k.rol === 'ogretmen' ? '👩‍🏫 Öğretmen' : (k.rol === 'kurumsal' ? '🏛️ Kurumsal' : 'Öğrenci')) %></span></div>
       </div>
 
+      <%# v4.17.21-1: Kullanici adini degistir (tum kayitlarla birlikte) %>
+      <div class="d-kart">
+        <p class="d-kart-baslik">Kullanıcı Adını Değiştir</p>
+        <form action="/admin/kullanici-adi-degistir" method="POST" onsubmit="return confirm('&quot;<%= k.kullaniciAdi %>&quot; adı &quot;' + this.yeni.value.trim() + '&quot; olarak değiştirilsin mi? Puanlar, takipler, mesajlar ve oyun kayıtları yeni ada taşınır; açık oturumu kapanır.');" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="hidden" name="eski" value="<%= k.kullaniciAdi %>">
+          <input type="text" name="yeni" required minlength="4" maxlength="20" pattern="[a-zA-ZğüşıöçĞÜŞİÖÇ0-9_.]{4,20}" placeholder="yeni kullanıcı adı" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px; flex:1; min-width:140px;">
+          <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Adı Değiştir</button>
+        </form>
+        <p style="font-size:11px; color:#888; margin-top:8px; line-height:1.5;">4–20 karakter; harf, rakam, _ ve . kullanılabilir. Kullanıcı eski adıyla ve kendi şifresiyle girerse sisteme alınır ve yeni adı gösterilir.
+        <% if (k.eskiAdlar && k.eskiAdlar.length) { %><br>Önceki adları: <b><%= k.eskiAdlar.join(', ') %></b><% } %></p>
+      </div>
+
       <!-- Rol değiştirme -->
       <div class="d-kart">
         <p class="d-kart-baslik">Rolü Değiştir</p>

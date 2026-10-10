@@ -2202,7 +2202,9 @@ router.post('/profil/sifre-degistir', oturumKontrol, async (req, res) => {
         if (!eslesti)
             return res.send("<script>alert('Eski şifre yanlış!'); window.location.href='" + geri + "';</script>");
         k.sifre = await bcrypt.hash(yeniSifre, 10);
+        k.sifreDegistirmeli = false; // v4.17.21-1
         await k.save();
+        if (req.session) delete req.session.sifreDegistirmeli;
         res.send("<script>alert('Şifreniz başarıyla değiştirildi.'); window.location.href='" + geri + "';</script>");
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });

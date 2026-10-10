@@ -107,8 +107,8 @@ router.get('/api/kullaniciadi-oner', async (req, res) => {
 // Benzersiz 10 karakterlik referans kodu üret
 async function referansKoduUret(olusturan, adet, tip) {
     const kodlar = [];
-    // v4.3.2: 'kurumsal' tipi. v4.3.25: 'veli' tipi de geçerli.
-    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo'];
+    // v4.3.2: 'kurumsal' tipi. v4.3.25: 'veli' tipi de geçerli. v4.17.21-1: 'aile' (veli+ogrenci tek kod).
+    const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo', 'aile'];
     const kodTip = gecerliTipler.includes(tip) ? tip : 'ogrenci';
     let deneme = 0;
     while (kodlar.length < adet && deneme < adet * 10) {
@@ -198,6 +198,9 @@ router.get('/kayit', async (req, res) => {
             } else if (ref && ref.tip === 'demo') {
                 // v4.3.33: Demo davet kodu — etkisiz öğrenci hesabı
                 refTip = 'demo';
+            } else if (ref && ref.tip === 'aile') {
+                // v4.17.21-1: Aile karti — tek formda veli + ogrenci hesabi
+                refTip = 'aile';
             }
         } catch (e) { /* yoksay, default ogrenci + boş ön seçim */ }
     }
@@ -237,6 +240,8 @@ router.post('/kayit-yap', async (req, res) => {
         // Referans kodu doğrula
         const ref = await ReferansKodu.findOne({ kod: refKod.trim().toUpperCase(), kullanildi: false });
         if (!ref) return res.send("<script>alert('Geçersiz veya kullanılmış referans kodu!'); window.history.back();</script>");
+        // v4.17.21-1: Aile karti bu formla kullanilamaz (veli+ogrenci birlikte acilir)
+        if (ref.tip === 'aile') return res.send("<script>alert('Bu bir aile kartı. Kayıt bağlantısını kartın karekodundan açın.'); window.location.href='/kayit?ref=" + encodeURIComponent(ref.kod) + "';</script>");
 
         // Rol referans kodundan belirleniyor (kullanıcı manipüle edemesin)
         // v4.3.2: 'kurumsal'. v4.3.25/28: 'veli' tipi iki amaçlı —
@@ -464,18 +469,157 @@ router.post('/kayit-yap', async (req, res) => {
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
+// ===================================================================
+// v4.17.21-1: AILE KARTI ILE KAYIT — tek formda VELI + OGRENCI hesabi.
+//   Ikisi de formda girilen ortak ilk sifreyle acilir; ilk giriste her biri kendi
+//   sifresini belirler (sifreDegistirmeli). Veli cocugu ONAYLI (kaynak:'aile')
+//   takip eder; ogrencinin sifremi-unuttum baglantisi bu velinin e-postasina gider.
+// ===================================================================
+router.post('/kayit-aile', async (req, res) => {
+    const geriHata = (m) => res.send('<script>alert(' + JSON.stringify(String(m)).replace(/</g, '\\u003c') + '); window.history.back();</script>');
+    const b = req.body || {};
+    const refKod = String(b.refKod || '').trim().toUpperCase();
+    const ogrAdi = String(b.ogrenciAdi || '').trim();
+    const veliAdi = String(b.veliAdi || '').trim();
+    const veliEmail = String(b.veliEmail || '').trim().toLowerCase();
+    const sifre = String(b.sifre || ''), sifreTekrar = String(b.sifreTekrar || '');
+    const sinif = parseInt(b.sinif, 10);
+    const sube = String(b.sube || '').trim();
+    const ilSon = String(b.il || '').trim(), ilceSon = String(b.ilce || '').trim(), okulSon = String(b.okul || '').trim();
+
+    if (!refKod) return geriHata('Kart kodu gerekli.');
+    for (const [ad, etiket] of [[ogrAdi, 'Öğrenci'], [veliAdi, 'Veli']]) {
+        const h = kullaniciAdiKontrol(ad);
+        if (h) return geriHata(etiket + ' kullanıcı adı: ' + h);
+    }
+    if (ogrAdi.toLowerCase() === veliAdi.toLowerCase()) return geriHata('Veli ve öğrenci kullanıcı adları farklı olmalı.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(veliEmail)) return geriHata('Velinin geçerli bir e-posta adresi gerekli (şifre sıfırlama bağlantıları bu adrese gider).');
+    if (sifre.length < 4) return geriHata('Şifre en az 4 karakter olmalı.');
+    if (sifre !== sifreTekrar) return geriHata('Şifreler uyuşmuyor!');
+    if (!(sinif >= 1 && sinif <= 12)) return geriHata('Öğrencinin sınıfını seçin.');
+
+    try {
+        // Yasakli kelime (DB) + kullanici adi bos mu
+        try {
+            const YasakliKelime = require('../models/YasakliKelime');
+            const yas = await YasakliKelime.find({}, 'kelime').lean();
+            for (const ad of [ogrAdi, veliAdi]) if (yas.some(y => y.kelime === ad.toLowerCase())) return geriHata('"' + ad + '" kullanıcı adı kullanılamaz.');
+        } catch (e) { /* model yoksa atla */ }
+        for (const ad of [ogrAdi, veliAdi]) {
+            if (await Kullanici.findOne({ kullaniciAdi: ad }, '_id').lean()) return geriHata('"' + ad + '" kullanıcı adı alınmış!');
+        }
+
+        // Kodu ATOMIK olarak sahiplen (ayni kart iki kez kullanilamasin)
+        const ref = await ReferansKodu.findOneAndUpdate(
+            { kod: refKod, tip: 'aile', kullanildi: false },
+            { $set: { kullanildi: true, kullanimTarih: new Date() } },
+            { new: true }
+        );
+        if (!ref) return geriHata('Geçersiz veya kullanılmış aile kartı!');
+
+        const hash = await bcrypt.hash(sifre, SALT_ROUNDS);
+        let ogr = null, veli = null, takip = null;
+        try {
+            ogr = await new Kullanici({
+                kullaniciAdi: ogrAdi, email: '', sifre: hash,
+                il: ilSon, ilce: ilceSon, okul: okulSon,
+                rol: 'ogrenci', rolListesi: ['ogrenci'], aktifRol: 'ogrenci',
+                sinif, sube, sifreDegistirmeli: true, aileKodu: ref.kod
+            }).save();
+            veli = await new Kullanici({
+                kullaniciAdi: veliAdi, email: veliEmail, sifre: hash,
+                il: ilSon, ilce: ilceSon, okul: '',
+                rol: 'veli', rolListesi: ['veli'], aktifRol: 'veli',
+                sinif: null, sube: '', sifreDegistirmeli: true, aileKodu: ref.kod
+            }).save();
+            const TakipIliski = require('../models/TakipIliski');
+            const simdi = new Date();
+            takip = await new TakipIliski({
+                ogretmenAdi: veliAdi, ogrenciAdi: ogrAdi, isteyenRol: 'veli', durum: 'kabul',
+                kaynak: 'aile', istekTarih: simdi, yanitTarih: simdi, ogrenciOnayTarih: simdi
+            }).save();
+            ref.kullanan = ogrAdi;
+            ref.aileVeli = veliAdi;
+            await ref.save();
+        } catch (e) {
+            // Geri al: yarim kayit kalmasin, kart tekrar kullanilabilsin
+            try { if (takip) await takip.deleteOne(); } catch (x) {}
+            try { if (veli) await Kullanici.deleteOne({ _id: veli._id }); } catch (x) {}
+            try { if (ogr) await Kullanici.deleteOne({ _id: ogr._id }); } catch (x) {}
+            try { await ReferansKodu.updateOne({ _id: ref._id }, { $set: { kullanildi: false, kullanimTarih: null, kullanan: null, aileVeli: null } }); } catch (x) {}
+            if (e && e.code === 11000) return geriHata('Kullanıcı adlarından biri az önce alındı, başka bir ad deneyin.');
+            throw e;
+        }
+
+        // Ogrenci icin okul kurum ise otomatik katilma istegi (normal kayitla ayni davranis)
+        if (okulSon) {
+            try {
+                const eslesenKurum = await Kurum.findOne({ ad: okulSon, il: ilSon || '', ilce: ilceSon || '' });
+                if (eslesenKurum) await new KurumUyelikIstek({ kullaniciAdi: ogrAdi, kullaniciRol: 'ogrenci', kurumId: eslesenKurum._id }).save();
+            } catch (e) { if (e.code !== 11000) console.error('[kayit-aile] kurum istegi:', e.message); }
+        }
+        console.log('[kayit-aile] ' + ref.kod + ': veli ' + veliAdi + ' + ogrenci ' + ogrAdi);
+        const msg = 'Hesaplar oluşturuldu.\n\nÖğrenci: ' + ogrAdi + '\nVeli: ' + veliAdi +
+            '\n\nİkisi de az önce belirlediğiniz şifreyle giriş yapar; ilk girişte her biri kendi şifresini belirler.';
+        res.send('<script>alert(' + JSON.stringify(msg).replace(/</g, '\\u003c') + '); window.location.href="/?kayit=basarili";</script>');
+    } catch (err) {
+        console.error('[kayit-aile] HATA:', err.message);
+        res.status(500).send('Hata: ' + err.message);
+    }
+});
+
 router.post('/giris', async (req, res) => {
     try {
-        const k = await Kullanici.findOne({ kullaniciAdi: req.body.kullaniciAdi });
+        let k = await Kullanici.findOne({ kullaniciAdi: req.body.kullaniciAdi });
+        // v4.17.21-1: Yonetici adini degistirdiyse eski adla da (dogru sifreyle) giris yapilir.
+        let eskiAdlaGiris = false;
+        if (!k && req.body.kullaniciAdi) {
+            k = await Kullanici.findOne({ eskiAdlar: String(req.body.kullaniciAdi) });
+            eskiAdlaGiris = !!k;
+        }
         if (!k) return res.send("<script>alert('Hata!'); window.history.back();</script>");
         const eslesti = await bcrypt.compare(req.body.sifre, k.sifre);
         if (!eslesti) return res.send("<script>alert('Hata!'); window.history.back();</script>");
         req.session.kullaniciAdi = k.kullaniciAdi;
+        // v4.17.21-1: Ortak ilk sifreyle acilan hesap -> once kendi sifresini belirlemeli
+        if (k.sifreDegistirmeli) req.session.sifreDegistirmeli = true;
+        else delete req.session.sifreDegistirmeli;
         // v4.3.69: Login zaman damgası — "bugün aktif" tespiti için
         // (await beklemiyoruz, çünkü oturum açılışı bunu beklememeli)
         Kullanici.updateOne({ _id: k._id }, { $set: { sonGiris: new Date() } }).catch(e =>
             console.warn('[auth] sonGiris guncellenmedi:', e.message)
         );
+        const hedef = k.sifreDegistirmeli ? '/sifre-belirle' : '/panel/' + encodeURIComponent(k.kullaniciAdi);
+        if (eskiAdlaGiris) {
+            const js = x => JSON.stringify(String(x)).replace(/</g, '\\u003c');
+            return res.send('<script>alert(' + js('Kullanıcı adın "' + k.kullaniciAdi + '" olarak değiştirildi. Bundan sonra bu adla giriş yap.') + '); window.location.href=' + js(hedef) + ';</script>');
+        }
+        res.redirect(hedef);
+    } catch (err) { res.status(500).send("Hata: " + err.message); }
+});
+
+// v4.17.21-1: ILK GIRISTE KENDI SIFRENI BELIRLE (aile karti ortak ilk sifresinden sonra)
+router.get('/sifre-belirle', async (req, res) => {
+    if (!req.session || !req.session.kullaniciAdi) return res.redirect('/');
+    const k = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }, 'kullaniciAdi rol sifreDegistirmeli').lean();
+    if (!k) return res.redirect('/');
+    if (!k.sifreDegistirmeli) { delete req.session.sifreDegistirmeli; return res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi)); }
+    res.render('sifre-belirle', { kullaniciAdi: k.kullaniciAdi, rol: k.rol, hata: '' });
+});
+router.post('/sifre-belirle', async (req, res) => {
+    try {
+        if (!req.session || !req.session.kullaniciAdi) return res.redirect('/');
+        const k = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi });
+        if (!k) return res.redirect('/');
+        const goster = (hata) => res.render('sifre-belirle', { kullaniciAdi: k.kullaniciAdi, rol: k.rol, hata });
+        const yeni = String(req.body.yeniSifre || ''), tekrar = String(req.body.yeniSifreTekrar || '');
+        if (yeni.length < 6) return goster('Şifre en az 6 karakter olmalı.');
+        if (yeni !== tekrar) return goster('Şifreler uyuşmuyor.');
+        if (await bcrypt.compare(yeni, k.sifre)) return goster('Yeni şifren ilk (ortak) şifreden farklı olmalı.');
+        k.sifre = await bcrypt.hash(yeni, SALT_ROUNDS);
+        k.sifreDegistirmeli = false;
+        await k.save();
+        delete req.session.sifreDegistirmeli;
         res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi));
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
@@ -490,20 +634,62 @@ router.get('/sifremi-unuttum', (req, res) => {
 });
 
 // Şifremi unuttum — mail gönder
+// v4.17.21-1: Kullanici adi VEYA e-posta ile.
+//   • Ogrenci (kullanici adiyla): baglanti VELISININ e-postasina gider. Yalniz guvenilir
+//     veliler: aile kartiyla birlikte acilan veli (kaynak:'aile') ya da ogrencinin
+//     "evet, velim" diye onayladigi veli. Boyle veli yoksa ogrencinin kendi e-postasi.
+//   • Veli / ogretmen / diger: kendi e-postasina.
+//   • E-posta girilirse: o adrese kayitli hesap(lar) icin o adrese.
+//   Yanit her durumda ayni (hangi hesabin var oldugu disari sizmaz). Ayni hesap icin
+//   2 dakikada bir istek (mail bombardimanina karsi).
+async function ogrenciGuvenilirVelileri(ogrenciAdi) {
+    const TakipIliski = require('../models/TakipIliski');
+    const iliskiler = await TakipIliski.find({
+        ogrenciAdi, durum: 'kabul',
+        $or: [{ kaynak: 'aile' }, { ogrenciOnayTarih: { $ne: null } }]
+    }, 'ogretmenAdi').lean();
+    if (!iliskiler.length) return [];
+    return await Kullanici.find({ kullaniciAdi: { $in: iliskiler.map(i => i.ogretmenAdi) }, rol: 'veli', email: { $nin: ['', null] } },
+        'kullaniciAdi email').lean();
+}
 router.post('/sifremi-unuttum', async (req, res) => {
-    const { email } = req.body;
+    const kimlik = String((req.body && (req.body.kimlik || req.body.email)) || '').trim();
+    const yanit = () => res.send("<script>alert('Kayıtlı bir hesapsa şifre sıfırlama bağlantısı gönderildi. Öğrenci hesaplarında bağlantı velinin e-posta adresine gider. Lütfen mail kutunu (ve gereksiz klasörünü) kontrol et.'); window.location.href='/';</script>");
     try {
-        const k = await Kullanici.findOne({ email: email });
-        if (k) {
-            const token = crypto.randomBytes(32).toString('hex');
-            const expires = new Date(Date.now() + 60 * 60 * 1000);
-            await new PasswordReset({ kullaniciAdi: k.kullaniciAdi, email: k.email, token, expires }).save();
-            const baseUrl = process.env.SITE_URL || ('https://' + req.get('host'));
-            const link = baseUrl.replace(/\/$/, '') + '/sifre-yenile/' + token;
-            try { await sifreSifirlamaMailiGonder(k.email, k.kullaniciAdi, link); }
-            catch (mailErr) { console.error('Mail gönderim hatası:', mailErr.message); }
+        if (!kimlik) return yanit();
+        const hedefler = []; // { kullaniciAdi, email, veliAdi? }
+        if (kimlik.includes('@')) {
+            const kul = await Kullanici.find({ email: kimlik.toLowerCase() }, 'kullaniciAdi email').lean();
+            const kul2 = kul.length ? kul : await Kullanici.find({ email: kimlik }, 'kullaniciAdi email').lean();
+            kul2.forEach(u => hedefler.push({ kullaniciAdi: u.kullaniciAdi, email: u.email }));
+        } else {
+            const u = await Kullanici.findOne({ kullaniciAdi: kimlik }, 'kullaniciAdi email rol').lean();
+            if (u) {
+                if (u.rol === 'ogrenci' || u.rol === 'demo') {
+                    const veliler = await ogrenciGuvenilirVelileri(u.kullaniciAdi);
+                    if (veliler.length) veliler.forEach(v => hedefler.push({ kullaniciAdi: u.kullaniciAdi, email: v.email, veliAdi: v.kullaniciAdi }));
+                    else if (u.email) hedefler.push({ kullaniciAdi: u.kullaniciAdi, email: u.email });
+                    else console.warn('[sifremi-unuttum] ' + u.kullaniciAdi + ': guvenilir veli/e-posta yok, baglanti gonderilemedi.');
+                } else if (u.email) {
+                    hedefler.push({ kullaniciAdi: u.kullaniciAdi, email: u.email });
+                }
+            }
         }
-        res.send("<script>alert('Eğer bu e-posta sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderildi. Lütfen mail kutunuzu kontrol edin.'); window.location.href='/';</script>");
+        const baseUrl = (process.env.SITE_URL || ('https://' + req.get('host'))).replace(/\/$/, '');
+        const { ogrenciSifreSifirlamaMailiGonder } = require('../mailGonder');
+        const yakinZamanda = new Date(Date.now() + 58 * 60 * 1000); // 2 dk icinde uretilmis token var mi
+        for (const h of hedefler) {
+            const son = await PasswordReset.findOne({ kullaniciAdi: h.kullaniciAdi, email: h.email, expires: { $gt: yakinZamanda } }).lean();
+            if (son) continue;
+            const token = crypto.randomBytes(32).toString('hex');
+            await new PasswordReset({ kullaniciAdi: h.kullaniciAdi, email: h.email, token, expires: new Date(Date.now() + 60 * 60 * 1000) }).save();
+            const link = baseUrl + '/sifre-yenile/' + token;
+            try {
+                if (h.veliAdi) await ogrenciSifreSifirlamaMailiGonder(h.email, h.veliAdi, h.kullaniciAdi, link);
+                else await sifreSifirlamaMailiGonder(h.email, h.kullaniciAdi, link);
+            } catch (mailErr) { console.error('Mail gönderim hatası:', mailErr.message); }
+        }
+        yanit();
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
@@ -533,12 +719,15 @@ router.post('/sifre-yenile', async (req, res) => {
             return res.send("<script>alert('Bağlantının süresi dolmuş.'); window.location.href='/sifremi-unuttum';</script>");
         }
         const hash = await bcrypt.hash(yeniSifre, SALT_ROUNDS);
-        await Kullanici.updateOne({ kullaniciAdi: kayit.kullaniciAdi }, { sifre: hash });
-        await PasswordReset.deleteOne({ _id: kayit._id });
+        // v4.17.21-1: Kendi belirledigi sifre -> ilk giris zorunlulugu kalkar; ayni hesap
+        //   icin (orn. iki veliye) gonderilmis diger baglantilar da gecersizlesir.
+        await Kullanici.updateOne({ kullaniciAdi: kayit.kullaniciAdi }, { sifre: hash, sifreDegistirmeli: false });
+        await PasswordReset.deleteMany({ kullaniciAdi: kayit.kullaniciAdi });
         res.send("<script>alert('Şifreniz güncellendi! Giriş yapabilirsiniz.'); window.location.href='/';</script>");
     } catch (err) { res.status(500).send("Hata: " + err.message); }
 });
 
 module.exports = router;
 module.exports.referansKoduUret = referansKoduUret;
+module.exports.kullaniciAdiKontrol = kullaniciAdiKontrol; // v4.17.21-1: yonetici ad degistirme de ayni kurallari kullanir
 

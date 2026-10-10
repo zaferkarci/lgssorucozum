@@ -73,4 +73,25 @@ async function emailDogrulamaKoduGonder(aliciEmail, kullaniciAdi, kod) {
     return await mailGonder(aliciEmail, konu, html);
 }
 
-module.exports = { mailGonder, sifreSifirlamaMailiGonder, emailDogrulamaKoduGonder };
+// v4.17.21-1: Ogrencinin sifre sifirlama baglantisi VELISININ e-postasina gider.
+async function ogrenciSifreSifirlamaMailiGonder(veliEmail, veliAdi, ogrenciAdi, sifirlamaLinki) {
+    const konu = 'LGS Hazırlık — Çocuğunuzun şifre sıfırlama isteği';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #1a73e8;">Öğrenci Şifre Sıfırlama</h2>
+            <p>Merhaba <b>${veliAdi}</b>,</p>
+            <p>Velisi olduğunuz <b>${ogrenciAdi}</b> kullanıcısı için şifre sıfırlama isteği yapıldı.</p>
+            <p>Çocuğunuzla birlikte aşağıdaki bağlantıdan yeni bir şifre belirleyebilirsiniz:</p>
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="${sifirlamaLinki}" style="background: #1a73e8; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">${ogrenciAdi} için yeni şifre belirle</a>
+            </p>
+            <p style="font-size: 13px; color: #666;">Bu bağlantı <b>1 saat</b> geçerlidir.</p>
+            <p style="font-size: 13px; color: #666;">Bu isteği siz ya da çocuğunuz yapmadıysanız bu mesajı görmezden gelebilirsiniz; şifre değişmez.</p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #999;">Bu otomatik bir mesajdır, yanıtlamayın.</p>
+        </div>
+    `;
+    return await mailGonder(veliEmail, konu, html);
+}
+
+module.exports = { mailGonder, sifreSifirlamaMailiGonder, emailDogrulamaKoduGonder, ogrenciSifreSifirlamaMailiGonder };

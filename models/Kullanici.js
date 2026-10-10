@@ -51,6 +51,13 @@ const KullaniciSchema = new mongoose.Schema({
     //   önceki cevaplar SİLİNMEZ — soru istatistiklerini (zorluk, ortalama süre,
     //   doğru oranı) beslemeye devam eder, yalnızca kişisel ilerleme "sıfırlanmış" görünür.
     sonSinifAtlamaTarihi: { type: Date, default: null },
+    // v4.17.21-1: Ilk giriste kendi sifresini belirlemek zorunda mi? (aile kartiyla
+    //   acilan veli+ogrenci hesaplari ortak ilk sifreyle baslar)
+    sifreDegistirmeli: { type: Boolean, default: false },
+    // v4.17.21-1: Aile karti ile birlikte acilan veli/ogrenci ayni kodu tasir
+    aileKodu: { type: String, default: '' },
+    // v4.17.21-1: Yonetici kullanici adini degistirdiyse onceki adlar (eski adla giris icin)
+    eskiAdlar: { type: [String], default: [], index: true },
     // v4.17.9: Konum (il/ilce/okul) degisikligi her SINIF SEVIYESINDE yalnizca BIR kez.
     //   Burada degisikligin yapildigi sinif tutulur; ayni sinifta ikinci degisiklik reddedilir.
     //   Sinif atlayinca deger eskidigi icin hak kendiliginden yenilenir.

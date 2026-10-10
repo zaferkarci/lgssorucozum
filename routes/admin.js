@@ -1248,7 +1248,7 @@ router.get('/api/soru/:id', async (req, res) => {
 router.get('/admin/referans-yazdir', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
-        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo'];
+        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo', 'aile']; // v4.17.21-1: aile
         const tip = gecerliTipler.includes(req.query.tip) ? req.query.tip : 'veli';
         let adet = parseInt(req.query.adet, 10);
         if (!Number.isFinite(adet) || adet < 1) adet = 20;
@@ -1273,7 +1273,7 @@ router.get('/admin/referans-yazdir', async (req, res) => {
         const base = (process.env.SITE_URL || ('https://' + req.get('host'))).replace(/\/+$/, '');
         const esc = (x) => String(x == null ? '' : x)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const tipAd = { veli: 'Veli', ogrenci: 'Öğrenci', ogretmen: 'Öğretmen', kurumsal: 'Kurumsal', demo: 'Demo' }[tip] || tip;
+        const tipAd = { veli: 'Veli', ogrenci: 'Öğrenci', ogretmen: 'Öğretmen', kurumsal: 'Kurumsal', demo: 'Demo', aile: 'Aile' }[tip] || tip;
 
         let h = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">';
         h += '<meta name="viewport" content="width=device-width, initial-scale=1">';
@@ -1312,7 +1312,8 @@ router.get('/admin/referans-yazdir', async (req, res) => {
         kodlar.forEach((k, i) => {
             const link = base + '/kayit?ref=' + encodeURIComponent(k.kod);
             h += '<div class="kart">';
-            h += '<div><div class="marka">LGS HAZIRLIK</div><div class="rol">' + esc(tipAd) + ' Davet Kodu</div></div>';
+            h += '<div><div class="marka">LGS HAZIRLIK</div><div class="rol">' + esc(tipAd) + ' Davet Kodu</div>' +
+                (tip === 'aile' ? '<div class="rol" style="font-weight:600;color:#1b5e20">Tek kodla veli + öğrenci hesabı</div>' : '') + '</div>';
             h += '<div class="qr" id="qr' + i + '" data-link="' + esc(link) + '"></div>';
             h += '<div><div class="kod">' + esc(k.kod) + '</div>';
             h += '<div class="link">' + esc(link) + '</div></div>';
@@ -1486,7 +1487,7 @@ router.post('/referans-uret', async (req, res) => {
     try {
         const adet = Math.min(parseInt(req.body.adet) || 1, 500);
         // v4.3.2: 'kurumsal' tipi de eklendi. v4.3.25: 'veli' tipi de eklendi.
-        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo'];
+        const gecerliTipler = ['ogrenci', 'ogretmen', 'kurumsal', 'veli', 'demo', 'aile']; // v4.17.21-1: aile
         const tip = gecerliTipler.includes(req.body.tip) ? req.body.tip : 'ogrenci';
         await referansKoduUret('admin', adet, tip);
         res.redirect('/admin?mod=referans');
@@ -1848,6 +1849,29 @@ router.post('/kullanici-guncelle', async (req, res) => {
 });
 
 // Kullanıcının rolünü değiştir (ogrenci ↔ ogretmen)
+// v4.17.21-1: Yonetici kullanici adini degistirir (tum koleksiyonlarla birlikte).
+router.post('/admin/kullanici-adi-degistir', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    try {
+        const { kullaniciAdiDegistir } = require('../services/kullaniciAdiDegistir');
+        const eski = String(req.body.eski || '').trim();
+        const yeni = String(req.body.yeni || '').trim();
+        const r = await kullaniciAdiDegistir(eski, yeni);
+        const js = s => JSON.stringify(String(s)).replace(/</g, '\\u003c');
+        if (!r.ok) {
+            return res.send('<script>alert(' + js('Değiştirilemedi: ' + r.hata) + '); window.history.back();</script>');
+        }
+        const adet = Object.entries(r.ozet).filter(([k, v]) => typeof v === 'number' && v > 0)
+            .map(([k, v]) => k + ': ' + v).join(', ');
+        const msg = '"' + r.eski + '" → "' + r.yeni + '" olarak değiştirildi.' + (adet ? ' Güncellenen kayıtlar: ' + adet + '.' : '') +
+            ' Kullanıcı eski adıyla ve kendi şifresiyle giriş yaparsa sisteme alınır ve yeni adı gösterilir.';
+        res.send('<script>alert(' + js(msg) + '); window.location.href=' + js('/kullanici-detay?kullaniciAdi=' + encodeURIComponent(r.yeni)) + ';</script>');
+    } catch (e) {
+        console.error('[kullanici-adi-degistir] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
 router.post('/kullanici-rol-degistir', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {

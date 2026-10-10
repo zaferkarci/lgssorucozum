@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGS Hazırlık - Kendi Şifreni Belirle</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-body">
+<%# v4.17.21-1: Aile kartiyla acilan hesaplar ilk giriste kendi sifresini belirler. %>
+<div class="auth-card">
+  <h2 class="auth-title">Kendi Şifreni Belirle</h2>
+  <p style="font-size:13px; color:#555; margin-bottom:6px; text-align:center;">Merhaba <b><%= kullaniciAdi %></b>!</p>
+  <p style="font-size:13px; color:#666; margin-bottom:16px; text-align:center; line-height:1.5;">
+    Hesabın <%= rol === 'veli' ? 'çocuğunun hesabıyla' : 'velinin hesabıyla' %> aynı ilk şifreyle açıldı.
+    Devam etmeden önce yalnızca senin bileceğin yeni bir şifre belirle.
+  </p>
+  <% if (hata) { %>
+    <div style="background:#ffebee; border:1px solid #ef9a9a; color:#b71c1c; border-radius:8px; padding:9px 12px; font-size:13px; margin-bottom:12px;"><%= hata %></div>
+  <% } %>
+  <form action="/sifre-belirle" method="POST">
+    <input type="password" name="yeniSifre" placeholder="Yeni şifre (en az 6 karakter)" required minlength="6" class="input" autocomplete="new-password">
+    <input type="password" name="yeniSifreTekrar" placeholder="Yeni şifre tekrar" required minlength="6" class="input" autocomplete="new-password">
+    <button type="submit" class="btn btn-primary">ŞİFREMİ KAYDET</button>
+  </form>
+  <p class="auth-link"><a href="/cikis">Çıkış yap</a></p>
+</div>
+</body>
+</html>
