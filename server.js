@@ -732,6 +732,53 @@ app.locals.puanFmt = function(p) {
     return String(yuvarlanmis);
 };
 
+// v4.17.22: YONETICI GIRISI DENEME SINIRI + BAYAT KIMLIK TEMIZLIGI
+//   - Yanlis Basic Auth basligi istekten SILINIR: yonetici sayfalari yeniden sifre sorar
+//     (sifre degistikten sonra tarayicida kalan eski kimlik "Yetkisiz!"de takilmaz),
+//     diger sayfalar normal kullanici gibi calisir.
+//   - Ayni IP'den 15 dakikada 10 FARKLI hatali deneme -> 15 dk boyunca yonetici girisi kapali.
+//     (Ayni bayat kimligin tekrar tekrar gonderilmesi tek deneme sayilir.)
+const _adminDeneme = new Map(); // ip -> { n, bitis, h:Set }
+function _istekIp(req) {
+    const uzak = (req.socket && req.socket.remoteAddress) || '';
+    const xff = String(req.headers['x-forwarded-for'] || '');
+    // nginx arkasinda: baglanti yerelden gelir, gercek IP x-forwarded-for'un SON elemanidir
+    if (xff && /^(::1|127\.|::ffff:127\.)/.test(uzak)) {
+        const p = xff.split(',').map(x => x.trim()).filter(Boolean);
+        if (p.length) return p[p.length - 1];
+    }
+    return uzak;
+}
+app.use(function (req, res, next) {
+    const h = req.headers.authorization || '';
+    if (!h.startsWith('Basic ')) return next();
+    if (req.session && req.session.adminGirisli === true) return next();
+    const yetki = require('./services/adminYetki');
+    const ip = _istekIp(req);
+    const simdi = Date.now();
+    let k = _adminDeneme.get(ip);
+    if (k && k.bitis < simdi) { _adminDeneme.delete(ip); k = null; }
+    if (k && k.n >= 10) {
+        delete req.headers.authorization;
+        if (req.path.startsWith('/admin')) {
+            res.setHeader('Retry-After', String(Math.ceil((k.bitis - simdi) / 1000)));
+            return res.status(429).send('Çok fazla hatalı yönetici girişi denemesi. ' + Math.ceil((k.bitis - simdi) / 60000) + ' dakika sonra tekrar deneyin.');
+        }
+        return next();
+    }
+    if (yetki.adminBasicDogruMu(h)) { _adminDeneme.delete(ip); return next(); }
+    // Hatali kimlik: say ve basligi kaldir
+    const ozet = require('crypto').createHash('sha256').update(h).digest('hex');
+    if (!k) { k = { n: 0, bitis: simdi + 15 * 60 * 1000, h: new Set() }; _adminDeneme.set(ip, k); }
+    if (!k.h.has(ozet)) {
+        k.h.add(ozet); k.n++;
+        if (k.n === 10) console.warn('[admin-giris] ' + ip + ' adresinden 10 hatalı deneme — 15 dk kilitlendi.');
+    }
+    if (_adminDeneme.size > 5000) _adminDeneme.clear();
+    delete req.headers.authorization;
+    next();
+});
+
 // v4.17.21-1: ILK GIRIS SIFRE ZORUNLULUGU — aile kartiyla ortak ilk sifreyle acilan hesap,
 //   kendi sifresini belirleyene kadar yalniz /sifre-belirle ve /cikis'i kullanabilir.
 app.use(function (req, res, next) {
@@ -847,6 +894,13 @@ app.get('/unite-sablon-indir', (req, res) => {
 try {
     if (!require('./services/adminYetki').adminTanimliMi()) {
         console.error('⛔ ADMIN_USER / ADMIN_PASSWORD .env içinde tanımlı değil (veya zayıf). Yönetici girişi KAPALI.');
+    }
+    // v4.17.22: Sifre ozeti varken duz metin sifre de duruyorsa uyar (deger yazdirilmaz)
+    const _yontem = require('./services/adminYetki').adminYontemi();
+    if (_yontem === 'duzmetin') {
+        console.warn('⚠️ Yönetici şifresi .env içinde DÜZ METİN duruyor. Özetli hale getirmek için: node tools/admin-sifre.js');
+    } else if (_yontem === 'ozet+duzmetin') {
+        console.warn('⚠️ ADMIN_PASSWORD_HASH kullanılıyor ama .env içinde eski ADMIN_PASSWORD satırı da duruyor; o satırı silin.');
     }
     if (!process.env.SESSION_SECRET) {
         console.error('⚠️ SESSION_SECRET .env içinde tanımlı değil — varsayılan anahtar kullanılıyor; uzun rastgele bir değer ekleyin.');

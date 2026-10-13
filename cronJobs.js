@@ -294,6 +294,13 @@ async function siralamaCacheHesapla() {
         dersSoruSayisi: {}
     }));
 
+    // v4.17.22: SIRALAMA PAYDASI — "x / N" gosteriminde N artik o kapsamdaki (ayni sinif
+    //   seviyesindeki) TUM KAYITLI OGRENCILERDIR; 10 soru barajini gecmeyenler de sayilir.
+    //   Ornek: 46 kayitli 5. sinif, 3'u barajı gecmis -> 1/46, 2/46, 3/46; digerleri — / 46.
+    //   Siralamaya giren ogrenci-disi hesaplar (ogretmen vb. 10+ soru cozduyse) da paydaya
+    //   eklenir ki sira hicbir zaman paydayi asmasin.
+    uMap.forEach(x => { x.ogrenci = (x.u.rol === 'ogrenci'); });
+
     // Ders bazlı ortalamaları da önden hesapla
     const tumDersler = [...new Set(tumKullanicilar.flatMap(u => (u.dersPuanlari||[]).map(d => d.ders)))];
     for (const obj of uMap) {
@@ -316,16 +323,27 @@ async function siralamaCacheHesapla() {
     Object.keys(turkiyeListeleriPerSinif).forEach(s => {
         turkiyeListeleriPerSinif[s].sort((a, b) => b.ortTop - a.ortTop);
     });
+    // v4.17.22: Turkiye paydasi (sinif seviyesi bazli kayitli ogrenci sayisi)
+    const turkiyePaydaPerSinif = {};
+    uMap.forEach(x => {
+        if (!(x.ogrenci || x.nitelikli)) return;
+        const s = String(Number(x.u.sinif) || '');
+        turkiyePaydaPerSinif[s] = (turkiyePaydaPerSinif[s] || 0) + 1;
+    });
 
     const dersTurkiyeListeleriPerSinif = {}; // { dersAdi: { '6': [...], '7': [...] } }
+    const dersTurkiyePaydaPerSinif = {};     // v4.17.22: { dersAdi: { '6': n, ... } }
     for (const dersAdi of tumDersler) {
         dersTurkiyeListeleriPerSinif[dersAdi] = {};
+        dersTurkiyePaydaPerSinif[dersAdi] = {};
         uMap.forEach(x => {
             const s = String(Number(x.u.sinif) || '');
             if (!dersTurkiyeListeleriPerSinif[dersAdi][s]) dersTurkiyeListeleriPerSinif[dersAdi][s] = [];
-            if (x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli) {
+            const dersNit = x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli;
+            if (dersNit) {
                 dersTurkiyeListeleriPerSinif[dersAdi][s].push(x);
             }
+            if (x.ogrenci || dersNit) dersTurkiyePaydaPerSinif[dersAdi][s] = (dersTurkiyePaydaPerSinif[dersAdi][s] || 0) + 1;
         });
         Object.keys(dersTurkiyeListeleriPerSinif[dersAdi]).forEach(s => {
             dersTurkiyeListeleriPerSinif[dersAdi][s].sort((a, b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
@@ -369,11 +387,12 @@ async function siralamaCacheHesapla() {
             ilce:    (obj.nitelikli && !uMezun) ? [...ilceNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             okul:    (obj.nitelikli && !uMezun) ? [...okulNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
             sinif:   (obj.nitelikli && !uMezun) ? [...sinifNitelikli].sort((a,b) => b.ortTop - a.ortTop).findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-            toplamKullanici: turkiyeListesiSinif.length,
-            ilKullanici:     ilNitelikli.length,
-            ilceKullanici:   ilceNitelikli.length,
-            okulKullanici:   okulNitelikli.length,
-            sinifKullanici:  sinifNitelikli.length,
+            // v4.17.22: payda = kapsamdaki tum kayitli ogrenciler (baraji gecmeyenler dahil)
+            toplamKullanici: turkiyePaydaPerSinif[String(uSinif)] || 0,
+            ilKullanici:     ayniIl.filter(x => x.ogrenci || x.nitelikli).length,
+            ilceKullanici:   ayniIlce.filter(x => x.ogrenci || x.nitelikli).length,
+            okulKullanici:   ayniOkul.filter(x => x.ogrenci || x.nitelikli).length,
+            sinifKullanici:  ayniSinif.filter(x => x.ogrenci || x.nitelikli).length,
             nitelikli:       obj.nitelikli,
             kullaniciSoruSayisi: obj.toplamSoru,
             minSoru:         MIN_SORU
@@ -387,6 +406,8 @@ async function siralamaCacheHesapla() {
             const dersIlceList  = ayniIlce.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
             const dersOkulList  = ayniOkul.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
             const dersSinifList = ayniSinif.filter(x => x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli).sort((a,b) => b.dersOrt[dersAdi] - a.dersOrt[dersAdi]);
+            // v4.17.22: ders paydasi da kapsamdaki tum kayitli ogrenciler
+            const dersPayda = x => x.ogrenci || (x.dersSoruSayisi[dersAdi] >= MIN_SORU && x.son30Yeterli);
 
             dersSiralamalari[dersAdi] = {
                 turkiye: kDersNitelikli ? dersList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
@@ -394,11 +415,11 @@ async function siralamaCacheHesapla() {
                 ilce:    (kDersNitelikli && !uMezun) ? dersIlceList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
                 okul:    (kDersNitelikli && !uMezun) ? dersOkulList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
                 sinif:   (kDersNitelikli && !uMezun) ? dersSinifList.findIndex(x => String(x.u._id) === String(u._id)) + 1 : 0,
-                toplamKullanici: dersList.length,
-                ilKullanici:     dersIlList.length,
-                ilceKullanici:   dersIlceList.length,
-                okulKullanici:   dersOkulList.length,
-                sinifKullanici:  dersSinifList.length,
+                toplamKullanici: dersTurkiyePaydaPerSinif[dersAdi][String(uSinif)] || 0,
+                ilKullanici:     ayniIl.filter(dersPayda).length,
+                ilceKullanici:   ayniIlce.filter(dersPayda).length,
+                okulKullanici:   ayniOkul.filter(dersPayda).length,
+                sinifKullanici:  ayniSinif.filter(dersPayda).length,
                 nitelikli:       kDersNitelikli,
                 kullaniciSoruSayisi: obj.dersSoruSayisi[dersAdi]
             };

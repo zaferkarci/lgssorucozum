@@ -639,17 +639,29 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
             const okulGecerli  = !!k.okul;
             const sinifGecerli = !!k.okul && !!k.sube;
 
+            // v4.17.22: PAYDA = kapsamdaki (ayni sinif seviyesi) TUM KAYITLI OGRENCILER — 10 soru
+            //   barajini gecmeyenler de sayilir (cron siralamaCacheHesapla ile ayni mantik).
+            const ayniSeviye = (u) => Number(u.sinif) === Number(k.sinif);
+            const paydaSay = (dahil) => ({
+                tr:   tumKullanicilar.filter(u => dahil(u) && ayniSeviye(u)).length,
+                il:   tumKullanicilar.filter(u => dahil(u) && u.il === k.il && ayniSeviye(u)).length,
+                ilce: tumKullanicilar.filter(u => dahil(u) && u.ilce === k.ilce && ayniSeviye(u)).length,
+                okul: tumKullanicilar.filter(u => dahil(u) && u.okul && k.okul && u.okul === k.okul && ayniSeviye(u)).length,
+                sinif: tumKullanicilar.filter(u => dahil(u) && sinifFiltre(u)).length
+            });
+            const genelPayda = paydaSay(u => u.rol === 'ogrenci' || nitelikliFiltre(u));
+
             siralamaVerisi = {
                 turkiye:         kNitelikli ? turkiyeListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 il:              (kNitelikli && !kMezun) ? ilListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 ilce:            (kNitelikli && !kMezun) ? ilceListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 okul:            (kNitelikli && !kMezun && okulGecerli)  ? okulListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
                 sinif:           (kNitelikli && !kMezun && sinifGecerli) ? sinifListesi.findIndex(p => p <= kOrtTop) + 1 : 0,
-                toplamKullanici: turkiyeListesi.length,
-                ilKullanici:     ilListesi.length,
-                ilceKullanici:   ilceListesi.length,
-                okulKullanici:   okulGecerli  ? okulListesi.length  : 0,
-                sinifKullanici:  sinifGecerli ? sinifListesi.length : 0,
+                toplamKullanici: genelPayda.tr,
+                ilKullanici:     genelPayda.il,
+                ilceKullanici:   genelPayda.ilce,
+                okulKullanici:   okulGecerli  ? genelPayda.okul  : 0,
+                sinifKullanici:  sinifGecerli ? genelPayda.sinif : 0,
                 nitelikli:       kNitelikli,
                 kullaniciSoruSayisi: kToplamSoru,
                 minSoru:         MIN_SORU,
@@ -679,17 +691,18 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
                 // v4.3.16: Ders okul/sınıf sıralaması — sadece okul/şubesi dolu kullanıcılar
                 const oList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && u.okul && k.okul && u.okul === k.okul && Number(u.sinif) === Number(k.sinif)).map(dersOrtFn).sort((a,b) => b-a);
                 const sList  = tumKullanicilar.filter(u => dersNitelikliFiltre(u) && sinifFiltre(u)).map(dersOrtFn).sort((a,b) => b-a);
+                const dersPayda = paydaSay(u => u.rol === 'ogrenci' || dersNitelikliFiltre(u)); // v4.17.22
                 dersSiralamalari[dersAdi] = {
                     turkiye:        kDersNitelikli ? tList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     il:             (kDersNitelikli && !kMezun) ? iList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     ilce:           (kDersNitelikli && !kMezun) ? ilList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     okul:           (kDersNitelikli && !kMezun && okulGecerli)  ? oList.findIndex(p => p <= kDersOrt) + 1 : 0,
                     sinif:          (kDersNitelikli && !kMezun && sinifGecerli) ? sList.findIndex(p => p <= kDersOrt) + 1 : 0,
-                    toplamKullanici: tList.length,
-                    ilKullanici:    iList.length,
-                    ilceKullanici:  ilList.length,
-                    okulKullanici:  okulGecerli  ? oList.length : 0,
-                    sinifKullanici: sinifGecerli ? sList.length : 0,
+                    toplamKullanici: dersPayda.tr,
+                    ilKullanici:    dersPayda.il,
+                    ilceKullanici:  dersPayda.ilce,
+                    okulKullanici:  okulGecerli  ? dersPayda.okul : 0,
+                    sinifKullanici: sinifGecerli ? dersPayda.sinif : 0,
                     nitelikli:      kDersNitelikli,
                     kullaniciSoruSayisi: kDersSoruSayisi
                 };
