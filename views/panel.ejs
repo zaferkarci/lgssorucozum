@@ -711,7 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <script>
       (function() {
-        fetch('/takip/aktivite-bugun', { credentials: 'same-origin' })
+        fetch('/takip/aktivite-bugun?kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI), { credentials: 'same-origin' })
           .then(function(r){ return r.json(); })
           .then(function(d) {
             document.getElementById('veli-aktivite-yukleniyor').style.display = 'none';
@@ -2414,7 +2414,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <script>
     (function() {
       // v4.3.69: Aktivite verisini fetch ile yükle
-      fetch('/takip/aktivite-bugun', { credentials: 'same-origin' })
+      fetch('/takip/aktivite-bugun?kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI), { credentials: 'same-origin' })
         .then(r => r.json())
         .then(d => {
           if (!d || !d.ok) {

@@ -55,11 +55,18 @@ function oturumVeyaAdmin(req, res, next) {
 //   • Admin görünümü (adminGirisli): görüntülenen kullanıcı ?kullanici (GET) veya
 //     body.kullanici (POST) parametresinden alınır.
 function hedefKullaniciCoz(req) {
-    if (req.session && req.session.kullaniciAdi) return req.session.kullaniciAdi;
+    // v4.17.23-1: Admin gorunumunde (adminGirisli) ?kullanici / body.kullanici ONCE gelir.
+    //   Eskiden once oturumdaki kullanici donuyordu: yonetici ayni tarayicida kendi
+    //   hesabiyla da girisliyse baktigi velinin/ogretmenin paneli yerine KENDI hesabinin
+    //   verisi gorunuyor (ornegin 0 cocuklu velinin panelinde baska ogrenciler) ve
+    //   istek-gonder / yanitla islemleri yanlis kullanici adina yapiliyordu.
+    //   Normal kullanicida req.adminGorunum her zaman false: parametre yok sayilir,
+    //   kimse baskasinin verisini goremez/isleyemez.
     if (req.adminGorunum) {
         const ad = (req.query && req.query.kullanici) || (req.body && req.body.kullanici);
-        return ad ? String(ad).trim() : null;
+        if (ad) return String(ad).trim();
     }
+    if (req.session && req.session.kullaniciAdi) return req.session.kullaniciAdi;
     return null;
 }
 
@@ -594,9 +601,13 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
 
 // v4.3.69: Aktivite özeti API — takip ettiği öğrencilerin bugünkü hareketleri.
 // Öğretmen, kurumsal, veli için.
-router.get('/takip/aktivite-bugun', oturumGerekli, async (req, res) => {
+router.get('/takip/aktivite-bugun', oturumVeyaAdmin, async (req, res) => {
     try {
-        const benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi });
+        // v4.17.23-1: Admin gorunumunde kart, GORUNTULENEN kullanicinin takip ettiklerini gosterir
+        //   (oturumdaki hesabinki degil). Normal kullanici icin her zaman kendi oturumu.
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(404).json({ ok: false, hata: 'Kullanici bulunamadi' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd });
         if (!benim) return res.status(404).json({ ok: false, hata: 'Kullanici bulunamadi' });
         if (!['ogretmen', 'kurumsal', 'veli'].includes(benim.rol)) {
             return res.status(403).json({ ok: false, hata: 'Yetkisiz' });
