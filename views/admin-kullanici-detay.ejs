@@ -95,6 +95,36 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
         <% if (k.eskiAdlar && k.eskiAdlar.length) { %><br>Önceki adları: <b><%= k.eskiAdlar.join(', ') %></b><% } %></p>
       </div>
 
+      <%# v4.17.23: Yonetici kullaniciya yeni sifre belirler — iki kez girilip onaylanir %>
+      <div class="d-kart">
+        <p class="d-kart-baslik">Yeni Şifre Belirle</p>
+        <form action="/admin/kullanici-sifre-belirle" method="POST" autocomplete="off" onsubmit="return yeniSifreOnayla(this);" style="display:flex; flex-direction:column; gap:8px;">
+          <input type="hidden" name="kullaniciAdi" value="<%= k.kullaniciAdi %>">
+          <input type="password" name="yeniSifre" id="ysSifre" required minlength="6" maxlength="72" autocomplete="new-password" placeholder="Yeni şifre (en az 6 karakter)" oninput="yeniSifreKontrol()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <input type="password" name="yeniSifreTekrar" id="ysTekrar" required minlength="6" maxlength="72" autocomplete="new-password" placeholder="Yeni şifre tekrar" oninput="yeniSifreKontrol()" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:13px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+            <label style="font-size:12px; color:#666; cursor:pointer; display:flex; align-items:center; gap:4px;"><input type="checkbox" onchange="document.getElementById('ysSifre').type=document.getElementById('ysTekrar').type=(this.checked?'text':'password');"> Şifreyi göster</label>
+            <span id="ysDurum" style="font-size:12px; font-weight:600;"></span>
+            <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Şifreyi Kaydet</button>
+          </div>
+        </form>
+        <p style="font-size:11px; color:#888; margin-top:8px; line-height:1.5;">Şifre iki alana da aynı yazılmalı. Kaydedince kullanıcının açık oturumları kapanır ve bekleyen şifre sıfırlama bağlantıları geçersiz olur. Şifre hiçbir yerde gösterilmez ve saklanmaz (yalnız tek yönlü özeti tutulur).</p>
+        <script>
+          function yeniSifreKontrol() {
+            var a = document.getElementById('ysSifre').value, b = document.getElementById('ysTekrar').value, d = document.getElementById('ysDurum');
+            if (!b) { d.textContent = ''; return; }
+            if (a === b && a.length >= 6) { d.textContent = '✓ Şifreler aynı'; d.style.color = '#2e7d32'; }
+            else if (a !== b) { d.textContent = '✗ Şifreler aynı değil'; d.style.color = '#c62828'; }
+            else { d.textContent = 'En az 6 karakter'; d.style.color = '#c62828'; }
+          }
+          function yeniSifreOnayla(f) {
+            if (f.yeniSifre.value.length < 6) { alert('Şifre en az 6 karakter olmalı.'); return false; }
+            if (f.yeniSifre.value !== f.yeniSifreTekrar.value) { alert('Şifreler aynı değil. İki alana da aynı şifreyi yazın.'); f.yeniSifreTekrar.focus(); return false; }
+            return confirm('"<%= k.kullaniciAdi %>" kullanıcısının şifresi değiştirilsin mi? Kullanıcının açık oturumları kapanacak.');
+          }
+        </script>
+      </div>
+
       <!-- Rol değiştirme -->
       <div class="d-kart">
         <p class="d-kart-baslik">Rolü Değiştir</p>

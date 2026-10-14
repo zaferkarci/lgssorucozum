@@ -1872,6 +1872,52 @@ router.post('/admin/kullanici-adi-degistir', async (req, res) => {
     }
 });
 
+// v4.17.23: Yonetici kullaniciya YENI SIFRE belirler (iki kez girilip onaylanir).
+//   Sifre bcrypt ile saklanir; hicbir yere (log, sayfa, yanit) yazilmaz.
+//   Kullanicinin acik oturumlari kapatilir ve bekleyen sifre sifirlama baglantilari gecersizlesir.
+router.post('/admin/kullanici-sifre-belirle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    const js = s => JSON.stringify(String(s)).replace(/</g, '\\u003c');
+    const geri = msg => res.send('<script>alert(' + js(msg) + '); window.history.back();</script>');
+    try {
+        const kullaniciAdi = String(req.body.kullaniciAdi || '').trim();
+        const sifre = String(req.body.yeniSifre || '');
+        const tekrar = String(req.body.yeniSifreTekrar || '');
+        if (!kullaniciAdi) return geri('Kullanıcı belirtilmedi.');
+        if (sifre.length < 6) return geri('Şifre en az 6 karakter olmalı.');
+        if (sifre.length > 72) return geri('Şifre en fazla 72 karakter olabilir.');
+        if (sifre !== tekrar) return geri('Şifreler aynı değil. İki alana da aynı şifreyi yazın.');
+        const k = await Kullanici.findOne({ kullaniciAdi }, '_id kullaniciAdi');
+        if (!k) return geri('"' + kullaniciAdi + '" adlı kullanıcı bulunamadı.');
+
+        const bcrypt = require('bcrypt');
+        const hash = await bcrypt.hash(sifre, 10);
+        // Aile kartindaki "ilk giriste kendi sifreni belirle" zorunlulugu da kalkar (diger sifre akislariyla ayni)
+        await Kullanici.updateOne({ _id: k._id }, { $set: { sifre: hash, sifreDegistirmeli: false } });
+
+        let oturum = 0, baglanti = 0;
+        try {
+            const rx = '"kullaniciAdi":"' + k.kullaniciAdi.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"';
+            const r = await require('mongoose').connection.db.collection('sessions').deleteMany({ session: { $regex: rx } });
+            oturum = r.deletedCount || 0;
+        } catch (e) { console.error('[kullanici-sifre-belirle] oturum kapatma:', e.message); }
+        try {
+            const PasswordReset = require('../models/PasswordReset');
+            const r = await PasswordReset.deleteMany({ kullaniciAdi: k.kullaniciAdi });
+            baglanti = r.deletedCount || 0;
+        } catch (e) { /* model yoksa gec */ }
+
+        console.log('[kullanici-sifre-belirle] ' + k.kullaniciAdi + ' icin yonetici yeni sifre belirledi (kapatilan oturum: ' + oturum + ', iptal edilen sifirlama baglantisi: ' + baglanti + ')');
+        const msg = '"' + k.kullaniciAdi + '" kullanıcısının yeni şifresi kaydedildi.' +
+            (oturum ? ' Açık ' + oturum + ' oturumu kapatıldı.' : '') +
+            ' Kullanıcı artık yeni şifreyle giriş yapabilir.';
+        res.send('<script>alert(' + js(msg) + '); window.location.href=' + js('/kullanici-detay?kullaniciAdi=' + encodeURIComponent(k.kullaniciAdi)) + ';</script>');
+    } catch (e) {
+        console.error('[kullanici-sifre-belirle] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
 router.post('/kullanici-rol-degistir', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {
