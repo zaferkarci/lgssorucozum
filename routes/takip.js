@@ -643,4 +643,32 @@ router.get('/takip/aktivite-bugun', oturumVeyaAdmin, async (req, res) => {
     }
 });
 
+// v4.17.24-3: Son 30 gun gunluk 2 soru takvimi — takip edilen ogrencilerin gunluk cozum sayilari.
+//   Yetki ve ogrenci secimi "Bugunun Aktivitesi" ile AYNI: oturumdaki ogretmen/kurumsal/veli yalniz
+//   kendi takip ettiklerini gorur (veli icin yalniz isteyenRol:'veli' iliskileri); yonetici gorunumunde
+//   goruntulenen kullanicinin ogrencileri. Kimse baska birinin ogrencisini goremez.
+router.get('/takip/gunluk-takvim', oturumVeyaAdmin, async (req, res) => {
+    try {
+        const hedefAd = hedefKullaniciCoz(req);
+        if (!hedefAd) return res.status(404).json({ ok: false, hata: 'Kullanici bulunamadi' });
+        const benim = await Kullanici.findOne({ kullaniciAdi: hedefAd });
+        if (!benim) return res.status(404).json({ ok: false, hata: 'Kullanici bulunamadi' });
+        if (!['ogretmen', 'kurumsal', 'veli'].includes(benim.rol)) {
+            return res.status(403).json({ ok: false, hata: 'Yetkisiz' });
+        }
+        const iliskiFiltre = { ogretmenAdi: benim.kullaniciAdi, durum: 'kabul' };
+        if (benim.rol === 'veli') iliskiFiltre.isteyenRol = 'veli';
+        const iliskiler = await TakipIliski.find(iliskiFiltre, 'ogrenciAdi').lean();
+        const ogrAdlari = [...new Set(iliskiler.map(i => i.ogrenciAdi))];
+
+        const { takipTakvimi } = require('../services/gunlukTakvim');
+        const takvim = await takipTakvimi(ogrAdlari);
+        res.set('Cache-Control', 'no-store');
+        res.json({ ok: true, rol: benim.rol, takipEdilenSayisi: ogrAdlari.length, ...takvim });
+    } catch (err) {
+        console.error('[takip/gunluk-takvim] hata:', err.message);
+        res.status(500).json({ ok: false, hata: err.message });
+    }
+});
+
 module.exports = router;
