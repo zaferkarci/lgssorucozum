@@ -570,6 +570,13 @@ router.post('/kayit-aile', async (req, res) => {
 
 router.post('/giris', async (req, res) => {
     try {
+        // v4.17.24-1: Ayni IP + ayni kullanici adi icin 15 dk'da 8 hatali denemeden sonra 15 dk kilit
+        //   (yonetici elle actiginda ilk sifre 6 haneli rakamdir; kaba kuvvetle denenemesin).
+        const girisSiniri = require('../services/girisSiniri');
+        const _girisAd = req.body.kullaniciAdi;
+        if (girisSiniri.kilitKalanSn(req, _girisAd) > 0) {
+            return res.status(429).send("<script>alert('Çok fazla hatalı deneme yaptınız. Lütfen 15 dakika sonra tekrar deneyin.'); window.history.back();</script>");
+        }
         let k = await Kullanici.findOne({ kullaniciAdi: req.body.kullaniciAdi });
         // v4.17.21-1: Yonetici adini degistirdiyse eski adla da (dogru sifreyle) giris yapilir.
         let eskiAdlaGiris = false;
@@ -577,9 +584,10 @@ router.post('/giris', async (req, res) => {
             k = await Kullanici.findOne({ eskiAdlar: String(req.body.kullaniciAdi) });
             eskiAdlaGiris = !!k;
         }
-        if (!k) return res.send("<script>alert('Hata!'); window.history.back();</script>");
+        if (!k) { girisSiniri.hataKaydet(req, _girisAd); return res.send("<script>alert('Hata!'); window.history.back();</script>"); }
         const eslesti = await bcrypt.compare(req.body.sifre, k.sifre);
-        if (!eslesti) return res.send("<script>alert('Hata!'); window.history.back();</script>");
+        if (!eslesti) { girisSiniri.hataKaydet(req, _girisAd); return res.send("<script>alert('Hata!'); window.history.back();</script>"); }
+        girisSiniri.basarili(req, _girisAd);
         req.session.kullaniciAdi = k.kullaniciAdi;
         // v4.17.21-1: Ortak ilk sifreyle acilan hesap -> once kendi sifresini belirlemeli
         if (k.sifreDegistirmeli) req.session.sifreDegistirmeli = true;
@@ -601,21 +609,22 @@ router.post('/giris', async (req, res) => {
 // v4.17.21-1: ILK GIRISTE KENDI SIFRENI BELIRLE (aile karti ortak ilk sifresinden sonra)
 router.get('/sifre-belirle', async (req, res) => {
     if (!req.session || !req.session.kullaniciAdi) return res.redirect('/');
-    const k = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }, 'kullaniciAdi rol sifreDegistirmeli').lean();
+    const k = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }, 'kullaniciAdi rol sifreDegistirmeli aileKodu').lean();
     if (!k) return res.redirect('/');
     if (!k.sifreDegistirmeli) { delete req.session.sifreDegistirmeli; return res.redirect('/panel/' + encodeURIComponent(k.kullaniciAdi)); }
-    res.render('sifre-belirle', { kullaniciAdi: k.kullaniciAdi, rol: k.rol, hata: '' });
+    // v4.17.24-1: aile kartiyla degil de yonetici elle actiysa metin farkli (aile=false)
+    res.render('sifre-belirle', { kullaniciAdi: k.kullaniciAdi, rol: k.rol, aile: !!k.aileKodu, hata: '' });
 });
 router.post('/sifre-belirle', async (req, res) => {
     try {
         if (!req.session || !req.session.kullaniciAdi) return res.redirect('/');
         const k = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi });
         if (!k) return res.redirect('/');
-        const goster = (hata) => res.render('sifre-belirle', { kullaniciAdi: k.kullaniciAdi, rol: k.rol, hata });
+        const goster = (hata) => res.render('sifre-belirle', { kullaniciAdi: k.kullaniciAdi, rol: k.rol, aile: !!k.aileKodu, hata });
         const yeni = String(req.body.yeniSifre || ''), tekrar = String(req.body.yeniSifreTekrar || '');
         if (yeni.length < 6) return goster('Şifre en az 6 karakter olmalı.');
         if (yeni !== tekrar) return goster('Şifreler uyuşmuyor.');
-        if (await bcrypt.compare(yeni, k.sifre)) return goster('Yeni şifren ilk (ortak) şifreden farklı olmalı.');
+        if (await bcrypt.compare(yeni, k.sifre)) return goster(k.aileKodu ? 'Yeni şifren ilk (ortak) şifreden farklı olmalı.' : 'Yeni şifren sana verilen geçici şifreden farklı olmalı.');
         k.sifre = await bcrypt.hash(yeni, SALT_ROUNDS);
         k.sifreDegistirmeli = false;
         await k.save();

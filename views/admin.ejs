@@ -1394,6 +1394,118 @@ function escHtml(str) {
   </div>
   <% } %>
 
+  <%# v4.17.24-1: Yonetici manuel kullanici ekler; ilk sifre 6 haneli rastgele uretilir, olusturma sonrasi BIR KEZ gosterilir %>
+  <div class="card" id="manuelKullaniciKart">
+    <details id="mkDetay">
+      <summary style="cursor:pointer; font-size:16px; font-weight:600;">➕ Manuel kullanıcı ekle</summary>
+      <p style="margin:10px 0 14px; font-size:13px; color:#555; line-height:1.5;">
+        Hesabı yönetici açar. <b>İlk şifre sistem tarafından 6 haneli rastgele üretilir</b> ve hesap oluşunca yalnızca
+        <b>bir kez</b> gösterilir. Kullanıcı ilk girişte kendi şifresini belirlemek zorundadır.
+      </p>
+      <form action="/admin/kullanici-ekle" method="POST" id="mkForm" autocomplete="off" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+        <div><label class="form-label">Kullanıcı adı *</label><br>
+          <input name="kullaniciAdi" id="mkAd" required minlength="4" maxlength="20" autocomplete="off" placeholder="4-20 karakter" style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:170px;"></div>
+        <div><label class="form-label">Rol *</label><br>
+          <select name="rol" id="mkRol" required class="input-sm" onchange="mkRolDegisti()">
+            <option value="ogrenci">Öğrenci</option>
+            <option value="ogretmen">Öğretmen</option>
+            <option value="veli">Veli</option>
+            <option value="kurumsal">Kurumsal</option>
+          </select></div>
+        <div id="mkSinifAlan"><label class="form-label">Sınıf *</label><br>
+          <select name="sinif" id="mkSinif" class="input-sm" required>
+            <option value="">Seçin</option>
+            <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(sOpt){ %><option value="<%= sOpt %>"><%= sOpt %>. Sınıf</option><% }); %>
+            <option value="13">Mezun</option>
+          </select></div>
+        <div id="mkSubeAlan"><label class="form-label">Şube</label><br>
+          <select name="sube" id="mkSube" class="input-sm">
+            <option value="">Şube yok</option>
+            <% 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(function(h){ %><option value="<%= h %>"><%= h %> Şubesi</option><% }); %>
+          </select></div>
+        <div><label class="form-label">E-posta <span style="color:#888; font-weight:400;">(opsiyonel)</span></label><br>
+          <input name="email" id="mkEmail" type="email" maxlength="120" autocomplete="off" placeholder="ornek@mail.com" style="padding:8px; border:1px solid #ddd; border-radius:6px; min-width:200px;"></div>
+        <div><label class="form-label" id="mkIlEtiket">İl</label><br>
+          <select name="il" id="mkIl" class="input-sm" onchange="mkIlDegisti()"><option value="">İl Seçiniz</option></select></div>
+        <div><label class="form-label">İlçe</label><br>
+          <select name="ilce" id="mkIlce" class="input-sm" onchange="mkIlceDegisti()"><option value="">İlçe Seçiniz</option></select></div>
+        <div><label class="form-label" id="mkOkulEtiket">Okul</label><br>
+          <select name="okul" id="mkOkul" class="input-sm" style="min-width:220px;"><option value="">Okul Seçiniz</option></select></div>
+        <button type="submit" class="btn btn-success" id="mkBtn">OLUŞTUR</button>
+      </form>
+      <div id="mkIlHata" style="display:none; margin-top:8px; font-size:12px; color:#b26a00;">İl listesi yüklenemedi (internet erişimi?). Konum boş bırakılabilir; sonra kullanıcı detayından eklenir. Kurumsal hesap için konum gerekir.</div>
+    </details>
+  </div>
+  <script>
+  (function () {
+    var ilIdMap = {}, yuklendi = false;
+    function secenek(sel, deger, yazi) { var o = document.createElement('option'); o.value = deger; o.textContent = yazi; sel.appendChild(o); }
+    function temizle(sel, ilk) { sel.innerHTML = ''; secenek(sel, '', ilk); }
+    function tr(a, b) { return a.localeCompare(b, 'tr'); }
+
+    window.mkRolDegisti = function () {
+      var rol = document.getElementById('mkRol').value;
+      var og = (rol === 'ogrenci');
+      document.getElementById('mkSinifAlan').style.display = og ? '' : 'none';
+      document.getElementById('mkSubeAlan').style.display = og ? '' : 'none';
+      document.getElementById('mkSinif').required = og;
+      if (!og) { document.getElementById('mkSinif').value = ''; document.getElementById('mkSube').value = ''; }
+      var ku = (rol === 'kurumsal');
+      document.getElementById('mkIl').required = ku;
+      document.getElementById('mkIlce').required = ku;
+      document.getElementById('mkOkul').required = ku;
+      document.getElementById('mkOkulEtiket').textContent = ku ? 'Yönettiği kurum (okul) *' : (rol === 'ogretmen' ? 'Görev yaptığı okul' : 'Okul');
+      document.getElementById('mkIlEtiket').textContent = ku ? 'İl *' : 'İl';
+    };
+
+    window.mkIlDegisti = function () {
+      var il = document.getElementById('mkIl').value, ilce = document.getElementById('mkIlce');
+      temizle(ilce, 'İlçe Seçiniz'); temizle(document.getElementById('mkOkul'), 'Okul Seçiniz');
+      var id = ilIdMap[il]; if (!id) return;
+      temizle(ilce, 'İlçe Yükleniyor...');
+      fetch('https://api.turkiyeapi.dev/v1/provinces/' + id)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          temizle(ilce, 'İlçe Seçiniz');
+          ((d.data && d.data.districts) || []).map(function (x) { return x.name; }).sort(tr).forEach(function (n) { secenek(ilce, n, n); });
+        })['catch'](function () { temizle(ilce, 'İlçeler yüklenemedi'); });
+    };
+
+    window.mkIlceDegisti = function () {
+      var il = document.getElementById('mkIl').value, ilce = document.getElementById('mkIlce').value, okul = document.getElementById('mkOkul');
+      temizle(okul, 'Okul Seçiniz');
+      if (!il || !ilce) return;
+      fetch('/api/okullar?il=' + encodeURIComponent(il) + '&ilce=' + encodeURIComponent(ilce))
+        .then(function (r) { return r.json(); })
+        .then(function (liste) {
+          if (!liste.length) { temizle(okul, 'Bu ilçede okul bulunamadı'); return; }
+          liste.sort(tr).forEach(function (n) { secenek(okul, n, n); });
+        })['catch'](function () { temizle(okul, 'Okullar yüklenemedi'); });
+    };
+
+    // İl listesi yalnız kart ilk açılınca yüklenir (dış servis her sayfa açılışında çağrılmasın)
+    document.getElementById('mkDetay').addEventListener('toggle', function () {
+      if (!this.open || yuklendi) return;
+      yuklendi = true;
+      fetch('https://api.turkiyeapi.dev/v1/provinces')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var sel = document.getElementById('mkIl');
+          (d.data || []).slice().sort(function (a, b) { return tr(a.name, b.name); }).forEach(function (il) { ilIdMap[il.name] = il.id; secenek(sel, il.name, il.name); });
+        })['catch'](function () { yuklendi = false; document.getElementById('mkIlHata').style.display = 'block'; });
+    });
+
+    // Çift tıklamada ikinci istek "kullanıcı adı alınmış" hatasıyla şifre ekranının üstüne yazmasın
+    document.getElementById('mkForm').addEventListener('submit', function () {
+      var b = document.getElementById('mkBtn');
+      setTimeout(function () { b.disabled = true; b.textContent = 'OLUŞTURULUYOR...'; }, 0);
+    });
+    // Geri tuşuyla dönülünce düğme yeniden kullanılabilsin
+    window.addEventListener('pageshow', function () { var b = document.getElementById('mkBtn'); if (b) { b.disabled = false; b.textContent = 'OLUŞTUR'; } });
+    mkRolDegisti();
+  })();
+  </script>
+
   <div class="card">
     <h3>Kullanıcı Listesi (Toplam: <%= filtreliKullanicilar.length %>)</h3>
     <form method="GET" action="/admin" style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">

@@ -498,7 +498,7 @@ function latexToHtml(s) {
                 <td style="padding:7px 10px; border-bottom:1px solid #f5f5f5;">
                   <%# v4.5.7: Metinli + görselli + şıklı tüm sorularda buton görünür. %>
                   <% if (sb.soruMetni || sb.soruResmi || (sb.secenekler && sb.secenekler.length)) { %>
-                    <button onclick="soruGoster('<%= String(c.soruId) %>')"
+                    <button onclick="soruGoster('<%= String(c.soruId) %>', <%= (typeof c.secilenIndex === 'number') ? c.secilenIndex : -1 %>, <%= c.dogruMu ? 'true' : 'false' %>)"
                       style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">
                       Soruyu Gör
                     </button>
@@ -590,9 +590,13 @@ function latexToHtml(s) {
         return html;
       }
 
-      function soruGoster(id) {
+      // v4.17.24: secilen = ogrencinin O CEVAPTA sectigi sik (0=A..; kayit yoksa -1), dogruMuKayit = o cevabin sonucu.
+      //   Yanlis cevapta secilen sik KIRMIZI, dogru sik YESIL gosterilir. Ayni soru birden fazla kez
+      //   cozulmus olabilir; her satir kendi cevabini gosterir.
+      function soruGoster(id, secilen, dogruMuKayit) {
         var s = soruVerileri[id];
         if (!s) return;
+        secilen = (typeof secilen === 'number') ? secilen : -1;
         var html = '';
 
         // Etiketler
@@ -626,16 +630,27 @@ function latexToHtml(s) {
         html += '<div class="secenekler" style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
         (s.secenekler || []).forEach(function(sik, i) {
           var dogru = i === s.dogruCevapIndex;
+          var yanlisSecim = (i === secilen && !dogru); // ogrencinin sectigi YANLIS sik
           var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
-          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : 'white') + '; cursor:default;">';
-          html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : '#f0f2f5') + '; color:' + (dogru ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
+          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : yanlisSecim ? '#e53935' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : yanlisSecim ? '#ffebee' : 'white') + '; cursor:default;">';
+          html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : yanlisSecim ? '#e53935' : '#f0f2f5') + '; color:' + (dogru || yanlisSecim ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
           var sikMetin = (sik.metin||'').trim();
-          if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : '#444') + '; flex:1;">' + sikMetin + '</span>';
+          if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : yanlisSecim ? '#c62828' : '#444') + '; flex:1;">' + sikMetin + '</span>';
           if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; ' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '">';
-          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
+          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru' + (i === secilen ? ' · Öğrencinin cevabı' : '') + '</span>';
+          if (yanlisSecim) html += '<span style="margin-left:auto; font-size:11px; color:#e53935; font-weight:700; white-space:nowrap; flex-shrink:0;">✗ Öğrencinin cevabı</span>';
           html += '</div>';
         });
         html += '</div>';
+
+        // v4.17.24: Yanlis cevapta ogrencinin sectigi sik (kirmizi) — kayit yoksa aciklama
+        if (dogruMuKayit === false) {
+          if (secilen >= 0 && secilen !== s.dogruCevapIndex) {
+            html += '<div style="background:#ffebee; border:1px solid #ef9a9a; border-radius:10px; padding:10px 14px; font-size:13px; color:#c62828; font-weight:500; margin-bottom:8px;">✗ Öğrencinin cevabı: <b>' + harfler[secilen] + '</b> şıkkı</div>';
+          } else {
+            html += '<div style="background:#f5f5f5; border:1px solid #e0e0e0; border-radius:10px; padding:10px 14px; font-size:12px; color:#757575; margin-bottom:8px;">Öğrencinin seçtiği şık bu cevap için kaydedilmemiş (eski kayıt); yalnızca doğru şık gösterilebiliyor.</div>';
+          }
+        }
 
         // Doğru cevap özet satırı
         var dogCevap = s.secenekler && s.secenekler[s.dogruCevapIndex];

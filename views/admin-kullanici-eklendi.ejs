@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Kullanıcı Oluşturuldu</title>
+<%# v4.17.24-1: Yonetici manuel kullanici ekleyince gosterilen TEK SEFERLIK sonuc sayfasi.
+    Ilk sifre yalniz bu yanitta bulunur (no-store); veritabaninda yalniz bcrypt ozeti vardir. %>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; background:#f4f6f9; color:#222; padding:24px 16px; }
+  .kutu { max-width:560px; margin:0 auto; background:#fff; border:1px solid #e0e4ea; border-radius:14px; padding:26px 24px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+  h1 { font-size:20px; margin:0 0 4px; color:#1b5e20; }
+  .alt { font-size:13px; color:#666; margin:0 0 18px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-bottom:18px; }
+  td { padding:7px 4px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
+  td:first-child { color:#777; width:38%; }
+  .sifre-kutu { background:#fffde7; border:2px dashed #f9a825; border-radius:12px; padding:16px; text-align:center; margin-bottom:12px; }
+  .sifre-etiket { font-size:12px; color:#8d6e00; letter-spacing:.4px; text-transform:uppercase; font-weight:700; }
+  .sifre { font-family: 'Courier New', monospace; font-size:40px; letter-spacing:10px; font-weight:700; color:#222; margin:6px 0 2px; padding-left:10px; user-select:all; }
+  .uyari { background:#fff3e0; border:1px solid #ffcc80; color:#8a4b00; border-radius:8px; padding:10px 12px; font-size:13px; line-height:1.5; margin-bottom:16px; }
+  .btn { display:inline-block; border:none; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; text-decoration:none; font-weight:600; }
+  .btn-ana { background:#1a73e8; color:#fff; }
+  .btn-ikincil { background:#eef2f7; color:#33445a; border:1px solid #d3dbe6; }
+  .satir { display:flex; gap:8px; flex-wrap:wrap; }
+  #kopyaDurum { font-size:12px; color:#2e7d32; min-height:16px; margin:6px 0 14px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="kutu">
+  <h1>✓ Kullanıcı oluşturuldu</h1>
+  <p class="alt">Hesap açıldı. Aşağıdaki geçici şifreyi kullanıcıya iletin.</p>
+
+  <table>
+    <tr><td>Kullanıcı adı</td><td><b><%= k.kullaniciAdi %></b></td></tr>
+    <tr><td>Rol</td><td><%= ({ ogrenci:'Öğrenci', ogretmen:'Öğretmen', veli:'Veli', kurumsal:'Kurumsal' })[k.rol] || k.rol %></td></tr>
+    <% if (k.rol === 'ogrenci') { %><tr><td>Sınıf / Şube</td><td><%= k.sinif === 13 ? 'Mezun' : (k.sinif + '. sınıf') %><%= k.sube ? ' / ' + k.sube : '' %></td></tr><% } %>
+    <% if (k.il || k.ilce || k.okul) { %><tr><td>Konum</td><td><%= [k.il, k.ilce, k.okul].filter(Boolean).join(' · ') %></td></tr><% } %>
+    <% if (k.email) { %><tr><td>E-posta</td><td><%= k.email %></td></tr><% } %>
+  </table>
+
+  <div class="sifre-kutu">
+    <div class="sifre-etiket">Geçici şifre (6 hane)</div>
+    <div class="sifre" id="sifreMetni"><%= sifre %></div>
+  </div>
+  <div class="uyari">
+    ⚠️ <b>Bu şifre yalnızca şimdi gösterilir.</b> Sayfadan ayrıldığınızda veya yenilediğinizde bir daha görülemez
+    (sistemde yalnızca geri döndürülemeyen özeti saklanır). Şimdi kullanıcıya iletin.<br>
+    Kullanıcı bu şifreyle girince <b>önce kendi şifresini belirlemek zorunda</b> kalır; ondan sonra bu şifre geçersiz olur.
+    Kaybolursa kullanıcı detay sayfasındaki “Yeni Şifre Belirle” ile yeni şifre verebilirsiniz.
+  </div>
+
+  <div class="satir">
+    <button type="button" class="btn btn-ana" id="kopyaBtn">📋 Giriş bilgilerini kopyala</button>
+  </div>
+  <div id="kopyaDurum"></div>
+
+  <div class="satir">
+    <a class="btn btn-ikincil" href="/admin?mod=kullanicilar">← Kullanıcılar</a>
+    <a class="btn btn-ikincil" href="/kullanici-detay?kullaniciAdi=<%= encodeURIComponent(k.kullaniciAdi) %>">Kullanıcı detayı</a>
+  </div>
+</div>
+<script>
+(function () {
+  var ad = <%- JSON.stringify(String(k.kullaniciAdi)).replace(/</g, '\\u003c') %>;
+  var sifre = document.getElementById('sifreMetni').textContent.trim();
+  var durum = document.getElementById('kopyaDurum');
+  document.getElementById('kopyaBtn').addEventListener('click', function () {
+    var metin = 'LGS Hazırlık giriş bilgileriniz\n' +
+      'Adres: ' + location.origin + '/\n' +
+      'Kullanıcı adı: ' + ad + '\n' +
+      'Geçici şifre: ' + sifre + '\n' +
+      'İlk girişte sizden kendi şifrenizi belirlemeniz istenecek.';
+    function tamam() { durum.textContent = 'Kopyalandı ✓'; }
+    function yedek() {
+      var t = document.createElement('textarea'); t.value = metin; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); tamam(); } catch (e) { durum.textContent = 'Kopyalanamadı — şifreyi elle seçip kopyalayın.'; }
+      document.body.removeChild(t);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(metin).then(tamam, yedek); else yedek();
+  });
+})();
+</script>
+</body>
+</html>

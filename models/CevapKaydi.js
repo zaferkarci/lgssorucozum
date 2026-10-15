@@ -18,7 +18,11 @@ const CevapKaydiSchema = new mongoose.Schema({
     // v4.8.19: Cevap, zorunlu seviye ANALIZI sirasinda verildi. Yalnizca gunluk
     //   hedef hesabi (bugun cozulen + ortalama) bu kayitlari DISLAR; puan, soru
     //   istatistikleri, basari yuzdeleri ve analiz ilerlemesi NORMAL isler.
-    analiz: { type: Boolean, default: false }
+    analiz: { type: Boolean, default: false },
+    // v4.17.24: Ogrencinin SECTIGI sik (0=A, 1=B, 2=C, 3=D). Ogretmenin "Soruyu Gor" penceresinde
+    //   yanlis cevapta secilen sik KIRMIZI gosterilir (dogru sik yesil kalir). Bu alan eklenmeden
+    //   once cozulen kayitlarda yoktur (null/tanimsiz) — secim sonradan ogrenilemez.
+    secilenIndex: { type: Number, default: null }
 });
 
 // Compound index — ham puan hesabı için (soruId + dogruMu)

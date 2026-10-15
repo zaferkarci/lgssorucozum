@@ -1579,6 +1579,9 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
             //   gunluk hedef hesabi onu saymaz (puan/istatistik normal isler).
             let analizCevabiMi = false;
             try { analizCevabiMi = await analizModundaMi(k); } catch (e) { analizCevabiMi = false; }
+            // v4.17.24: Ogrencinin sectigi sik kaydedilir (gecerli aralikta degilse null)
+            const _secim = parseInt(secilenIndex);
+            const secilenSik = (Number.isInteger(_secim) && _secim >= 0 && _secim < ((s.secenekler || []).length || 4)) ? _secim : null;
             await new CevapKaydi({
                 soruId: soruId,
                 kullaniciAdi: kullaniciAdi,
@@ -1586,7 +1589,8 @@ router.post('/cevap', oturumKontrol, async (req, res) => {
                 sure: T_ogr,
                 kazanilanPuan: kazanilanPuan,
                 ikinciKezMi: ikinciKezMi,
-                analiz: analizCevabiMi
+                analiz: analizCevabiMi,
+                secilenIndex: secilenSik
             }).save();
 
             // v4.4.0: Soru çözüldüyse gecilenSorular listesinden sil

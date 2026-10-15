@@ -1918,6 +1918,31 @@ router.post('/admin/kullanici-sifre-belirle', async (req, res) => {
     }
 });
 
+// v4.17.24-1: Yonetici MANUEL KULLANICI EKLER (Kullanicilar sekmesi).
+//   Ilk sifre SISTEM tarafindan uretilen rastgele 6 haneli rakamdir; yalniz bu yanitta BIR KEZ
+//   gosterilir (no-store). Hesap "sifreDegistirmeli" acilir: kullanici ilk giriste kendi
+//   sifresini belirlemeden baska sayfa acamaz. Sifre log/URL/veritabaninda acik yazilmaz.
+router.post('/admin/kullanici-ekle', async (req, res) => {
+    if (!adminKontrol(req, res)) return;
+    const js = s => JSON.stringify(String(s)).replace(/</g, '\\u003c');
+    try {
+        const { kullaniciOlustur } = require('../services/manuelKullanici');
+        const b = req.body || {};
+        const r = await kullaniciOlustur({
+            kullaniciAdi: b.kullaniciAdi, rol: b.rol, email: b.email,
+            sinif: b.sinif, sube: b.sube, il: b.il, ilce: b.ilce, okul: b.okul
+        });
+        if (!r.ok) {
+            return res.send('<script>alert(' + js('Kullanıcı eklenemedi: ' + r.hata) + '); window.history.back();</script>');
+        }
+        console.log('[kullanici-ekle] ' + r.kullanici.kullaniciAdi + ' (' + r.kullanici.rol + ') yonetici tarafindan olusturuldu; ilk sifre yoneticiye bir kez gosterildi.');
+        res.render('admin-kullanici-eklendi', { k: r.kullanici, sifre: r.sifre });
+    } catch (e) {
+        console.error('[kullanici-ekle] HATA:', e.message);
+        res.status(500).send('Hata: ' + e.message);
+    }
+});
+
 router.post('/kullanici-rol-degistir', async (req, res) => {
     if (!adminKontrol(req, res)) return;
     try {

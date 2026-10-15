@@ -12,7 +12,11 @@
   <h2 class="auth-title">Kendi Şifreni Belirle</h2>
   <p style="font-size:13px; color:#555; margin-bottom:6px; text-align:center;">Merhaba <b><%= kullaniciAdi %></b>!</p>
   <p style="font-size:13px; color:#666; margin-bottom:16px; text-align:center; line-height:1.5;">
+    <% if (typeof aile !== 'undefined' && aile) { %>
     Hesabın <%= rol === 'veli' ? 'çocuğunun hesabıyla' : 'velinin hesabıyla' %> aynı ilk şifreyle açıldı.
+    <% } else { %>
+    Hesabın yönetici tarafından sana verilen geçici bir şifreyle açıldı.
+    <% } %>
     Devam etmeden önce yalnızca senin bileceğin yeni bir şifre belirle.
   </p>
   <% if (hata) { %>
