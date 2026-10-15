@@ -665,7 +665,9 @@ function latexToHtml(s) {
         try {
           if (icerikEl) {
             mathRenderSonra(icerikEl);
-            if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([icerikEl]).catch(function(){});
+            // v4.17.24-2: mathRenderSonra zaten MathJax'i calistirir. Ayni elemana ikinci typesetPromise
+            //   cagrisi (eskiden burada vardi) \color gibi eklentiler ilk kez yuklenirken iki cagriyi
+            //   cakistirip formulleri IKI KEZ cizdiriyor ve renkli kareleri bozuyordu.
           }
         } catch (e) { /* math render hatası modalı engellemez */ }
       }
