@@ -1,0 +1,167 @@
+<%# v4.17.24-4: "Son 1 Ay — Günlük 2 Soru" takvim kartı (gün sayısı ayın uzunluğuna göre 28/29/30/31; v4.17.24-3'te sabit 30 gündü) — veli paneli ve öğretmen/kurumsal Takip sekmesi ortak parçası.
+    Veri: GET /takip/gunluk-takvim (yetki ve öğrenci seçimi "Bugünün Aktivitesi" ile aynı). window.GORUNEN_KULLANICI panel.ejs başlığında tanımlıdır. %>
+<style>
+  #gt-kap .gt-ad { min-width:130px; max-width:170px; overflow:hidden; text-overflow:ellipsis; border-right:1px solid #e3e8ec; box-shadow:3px 0 4px -2px rgba(0,0,0,.08); }
+  @media (max-width: 600px) {
+    #gt-kap .gt-ad { min-width:84px; max-width:96px; padding-left:6px !important; padding-right:6px !important; }
+    #gt-kap .gt-sinif { display:none; }
+  }
+</style>
+<div class="profil-kart-yeni" id="gt-kart" style="max-width:1100px; margin:0 auto 16px auto; background:#f6fbf6; border-color:#b7dfb9;">
+  <p class="profil-kart-baslik-yeni" style="margin-bottom:4px;">📅 Son 1 Ay — Günlük 2 Soru <span id="gt-aralik" style="font-size:12px; font-weight:600; color:#546e7a; margin-left:6px;"></span></p>
+  <p style="margin:0 0 10px; font-size:12px; color:#5f6368; line-height:1.55;">
+    Bir günde <b>en az 2 soru</b> çözülürse <span style="color:#2e7d32; font-weight:700;">✓ yeşil</span>,
+    çözülmediyse <span style="color:#c62828; font-weight:700;">✗ kırmızı</span> görünür.
+    Bugün henüz bitmediği için <span style="color:#e65100; font-weight:700;">turuncu</span> gösterilir (2 soruya ulaşınca yeşile döner).
+    Takvim her gün bir gün sola kayar; <b>en sağdaki gün bugündür</b>.
+    Gösterilen aralık bir aylıktır: ayın uzunluğuna göre <b>28, 29, 30 veya 31 gün</b> görünür.
+  </p>
+  <div id="gt-yukleniyor" style="font-size:13px; color:#666;">Yükleniyor...</div>
+  <div id="gt-bos" style="display:none; font-size:13px; color:#999; font-style:italic;">Takip edilen öğrenci yok.</div>
+  <div id="gt-kap" style="display:none; overflow:auto; max-height:520px; background:#fff; border:1px solid #dfe5ea; border-radius:8px;"></div>
+  <div id="gt-ipucu" style="display:none; margin-top:6px; font-size:11px; color:#78909c;">← Önceki günleri görmek için tabloyu sola kaydırın</div>
+</div>
+<script>
+(function () {
+  var AYLAR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  var AY_KISA = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  var GUN_HARF = ['P','P','S','Ç','P','C','C']; // 0 = Pazar
+  var GUN_ADI = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+
+  function el(etiket, stil, metin) {
+    var e = document.createElement(etiket);
+    if (stil) e.style.cssText = stil;
+    if (metin != null) e.textContent = metin;
+    return e;
+  }
+  function tarihParcala(anahtar) { // 'YYYY-MM-DD' -> { y, a(0-11), g, haftaGunu }
+    var p = anahtar.split('-');
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12));
+    return { y: +p[0], a: +p[1] - 1, g: +p[2], hg: d.getUTCDay() };
+  }
+
+  function ciz(d) {
+    var kap = document.getElementById('gt-kap');
+    var ogr = d.ogrenciler || [];
+    document.getElementById('gt-yukleniyor').style.display = 'none';
+    if (ogr.length === 0) { document.getElementById('gt-bos').style.display = 'block'; return; }
+
+    var gunler = d.gunler || [], esik = d.esik || 2, bugun = d.bugun;
+    if (gunler.length) {
+      var pa = tarihParcala(gunler[0]), pb = tarihParcala(gunler[gunler.length - 1]);
+      document.getElementById('gt-aralik').textContent = '(' + pa.g + ' ' + AYLAR[pa.a] + ' – ' + pb.g + ' ' + AYLAR[pb.a] + ' · ' + gunler.length + ' gün)';
+    }
+    var ISIK_HUCRE = 'width:30px; min-width:30px; padding:0; text-align:center;';
+    var tablo = el('table', 'border-collapse:separate; border-spacing:0; font-size:12px;');
+
+    // --- Başlık satırı 1: aylar
+    var thead = el('thead');
+    var s1 = el('tr');
+    var kose1 = el('th', 'position:sticky; top:0; left:0; z-index:4; background:#f8f9fa; height:22px; border-bottom:1px solid #eceff1;');
+    kose1.className = 'gt-ad';
+    s1.appendChild(kose1);
+    var i = 0, ayIdx = 0;
+    while (i < gunler.length) {
+      var p0 = tarihParcala(gunler[i]), j = i;
+      while (j < gunler.length && tarihParcala(gunler[j]).a === p0.a) j++;
+      var adet = j - i;
+      var th = el('th', 'position:sticky; top:0; z-index:3; height:22px; padding:0 6px; font-size:11px; font-weight:700; color:#455a64; border-bottom:1px solid #eceff1; border-left:1px solid #eceff1; text-align:left; white-space:nowrap; background:' + (ayIdx % 2 ? '#f1f6fb' : '#f8f9fa') + ';');
+      // Ay adı, tablo sola kaydırılınca da (öğrenci sütununun hemen sağında) görünür kalsın diye sticky; sol ofset çizimden sonra ölçülür
+      var etiket = el('span', 'position:sticky; left:140px; display:inline-block;', adet >= 3 ? AYLAR[p0.a] : AY_KISA[p0.a]);
+      etiket.className = 'gt-ay-etiket';
+      th.appendChild(etiket);
+      th.colSpan = adet;
+      s1.appendChild(th);
+      i = j; ayIdx++;
+    }
+    var kose1b = el('th', 'position:sticky; top:0; z-index:3; background:#f8f9fa; min-width:64px; height:22px; border-bottom:1px solid #eceff1; border-left:1px solid #eceff1;');
+    s1.appendChild(kose1b);
+    thead.appendChild(s1);
+
+    // --- Başlık satırı 2: gün harfi + gün numarası
+    var s2 = el('tr');
+    var kose2 = el('th', 'position:sticky; top:22px; left:0; z-index:4; background:#f8f9fa; text-align:left; padding:4px 10px; font-size:11px; color:#78909c; font-weight:600; border-bottom:1px solid #dfe5ea;', 'Öğrenci');
+    kose2.className = 'gt-ad';
+    s2.appendChild(kose2);
+    gunler.forEach(function (g) {
+      var p = tarihParcala(g), hs = (p.hg === 0 || p.hg === 6), bugunMu = (g === bugun);
+      var th2 = el('th', 'position:sticky; top:22px; z-index:3; ' + ISIK_HUCRE + ' padding:3px 0; line-height:1.25; font-weight:' + (bugunMu ? '800' : '500') + '; color:' + (bugunMu ? '#1a73e8' : (hs ? '#90a4ae' : '#546e7a')) + '; background:' + (bugunMu ? '#e3effd' : (hs ? '#f3f5f7' : '#f8f9fa')) + '; border-bottom:' + (bugunMu ? '2px solid #1a73e8' : '1px solid #dfe5ea') + ';' + (p.g === 1 ? ' border-left:1px solid #b0bec5;' : ''));
+      th2.title = p.g + ' ' + AYLAR[p.a] + ' ' + GUN_ADI[p.hg] + (bugunMu ? ' (bugün)' : '');
+      th2.appendChild(el('div', 'font-size:9px;', GUN_HARF[p.hg]));
+      th2.appendChild(el('div', 'font-size:11px;', String(p.g)));
+      s2.appendChild(th2);
+    });
+    s2.appendChild(el('th', 'position:sticky; top:22px; z-index:3; background:#f8f9fa; font-size:11px; color:#78909c; font-weight:600; border-bottom:1px solid #dfe5ea; border-left:1px solid #eceff1; padding:0 8px; white-space:nowrap;', 'Tamamlanan'));
+    thead.appendChild(s2);
+    tablo.appendChild(thead);
+
+    // --- Öğrenci satırları
+    var tbody = el('tbody');
+    ogr.forEach(function (o) {
+      var tr = el('tr');
+      var ad = el('td', 'position:sticky; left:0; z-index:2; background:#fff; padding:5px 10px; white-space:nowrap; border-bottom:1px solid #f0f3f5;');
+      ad.className = 'gt-ad';
+      var a = el('a', 'color:#1a2236; font-weight:600; text-decoration:none;', o.kullaniciAdi);
+      a.href = '/takip/ogrenci/' + encodeURIComponent(o.kullaniciAdi);
+      a.title = 'İstatistik sayfasını aç';
+      ad.appendChild(a);
+      if (o.sinif) { var sp = el('span', 'color:#90a4ae; font-size:11px; margin-left:6px;', o.sinif + (o.sube ? '/' + o.sube : '')); sp.className = 'gt-sinif'; ad.appendChild(sp); }
+      tr.appendChild(ad);
+
+      (o.sayilar || []).forEach(function (n, k) {
+        var g = gunler[k], p = tarihParcala(g), bugunMu = (g === bugun), tamam = n >= esik;
+        var td = el('td', ISIK_HUCRE + ' height:30px; border-bottom:1px solid #f0f3f5; background:' + (bugunMu ? '#f3f8ff' : ((p.hg === 0 || p.hg === 6) ? '#fafbfc' : '#fff')) + ';' + (p.g === 1 ? ' border-left:1px solid #b0bec5;' : ''));
+        var tarihYazi = p.g + ' ' + AYLAR[p.a];
+        var daire = el('div', 'width:22px; height:22px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; line-height:1;');
+        if (tamam) {
+          daire.style.background = '#43a047'; daire.style.color = '#fff'; daire.textContent = '✓';
+          td.title = tarihYazi + ': ' + n + ' soru çözüldü';
+        } else if (bugunMu) {
+          daire.style.background = '#fff3e0'; daire.style.color = '#e65100'; daire.style.border = '2px solid #fb8c00'; daire.style.fontSize = '11px';
+          daire.textContent = String(n);
+          td.title = 'Bugün: ' + n + '/' + esik + ' soru (gün henüz bitmedi)';
+        } else {
+          daire.style.background = '#fdecea'; daire.style.color = '#c62828'; daire.style.border = '1px solid #ef9a9a'; daire.textContent = '✗';
+          td.title = tarihYazi + ': ' + n + ' soru çözüldü (hedef ' + esik + ')';
+        }
+        daire.setAttribute('aria-label', td.title);
+        td.appendChild(daire);
+        tr.appendChild(td);
+      });
+
+      var ozet = el('td', 'padding:0 10px; text-align:center; white-space:nowrap; border-bottom:1px solid #f0f3f5; border-left:1px solid #eceff1; font-weight:700; color:' + (o.tamamlanan * 3 >= gunler.length * 2 ? '#2e7d32' : (o.tamamlanan * 3 >= gunler.length ? '#e65100' : '#c62828')) + ';', o.tamamlanan + ' / ' + gunler.length);
+      ozet.title = 'Bu ' + gunler.length + ' günün ' + o.tamamlanan + ' tanesinde en az ' + esik + ' soru çözüldü';
+      tr.appendChild(ozet);
+      tbody.appendChild(tr);
+    });
+    tablo.appendChild(tbody);
+
+    kap.innerHTML = '';
+    kap.appendChild(tablo);
+    kap.style.display = 'block';
+    // Takvim "kaymış" görünsün: en sağdaki (bugün) görünür olacak şekilde sona kaydır
+    kap.scrollLeft = kap.scrollWidth;
+    ayarla();
+    window.addEventListener('resize', ayarla);
+  }
+
+  // Ay etiketlerini öğrenci sütununun hemen sağına hizalar; tablo ekrandan genişse "sola kaydırın" ipucunu gösterir
+  function ayarla() {
+    var kap = document.getElementById('gt-kap');
+    var ad = kap.querySelector('thead .gt-ad');
+    if (ad) {
+      var sol = (ad.offsetWidth + 6) + 'px';
+      Array.prototype.forEach.call(kap.querySelectorAll('.gt-ay-etiket'), function (e) { e.style.left = sol; });
+    }
+    document.getElementById('gt-ipucu').style.display = (kap.scrollWidth > kap.clientWidth + 2) ? 'block' : 'none';
+  }
+
+  fetch('/takip/gunluk-takvim?kullanici=' + encodeURIComponent(window.GORUNEN_KULLANICI), { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) { document.getElementById('gt-yukleniyor').textContent = 'Takvim yüklenemedi.'; return; }
+      ciz(d);
+    })
+    .catch(function () { document.getElementById('gt-yukleniyor').textContent = 'Takvim yüklenemedi.'; });
+})();
+</script>
