@@ -791,9 +791,10 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     // Hesaplamalar (toplamCozulen, dogruluk, ders kırılımı, bugün) etkilenmez.
     // v4.16.44: Sınıf atlatma sonrası ders/konu istatistikleri de yalnız o tarihten
     //   SONRAKİ cevaplardan hesaplanır (kişisel ilerleme sıfırlanmış görünür).
+    // v4.17.24-5: secilenIndex de cekilir — ogrencinin kendi "Soruyu Gor" penceresinde yanlis sectigi sik kirmizi gosterilir.
     const tumCevaplar = await CevapKaydi.find(
         { kullaniciAdi: k.kullaniciAdi, tarih: { $gte: k.sonSinifAtlamaTarihi || new Date(0) } },
-        'soruId dogruMu sure kazanilanPuan tarih'
+        'soruId dogruMu sure kazanilanPuan tarih secilenIndex'
     ).lean();
 
     // v4.1.37: Tutarlılık kontrolü — k.puan ile cevaplardan toplanan puan farkı.

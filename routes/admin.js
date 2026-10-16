@@ -1824,7 +1824,8 @@ router.get('/kullanici-detay', async (req, res) => {
         const sayfaSonu = sayfaBasi + SAYFA_BOYUTU;
         const sayfaCevaplar = tumCevaplar.slice(sayfaBasi, sayfaSonu);
         const soruIdleri = [...new Set(sayfaCevaplar.map(c => String(c.soruId)))];
-        const sorular = soruIdleri.length > 0 ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu soruMetni _id').lean() : [];
+        // v4.17.25: "Soruyu Gör" penceresi icin soru icerigi de cekilir (takip-ogrenci-detay ile ayni alanlar)
+        const sorular = soruIdleri.length > 0 ? await Soru.find({ _id: { $in: soruIdleri } }, 'ders unite konu sinif soruNo soruMetni soruOnculu1 soruOnculu1Resmi soruOnculu2 soruOnculu2Resmi soruOnculu3 soruOnculu3Resmi soruResmi secenekler dogruCevapIndex tabloBaslik sikDizilimi _id').lean() : [];
         const soruMap = {};
         sorular.forEach(s => { soruMap[String(s._id)] = s; });
         const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });

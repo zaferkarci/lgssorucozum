@@ -637,20 +637,13 @@ function latexToHtml(s) {
           var sikMetin = (sik.metin||'').trim();
           if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : yanlisSecim ? '#c62828' : '#444') + '; flex:1;">' + sikMetin + '</span>';
           if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; ' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '">';
-          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru' + (i === secilen ? ' · Öğrencinin cevabı' : '') + '</span>';
-          if (yanlisSecim) html += '<span style="margin-left:auto; font-size:11px; color:#e53935; font-weight:700; white-space:nowrap; flex-shrink:0;">✗ Öğrencinin cevabı</span>';
+          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
+          if (yanlisSecim) html += '<span style="margin-left:auto; font-size:11px; color:#e53935; font-weight:700; white-space:nowrap; flex-shrink:0;">✗ İşaretlenen</span>';
           html += '</div>';
         });
         html += '</div>';
 
-        // v4.17.24: Yanlis cevapta ogrencinin sectigi sik (kirmizi) — kayit yoksa aciklama
-        if (dogruMuKayit === false) {
-          if (secilen >= 0 && secilen !== s.dogruCevapIndex) {
-            html += '<div style="background:#ffebee; border:1px solid #ef9a9a; border-radius:10px; padding:10px 14px; font-size:13px; color:#c62828; font-weight:500; margin-bottom:8px;">✗ Öğrencinin cevabı: <b>' + harfler[secilen] + '</b> şıkkı</div>';
-          } else {
-            html += '<div style="background:#f5f5f5; border:1px solid #e0e0e0; border-radius:10px; padding:10px 14px; font-size:12px; color:#757575; margin-bottom:8px;">Öğrencinin seçtiği şık bu cevap için kaydedilmemiş (eski kayıt); yalnızca doğru şık gösterilebiliyor.</div>';
-          }
-        }
+        // v4.17.25-1: Alttaki "…cevabı: X şıkkı" satırı ve eski kayıt notu kaldırıldı; yalnız işaretlenen (kırmızı) ve doğru (yeşil) şık gösterilir.
 
         // Doğru cevap özet satırı
         var dogCevap = s.secenekler && s.secenekler[s.dogruCevapIndex];

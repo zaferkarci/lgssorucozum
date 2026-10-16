@@ -33,6 +33,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
 .cevap-tablo th { background:#f8f9fa; padding:8px 10px; text-align:left; font-weight:600; color:#666; border-bottom:1px solid #e8edf2; }
 .cevap-tablo td { padding:7px 10px; border-bottom:1px solid #f5f5f5; color:#444; }
 .cevap-tablo tr:hover td { background:#fafbff; }
+.cevap-tablo .badge { white-space:nowrap; } /* v4.17.25 */
 .prog-bar-wrap { height:5px; background:#f0f0f0; border-radius:3px; margin-top:6px; }
 .prog-bar { height:100%; border-radius:3px; }
 .topbar-admin { background:white; border-bottom:1px solid #e8edf2; padding:0 24px; height:52px; display:flex; align-items:center; gap:16px; }
@@ -53,6 +54,94 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
   .istat-grid { grid-template-columns: 1fr; }
 }
 </style>
+<%# v4.17.25: "Soruyu Gör" penceresi için matematik (MathJax) — takip-ogrenci-detay.ejs ile aynı %>
+<script>
+window.MathJaxReady = false;
+MathJax = {
+  tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+  options: { skipHtmlTags: ['script','style','textarea','pre'] },
+  startup: {
+    ready() {
+      MathJax.startup.defaultReady();
+      window.MathJaxReady = true;
+    }
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<script>
+// v4.6.7: Matematik render yardimcilari (panel.ejs ile AYNI). Onceden bu sayfada
+// mathRenderSonra tanimli degildi; "Soruyu Gor" modalinda cagrilinca ReferenceError
+// firlatip ayni try blogundaki MathJax.typesetPromise satirinin calismasini
+// engelliyordu -> $...$ ham (render edilmemis) goruluyordu. Fonksiyonlar eklendi.
+function ciftBackslashNormalize(el) {
+  if (!el) return;
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function(node) {
+    var t = node.textContent;
+    if (t.indexOf('\\\\') === -1) return;          // Hiç çift backslash yoksa atla
+    if (!t.match(/\$[^$]*\\\\[^$]*\$/)) return;    // Çift backslash $...$ içinde değilse atla
+    var yeni = t.replace(/\$([^$]+)\$/g, function(tam, ic) {
+      return '$' + ic.replace(/\\\\/g, '\\') + '$';
+    });
+    if (yeni !== t) node.textContent = yeni;
+  });
+}
+
+function mathRenderSonra(el) {
+  if (!el) return;
+  ciftBackslashNormalize(el);
+  if (window.MathJaxReady && window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([el]).catch(function(){});
+  } else if (window.MathJax && MathJax.typesetPromise) {
+    setTimeout(function(){ MathJax.typesetPromise([el]).catch(function(){}); }, 500);
+  } else {
+    mathRenderCSS(el);
+  }
+}
+function mathRenderCSS(el) {
+  if (!el) return;
+  ciftBackslashNormalize(el);
+  var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function(node) {
+    if (!node.textContent.match(/\$[^$]+\$/)) return;
+    var parent = node.parentNode;
+    if (!parent || parent.tagName==='SCRIPT' || parent.tagName==='STYLE') return;
+    var html = node.textContent.replace(/\$([^$]+)\$/g, function(_,l){ return latexToHtml(l); });
+    if (html !== node.textContent) {
+      var span = document.createElement('span');
+      span.innerHTML = html;
+      parent.replaceChild(span, node);
+    }
+  });
+}
+function latexToHtml(s) {
+  s = s.trim();
+  s = s.replace(/\\sqrt\{([^}]+)\}/g,'<span class="sqrt"><span class="sqrt-sembol">\u221a</span><span class="sqrt-icerik">$1</span></span>');
+  s = s.replace(/\^{([^}]+)}/g,'<span class="math-sup">$1</span>');
+  s = s.replace(/\^(\S)/g,'<span class="math-sup">$1</span>');
+  s = s.replace(/_{([^}]+)}/g,'<span class="math-sub">$1</span>');
+  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g,'<span class="math-frac"><span class="math-frac-ust">$1</span><span class="math-frac-alt">$2</span></span>');
+  // v4.1.31: Önce çok karakterli komutları çevir (sıralama önemli — uzun olanlar önce).
+  s = s.replace(/\\leq/g,'\u2264').replace(/\\geq/g,'\u2265').replace(/\\neq/g,'\u2260').replace(/\\approx/g,'\u2248').replace(/\\infty/g,'\u221e');
+  // Kısa formlar (\le, \ge) — aynı sembollerin alternatif yazımı; yukarıdaki uzun
+  // formlar zaten çevrildiği için artakalanları yakalar. \\le\b / \\ge\b kelime
+  // sınırı ile yazıldı ki \\leq / \\geq parçaları yanlışlıkla yakalanmasın.
+  s = s.replace(/\\le\b/g,'\u2264').replace(/\\ge\b/g,'\u2265');
+  // Diğer yaygın komutlar
+  s = s.replace(/\\cdot/g,'\u00b7').replace(/\\times/g,'\xd7').replace(/\\div/g,'\xf7').replace(/\\pm/g,'\xb1');
+  s = s.replace(/\\to\b/g,'\u2192').replace(/\\rightarrow/g,'\u2192').replace(/\\leftarrow/g,'\u2190').replace(/\\Rightarrow/g,'\u21d2');
+  s = s.replace(/\\circ/g,'\u00b0').replace(/\\degree/g,'\u00b0');
+  s = s.replace(/\\ldots/g,'\u2026').replace(/\\cdots/g,'\u2026').replace(/\\dots/g,'\u2026');
+  s = s.replace(/\\pi/g,'\u03c0').replace(/\\alpha/g,'\u03b1').replace(/\\beta/g,'\u03b2').replace(/\\theta/g,'\u03b8');
+  s = s.replace(/\\[a-zA-Z]+/g,'');
+  return s;
+}
+</script>
 </head>
 <body>
 
@@ -140,6 +229,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
           <button type="submit" style="background:#1a73e8; color:white; padding:8px 16px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">Rolü Güncelle</button>
         </form>
         <p style="font-size:11px; color:#888; margin-top:8px;">Not: Öğretmen rolü → soru çözemez, sıralamada yer almaz, sadece davet ettiklerini görür.</p>
+      </div><%# v4.17.25: bu kapanis eksikti; sag sutun (istatistikler + cozulen sorular) sol 340px sutunun icine dusuyor, tablo daraliyordu %>
 
       <!-- Güncelleme formu -->
       <div class="d-kart">
@@ -273,6 +363,7 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
                 <th>Puan</th>
                 <th>Sonuç</th>
                 <th>Tarih</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -288,6 +379,15 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
                 <td style="color:#1a73e8; font-weight:600;"><%= (c.kazanilanPuan||0).toFixed ? (c.kazanilanPuan||0).toFixed(1) : (c.kazanilanPuan||0) %></td>
                 <td><span class="badge <%= c.dogruMu ? 'badge-dogru' : 'badge-yanlis' %>"><%= c.dogruMu ? '✓ Doğru' : '✗ Yanlış' %></span></td>
                 <td style="color:#aaa;"><%= c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' }) : '-' %></td>
+                <td>
+                  <%# v4.17.25: Soruyu Gör — öğrencinin yanlış seçtiği şık kırmızı, doğru şık yeşil %>
+                  <% if (sb.soruMetni || sb.soruResmi || (sb.secenekler && sb.secenekler.length)) { %>
+                    <button type="button" onclick="soruGoster('<%= String(c.soruId) %>', <%= (typeof c.secilenIndex === 'number') ? c.secilenIndex : -1 %>, <%= c.dogruMu ? 'true' : 'false' %>)"
+                      style="background:#e8f0fe; color:#1a73e8; border:none; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">
+                      Soruyu Gör
+                    </button>
+                  <% } %>
+                </td>
               </tr>
               <% }); %>
             </tbody>
@@ -315,6 +415,144 @@ body { background: #f7f8fa; font-family: 'DM Sans', sans-serif; }
     </div>
   </div>
 </div>
+
+<%# v4.17.25: Soru İnceleme penceresi (takip-ogrenci-detay.ejs ile aynı görünüm) %>
+      <div id="soruGorModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:16px; max-width:680px; width:100%; max-height:90vh; overflow-y:auto; position:relative;">
+          <div style="padding:16px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:white; z-index:1; border-radius:16px 16px 0 0;">
+            <span style="font-size:14px; font-weight:600; color:#202124;">Soru İnceleme</span>
+            <button onclick="soruKapat()" style="background:#f5f5f5; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center;">✕</button>
+          </div>
+          <div id="soruGorIcerik" style="padding:20px 24px;"></div>
+        </div>
+      </div>
+
+<script>
+var soruVerileri = {};
+<% sayfaCevaplar.forEach(function(c) {
+    var sb = soruMap[String(c.soruId)];
+    if (sb && (sb.soruMetni || sb.soruResmi || (sb.secenekler && sb.secenekler.length))) { %>
+soruVerileri['<%= String(c.soruId) %>'] = <%- JSON.stringify({
+  soruMetni: sb.soruMetni||'',
+  soruOnculu1: sb.soruOnculu1||'',
+  soruOnculu1Resmi: sb.soruOnculu1Resmi||'',
+  soruOnculu2: sb.soruOnculu2||'',
+  soruOnculu2Resmi: sb.soruOnculu2Resmi||'',
+  soruOnculu3: sb.soruOnculu3||'',
+  soruOnculu3Resmi: sb.soruOnculu3Resmi||'',
+  soruResmi: sb.soruResmi||'',
+  secenekler: sb.secenekler||[],
+  dogruCevapIndex: sb.dogruCevapIndex,
+  tabloBaslik: sb.tabloBaslik||[],
+  sikDizilimi: sb.sikDizilimi||'dikey',
+  ders: sb.ders||'',
+  konu: sb.konu||''
+}).replace(/</g, '\\u003c') %>;
+<% } }); %>
+      var harfler = ['A','B','C','D'];
+
+      function gorselHtml(url) {
+        if (!url || url === '[GÖRSEL VAR]') return '';
+        return '<div style="text-align:center; margin-bottom:8px;"><img src="' + url + '" style="max-width:100%; max-height:220px; border-radius:8px; object-fit:contain;"></div>';
+      }
+
+      function htmlDuzelt(metin) {
+        if (!metin) return '';
+        // HTML entity karekök → direkt sembol
+        return metin.replace(/&#8730;/g, '√').replace(/&radic;/g, '√');
+      }
+
+      function oncul(metin, resim) {
+        var html = '';
+        if (metin) html += '<div style="background:transparent; border-left:3px solid #1a73e8; border-radius:0 8px 8px 0; padding:12px 16px; font-size:13px; line-height:1.6; color:#555; margin-bottom:8px;">' + htmlDuzelt(metin) + '</div>';
+        if (resim) html += gorselHtml(resim);
+        return html;
+      }
+
+      // v4.17.24: secilen = ogrencinin O CEVAPTA sectigi sik (0=A..; kayit yoksa -1), dogruMuKayit = o cevabin sonucu.
+      //   Yanlis cevapta secilen sik KIRMIZI, dogru sik YESIL gosterilir. Ayni soru birden fazla kez
+      //   cozulmus olabilir; her satir kendi cevabini gosterir.
+      function soruGoster(id, secilen, dogruMuKayit) {
+        var s = soruVerileri[id];
+        if (!s) return;
+        secilen = (typeof secilen === 'number') ? secilen : -1;
+        var html = '';
+
+        // Etiketler
+        html += '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">';
+        if (s.ders) html += '<span style="background:#e3f2fd; color:#1565c0; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.ders + '</span>';
+        if (s.konu) html += '<span style="background:#f3e5f5; color:#6a1b9a; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;">' + s.konu + '</span>';
+        html += '</div>';
+
+        // Öncüller — metin + görsel çifti olarak
+        html += oncul(s.soruOnculu1, s.soruOnculu1Resmi);
+        html += oncul(s.soruOnculu2, s.soruOnculu2Resmi);
+        html += oncul(s.soruOnculu3, s.soruOnculu3Resmi);
+
+        // Soru metni (görsel-only sorularda boş olabilir)
+        if (s.soruMetni) html += '<div style="font-size:16px; font-weight:500; color:#202124; line-height:1.6; margin-bottom:12px;">' + s.soruMetni + '</div>';
+
+        // Soru görseli
+        if (s.soruResmi) html += gorselHtml(s.soruResmi);
+
+        // Tablo başlığı
+        if (s.tabloBaslik && s.tabloBaslik.length > 0) {
+          html += '<div style="margin-bottom:4px;"><table style="border-collapse:collapse; font-size:13px; table-layout:fixed;"><tr><td style="padding:3px 0; width:48px;"></td>';
+          s.tabloBaslik.forEach(function(b) {
+            html += '<td style="padding:3px 0; width:90px; border-bottom:1px solid #999; font-weight:500; text-align:center;">' + b + '</td>';
+          });
+          html += '</tr></table></div>';
+        }
+
+        // Şıklar
+        var gridCols = s.sikDizilimi === 'yatay' ? 'repeat(4,1fr)' : s.sikDizilimi === 'ikili' ? 'repeat(2,1fr)' : '1fr';
+        html += '<div class="secenekler" style="display:grid; grid-template-columns:' + gridCols + '; gap:8px; margin-bottom:20px;">';
+        (s.secenekler || []).forEach(function(sik, i) {
+          var dogru = i === s.dogruCevapIndex;
+          var yanlisSecim = (i === secilen && !dogru); // ogrencinin sectigi YANLIS sik
+          var tabloMu = sik.metin && sik.metin.indexOf('<table') !== -1;
+          html += '<div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; border:1.5px solid ' + (dogru ? '#43a047' : yanlisSecim ? '#e53935' : '#f0f0f0') + '; background:' + (dogru ? '#f1f8e9' : yanlisSecim ? '#ffebee' : 'white') + '; cursor:default;">';
+          html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : yanlisSecim ? '#e53935' : '#f0f2f5') + '; color:' + (dogru || yanlisSecim ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
+          var sikMetin = (sik.metin||'').trim();
+          if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : yanlisSecim ? '#c62828' : '#444') + '; flex:1;">' + sikMetin + '</span>';
+          if (sik.gorsel) html += '<img src="' + sik.gorsel + '" style="max-width:100px; max-height:60px; object-fit:contain; ' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '">';
+          if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
+          if (yanlisSecim) html += '<span style="margin-left:auto; font-size:11px; color:#e53935; font-weight:700; white-space:nowrap; flex-shrink:0;">✗ İşaretlenen</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+
+        // v4.17.25-1: Alttaki "…cevabı: X şıkkı" satırı ve eski kayıt notu kaldırıldı; yalnız işaretlenen (kırmızı) ve doğru (yeşil) şık gösterilir.
+
+        // Doğru cevap özet satırı
+        var dogCevap = s.secenekler && s.secenekler[s.dogruCevapIndex];
+        html += '<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:10px; padding:10px 14px; font-size:13px; color:#2e7d32; font-weight:500;">✓ Doğru cevap: <b>' + harfler[s.dogruCevapIndex] + '</b> şıkkı</div>';
+
+        // v4.5.8: Önce içeriği yaz ve modalı AÇ; matematik render'ı sonra ve
+        // try/catch içinde yap — render hatası modalın açılmasını engellemesin.
+        var icerikEl = document.getElementById('soruGorIcerik');
+        if (icerikEl) icerikEl.innerHTML = html;
+        var modal = document.getElementById('soruGorModal');
+        if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+        try {
+          if (icerikEl) {
+            mathRenderSonra(icerikEl);
+            // v4.17.24-2: mathRenderSonra zaten MathJax'i calistirir. Ayni elemana ikinci typesetPromise
+            //   cagrisi (eskiden burada vardi) \color gibi eklentiler ilk kez yuklenirken iki cagriyi
+            //   cakistirip formulleri IKI KEZ cizdiriyor ve renkli kareleri bozuyordu.
+          }
+        } catch (e) { /* math render hatası modalı engellemez */ }
+      }
+
+      function soruKapat() {
+        document.getElementById('soruGorModal').style.display = 'none';
+        document.body.style.overflow = '';
+      }
+
+      document.getElementById('soruGorModal').addEventListener('click', function(e) {
+        if (e.target === this) soruKapat();
+      });
+</script>
 
 <script>
 var tumOkullar = <%- JSON.stringify(typeof tumOkullar !== 'undefined' ? tumOkullar.map(function(o){ return {il:o.il,ilce:o.ilce,ad:o.ad}; }) : []) %>;
