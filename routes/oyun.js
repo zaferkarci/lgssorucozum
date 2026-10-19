@@ -596,7 +596,7 @@ function kurallarMetni() {
 + '<p><b>Kusatma = otomatik fetih:</b> Bir bos alani kendi hucrelerinle (veya kilitli duvarlarla) tamamen cevirirsen, icindeki tum hucreler otomatik senin olur. Fetih fiyati satin almayla aynidir. Altinin yetmezse fetih bekler; yeni altin kazandikca otomatik devam eder.</p>'
 + '<p><b>Gezinme:</b> Dunya buyuktur; ekranda 20x20 alan gorunur. Yon tuslari/oklar ile kaydir, mini haritaya tiklayarak uzaga atla.</p>'
 + '<p><b>Siralama:</b> Sag panelde sinif dunyandaki oyuncular hucre sayisina gore siralanir.</p>'
-+ '<p><b>Duello:</b> Kendi topragina komsu bir RAKIP hucresine tiklayarak duello acabilirsin. Ikinizin de DOGRU cozdugu ortak bir soru rastgele secilir; o soruyu daha KISA surede cozen kazanir. Kazanirsan o hucre senin olur. Gunde 1 saldiri hakkin vardir. Rakibin son hucresi korumalidir. Ortak dogru cozulmus soru yoksa duello yapilamaz. Ayni soruyla ikinci kez duello yapilmaz.</p>'
++ '<p><b>Duello:</b> Kendi topragina komsu bir RAKIP hucresine tiklayarak duello acabilirsin. Ikinizin de DOGRU cozdugu ortak bir soru rastgele secilir; o soruyu daha KISA surede cozen kazanir. Kazanirsan o hucre senin olur. Gunde 1 saldiri hakkin vardir. Rakibin son hucresi korumalidir. Ortak dogru cozulmus soru yoksa duello yapilamaz. Ayni rakibe karsi ayni soru tekrar secilmez; o rakiple ortak sorularinin hepsi kullanildiysa en uzun suredir kullanilmayan soru secilir.</p>'
 + '<p><b>Kusatma kacisi:</b> Tamamen kusatildiysan (komsu bos hucre kalmadiysa), bitisiklik sarti olmadan uzaktaki bos bir hucreye sicrayabilirsin; fiyat normaldir (10 x mevcut hucre).</p>'
 + '</div>';
 }
@@ -687,16 +687,30 @@ router.post('/oyun/duello', async (req, res) => {
         const rakipMap = {}; rakipDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); const s = (c.sure == null ? 99999 : c.sure); if (rakipMap[id] == null || s < rakipMap[id]) rakipMap[id] = s; });
         const ortakTum = Object.keys(benMap).filter(id => rakipMap[id] != null);
         if (!ortakTum.length) return res.json({ ok: false, sebep: 'ortak-yok', hata: 'Ikinizin de dogru cozdugu ortak soru yok; duello yapilamaz.' });
-        // v4.17.27: AYNI SORUYLA TEKRAR DUELLO YOK — saldiranin daha once saldirdigi duellolarda cikan sorular ve bu iki
-        //   oyuncu arasinda (hangi taraf saldirmis olursa olsun) cikan sorular bir daha secilmez.
-        //   Yalniz bu gezegende ve oyuncunun bu gezegene katilmasindan (oyun sifirlandiysa yeniden katilmasindan) sonraki duellolar sayilir.
-        const kullanilanFiltre = { sinif, $or: [{ saldiranAd: BEN }, { saldiranAd: RAKIP, rakipAd: BEN }] };
+        // v4.17.27-2: SORU RAKIP BASINA 1 KEZ — bu iki oyuncu arasinda (hangi taraf saldirmis olursa olsun) daha once cikan
+        //   sorular, kullanilmamis ortak soru kaldigi surece secilmez. Ayni soru FARKLI rakiplere karsi kullanilabilir.
+        //   Bu ikili icin kullanilmamis ortak soru kalmadiysa duello ENGELLENMEZ: en uzun suredir (bu ikili arasinda)
+        //   kullanilmayan ortak soru secilir.
+        //   Yalniz bu gezegende ve saldiranin bu gezegene katilmasindan (oyun sifirlandiysa yeniden katilmasindan) sonraki duellolar sayilir.
+        const kullanilanFiltre = { sinif, $or: [{ saldiranAd: BEN, rakipAd: RAKIP }, { saldiranAd: RAKIP, rakipAd: BEN }] };
         if (ben.olusturma) kullanilanFiltre.tarih = { $gte: ben.olusturma };
-        const kullanilan = await DuelloKayit.find(kullanilanFiltre, 'soruId').lean();
-        const kullanilanSet = new Set(kullanilan.filter(d => d.soruId).map(d => String(d.soruId)));
-        const ortak = ortakTum.filter(id => !kullanilanSet.has(id));
-        if (!ortak.length) return res.json({ ok: false, sebep: 'ortak-kullanildi', hata: 'Her doğru cevabını düellolarda 1 kez kullanabilirsiniz. Düello yapabilmek için gelecek sorulara doğru cevap vermelisiniz.' });
-        const secId = ortak[Math.floor(Math.random() * ortak.length)];
+        const kullanilan = await DuelloKayit.find(kullanilanFiltre, 'soruId tarih').lean();
+        const sonKullanim = {}; // soruId -> bu ikili arasindaki son kullanim zamani (ms)
+        kullanilan.forEach(d => {
+            if (!d.soruId) return;
+            const id = String(d.soruId), t = d.tarih ? new Date(d.tarih).getTime() : 0;
+            if (sonKullanim[id] == null || t > sonKullanim[id]) sonKullanim[id] = t;
+        });
+        const ortak = ortakTum.filter(id => sonKullanim[id] == null);
+        let secId;
+        if (ortak.length) {
+            secId = ortak[Math.floor(Math.random() * ortak.length)];
+        } else {
+            // Bu ikili arasinda hepsi kullanilmis: en uzun suredir kullanilmayan soru(lar); esitlerde rastgele.
+            const enEski = Math.min(...ortakTum.map(id => sonKullanim[id]));
+            const adaylar = ortakTum.filter(id => sonKullanim[id] === enEski);
+            secId = adaylar[Math.floor(Math.random() * adaylar.length)];
+        }
         const benSure = benMap[secId], rakipSure = rakipMap[secId];
         const kazandi = benSure < rakipSure; // esitlikte savunan korur
         ben.sonSaldiriTarih = new Date(); // saldiri hakki sonuc ne olursa olsun tukenir
