@@ -27,6 +27,8 @@
   .crop-tutamac.bl{ left:-8px; bottom:-8px; cursor:nesw-resize; }
   .crop-tutamac.br{ right:-8px; bottom:-8px; cursor:nwse-resize; }
 </style>
+<%# v4.17.28: yuksek cozunurluklu (hd_..._d250) soru gorsellerini eski boyutunda, keskin goster %>
+<script src="/js/hd-gorsel.js"></script>
 </head>
 <body>
 
@@ -498,7 +500,7 @@ function _cizimGuncelle(){
   if(!_aktifKutu||!_aktifKutu.el) return;
   var c=_aktifKutu.canvas, k=_kutuOku(_aktifKutu.el);
   var oran=c.width / c.getBoundingClientRect().width;
-  _cizim={ canvas:c, sx:k.x*oran, sy:k.y*oran, sw:k.w*oran, sh:k.h*oran };
+  _cizim={ canvas:c, pageIdx:_aktifKutu.pageIdx, sx:k.x*oran, sy:k.y*oran, sw:k.w*oran, sh:k.h*oran };
   document.getElementById('cropKesBtn').disabled=false;
   document.getElementById('cropDurum').textContent='Kutu hazır — köşelerden boyutlandır, ortadan sürükle, sonra kes.';
 }
@@ -532,16 +534,44 @@ function _cizimGuncelle(){
   });
 })();
 
+// v4.17.28: Ekrandaki sayfa 1,6 olcekle (~115 dpi) cizilir; kesit eskiden bu dusuk cozunurluklu goruntuden aliniyordu
+//   (telefonda ve buyutunce bulanik). Artik secilen bolge, sayfa arka planda 2,5 kat (cok buyuk kesitte 2 kat) daha
+//   yuksek cozunurlukte yeniden cizilerek kesilir. Dosya adindaki _d250/_d200 sayesinde ekranda eski boyutunda gorunur.
+var EKRAN_OLCEK = 1.6;
+function _hdKesit(cz){
+  // Yuksek cozunurluklu kesit: { canvas, yogunluk } ; olmazsa null (eski yonteme donulur)
+  if(!_pdfDoc || cz.pageIdx==null) return Promise.resolve(null);
+  var yog = 2.5;
+  if (cz.sw*yog * cz.sh*yog > 8000000) yog = 2;          // cok buyuk kesit: bellek/dosya siniri
+  return _pdfDoc.getPage(cz.pageIdx+1).then(function(page){
+    var vp=page.getViewport({ scale: EKRAN_OLCEK*yog });
+    var big=document.createElement('canvas'); big.width=Math.ceil(vp.width); big.height=Math.ceil(vp.height);
+    return page.render({ canvasContext:big.getContext('2d'), viewport:vp }).promise.then(function(){
+      var c=document.createElement('canvas'); c.width=Math.round(cz.sw*yog); c.height=Math.round(cz.sh*yog);
+      c.getContext('2d').drawImage(big, cz.sx*yog, cz.sy*yog, cz.sw*yog, cz.sh*yog, 0,0,c.width,c.height);
+      big.width=0; big.height=0; // bellegi birak
+      return { canvas:c, yogunluk:yog };
+    });
+  }).catch(function(){ return null; });
+}
+
 function cropKesVeYukle(){
   if(!_cizim){ return; }
-  var c=document.createElement('canvas'); c.width=Math.round(_cizim.sw); c.height=Math.round(_cizim.sh);
-  c.getContext('2d').drawImage(_cizim.canvas, _cizim.sx,_cizim.sy,_cizim.sw,_cizim.sh, 0,0,c.width,c.height);
+  var cz=_cizim;
   document.getElementById('cropKesBtn').disabled=true;
+  document.getElementById('cropDurum').textContent='Yüksek çözünürlükte hazırlanıyor…';
+  _hdKesit(cz).then(function(hd){
+  var c, yog=null;
+  if(hd){ c=hd.canvas; yog=hd.yogunluk; }
+  else {
+    c=document.createElement('canvas'); c.width=Math.round(cz.sw); c.height=Math.round(cz.sh);
+    c.getContext('2d').drawImage(cz.canvas, cz.sx,cz.sy,cz.sw,cz.sh, 0,0,c.width,c.height);
+  }
   document.getElementById('cropDurum').textContent='Cloudinary\'ye yükleniyor…';
 
   c.toBlob(function(blob){
     if(!blob){ document.getElementById('cropDurum').textContent='Görsel oluşturulamadı.'; document.getElementById('cropKesBtn').disabled=false; return; }
-    var fd=new FormData(); fd.append('gorsel', blob, 'kirpilan.png');
+    var fd=new FormData(); if(yog) fd.append('yogunluk', String(yog)); fd.append('gorsel', blob, 'kirpilan.png');
     fetch('/gorselli-gorsel-yukle',{ method:'POST', credentials:'same-origin', body:fd })
       .then(function(r){ return r.json(); })
       .then(function(v){
@@ -552,6 +582,7 @@ function cropKesVeYukle(){
       })
       .catch(function(e){ document.getElementById('cropDurum').textContent='Sunucu hatası: '+e.message; document.getElementById('cropKesBtn').disabled=false; });
   }, 'image/png');
+  });
 }
 
 function cropKapat(){ document.getElementById('cropModal').style.display='none'; _aktifSlot=null; _cizim=null; _aktifKutu=null; _jest=null; }

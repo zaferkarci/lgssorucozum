@@ -17,16 +17,16 @@ function yapilandir() {
 }
 
 // dataUri: "data:image/png;base64,..." ya da düz base64. Döner: https secure_url
-async function gorselYukle(dataUri, klasor = 'lgs-sorular') {
+// v4.17.28: secenek.publicId verilirse dosya bu adla kaydedilir (ör. yuksek cozunurluklu kesitler: hd_..._d250)
+async function gorselYukle(dataUri, klasor = 'lgs-sorular', secenek = {}) {
     yapilandir();
     if (!dataUri) throw new Error('Görsel verisi boş.');
     const giris = String(dataUri).startsWith('data:')
         ? dataUri
         : ('data:image/png;base64,' + dataUri);
-    const sonuc = await cloudinary.uploader.upload(giris, {
-        folder: klasor,
-        resource_type: 'image'
-    });
+    const ayar = { folder: klasor, resource_type: 'image' };
+    if (secenek && secenek.publicId) ayar.public_id = secenek.publicId;
+    const sonuc = await cloudinary.uploader.upload(giris, ayar);
     return sonuc.secure_url;
 }
 

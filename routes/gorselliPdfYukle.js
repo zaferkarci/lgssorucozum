@@ -45,7 +45,14 @@ router.post('/gorselli-gorsel-yukle', gorselUpload.single('gorsel'), async (req,
     try {
         if (!req.file || !req.file.buffer) return res.status(400).json({ hata: 'Görsel verisi gelmedi.' });
         const dataUri = 'data:' + (req.file.mimetype || 'image/png') + ';base64,' + req.file.buffer.toString('base64');
-        const url = await gorselYukle(dataUri);
+        // v4.17.28: Kesit yuksek cozunurlukte (ekran olceginin 2 veya 2,5 kati) cizildiyse dosya adi bunu tasir:
+        //   hd_<rastgele>_d250 -> public/js/hd-gorsel.js gorseli ekranda eski boyutunda (piksel / 2,5) gosterir, keskin kalir.
+        const yog = parseFloat(req.body && req.body.yogunluk);
+        const secenek = {};
+        if (yog === 2 || yog === 2.5) {
+            secenek.publicId = 'hd_' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex') + '_d' + Math.round(yog * 100);
+        }
+        const url = await gorselYukle(dataUri, 'lgs-sorular', secenek);
         res.json({ ok: true, url });
     } catch (err) {
         console.error('[Görselli PDF — Cloudinary yükleme]', err.message);
