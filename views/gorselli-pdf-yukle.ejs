@@ -26,6 +26,15 @@
   .crop-tutamac.tr{ right:-8px; top:-8px; cursor:nesw-resize; }
   .crop-tutamac.bl{ left:-8px; bottom:-8px; cursor:nesw-resize; }
   .crop-tutamac.br{ right:-8px; bottom:-8px; cursor:nwse-resize; }
+  /* v4.17.28-1: ust form — Sinif/Ders bir satirda, Unite ve Konu ayri satirlarda acilir liste */
+  .gp-form { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
+  .gp-satir { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .gp-satir label { font-size:15px; color:#222; min-width:52px; }
+  .gp-satir label.gp-ic { min-width:0; margin-left:6px; }
+  .gp-satir select, .gp-satir input { padding:7px 10px; border:1px solid #cfd6de; border-radius:6px; font-size:14px; background:#fff; }
+  #f_unite { min-width:260px; max-width:100%; }
+  #f_konu { min-width:360px; max-width:100%; }
+  .gp-not { font-size:12px; color:#888; }
 </style>
 <%# v4.17.28: yuksek cozunurluklu (hd_..._d250) soru gorsellerini eski boyutunda, keskin goster %>
 <script src="/js/hd-gorsel.js"></script>
@@ -43,23 +52,24 @@
     PDF'i yükle → yapay zeka soruları çıkarır → görseli olan her alanı PDF sayfasından kırpıp Cloudinary'ye yüklersin.
     Kaydetme ve metin çıkarımı, normal "PDF Yükle" ile aynı motoru kullanır.
   </p>
-  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
-    <div>
-      <label class="form-label">Sınıf</label><br>
-      <select id="f_sinif" class="input-sm"></select>
+  <%# v4.17.28-1: Unite ve Konu artik serbest metin degil; secilen sinif+derse ait unitelerden acilir liste.
+      Secilirse PDF'ten cikan TUM sorulara bu unite/konu atanir (soru kartlarinda yine tek tek degistirilebilir). %>
+  <div class="gp-form">
+    <div class="gp-satir">
+      <label for="f_sinif">Sınıf:</label>
+      <select id="f_sinif"></select>
+      <label for="f_ders" class="gp-ic">Ders:</label>
+      <select id="f_ders"></select>
     </div>
-    <div>
-      <label class="form-label">Ders</label><br>
-      <select id="f_ders" class="input-sm"></select>
+    <div class="gp-satir">
+      <label for="f_unite">Ünite:</label>
+      <select id="f_unite"><option value="">Yükleniyor…</option></select>
     </div>
-    <div>
-      <label class="form-label">Ünite (opsiyonel)</label><br>
-      <input id="f_unite" class="input-sm" placeholder="ör: Çember">
+    <div class="gp-satir">
+      <label for="f_konu">Konu:</label>
+      <select id="f_konu"><option value="">— Önce ünite seç —</option></select>
     </div>
-    <div>
-      <label class="form-label">Konu (opsiyonel)</label><br>
-      <input id="f_konu" class="input-sm" placeholder="ör: Çember ve Daire">
-    </div>
+    <div class="gp-not" id="f_not">Ünite ve konu seçersen PDF'teki bütün sorulara atanır. Boş bırakırsan yapay zeka her soru için önerir.</div>
   </div>
 
   <div id="dropZone" style="border:2px dashed #1a73e8; border-radius:10px; padding:36px; text-align:center; cursor:pointer; background:#f8f9ff;">
@@ -159,6 +169,10 @@ function normTr(s){
   SINIFLAR.forEach(function(n){ var o=document.createElement('option'); o.value=n; o.textContent=n+'. Sınıf'; if(n===8)o.selected=true; s.appendChild(o); });
   var d=document.getElementById('f_ders');
   DERSLER.forEach(function(x){ var o=document.createElement('option'); o.value=x; o.textContent=x; d.appendChild(o); });
+  // v4.17.28-1: Sinif/Ders degisince unite ve konu listesi yenilenir
+  s.addEventListener('change',function(){ ustUniteDoldur(); });
+  d.addEventListener('change',function(){ ustUniteDoldur(); });
+  document.getElementById('f_unite').addEventListener('change',function(){ ustKonuDoldur(); });
 
   var dz=document.getElementById('dropZone'), inp=document.getElementById('pdfInput');
   dz.addEventListener('click',function(){ inp.click(); });
@@ -192,8 +206,9 @@ function analizBaslat(){
   fd.append('pdfDosyasi',_pdfFile);
   fd.append('sinif',document.getElementById('f_sinif').value);
   fd.append('ders',document.getElementById('f_ders').value);
-  fd.append('unite',document.getElementById('f_unite').value||'');
-  fd.append('konu',document.getElementById('f_konu').value||'');
+  var _ustUnite=ustSecilenUnite(), _ustKonu=ustSecilenKonu();
+  fd.append('unite',_ustUnite);
+  fd.append('konu',_ustKonu);
 
   fetch('/pdf-analiz',{ method:'POST', credentials:'same-origin', body:fd })
     .then(function(r){ return r.json(); })
@@ -202,6 +217,13 @@ function analizBaslat(){
       document.getElementById('yukleniyor').style.display='none';
       if(!v.ok||v.hata){ document.getElementById('adim1').style.display='block'; gosterHata('Analiz hatası: '+(v.hata||'bilinmeyen')); return; }
       sorular=v.sorular||[];
+      // v4.17.28-1: Ustte secilen unite/konu tum sorulara atanir; yapay zekanin tahmini bunlari degistirmez.
+      if(_ustUnite || _ustKonu){
+        sorular.forEach(function(q){
+          if(_ustUnite){ q.unite=_ustUnite; q._sabitUnite=true; }
+          if(_ustKonu){ q.konu=_ustKonu; q._sabitKonu=true; }
+        });
+      }
       gorselAlanlariniNormalizeEt();
       // pdf.js belgesini de hazırla (kırpma için)
       _pdfFile.arrayBuffer().then(function(buf){
@@ -390,7 +412,10 @@ function konuSecimCiz(i){
       return;
     }
     // Gemini'nin serbest konu tahminini eşleştir (otomatik seç)
-    var oneri=eslesenUniteKonu(dersUniteler, s.konu);
+    var oneri=null;
+    if(s._sabitKonu){ oneri=null; }
+    else if(s._sabitUnite){ oneri=eslesenUniteKonu(dersUniteler.filter(function(u){ return _uniteKey(u)===s.unite; }), s.konu); }
+    else { oneri=eslesenUniteKonu(dersUniteler, s.konu); }
     if(oneri){ s.unite=oneri.unite; if(oneri.konu) s.konu=oneri.konu; }
     var uHtml='<select onchange="uniteSecildi('+i+',this.value)" class="input-sm" title="Ünite" style="min-width:150px;">'+
         '<option value="">— Ünite —</option>'+
@@ -435,6 +460,40 @@ function konuSelectDegisti(i,v){
 // Soru kartındaki Sınıf/Ders değişince ünite/konu önerisini yeniden kur.
 function metaSinifDegisti(i,v){ sorular[i].sinif=v; sorular[i].unite=''; konuSecimCiz(i); }
 function metaDersDegisti(i,v){ sorular[i].ders=v; sorular[i].unite=''; konuSecimCiz(i); }
+
+// ─── v4.17.28-1: Üst form — Ünite / Konu açılır listeleri ─────────────────────
+var _ustUniteler = []; // secili sinif+derse ait uniteler
+function ustUniteDoldur(){
+  var sinif=document.getElementById('f_sinif').value, ders=document.getElementById('f_ders').value;
+  var uSel=document.getElementById('f_unite');
+  uSel.innerHTML='<option value="">Yükleniyor…</option>';
+  uniteVeriGetir(sinif).then(function(tum){
+    if(document.getElementById('f_sinif').value!==sinif || document.getElementById('f_ders').value!==ders) return; // bu arada degisti
+    _ustUniteler=(tum||[]).filter(function(u){ return u.ders===ders; });
+    if(!_ustUniteler.length){
+      uSel.innerHTML='<option value="">Bu sınıf ve ders için ünite kartı yok (Admin › Üniteler)</option>';
+      uSel.disabled=true;
+    } else {
+      uSel.disabled=false;
+      uSel.innerHTML='<option value="">— Seçilmedi (yapay zeka önersin) —</option>'+
+        _ustUniteler.map(function(u){ var k=_uniteKey(u); return '<option value="'+escHtml(k)+'">'+escHtml((u.uniteNo?u.uniteNo+'. ':'')+(u.uniteAdi||''))+'</option>'; }).join('');
+    }
+    ustKonuDoldur();
+  });
+}
+// Unite ve konular HER ZAMAN Uniteler kartlarindan (Unite koleksiyonu, /api/unite-bilgi) gelir; serbest metin yok.
+function ustKonuDoldur(){
+  var kSel=document.getElementById('f_konu');
+  var uKey=document.getElementById('f_unite').value;
+  if(!uKey){ kSel.innerHTML='<option value="">— Önce ünite seç —</option>'; kSel.disabled=true; return; }
+  var u=_ustUniteler.find(function(x){ return _uniteKey(x)===uKey; });
+  var konular=(u&&u.konular)?u.konular:[];
+  kSel.disabled=false;
+  kSel.innerHTML='<option value="">— Konu seçilmedi —</option>'+konular.map(function(k){ return '<option value="'+escHtml(k)+'">'+escHtml(k)+'</option>'; }).join('');
+}
+function ustSecilenUnite(){ var e=document.getElementById('f_unite'); return (e && !e.disabled) ? (e.value||'') : ''; }
+function ustSecilenKonu(){ var e=document.getElementById('f_konu'); return (e && !e.disabled) ? (e.value||'') : ''; }
+ustUniteDoldur();
 
 // ─── Kırpma modalı (pdf.js) ────────────────────────────────────────────────
 function kirpAc(i,alan){
