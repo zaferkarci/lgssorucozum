@@ -9,7 +9,7 @@ const SoruSchema = new mongoose.Schema({
     soruOnculu3: String, soruOnculu3Resmi: String,
     soruResmi: String, soruMetni: String,
     secenekler: [{ metin: String, gorsel: String }],
-    sikDizilimi: { type: String, default: 'dikey' },
+    sikDizilimi: { type: String, default: 'yatay' }, // v4.17.28-2: varsayilan Yatay (Yan Yana) — eskiden 'dikey'
     durum: { type: String, default: 'taslak' },
     yayinTarih: { type: Date, default: null },
     tabloBaslik: [String],

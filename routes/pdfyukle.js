@@ -377,7 +377,10 @@ router.post('/pdf-sorulari-kaydet', express.json({ limit: '10mb' }), async (req,
                                  metin:  se.metin  || '',
                                  gorsel: se.gorsel || ''
                              })),
-            dogruCevapIndex: parseInt(s.dogruCevapIndex) >= 0 ? parseInt(s.dogruCevapIndex) : 0
+            dogruCevapIndex: parseInt(s.dogruCevapIndex) >= 0 ? parseInt(s.dogruCevapIndex) : 0,
+            // v4.17.28-2: PDF'ten gelen sorular da varsayilan olarak Yatay (Yan Yana); eskiden alan yazilmadigi icin
+            //   veritabani varsayilani 'dikey' kaydediliyor, duzenleme ekraninda "Dikey" secili aciliyordu.
+            sikDizilimi:     ['dikey', 'yatay', 'ikili'].includes(s.sikDizilimi) ? s.sikDizilimi : 'yatay'
         }));
         // v4.8.14: soruNo — en kucuk bos numaralari doldur (silinen numaralar tekrar kullanilir)
         const bosNolar = await bosSoruNo(kayitlar.length);
