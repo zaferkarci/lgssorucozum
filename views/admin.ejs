@@ -1524,13 +1524,25 @@ function escHtml(str) {
         <option value="">Tüm Okullar</option>
         <% okullar.forEach(function(okul) { %><option value="<%= okul %>" <%= filOkul===okul?'selected':'' %>><%= okul %></option><% }); %>
       </select>
-      <!-- v4.3.60: Sınıf seviyesi filtresi -->
+      <!-- v4.3.60: Sınıf seviyesi filtresi | v4.17.29-1: sınıf/şube seçenekleri (kayıtlı öğrencilerden) -->
       <select name="kullaniciSinif" onchange="this.form.submit()" class="input-sm">
         <option value="">Tüm Sınıflar</option>
-        <% [1,2,3,4,5,6,7,8,9,10,11,12].forEach(function(sOpt){ %>
-        <option value="<%= sOpt %>" <%= filKullaniciSinif===String(sOpt)?'selected':'' %>><%= sOpt %>. Sınıf</option>
+        <% var _ssl = (typeof sinifSubeSecenekleri !== 'undefined' && sinifSubeSecenekleri) ? sinifSubeSecenekleri : [];
+           var _ssVar = {}; _ssl.forEach(function(x){ _ssVar[x.sinif] = x.subeler; }); %>
+        <% [1,2,3,4,5,6,7,8,9,10,11,12,13].forEach(function(sOpt){
+             var sAd = sOpt === 13 ? 'Mezun' : sOpt + '. Sınıf';
+             var subeler = _ssVar[String(sOpt)] || []; %>
+          <% if (subeler.length) { %>
+          <optgroup label="<%= sAd %>">
+            <option value="<%= sOpt %>" <%= filKullaniciSinif===String(sOpt)?'selected':'' %>><%= sAd %> (tümü)</option>
+            <% subeler.forEach(function(sb){ var v = sOpt + '-' + sb; %>
+            <option value="<%= v %>" <%= filKullaniciSinif===v?'selected':'' %>><%= sOpt === 13 ? 'Mezun ' + sb : sOpt + sb %></option>
+            <% }); %>
+          </optgroup>
+          <% } else { %>
+          <option value="<%= sOpt %>" <%= filKullaniciSinif===String(sOpt)?'selected':'' %>><%= sAd %></option>
+          <% } %>
         <% }); %>
-        <option value="13" <%= filKullaniciSinif==='13'?'selected':'' %>>Mezun</option>
       </select>
     </form>
     <%
@@ -1600,7 +1612,7 @@ function escHtml(str) {
               <% if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">👪 VELİ</span><% } %>
               <% if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; margin-left:4px;">🧪 DEMO</span><% } %>
             </td>
-            <td style="text-align:center;"><% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">ÖĞR</span><% } else if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1; color:#00695c; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">YÖN</span><% } else if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">VELİ</span><% } else if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">DEMO</span><% } else { %><%= Number(k.sinif)===13 ? 'Mezun' : k.sinif %><% } %></td>
+            <td style="text-align:center;"><% if (k.rol === 'ogretmen') { %><span style="background:#f3e5f5; color:#6a1b9a; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">ÖĞR</span><% } else if (k.rol === 'kurumsal') { %><span style="background:#e0f2f1; color:#00695c; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">YÖN</span><% } else if (k.rol === 'veli') { %><span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">VELİ</span><% } else if (k.rol === 'demo') { %><span style="background:#ede7f6; color:#5e35b1; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;">DEMO</span><% } else { %><%= Number(k.sinif)===13 ? 'Mezun' : k.sinif %><%= (k.sube ? String(k.sube).trim().toLocaleUpperCase('tr-TR') : '') %><% } %></td>
             <td><%= k.il||'-' %></td>
             <td><%= k.ilce||'-' %></td>
             <td><%= k.okul||'-' %></td>

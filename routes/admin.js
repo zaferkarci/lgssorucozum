@@ -117,10 +117,28 @@ router.get('/admin', async (req, res) => {
     const filKullaniciSinif = req.query.kullaniciSinif || '';
     const tumKullanicilar = await Kullanici.find({}, 'kullaniciAdi puan soruIndex sinif sube il ilce okul rol rolListesi siralamaCache sonGiris');
     const tumOkullar = await Okul.find().sort({ il: 1, ilce: 1, ad: 1 });
+    // v4.17.29-1: Sinif filtresi sube de alabilir: "7" = tum 7. siniflar, "7-A" = yalniz 7A.
+    const _subeYaz = s => String(s == null ? '' : s).trim().toLocaleUpperCase('tr-TR');
+    const _sfM = /^(\d{1,2})-(.+)$/.exec(String(filKullaniciSinif));
+    const filSinifSeviye = _sfM ? _sfM[1] : filKullaniciSinif;
+    const filSinifSube = _sfM ? _subeYaz(_sfM[2]) : '';
+    const _konumUygun = k => (!filIl || k.il === filIl) && (!filIlce || k.ilce === filIlce) && (!filOkul || k.okul === filOkul);
     const filtreliKullanicilar = tumKullanicilar.filter(k =>
-        (!filIl || k.il === filIl) && (!filIlce || k.ilce === filIlce) && (!filOkul || k.okul === filOkul)
-        && (!filKullaniciSinif || (k.rol === 'ogrenci' && String(k.sinif) === String(filKullaniciSinif)))
+        _konumUygun(k)
+        && (!filSinifSeviye || (k.rol === 'ogrenci' && String(k.sinif) === String(filSinifSeviye)
+            && (!filSinifSube || _subeYaz(k.sube) === filSinifSube)))
     );
+    // v4.17.29-1: Filtre listesi icin mevcut sinif/subeler (secili il/ilce/okul icindeki ogrencilerden):
+    //   [{ sinif:'7', subeler:['A','B'] }, ...]
+    const _ssMap = {};
+    tumKullanicilar.forEach(k => {
+        if (k.rol !== 'ogrenci' || !_konumUygun(k)) return;
+        const sn = String(Number(k.sinif) || ''); if (!sn) return;
+        if (!_ssMap[sn]) _ssMap[sn] = new Set();
+        const sb = _subeYaz(k.sube); if (sb) _ssMap[sn].add(sb);
+    });
+    const sinifSubeSecenekleri = Object.keys(_ssMap).sort((a, b) => a - b)
+        .map(sn => ({ sinif: sn, subeler: [..._ssMap[sn]].sort((a, b) => a.localeCompare(b, 'tr')) }));
     const iller = [...new Set(tumKullanicilar.map(k => k.il).filter(Boolean))].sort();
     const ilceler = filIl ? [...new Set(tumKullanicilar.filter(k => k.il === filIl).map(k => k.ilce).filter(Boolean))].sort() : [];
     const okullar = filIlce ? [...new Set(tumKullanicilar.filter(k => k.ilce === filIlce).map(k => k.okul).filter(Boolean))].sort() : [];
@@ -248,7 +266,7 @@ router.get('/admin', async (req, res) => {
         iller, ilceler, okullar,
         filIl, filIlce, filOkul,
         filSinif, filDers, filUnite, filKonu, filCikti, filSurec,
-        filKullaniciSinif,
+        filKullaniciSinif, sinifSubeSecenekleri,
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
