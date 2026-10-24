@@ -129,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <%# v4.17.28: yuksek cozunurluklu (hd_..._d250) soru gorsellerini eski boyutunda, keskin goster %>
 <script src="/js/hd-gorsel.js"></script>
+<script src="/js/gorsel-buyut.js"></script>
 </head>
 <body class="panel-body">
 
@@ -2140,7 +2141,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       function gorselHtml(url) {
         if (!url || url === '[GÖRSEL VAR]') return '';
-        return '<div style="text-align:center; margin-bottom:8px;"><img src="' + url + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:70vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div>';
+        return '<div style="text-align:center; margin-bottom:8px;"><span class="gb-sar"><img src="' + url + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:100%; max-height:70vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div>';
       }
 
       function htmlDuzelt(metin) {
@@ -2201,7 +2202,7 @@ document.addEventListener('DOMContentLoaded', function() {
           html += '<span style="width:28px; height:28px; border-radius:8px; background:' + (dogru ? '#43a047' : yanlisSecim ? '#e53935' : '#f0f2f5') + '; color:' + (dogru || yanlisSecim ? 'white' : '#666') + '; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">' + harfler[i] + '</span>';
           var sikMetin = (sik.metin||'').trim();
           if (sikMetin) html += '<span style="font-size:13px; color:' + (dogru ? '#2e7d32' : yanlisSecim ? '#c62828' : '#444') + '; flex:1;">' + sikMetin + '</span>';
-          if (sik.gorsel) html += '<img src="' + sik.gorsel + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:200px; max-height:160px; object-fit:contain; cursor:zoom-in; ' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '">';
+          if (sik.gorsel) html += '<span class="gb-sar" style="' + (sikMetin ? 'margin-left:8px;' : 'flex:1;') + '"><img src="' + sik.gorsel + '" onclick="event.stopPropagation();gorselBuyut(this.src)" style="max-width:200px; max-height:160px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span>';
           if (dogru) html += '<span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:700; white-space:nowrap; flex-shrink:0;">✓ Doğru</span>';
           if (yanlisSecim) html += '<span style="margin-left:auto; font-size:11px; color:#e53935; font-weight:700; white-space:nowrap; flex-shrink:0;">✗ İşaretlenen</span>';
           html += '</div>';
@@ -3375,13 +3376,13 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div class="soru-govde-yeni">
         <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
-        <% if (soru.soruOnculu1Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu1Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruOnculu1Resmi) { %><div style="text-align:center; margin-bottom:8px;"><span class="gb-sar"><img src="<%= soru.soruOnculu1Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <% if (soru.soruOnculu2) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu2 %></div><% } %>
-        <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu2Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><span class="gb-sar"><img src="<%= soru.soruOnculu2Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <% if (soru.soruOnculu3) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu3 %></div><% } %>
-        <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu3Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:8px;"><span class="gb-sar"><img src="<%= soru.soruOnculu3Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <h2 class="soru-metni-yeni"><%- soru.soruMetni %></h2>
-        <% if (soru.soruResmi) { %><div style="text-align:center; margin-bottom:14px;"><img src="<%= soru.soruResmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:80vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruResmi) { %><div style="text-align:center; margin-bottom:14px;"><span class="gb-sar"><img src="<%= soru.soruResmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:80vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <div class="secenekler" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; clear:both;">
           <% for (let i = 0; i < 4; i++) {
               if (!soru.secenekler[i]) continue;
@@ -3394,7 +3395,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <% if (sadeceGorsel) { %>
               <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default; flex-direction:column; align-items:flex-start;">
                 <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
-                <img src="<%= sik.gorsel %>" style="max-width:100%; max-height:50vh; margin-top:8px; align-self:center;"><span onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" style="display:inline-block; margin-top:4px; font-size:11px; color:#1a73e8; cursor:zoom-in;" title="Görseli büyüt">🔍 büyüt</span>
+                <span class="gb-sar gb-sik" style="margin-top:8px; align-self:center;"><img src="<%= sik.gorsel %>" style="max-width:100%; max-height:50vh;"><span class="gb-rozet gb-dugme" role="button" onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span>
                 <% if (dogruMu) { %><span style="margin-top:6px; font-size:11px; color:#43a047; font-weight:600;">✓ Doğru</span><% } %>
               </div>
             <% } else { %>
@@ -3402,7 +3403,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
                 <% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
                 <% if (dogruMu) { %><span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
-                <% if (sik.gorsel) { %><br><img src="<%= sik.gorsel %>" style="max-width:100%; max-height:300px; margin-top:5px;"><span onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" style="display:inline-block; margin-top:4px; font-size:11px; color:#1a73e8; cursor:zoom-in;" title="Görseli büyüt">🔍 büyüt</span><% } %>
+                <% if (sik.gorsel) { %><br><span class="gb-tam"><span class="gb-sar gb-sik"><img src="<%= sik.gorsel %>" style="max-width:100%; max-height:300px; margin-top:5px;"><span class="gb-rozet gb-dugme" role="button" onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></span><% } %>
               </div>
             <% } %>
           <% } %>
@@ -3529,12 +3530,14 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div class="soru-govde-yeni">
         <% if (soru.soruOnculu1) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu1 %></div><% } %>
-        <% if (soru.soruOnculu1Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu1Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruOnculu1Resmi) { %><div style="text-align:center; margin-bottom:8px;"><span class="gb-sar"><img src="<%= soru.soruOnculu1Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <% if (soru.soruOnculu2) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu2 %></div><% } %>
-        <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><img src="<%= soru.soruOnculu2Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruOnculu2Resmi) { %><div style="text-align:center; margin-bottom:8px;"><span class="gb-sar"><img src="<%= soru.soruOnculu2Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <% if (soru.soruOnculu3) { %><div class="soru-oncul-yeni"><%- soru.soruOnculu3 %></div><% } %>
-        <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:10px;"><img src="<%= soru.soruOnculu3Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"></div><% } %>
+        <% if (soru.soruOnculu3Resmi) { %><div style="text-align:center; margin-bottom:10px;"><span class="gb-sar"><img src="<%= soru.soruOnculu3Resmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:65vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <h2 class="soru-metni-yeni"><%- soru.soruMetni %></h2>
+        <%# v4.17.30: sorunun ana gorseli (Gorselli PDF Yukle'nin "Soru Resmi" alani) cozum ekraninda da gosterilir %>
+        <% if (soru.soruResmi && soru.soruResmi !== '[GÖRSEL VAR]' && /^(https?:\/\/|\/)/.test(soru.soruResmi)) { %><div style="text-align:center; margin-bottom:14px;"><span class="gb-sar"><img src="<%= soru.soruResmi %>" onclick="gorselBuyut(this.src)" style="max-width:100%; max-height:80vh; border-radius:8px; object-fit:contain; cursor:zoom-in;"><span class="gb-rozet" onclick="gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></div><% } %>
         <% if (soru.tabloBaslik && soru.tabloBaslik.length > 0) { %>
           <div style="margin-bottom:4px;">
             <table style="border-collapse:collapse; font-size:13px; table-layout:fixed;">
@@ -3564,7 +3567,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <% if (sadeceGorsel) { %>
                 <div class="secenek-btn-yeni" style="<%= dogruMu ? 'border-color:#43a047; background:#f1f8e9;' : '' %> cursor:default; flex-direction:column; align-items:flex-start;">
                   <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
-                  <img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:50vh; margin-top:8px; align-self:center;"><span onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" style="display:inline-block; margin-top:4px; font-size:11px; color:#1a73e8; cursor:zoom-in;" title="Görseli büyüt">🔍 büyüt</span>
+                  <span class="gb-sar gb-sik" style="margin-top:8px; align-self:center;"><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:50vh;"><span class="gb-rozet gb-dugme" role="button" onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span>
                   <% if (dogruMu) { %><span style="margin-top:6px; font-size:11px; color:#43a047; font-weight:600;">✓ Doğru</span><% } %>
                 </div>
               <% } else { %>
@@ -3572,7 +3575,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <span class="sik-harf-yeni" style="<%= dogruMu ? 'background:#43a047; color:white;' : '' %>"><%= harfler[i] %></span>
                   <% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
                   <% if (dogruMu) { %><span style="margin-left:auto; font-size:11px; color:#43a047; font-weight:600; white-space:nowrap;">✓ Doğru</span><% } %>
-                  <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:300px; margin-top:5px;"><span onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" style="display:inline-block; margin-top:4px; font-size:11px; color:#1a73e8; cursor:zoom-in;" title="Görseli büyüt">🔍 büyüt</span><% } %>
+                  <% if (soru.secenekler[i].gorsel) { %><br><span class="gb-tam"><span class="gb-sar gb-sik"><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:300px; margin-top:5px;"><span class="gb-rozet gb-dugme" role="button" onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></span><% } %>
                 </div>
               <% } %>
             <% } else { %>
@@ -3586,12 +3589,12 @@ document.addEventListener('DOMContentLoaded', function() {
               <% if (sadeceGorselB) { %>
                 <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni" style="flex-direction:column; align-items:flex-start;">
                   <span class="sik-harf-yeni"><%= harfler[i] %></span>
-                  <img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:50vh; margin-top:8px; align-self:center;"><span onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" style="display:inline-block; margin-top:4px; font-size:11px; color:#1a73e8; cursor:zoom-in;" title="Görseli büyüt">🔍 büyüt</span>
+                  <span class="gb-sar gb-sik" style="margin-top:8px; align-self:center;"><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:50vh;"><span class="gb-rozet gb-dugme" role="button" onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span>
                 </button>
               <% } else { %>
                 <button type="submit" onclick="document.getElementById('gs<%= i %>').value=saniye;" class="secenek-btn-yeni">
                   <span class="sik-harf-yeni"><%= harfler[i] %></span><% if (sikIcerigi.trim()) { %><%- sikIcerigi %><% } %>
-                  <% if (soru.secenekler[i].gorsel) { %><br><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:300px; margin-top:5px;"><span onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" style="display:inline-block; margin-top:4px; font-size:11px; color:#1a73e8; cursor:zoom-in;" title="Görseli büyüt">🔍 büyüt</span><% } %>
+                  <% if (soru.secenekler[i].gorsel) { %><br><span class="gb-tam"><span class="gb-sar gb-sik"><img src="<%= soru.secenekler[i].gorsel %>" style="max-width:100%; max-height:300px; margin-top:5px;"><span class="gb-rozet gb-dugme" role="button" onclick="event.preventDefault();event.stopPropagation();gorselBuyut(this.previousElementSibling.src)" title="Görseli büyüt">🔍 Büyüt</span></span></span><% } %>
                 </button>
               <% } %>
             </form>
