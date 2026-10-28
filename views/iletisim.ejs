@@ -22,6 +22,13 @@ body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Taho
 .btn-gonder:active { transform: scale(0.99); }
 .geri-link { display: inline-block; margin-bottom: 14px; color: #1a73e8; text-decoration: none; font-size: 13px; }
 .geri-link:hover { text-decoration: underline; }
+.secim-dugmeler { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.btn-giris { display: block; text-align: center; background: #1a73e8; color: white; padding: 12px 20px; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none; }
+.btn-giris:hover { background: #1666cc; }
+.btn-devam { display: block; text-align: center; background: #f1f3f4; color: #333; padding: 11px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid #e0e0e0; }
+.btn-devam:hover { background: #e8eaed; }
+.secim-not { font-size: 12px; color: #888; line-height: 1.5; margin-top: 14px; }
+.girisli-bilgi { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #2e7d32; margin-bottom: 16px; line-height: 1.5; }
 .bilgi-mesaj { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #795548; margin-bottom: 16px; line-height: 1.5; }
 
 /* v4.3.39: İletişim sayfası mobil uyumu */
@@ -39,6 +46,18 @@ body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Taho
   <a href="/" class="geri-link">← Ana Sayfaya Dön</a>
 
   <div class="iletisim-kart">
+    <%# v4.17.32: Girissiz ziyaretciye once giris yapmasi onerilir; uye olmayan "Giris yapmadan devam et" ile formu acar %>
+    <% var _girisli = (typeof girisli !== 'undefined') && girisli;
+       var _devam = (typeof devam !== 'undefined') && devam; %>
+    <% if (!_girisli && !_devam) { %>
+      <h1 class="iletisim-baslik"><%= (typeof hata !== 'undefined' && hata) ? '⚠️ Hatalı Soru Bildirimi' : '📬 Bize Ulaşın' %></h1>
+      <p class="iletisim-alt">Üyeyseniz önce <b>giriş yapmanızı</b> öneririz: mesajınızı panelinizdeki <b>✉️ Mesajlar</b> bölümünden yazarsınız, cevabımız da aynı yere gelir. E-posta beklemenize gerek kalmaz.</p>
+      <div class="secim-dugmeler">
+        <a href="/" class="btn-giris">🔑 Giriş Yap</a>
+        <a href="<%= (typeof devamUrl !== 'undefined' && devamUrl) ? devamUrl : '/iletisim?devam=1' %>" class="btn-devam">Giriş yapmadan devam et</a>
+      </div>
+      <p class="secim-not">Üye değilseniz “Giriş yapmadan devam et” ile mesaj gönderebilirsiniz; size e-posta ile dönüş yapılır.</p>
+    <% } else { %>
     <% if (typeof hata !== 'undefined' && hata) { %>
       <h1 class="iletisim-baslik">⚠️ Hatalı Soru Bildirimi</h1>
       <p class="iletisim-alt">Aşağıdaki form ile yöneticilere hatalı soru bildirebilirsin. Mesaj alanına neyin yanlış olduğunu detaylı açıklamayı unutma.</p>
@@ -47,6 +66,9 @@ body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Taho
       <p class="iletisim-alt">Görüş, öneri veya sorun bildirmek için aşağıdaki formu doldurun. <span class="zorunlu">*</span> ile işaretli alanlar zorunludur.</p>
     <% } %>
 
+    <% if (_girisli) { %>
+    <div class="girisli-bilgi">✅ <b>@<%= kullaniciAdi %></b> olarak giriş yaptın. Mesajın hesabına bağlı gider; cevabımızı panelindeki <b>✉️ Mesajlar</b> bölümünden okuyabilirsin.</div>
+    <% } %>
     <div class="bilgi-mesaj">
       <% if (typeof hata !== 'undefined' && hata) { %>
         🔍 Soru bilgileri otomatik dolduruldu. Mesaj alanına gözlemini açık şekilde yaz; <b>boş bırakırsan gönderim yapılamaz.</b>
@@ -71,7 +93,7 @@ body { background: #f5f7fa; margin: 0; padding: 0; font-family: 'Segoe UI', Taho
       </div>
 
       <div class="alan">
-        <label>E-posta <span class="zorunlu">*</span></label>
+        <label>E-posta <% if (!_girisli) { %><span class="zorunlu">*</span><% } else { %><span style="color:#888; font-weight:400;">(isteğe bağlı)</span><% } %></label>
         <input type="email" name="email" maxlength="200" placeholder="ornek@email.com" value="<%= typeof email !== 'undefined' ? email : '' %>">
       </div>
 
@@ -113,6 +135,7 @@ Soru No: #<%= soruNo %>
       <button type="submit" class="btn-gonder">Mesajı Gönder</button>
 
     </form>
+    <% } %>
   </div>
 
   <p style="text-align:center; color:#aaa; font-size:11px; margin-top:14px;">LGS Hazırlık Platformu — Şehit Muhammet Can Sevim Ortaokulu</p>

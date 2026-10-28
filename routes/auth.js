@@ -229,7 +229,15 @@ router.get('/iletisim', async (req, res) => {
         } catch (e) { /* yoksay */ }
     }
 
-    res.render('iletisim', { hata, sinif, ders, konu, soruNo, kullaniciAdi, email });
+    // v4.17.32: Girissiz ziyaretciye once "giris yap" onerilir (cevap panelden okunur);
+    //   uye olmayan "Giris yapmadan devam et" ile formu acar (devam=1, diger parametreler korunur).
+    const girisli = !!kullaniciAdi;
+    const devam = req.query.devam === '1';
+    const dp = new URLSearchParams();
+    ['hata', 'sinif', 'ders', 'konu', 'soruNo'].forEach(a => { if (req.query[a]) dp.set(a, String(req.query[a]).slice(0, 100)); });
+    dp.set('devam', '1');
+    const devamUrl = '/iletisim?' + dp.toString();
+    res.render('iletisim', { hata, sinif, ders, konu, soruNo, kullaniciAdi, email, girisli, devam, devamUrl });
 });
 
 router.post('/kayit-yap', async (req, res) => {

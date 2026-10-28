@@ -2592,11 +2592,13 @@ function gosterExcelHata(msg) {
             </div>
           </div>
 
-          <%# v4.17.14: Kaynak rozeti (panel / hatali soru) %>
-          <% if (m.kaynak && m.kaynak !== 'iletisim') { %>
+          <%# v4.17.14: Kaynak rozeti (panel / hatali soru) | v4.17.32: giris yapmis kullanicinin iletisim formu da %>
+          <% if ((m.kaynak && m.kaynak !== 'iletisim') || m.kullaniciAdi) { %>
             <div style="margin-top:6px; font-size:11px;">
               <% if (m.kaynak === 'hatali-soru') { %>
                 <span style="background:#ffebee; color:#c62828; padding:2px 8px; border-radius:9px; font-weight:600;">⚠️ Hatalı soru</span>
+              <% } else if (m.kaynak === 'iletisim' || !m.kaynak) { %>
+                <span style="background:#e8f5e9; color:#2e7d32; padding:2px 8px; border-radius:9px; font-weight:600;">📬 İletişim formu (giriş yapılmış)</span>
               <% } else { %>
                 <span style="background:#e3f2fd; color:#1565c0; padding:2px 8px; border-radius:9px; font-weight:600;">📱 Panel</span>
               <% } %>
@@ -2619,10 +2621,18 @@ function gosterExcelHata(msg) {
 
           <form action="/mesaj-yanitla" method="POST" style="margin-top:10px; display:flex; gap:8px; align-items:flex-end;">
             <input type="hidden" name="id" value="<%= m._id %>">
-            <textarea name="metin" rows="2" placeholder="Cevabını yaz (yalnızca sende görünür)…" required
+            <textarea name="metin" rows="2" placeholder="<%= m.kullaniciAdi ? ('Cevabını yaz — @' + m.kullaniciAdi + ' panelindeki Mesajlar bölümünde görür…') : 'Giriş yapılmadan gönderildi: cevabın kullanıcıya ulaşmaz, yalnızca sende not olarak kalır…' %>" required
                       style="flex:1; padding:8px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
-            <button type="submit" style="background:#1a73e8; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;">Cevap Yaz</button>
+            <button type="submit" style="background:#1a73e8; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;"><%= m.kullaniciAdi ? 'Cevap Gönder' : 'Not Yaz' %></button>
           </form>
+          <% if (!m.kullaniciAdi) { %>
+          <%# v4.17.32: Girissiz mesaj — donus yalniz e-posta/telefonla yapilabilir %>
+          <div style="font-size:11px; color:#8a6d3b; background:#fcf8e3; border:1px solid #faebcc; border-radius:6px; padding:6px 10px; margin-top:6px;">
+            📧 Giriş yapılmadan gönderildi; dönüş için
+            <% if (m.email && m.email !== '-') { %><a href="mailto:<%= m.email %>" style="color:#1a73e8;"><%= m.email %></a><% } else { %>e-posta yok<% } %>
+            <% if (m.telefon) { %> · 📞 <%= m.telefon %><% } %>
+          </div>
+          <% } %>
         </div>
       <% }); %>
     <% } %>

@@ -1564,15 +1564,25 @@ router.get('/api/haberler', async (req, res) => {
 // Public POST: ziyaretçi formdan mesaj gönderir
 router.post('/iletisim-gonder', async (req, res) => {
     try {
-        const adSoyad = (req.body.adSoyad || '').trim();
-        const email   = (req.body.email   || '').trim();
+        let adSoyad = (req.body.adSoyad || '').trim();
+        let email   = (req.body.email   || '').trim();
         const telefon = (req.body.telefon || '').trim();
         const konu    = (req.body.konu    || '').trim();
         const mesaj   = (req.body.mesaj   || '').trim();
+        // v4.17.32: Giris yapmis kullanici bu formdan yazarsa mesaj HESABINA baglanir; yonetici cevabi
+        //   kullanicinin panelindeki "Mesajlarim" bolumune gider (girissiz mesajlarda cevap yalniz yoneticide kalir).
+        let oturumK = null;
+        if (req.session && req.session.kullaniciAdi) {
+            try { oturumK = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }, 'kullaniciAdi email').lean(); } catch (e) { oturumK = null; }
+        }
+        if (oturumK) {
+            if (!adSoyad) adSoyad = oturumK.kullaniciAdi;
+            if (!email) email = oturumK.email || '';
+        }
 
         // Zorunlu: adSoyad + email + mesaj
         if (!adSoyad) return res.status(400).send("<script>alert('Ad-Soyad alanı zorunludur.'); window.history.back();</script>");
-        if (!email)   return res.status(400).send("<script>alert('E-posta alanı zorunludur.'); window.history.back();</script>");
+        if (!email && !oturumK) return res.status(400).send("<script>alert('E-posta alanı zorunludur.'); window.history.back();</script>");
         if (!mesaj)   return res.status(400).send("<script>alert('Mesaj alanı zorunludur.'); window.history.back();</script>");
 
         // Hatalı soru bildirimi ise, kullanıcının "------- Açıklamam -------" altına bir şey yazmış olması zorunlu
@@ -1589,7 +1599,7 @@ router.post('/iletisim-gonder', async (req, res) => {
         }
 
         // Basit e-posta formatı
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if ((email || !oturumK) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return res.status(400).send("<script>alert('Geçerli bir e-posta adresi girin.'); window.history.back();</script>");
         }
         // Aşırı uzun girişlere karşı limit
@@ -1597,8 +1607,27 @@ router.post('/iletisim-gonder', async (req, res) => {
             return res.status(400).send("<script>alert('Bir veya birden fazla alan çok uzun.'); window.history.back();</script>");
         }
 
-        await new Mesaj({ adSoyad, email, telefon, konu, mesaj }).save();
-        res.send("<!DOCTYPE html><html lang='tr'><head><meta charset='UTF-8'><title>Mesaj gönderildi</title><link rel='stylesheet' href='/style.css'></head><body style='font-family:sans-serif; padding:60px 20px; text-align:center;'><div style='max-width:480px; margin:0 auto; background:white; border-radius:14px; padding:40px 28px; box-shadow:0 4px 20px rgba(0,0,0,0.08);'><div style='font-size:48px; margin-bottom:14px;'>✉️</div><h2 style='color:#2e7d32; margin:0 0 10px;'>Mesajınız gönderildi</h2><p style='color:#666; line-height:1.6;'>İletişim formundan gönderdiğiniz mesaj başarıyla iletildi. En kısa sürede dönüş yapılacaktır.</p><div style='margin-top:24px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;'><a href='/' style='padding:10px 22px; background:#1a73e8; color:white; border-radius:8px; text-decoration:none; font-weight:500;'>Ana Sayfaya Dön</a><a href='/iletisim' style='padding:10px 22px; background:#f0f0f0; color:#333; border-radius:8px; text-decoration:none; font-weight:500;'>Yeni Mesaj Gönder</a></div></div></body></html>");
+        const yeniMesaj = { adSoyad, email: email || '-', telefon, konu, mesaj };
+        const hataMi = req.body.hataBildirimi === '1';
+        if (hataMi) {
+            // v4.17.32: Hatali soru bildirimi formdan gelse de soru bilgisi ayri alana yazilir (panel bildirimiyle ayni)
+            const hb = ad => String(req.body[ad] || '').trim().slice(0, 60);
+            yeniMesaj.kaynak = 'hatali-soru';
+            yeniMesaj.soruBilgi = [hb('hataDers'), hb('hataKonu'), hb('hataSoruNo') ? 'No ' + hb('hataSoruNo') : ''].filter(Boolean).join(' / ').slice(0, 200);
+            const no = parseInt(req.body.hataSoruNo, 10);
+            if (Number.isInteger(no)) {
+                try { const sb = await Soru.findOne({ soruNo: no }, '_id').lean(); if (sb) yeniMesaj.soruId = sb._id; } catch (e) { /* yoksay */ }
+            }
+        }
+        if (oturumK) yeniMesaj.kullaniciAdi = oturumK.kullaniciAdi;
+        await new Mesaj(yeniMesaj).save();
+        const gonderildiMetni = oturumK
+            ? "Mesajınız hesabınıza bağlı olarak iletildi. Cevabımızı panelinizdeki <b>✉️ Mesajlar</b> bölümünden okuyabilirsiniz."
+            : "İletişim formundan gönderdiğiniz mesaj başarıyla iletildi. En kısa sürede dönüş yapılacaktır.";
+        const ilkDugme = oturumK
+            ? "<a href='/panel/" + encodeURIComponent(oturumK.kullaniciAdi).replace(/'/g, '%27') + "?mod=mesajlar' style='padding:10px 22px; background:#1a73e8; color:white; border-radius:8px; text-decoration:none; font-weight:500;'>✉️ Mesajlarıma Git</a>"
+            : "<a href='/' style='padding:10px 22px; background:#1a73e8; color:white; border-radius:8px; text-decoration:none; font-weight:500;'>Ana Sayfaya Dön</a>";
+        res.send("<!DOCTYPE html><html lang='tr'><head><meta charset='UTF-8'><title>Mesaj gönderildi</title><link rel='stylesheet' href='/style.css'></head><body style='font-family:sans-serif; padding:60px 20px; text-align:center;'><div style='max-width:480px; margin:0 auto; background:white; border-radius:14px; padding:40px 28px; box-shadow:0 4px 20px rgba(0,0,0,0.08);'><div style='font-size:48px; margin-bottom:14px;'>✉️</div><h2 style='color:#2e7d32; margin:0 0 10px;'>Mesajınız gönderildi</h2><p style='color:#666; line-height:1.6;'>" + gonderildiMetni + "</p><div style='margin-top:24px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;'>" + ilkDugme + "<a href='/iletisim' style='padding:10px 22px; background:#f0f0f0; color:#333; border-radius:8px; text-decoration:none; font-weight:500;'>Yeni Mesaj Gönder</a></div></div></body></html>");
     } catch (err) {
         console.error('[iletisim-gonder] hata:', err.message);
         res.status(500).send("Hata: " + err.message);
