@@ -1,18 +1,21 @@
-/* public/js/hd-gorsel.js — v4.17.28
+/* public/js/hd-gorsel.js — v4.17.28 | v4.17.33: yuklenirken gizleme kaldirildi, soru gorsellerine beyaz zemin
  * PDF'ten yuksek cozunurlukte kirpilan soru gorselleri Cloudinary'de "hd_<id>_d250.png" (ya da _d200) adiyla durur.
  * Bu gorseller 2,5 (ya da 2) kat fazla piksel tasir. Bu betik onlari ekranda ESKI boyutlarinda gosterir
  * (piksel / yogunluk), boylece sayfa duzeni degismez ama gorsel keskin olur (telefon / yuksek DPI ekran / buyutme).
  * Eski gorsellere ve diger resimlere dokunmaz. Buyutme penceresi (gorselLightboxImg) gorseli tam cozunurlukte gosterir.
- * Sayfanin <head> bolumunde, ertelemeden (defer olmadan) yuklenmelidir: boylece gorseller boyutlanmadan once gorunmez.
+ * Sayfanin <head> bolumunde, ertelemeden (defer olmadan) yuklenir.
+ * v4.17.33: Gorseller artik inene kadar GIZLENMEZ (buyuk dosyalar yavas internette uzun sure bos alan birakiyordu);
+ *   yuklendikce gorunur, inince bir kez eski boyutuna ayarlanir. Cloudinary gorsellerinin arkasina beyaz zemin konur.
  */
 (function () {
   'use strict';
   var DESEN = /\/hd_[^\/?#]*_d(\d{3})\.[a-z0-9]+(?:[?#].*)?$/i;
 
-  // Boyutlanana kadar gizle (betik yuklenmezse bu stil de olmaz; gorseller yine gorunur)
+  // v4.17.33: Saydam soru gorselleri (Cloudinary) beyaz zemin uzerinde gorunsun.
+  //   (Telefonun zorunlu karanlik modu bu zemini de koyulastirabilir; asil cozum adresteki b_white donusumu.)
   try {
     var st = document.createElement('style');
-    st.textContent = 'img[src*="/hd_"]:not([data-hd]){visibility:hidden}';
+    st.textContent = 'img[src*="res.cloudinary.com"]{background-color:#fff}';
     (document.head || document.documentElement).appendChild(st);
   } catch (e) { /* yoksay */ }
 

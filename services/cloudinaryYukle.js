@@ -30,4 +30,23 @@ async function gorselYukle(dataUri, klasor = 'lgs-sorular', secenek = {}) {
     return sonuc.secure_url;
 }
 
-module.exports = { gorselYukle };
+// v4.17.33: Soru gorseli teslim ayari (Cloudinary adres donusumu; dosyanin kendisi degismez):
+//   - Tum soru gorselleri: saydam alanlar BEYAZ doldurulur (b_white, c_pad,w_1.0 ile ayni boyut). Telefonlarin
+//     "karanlik mod"u sayfa zeminini koyulastirinca saydam PNG'deki siyah cizgiler kayboluyordu; CSS zemini de
+//     koyulastirildigi icin tek guvenilir cozum gorselin kendisinin opak olmasi.
+//   - Yuksek cozunurluklu (hd_) gorseller: ayrica f_auto,q_auto -> tarayici destekliyorsa WebP, otomatik kalite.
+//     Piksel sayisi ayni kalir (hd-gorsel.js ekran boyutunu yine dosya adindaki yogunluktan hesaplar), dosya kuculur.
+const ZEMIN_DONUSUM = 'b_white,c_pad,w_1.0';
+const HD_DONUSUM = 'b_white,c_pad,w_1.0,f_auto,q_auto';
+function gorselAdresiDuzenle(url) {
+    const u = String(url || '');
+    const m = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.*)$/.exec(u);
+    if (!m) return u;                                   // Cloudinary disi adres: dokunma
+    const kalan = m[2];
+    const ilk = kalan.split('/')[0];
+    if (!/^v\d+$/.test(ilk) && /^[a-z]{1,3}_/.test(ilk)) return u;   // zaten bir donusum var: dokunma
+    const hd = /\/hd_[^/?#]*_d\d{3}\.[a-z0-9]+(?:[?#].*)?$/i.test(u);
+    return m[1] + (hd ? HD_DONUSUM : ZEMIN_DONUSUM) + '/' + kalan;
+}
+
+module.exports = { gorselYukle, gorselAdresiDuzenle, ZEMIN_DONUSUM, HD_DONUSUM };

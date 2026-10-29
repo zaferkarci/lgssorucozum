@@ -6,7 +6,7 @@
 const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
-const { gorselYukle } = require('../services/cloudinaryYukle');
+const { gorselYukle, gorselAdresiDuzenle } = require('../services/cloudinaryYukle');
 
 // Kırpılan görseli multipart olarak alır (global express.json 100KB limitini baypas eder)
 const gorselUpload = multer({
@@ -52,7 +52,8 @@ router.post('/gorselli-gorsel-yukle', gorselUpload.single('gorsel'), async (req,
         if (yog === 2 || yog === 2.5) {
             secenek.publicId = 'hd_' + Date.now().toString(36) + require('crypto').randomBytes(4).toString('hex') + '_d' + Math.round(yog * 100);
         }
-        const url = await gorselYukle(dataUri, 'lgs-sorular', secenek);
+        // v4.17.33: kaydedilen adres beyaz zeminli (hd_ ise ayrica WebP/otomatik kalite) teslim edilir
+        const url = gorselAdresiDuzenle(await gorselYukle(dataUri, 'lgs-sorular', secenek));
         res.json({ ok: true, url });
     } catch (err) {
         console.error('[Görselli PDF — Cloudinary yükleme]', err.message);
