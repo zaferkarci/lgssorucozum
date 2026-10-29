@@ -1,5 +1,5 @@
 // scripts/gorsel-duzenle.js
-// v4.17.33: TEK SEFERLIK — mevcut soru gorsellerinin Cloudinary adreslerine teslim ayari ekler (dosyalarin kendisi degismez):
+// v4.17.33 (v4.17.33-1: --soru verilmeyince tum sorular; JPG olcusu okunur): TEK SEFERLIK — mevcut soru gorsellerinin Cloudinary adreslerine teslim ayari ekler (dosyalarin kendisi degismez):
 //   - Tum soru gorselleri: saydam alanlar BEYAZ doldurulur (b_white,c_pad,w_1.0). Telefonun karanlik modunda saydam
 //     PNG'deki siyah cizgiler kayboluyordu.
 //   - Yuksek cozunurluklu (hd_) gorseller: ayrica f_auto,q_auto (WebP, otomatik kalite). Piksel sayisi ayni, dosya kucuk.
@@ -21,7 +21,8 @@ const { gorselAdresiDuzenle } = require('../services/cloudinaryYukle');
 
 const arg = process.argv.slice(2);
 const UYGULA = arg.includes('--uygula');
-const SORULAR = ((arg.find(a => a.startsWith('--soru=')) || '').split('=')[1] || '').split(',').map(Number).filter(Number.isFinite);
+// v4.17.33-1: bos deger 0'a donusup filtreyi bozuyordu (--soru verilmeyince hic soru gelmiyordu)
+const SORULAR = ((arg.find(a => a.startsWith('--soru=')) || '').split('=')[1] || '').split(',').map(x => x.trim()).filter(Boolean).map(Number).filter(Number.isFinite);
 
 const RESIM_ALANLARI = ['soruOnculu1Resmi', 'soruOnculu2Resmi', 'soruOnculu3Resmi', 'soruResmi'];
 const HTML_ALANLARI = ['soruOnculu1', 'soruOnculu2', 'soruOnculu3', 'soruMetni'];
@@ -44,6 +45,13 @@ function coz(b) {
         else if (parca === 'VP8 ') { s.saydam = false; s.w = b.readUInt16LE(26) & 0x3fff; s.h = b.readUInt16LE(28) & 0x3fff; }
     } else if (b.length > 2 && b[0] === 0xff && b[1] === 0xd8) {
         s.bicim = 'jpg'; s.saydam = false;
+        // v4.17.33-1: SOF isaretinden genislik/yukseklik
+        let i = 2;
+        while (i + 9 < b.length && b[i] === 0xff) {
+            const m = b[i + 1], uz = b.readUInt16BE(i + 2);
+            if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) { s.h = b.readUInt16BE(i + 5); s.w = b.readUInt16BE(i + 7); break; }
+            i += 2 + uz;
+        }
     }
     return s;
 }
