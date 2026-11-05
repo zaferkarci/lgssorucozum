@@ -659,9 +659,10 @@ document.addEventListener('DOMContentLoaded', function() {
               </tr>
             </thead>
             <tbody>
+              <%# v4.17.35: ogrenci adina tiklayinca ders istatistikleri (geri donus bu sayfaya) %>
               <% kurumOgrenciler.forEach(function(o) { %>
                 <tr style="border-bottom:1px solid #f0f3f7;">
-                  <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                  <td style="padding:10px 14px; font-weight:500;"><a href="/takip/ogrenci/<%= encodeURIComponent(o.kullaniciAdi) %>?donus=<%= encodeURIComponent('/panel/' + encodeURIComponent(k.kullaniciAdi) + '?mod=kurumUyeleri') %>" style="color:#1a73e8; text-decoration:none;" title="Ders istatistiklerini gör"><%= o.kullaniciAdi %></a></td>
                   <td style="padding:10px 14px; color:#5f6368;"><%= o.sinif || '—' %><%= o.sube ? '/' + o.sube : '' %></td>
                   <td style="padding:10px 14px; color:#5f6368;"><%= o.okul || '—' %></td>
                   <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(o.puan) %></td>
@@ -767,9 +768,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </tr>
           </thead>
           <tbody>
+            <%# v4.17.35: cocugun adina tiklayinca ders istatistikleri %>
             <% veliCocuklar.forEach(function(c) { %>
               <tr style="border-bottom:1px solid #f0f3f7;">
-                <td style="padding:10px 14px; font-weight:500;"><%= c.ogrenciAdi %></td>
+                <td style="padding:10px 14px; font-weight:500;"><a href="/takip/ogrenci/<%= encodeURIComponent(c.ogrenciAdi) %>?donus=<%= encodeURIComponent('/panel/' + encodeURIComponent(k.kullaniciAdi) + '?mod=veliPanel') %>" style="color:#1a73e8; text-decoration:none;" title="Ders istatistiklerini gör"><%= c.ogrenciAdi %></a></td>
                 <td style="padding:10px 14px; color:#5f6368;"><%= c.sinif ? c.sinif + (c.sube ? '/'+c.sube : '') : '—' %></td>
                 <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(c.puan) %></td>
                 <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= c.soruIndex %></td>
@@ -970,9 +972,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </tr>
               </thead>
               <tbody>
+                <%# v4.17.35: ogrenci adina tiklayinca ders istatistikleri %>
                 <% s.ogrenciler.forEach(function(o) { %>
                   <tr style="border-bottom:1px solid #f0f3f7;">
-                    <td style="padding:10px 14px; font-weight:500;"><%= o.kullaniciAdi %></td>
+                    <td style="padding:10px 14px; font-weight:500;"><a href="/takip/ogrenci/<%= encodeURIComponent(o.kullaniciAdi) %>?donus=<%= encodeURIComponent('/panel/' + encodeURIComponent(k.kullaniciAdi) + '?mod=atandigimSiniflar') %>" style="color:#1a73e8; text-decoration:none;" title="Ders istatistiklerini gör"><%= o.kullaniciAdi %></a></td>
                     <td style="padding:10px 14px; text-align:right; font-weight:600; color:#1a73e8;"><%= puanFmt(o.puan) %></td>
                     <td style="padding:10px 14px; text-align:right; color:#5f6368;"><%= o.soruIndex || 0 %></td>
                     <td style="padding:10px 14px; text-align:right;">
@@ -2767,7 +2770,10 @@ document.addEventListener('DOMContentLoaded', function() {
         html = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:10px; text-align:left;">Öğrenci</th><th style="padding:10px; text-align:left;">Sınıf</th><th style="padding:10px; text-align:left;">Okul</th><th style="padding:10px; text-align:right;">Puan</th><th style="padding:10px; text-align:right;">Çözülen</th><th style="padding:10px; text-align:right;">İşlem</th></tr></thead><tbody>';
         d.takipciler.forEach(function(o) {
           const sinifGoster = (o.ogrenciSinif||'') + (o.ogrenciSube ? '/' + o.ogrenciSube : '');
-          html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👨‍🎓 ' + o.ogrenciAdi + '</td><td style="padding:10px;">' + sinifGoster + '</td><td style="padding:10px;">' + (o.ogrenciOkul||'-') + '</td><td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;">' + (o.ogrenciPuan||0) + '</td><td style="padding:10px; text-align:right; color:#666;">' + (o.ogrenciSoruIndex||0) + '</td><td style="padding:10px; text-align:right;"><a href="/takip/ogrenci/' + encodeURIComponent(o.ogrenciAdi) + '" target="_blank" style="background:#1a73e8; color:white; padding:5px 12px; border:none; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; display:inline-block; margin-right:4px;">📊 İstatistikler</a><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Çıkar</button></td></tr>';
+          // v4.17.35: ogrenci adina tiklayinca ders istatistikleri; puan 4 basamaga yuvarlanir (179.63289999999998 gibi gorunmesin)
+          const _ogrAdEsc = String(o.ogrenciAdi).replace(/[&<>"']/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; });
+          const _puanYaz = (function(p){ var n = Math.round(Number(p || 0) * 10000) / 10000; return isNaN(n) ? '0' : String(n); })(o.ogrenciPuan);
+          html += '<tr id="takipci-' + o._id + '" style="border-bottom:1px solid #f0f0f0;"><td style="padding:10px; font-weight:500;">👨‍🎓 <a href="/takip/ogrenci/' + encodeURIComponent(o.ogrenciAdi) + '" target="_blank" style="color:#1a73e8; text-decoration:none;" title="Ders istatistiklerini gör">' + _ogrAdEsc + '</a></td><td style="padding:10px;">' + sinifGoster + '</td><td style="padding:10px;">' + (o.ogrenciOkul||'-') + '</td><td style="padding:10px; text-align:right; font-weight:600; color:#1a73e8;">' + _puanYaz + '</td><td style="padding:10px; text-align:right; color:#666;">' + (o.ogrenciSoruIndex||0) + '</td><td style="padding:10px; text-align:right;"><a href="/takip/ogrenci/' + encodeURIComponent(o.ogrenciAdi) + '" target="_blank" style="background:#1a73e8; color:white; padding:5px 12px; border:none; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; display:inline-block; margin-right:4px;">📊 İstatistikler</a><button onclick="yanitla(\'' + o._id + '\', \'red\')" style="background:#fff3cd; color:#856404; padding:5px 12px; border:1px solid #ffe082; border-radius:6px; font-size:11px; cursor:pointer; font-weight:600;">Çıkar</button></td></tr>';
         });
         html += '</tbody></table>';
       } else {

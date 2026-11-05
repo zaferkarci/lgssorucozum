@@ -150,7 +150,7 @@ function latexToHtml(s) {
     <span class="ptopbar-link" style="background:#f3e5f5; color:#6a1b9a; font-weight:600; cursor:default;">👩‍🏫 ÖĞRETMEN GÖRÜNÜMÜ</span>
     <% var _donusUrl = (typeof donusUrl !== 'undefined' && donusUrl) ? donusUrl : ''; %>
     <% if (_donusUrl) { %>
-    <a href="<%= _donusUrl %>" class="ptopbar-link cikis">← Sınıfa Dön</a>
+    <a href="<%= _donusUrl %>" class="ptopbar-link cikis">← Geri Dön</a>
     <% } else { %>
     <a href="/panel/<%= encodeURIComponent(ogretmenAdi) %>?mod=takip" class="ptopbar-link cikis">← Takip Sayfasına Dön</a>
     <% } %>
