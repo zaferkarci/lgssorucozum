@@ -488,7 +488,10 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
         if (!adminGorunum) {
             // Normal akış (öğretmen/veli/kurumsal): rol + onaylı takip ilişkisi şart.
             benim = await Kullanici.findOne({ kullaniciAdi: req.session.kullaniciAdi }).lean();
-            if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal' && benim.rol !== 'veli')) {
+            // v4.17.34: rolListesi'nde kurumsal olan (or. kurumsal modda gezen) kullanici da kurum kuralina girebilsin
+            var _kurumYoneticisi = !!(benim && benim.yonettigiKurumId &&
+                (benim.rol === 'kurumsal' || (Array.isArray(benim.rolListesi) && benim.rolListesi.includes('kurumsal'))));
+            if (!benim || (benim.rol !== 'ogretmen' && benim.rol !== 'kurumsal' && benim.rol !== 'veli' && !_kurumYoneticisi)) {
                 return res.status(403).send('<div style="font-family:sans-serif; padding:40px; text-align:center;"><h2>Erişim engellendi</h2><p>Bu sayfayı yalnızca öğretmenler, kurum yöneticileri ve veliler görüntüleyebilir.</p></div>');
             }
 
@@ -513,6 +516,13 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
                     }).lean();
                     if (sinifKaydi) erisimVar = true;
                 }
+            }
+
+            // v4.17.34: Kurum yoneticisi, KENDI kurumuna bagli ogrencinin istatistigini gorebilir
+            //   (Kurum Uyeleri > Sinif sayfasindaki ogrenci adindan gelinir). Baska kurumun ogrencisi: erisim yok.
+            if (!erisimVar && _kurumYoneticisi) {
+                const ob2 = await Kullanici.findOne({ kullaniciAdi: ogrenciAdi }, 'bagliKurumId').lean();
+                if (ob2 && ob2.bagliKurumId && String(ob2.bagliKurumId) === String(benim.yonettigiKurumId)) erisimVar = true;
             }
 
             if (!erisimVar) {
@@ -590,6 +600,8 @@ router.get('/takip/ogrenci/:ogrenciAdi', oturumVeyaAdmin, async (req, res) => {
             dersIstatMap,
             ortToplamHesapla,
             ogretmenAdi: benim ? benim.kullaniciAdi : adminOgretmenAdiBul(req),
+            // v4.17.34: geri donus adresi (yalniz /panel/... yolu; acik yonlendirme yok)
+            donusUrl: (typeof req.query.donus === 'string' && /^\/panel\/[A-Za-z0-9._%\-]+\?[A-Za-z0-9=&%._\-]{0,200}$/.test(req.query.donus)) ? req.query.donus : '',
             gunlukHedefData,
             encodeURIComponent
         });
