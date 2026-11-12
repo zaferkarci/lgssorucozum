@@ -260,6 +260,15 @@ router.get('/admin', async (req, res) => {
             console.warn('[admin] aktivite ozeti hesaplanamadi:', e.message);
         }
     }
+    // v4.17.37: Soru havuzu (sinif seviyesi > konu; en cok cozen ogrenciye gore kalan soru) — yalniz kullanicilar mod'unda
+    let soruHavuzu = null;
+    if (mod === 'kullanicilar') {
+        try {
+            soruHavuzu = await require('../services/soruHavuzu').soruHavuzuHesapla(tumKullanicilar);
+        } catch (e) {
+            console.warn('[admin] soru havuzu hesaplanamadi:', e.message);
+        }
+    }
     res.render('admin', {
         mod, editSoru, tumSorular, dersler,
         tumKullanicilar, filtreliKullanicilar,
@@ -271,7 +280,7 @@ router.get('/admin', async (req, res) => {
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
         tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, ayarStandartLimit, ayarAnalizLimit, ayarTamSoru, ayarTamEsik, aktifDuyuru, duyuruOgrenciler,
-        aktiviteOzetiData
+        aktiviteOzetiData, soruHavuzu
     });
     } catch (err) {
         console.error('[/admin] HATA:', err);

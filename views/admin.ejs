@@ -1398,6 +1398,69 @@ function escHtml(str) {
   <% } %>
 
   <%# v4.17.24-1: Yonetici manuel kullanici ekler; ilk sifre 6 haneli rastgele uretilir, olusturma sonrasi BIR KEZ gosterilir %>
+  <%# v4.17.37: SORU HAVUZU — her sinif seviyesi icin konu konu, en cok cozen ogrenciye gore kalan soru %>
+  <% if (typeof soruHavuzu !== 'undefined' && soruHavuzu && soruHavuzu.length) {
+       var _shSecili = String(typeof filKullaniciSinif !== 'undefined' && filKullaniciSinif ? filKullaniciSinif : '').split('-')[0];
+  %>
+  <div class="card" style="border:1px solid #c8e6c9; background:#fbfffb;">
+    <h3 style="margin:0 0 4px; font-size:16px;">📚 Soru Havuzu <span style="font-size:12px; color:#666; font-weight:400;">— en çok çözen öğrenciye göre kalan soru</span></h3>
+    <p style="margin:0 0 12px; font-size:12px; color:#666; line-height:1.5;">
+      Her konuda, o sınıfta <b>en çok soru çözen</b> öğrencinin önünde kaç soru kaldığı.
+      <span style="background:#ffebee; color:#c62828; padding:1px 6px; border-radius:8px; font-weight:600;">0</span> o öğrenci bu konuda soru bulamaz,
+      <span style="background:#fff3e0; color:#e65100; padding:1px 6px; border-radius:8px; font-weight:600;">1–3</span> bitmek üzere.
+      🔒 kapalı konular öğrencilere gelmez (Konu İzinleri). "Çözdüğü" = cevapladığı farklı soru (doğru/yanlış fark etmez).
+    </p>
+    <% soruHavuzu.forEach(function(sv) {
+         var ec = sv.enCokCozen;
+         var ecRenk = !ec ? '#666' : (ec.kalanAcik <= 0 ? '#c62828' : (ec.kalanAcik <= 10 ? '#e65100' : '#2e7d32'));
+    %>
+    <details style="border:1px solid #e0e0e0; border-radius:8px; margin-bottom:8px; background:#fff;" <%= _shSecili === String(sv.sinif) ? 'open' : '' %>>
+      <summary style="cursor:pointer; padding:10px 12px; font-size:13px; line-height:1.6; list-style-position:inside;">
+        <b style="font-size:14px;"><%= sv.sinif === 13 ? 'Mezun' : sv.sinif + '. Sınıf' %></b>
+        <span style="color:#555;"> · <%= sv.toplam %> soru (açık <%= sv.acikToplam %><% if (sv.kapaliToplam) { %> · 🔒 <%= sv.kapaliToplam %><% } %>) · <%= sv.ogrenciSayisi %> öğrenci</span>
+        <% if (ec) { %>
+          <span style="color:#555;"> · en çok çözen <b><%= ec.ad %></b>: açık konularda </span><b style="color:<%= ecRenk %>;"><%= Math.max(ec.kalanAcik, 0) %> soru kaldı</b>
+        <% } %>
+        <% if (sv.biten) { %><span style="background:#ffebee; color:#c62828; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:600; margin-left:6px; white-space:nowrap;"><%= sv.biten %> konu bitti</span><% } %>
+        <% if (sv.azalan) { %><span style="background:#fff3e0; color:#e65100; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:600; margin-left:4px; white-space:nowrap;"><%= sv.azalan %> konu azaldı</span><% } %>
+      </summary>
+      <div style="overflow-x:auto; padding:0 12px 12px;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead>
+            <tr style="background:#f5f5f5; color:#555;">
+              <th style="text-align:left; padding:6px 8px;">Ders</th>
+              <th style="text-align:left; padding:6px 8px;">Ünite</th>
+              <th style="text-align:left; padding:6px 8px;">Konu</th>
+              <th style="text-align:right; padding:6px 8px;">Soru</th>
+              <th style="text-align:left; padding:6px 8px;">En çok çözen</th>
+              <th style="text-align:right; padding:6px 8px;">Çözdüğü</th>
+              <th style="text-align:right; padding:6px 8px;">Kalan</th>
+              <th style="text-align:right; padding:6px 8px;" title="Bu konudaki tüm soruları cevaplamış öğrenci sayısı">Bitiren</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% sv.konular.forEach(function(kn) {
+                 var kRenk = !kn.acik ? '' : (kn.kalan <= 0 ? 'background:#ffebee; color:#c62828;' : (kn.kalan <= 3 ? 'background:#fff3e0; color:#e65100;' : 'color:#2e7d32;'));
+            %>
+            <tr style="border-top:1px solid #f0f0f0; <%= kn.acik ? '' : 'color:#9e9e9e;' %>">
+              <td style="padding:5px 8px; white-space:nowrap;"><%= kn.ders %></td>
+              <td style="padding:5px 8px;"><%= kn.unite %></td>
+              <td style="padding:5px 8px;"><% if (!kn.acik) { %>🔒 <% } %><%= kn.konu %></td>
+              <td style="padding:5px 8px; text-align:right;"><%= kn.toplam %></td>
+              <td style="padding:5px 8px;"><%= kn.enCokAd || '—' %></td>
+              <td style="padding:5px 8px; text-align:right;"><%= kn.enCok %></td>
+              <td style="padding:5px 8px; text-align:right;"><span style="display:inline-block; min-width:22px; text-align:center; padding:1px 6px; border-radius:8px; font-weight:700; <%= kRenk %>"><%= kn.kalan %></span></td>
+              <td style="padding:5px 8px; text-align:right;"><%= kn.bitiren %><span style="color:#aaa;">/<%= sv.ogrenciSayisi %></span></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <% }); %>
+  </div>
+  <% } %>
+
   <div class="card" id="manuelKullaniciKart">
     <details id="mkDetay">
       <summary style="cursor:pointer; font-size:16px; font-weight:600;">➕ Manuel kullanıcı ekle</summary>
