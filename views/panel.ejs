@@ -3688,6 +3688,30 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('button[type=submit]').forEach(function(btn) {
         btn.addEventListener('click', function() { localStorage.removeItem(SORU_KEY); });
     });
+    // v4.17.36: CIFT / HAYALET DOKUNMA KORUMASI (tarayici).
+    //   1) Sayfa acildiktan sonraki ilk 1 sn'de sik / Gec dokunuslari yok sayilir (onceki sorudan kalan ikinci dokunus).
+    //   2) Bir sik gonderilince tum siklar ve Gec kilitlenir; ikinci dokunus hicbir sey gondermez.
+    (function () {
+        var acilis = Date.now(), gonderildi = false;
+        var SECICI = 'form[action="/cevap"], form[action="/gec"]';
+        function kilit(acik) {
+            document.querySelectorAll('form[action="/cevap"] button, form[action="/gec"] button').forEach(function (b) {
+                b.style.pointerEvents = acik ? '' : 'none';
+                b.style.opacity = acik ? '' : '0.6';
+            });
+        }
+        document.querySelectorAll(SECICI).forEach(function (f) {
+            f.addEventListener('submit', function (e) {
+                if (gonderildi || Date.now() - acilis < 1000) { e.preventDefault(); return; }
+                gonderildi = true;
+                setTimeout(function () { kilit(false); }, 0);
+            });
+        });
+        // Geri tusuyla onbellekten donulurse koruma sifirlanir
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) { acilis = Date.now(); gonderildi = false; kilit(true); }
+        });
+    })();
     </script>
   <% } %>
 <% } %>

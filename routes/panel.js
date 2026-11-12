@@ -1408,7 +1408,29 @@ router.get('/panel/:kullaniciAdi', oturumKontrol, async (req, res) => {
     });
 });
 
+// v4.17.36: HAYALET / CIFT DOKUNMA KORUMASI (sunucu).
+//   Veri: ayni ogrenciden 2 sn icinde art arda 2 cevap geliyordu — (a) ayni soruya 0,2 sn arayla cift kayit,
+//   (b) cevaptan ~1,5 sn sonra, ogrencinin HENUZ GORMEDIGI sonraki soruya 1 sn'lik cevap (telefonun ikinci
+//   dokunusu yeni sayfadaki ayni yere dusuyor -> "kendi kendine isaretlendi").
+//   Ayni kullanicinin bir onceki cevap istegi 2,5 sn'den yeniyse bu istek YAZILMAZ; ogrenci soruyu yeniden gorur.
+//   Kontrol ilk await'ten ONCE yapildigi icin ayni anda gelen iki istekte de yalniz ilki gecer.
+const _sonCevapIstegi = new Map(); // kullaniciAdi -> ms
+const HAYALET_ARALIK_MS = 2500;
+
 router.post('/cevap', oturumKontrol, async (req, res) => {
+    const _hAd = (req.session && req.session.kullaniciAdi) || (req.body && req.body.kullaniciAdi) || '';
+    if (_hAd) {
+        const _hSimdi = Date.now();
+        const _hOnceki = _sonCevapIstegi.get(_hAd);
+        if (_hOnceki && _hSimdi - _hOnceki < HAYALET_ARALIK_MS) {
+            console.log('[hayalet-cevap] yok sayildi:', _hAd, (_hSimdi - _hOnceki) + ' ms');
+            return res.redirect('/panel/' + encodeURIComponent(_hAd) + '?basla=true');
+        }
+        _sonCevapIstegi.set(_hAd, _hSimdi);
+        if (_sonCevapIstegi.size > 5000) {
+            for (const [ad, t] of _sonCevapIstegi) { if (_hSimdi - t > 60000) _sonCevapIstegi.delete(ad); }
+        }
+    }
     try {
         const { kullaniciAdi, soruId, secilenIndex, gecenSure } = req.body;
         const s = await Soru.findById(soruId);
