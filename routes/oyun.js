@@ -15,6 +15,8 @@ const OyunKilit = require('../models/OyunKilit');
 const Kullanici = require('../models/Kullanici');
 const CevapKaydi = require('../models/CevapKaydi');
 const DuelloKayit = require('../models/DuelloKayit');
+const Soru = require('../models/Soru');
+const duelloKural = require('../services/duelloKural'); // v4.17.37-2
 
 // ---- sabitler ----
 const DW = 400, DH = 200;
@@ -597,6 +599,8 @@ function kurallarMetni() {
 + '<p><b>Gezinme:</b> Dunya buyuktur; ekranda 20x20 alan gorunur. Yon tuslari/oklar ile kaydir, mini haritaya tiklayarak uzaga atla.</p>'
 + '<p><b>Siralama:</b> Sag panelde sinif dunyandaki oyuncular hucre sayisina gore siralanir.</p>'
 + '<p><b>Duello:</b> Kendi topragina komsu bir RAKIP hucresine tiklayarak duello acabilirsin. Ikinizin de DOGRU cozdugu ortak bir soru rastgele secilir; o soruyu daha KISA surede cozen kazanir. Kazanirsan o hucre senin olur. Gunde 1 saldiri hakkin vardir. Rakibin son hucresi korumalidir. Ortak dogru cozulmus soru yoksa duello yapilamaz. Ayni rakibe karsi ayni soru tekrar secilmez; o rakiple ortak sorularinin hepsi kullanildiysa en uzun suredir kullanilmayan soru secilir.</p>'
++ '<p><b>Gecerli sure:</b> Duelloda yalniz dikkatle verilmis dogru cevaplar sayilir: en az 5 saniye ve o sorunun ortalama dogru cozum suresinin en az dortte biri. Daha kisa (sans eseri) dogrular duello sorusu olamaz; savunanin suresi boyleyse saldiran kazanir.</p>'
++ '<p><b>Okumadan isaretleme:</b> Son 50 cevabinin %40\'indan azi dogruysa ve %25\'inden fazlasi 5 saniyeden kisaysa duello acamazsin. Sorulari dikkatle cozdukce hakkin geri acilir.</p>'
 + '<p><b>Kusatma kacisi:</b> Tamamen kusatildiysan (komsu bos hucre kalmadiysa), bitisiklik sarti olmadan uzaktaki bos bir hucreye sicrayabilirsin; fiyat normaldir (10 x mevcut hucre).</p>'
 + '</div>';
 }
@@ -655,7 +659,7 @@ function scriptBlok(o) {
 + 'function miniTikla(e){var mini=document.getElementById("mini");var rc=mini.getBoundingClientRect();var px=(e.clientX-rc.left)/rc.width*DW,py=(e.clientY-rc.top)/rc.height*DH;vx=clamp(Math.round(px-VP/2),0,DW-VP);vy=clamp(Math.round(py-VP/2),0,DH-VP);render();}'
 + 'document.addEventListener("keydown",function(e){if(e.key==="ArrowLeft"){kaydir(-1,0);e.preventDefault();}else if(e.key==="ArrowRight"){kaydir(1,0);e.preventDefault();}else if(e.key==="ArrowUp"){kaydir(0,-1);e.preventDefault();}else if(e.key==="ArrowDown"){kaydir(0,1);e.preventDefault();}});'
 + 'async function duelloBaslat(x,y){if(!confirm("Bu rakip hucresine duello acmak ister misin? (Gunde 1 saldiri hakkin var)"))return;var r=await fetch("/oyun/duello",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"sinif="+SINIF+"&x="+x+"&y="+y});var d=await r.json();if(!d.ok){alert(d.hata||"Duello yapilamadi");return;}duelloSonuc(d);render();yukleMini();yukleSiralama();}'
-+ 'function duelloSonuc(d){document.getElementById("duelloIkon").innerHTML=d.kazandi?"&#9876;":"&#128737;";var b=document.getElementById("duelloBaslik");b.textContent=d.kazandi?"KAZANDIN!":"Kaybettin";b.style.color=d.kazandi?"#a5d6a7":"#ef9a9a";document.getElementById("duelloRakip").textContent=d.rakipRumuz;document.getElementById("duelloBenSure").textContent=d.benSure;document.getElementById("duelloRakipSure").textContent=d.rakipSure;document.getElementById("duelloNot").textContent=d.kazandi?"Bu hucre senin oldu!":"Bugunku saldiri hakkin doldu.";document.getElementById("duelloModal").style.display="flex";}'
++ 'function duelloSonuc(d){document.getElementById("duelloIkon").innerHTML=d.kazandi?"&#9876;":"&#128737;";var b=document.getElementById("duelloBaslik");b.textContent=d.kazandi?"KAZANDIN!":"Kaybettin";b.style.color=d.kazandi?"#a5d6a7":"#ef9a9a";document.getElementById("duelloRakip").textContent=d.rakipRumuz;document.getElementById("duelloBenSure").textContent=d.benSure;document.getElementById("duelloRakipSure").textContent=d.rakipSure;document.getElementById("duelloNot").textContent=d.kazandi?(d.rakipGecersiz?"Rakibin "+d.rakipSure+" sn\'lik cevabi cok kisa oldugu icin (sans eseri) sayilmadi. Bu hucre senin oldu!":"Bu hucre senin oldu!"):"Bugunku saldiri hakkin doldu.";document.getElementById("duelloModal").style.display="flex";}'
 + 'function duelloKapat(){document.getElementById("duelloModal").style.display="none";}'
 + 'function kurallarAc(){document.getElementById("kurallarModal").style.display="flex";}'
 + 'function kurallarKapat(){document.getElementById("kurallarModal").style.display="none";}'
@@ -681,12 +685,30 @@ router.post('/oyun/duello', async (req, res) => {
         if (rakipSayi <= 1) return res.json({ ok: false, hata: 'Rakibin son hucresi korumali, alinamaz.' });
         const ben = await oyuncuGetir(BEN, sinif);
         if (ben.sonSaldiriTarih && ayniGunMu(ben.sonSaldiriTarih, new Date())) return res.json({ ok: false, hata: 'Bugun saldiri hakkin doldu (gunde 1).' });
+        // v4.17.37-2: HIZLI ISARETLEME — son 50 cevapta dogru orani %40 alti VE cevaplarin %25+'i 5 sn'den kisaysa saldiri kapali
+        const engel = await duelloKural.saldiriEngeli(BEN);
+        if (engel.engel) return res.json({ ok: false, sebep: 'hizli-isaretleme', hata: 'Duello su an kapali: son ' + engel.n + ' cevabinin yalniz %' + Math.round(engel.dogruOran * 100) + "'i dogru ve %" + Math.round(engel.hizliOran * 100) + "'i 5 saniyeden kisa. Sorulari okumadan isaretliyor gorunuyorsun. Sorulari dikkatle cozdukce duello hakkin geri acilir (son 50 cevapta en az %40 dogru ya da 5 sn alti cevaplar %25'ten az)." });
         const benDogru = await CevapKaydi.find({ kullaniciAdi: BEN, dogruMu: true }, 'soruId sure').lean();
         const rakipDogru = await CevapKaydi.find({ kullaniciAdi: RAKIP, dogruMu: true }, 'soruId sure').lean();
-        const benMap = {}; benDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); const s = (c.sure == null ? 99999 : c.sure); if (benMap[id] == null || s < benMap[id]) benMap[id] = s; });
-        const rakipMap = {}; rakipDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); const s = (c.sure == null ? 99999 : c.sure); if (rakipMap[id] == null || s < rakipMap[id]) rakipMap[id] = s; });
-        const ortakTum = Object.keys(benMap).filter(id => rakipMap[id] != null);
-        if (!ortakTum.length) return res.json({ ok: false, sebep: 'ortak-yok', hata: 'Ikinizin de dogru cozdugu ortak soru yok; duello yapilamaz.' });
+        const benL = {}; benDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); (benL[id] = benL[id] || []).push(c.sure == null ? 99999 : c.sure); });
+        const rakipL = {}; rakipDogru.forEach(c => { if (!c.soruId) return; const id = String(c.soruId); (rakipL[id] = rakipL[id] || []).push(c.sure == null ? 99999 : c.sure); });
+        const adayIds = Object.keys(benL).filter(id => rakipL[id]);
+        if (!adayIds.length) return res.json({ ok: false, sebep: 'ortak-yok', hata: 'Ikinizin de dogru cozdugu ortak soru yok; duello yapilamaz.' });
+        // v4.17.37-2: GECERLI SURE — sure >= max(5 sn, sorunun dogru cevap medyani x %25). Daha kisa dogrular sans eseri sayilir:
+        //   saldiranin boyle dogrusu duello sorusu olamaz; savunanin o sorudaki tum dogrulari boyleyse saldiran kazanir.
+        const esikMap = {};
+        (await Soru.find({ _id: { $in: adayIds } }, 'dogruCevapSureleri ortalamaSure').lean()).forEach(s => { esikMap[String(s._id)] = duelloKural.gecerliSureEsigi(s); });
+        const esikOf = id => (esikMap[id] != null ? esikMap[id] : duelloKural.ESIK.TABAN_SN);
+        const benMap = {};
+        adayIds.forEach(id => { const g = benL[id].filter(s => s >= esikOf(id)); if (g.length) benMap[id] = Math.min(...g); });
+        const ortakTum = Object.keys(benMap);
+        if (!ortakTum.length) return res.json({ ok: false, sebep: 'gecerli-yok', hata: 'Bu rakiple ortak sorulardaki dogru cevaplarin cok kisa surede verilmis (sans eseri sayilir); bu cevaplar duelloda sayilmaz. Sorulari dikkatle cozdukce duello acabilirsin.' });
+        const rakipMap = {}, rakipGecersizMap = {};
+        ortakTum.forEach(id => {
+            const g = rakipL[id].filter(s => s >= esikOf(id));
+            if (g.length) rakipMap[id] = Math.min(...g);
+            else { rakipMap[id] = Math.min(...rakipL[id]); rakipGecersizMap[id] = true; }
+        });
         // v4.17.27-2: SORU RAKIP BASINA 1 KEZ — bu iki oyuncu arasinda (hangi taraf saldirmis olursa olsun) daha once cikan
         //   sorular, kullanilmamis ortak soru kaldigi surece secilmez. Ayni soru FARKLI rakiplere karsi kullanilabilir.
         //   Bu ikili icin kullanilmamis ortak soru kalmadiysa duello ENGELLENMEZ: en uzun suredir (bu ikili arasinda)
@@ -712,7 +734,8 @@ router.post('/oyun/duello', async (req, res) => {
             secId = adaylar[Math.floor(Math.random() * adaylar.length)];
         }
         const benSure = benMap[secId], rakipSure = rakipMap[secId];
-        const kazandi = benSure < rakipSure; // esitlikte savunan korur
+        const rakipGecersiz = !!rakipGecersizMap[secId]; // v4.17.37-2: savunanin suresi sans eseri -> saldiran kazanir
+        const kazandi = rakipGecersiz ? true : (benSure < rakipSure); // esitlikte savunan korur
         ben.sonSaldiriTarih = new Date(); // saldiri hakki sonuc ne olursa olsun tukenir
         await ben.save();
         if (kazandi) {
@@ -725,10 +748,11 @@ router.post('/oyun/duello', async (req, res) => {
                 sinif, saldiranAd: BEN, saldiranRumuz: (ben && ben.rumuz) || '',
                 rakipAd: RAKIP, rakipRumuz: (ro && rumuzGoster({ rumuz: ro.rumuz, kullaniciAdi: RAKIP }, sinif)) || '',
                 soruId: secId, saldiranSure: benSure, rakipSure: rakipSure,
-                kazananAd: kazandi ? BEN : RAKIP
+                kazananAd: kazandi ? BEN : RAKIP,
+                x, y, rakipGecersiz
             });
         } catch (kErr) { console.error('[duello kayit]', kErr.message); }
-        res.json({ ok: true, kazandi, benSure, rakipSure, rakipRumuz: (ro && rumuzGoster({ rumuz: ro.rumuz, kullaniciAdi: RAKIP }, sinif)) || RAKIP });
+        res.json({ ok: true, kazandi, benSure, rakipSure, rakipGecersiz, rakipRumuz: (ro && rumuzGoster({ rumuz: ro.rumuz, kullaniciAdi: RAKIP }, sinif)) || RAKIP });
     } catch (e) {
         console.error('[oyun duello]', e.message);
         res.json({ ok: false, hata: e.message });

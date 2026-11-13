@@ -151,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="/admin?mod=soruDagilim" class="admin-alt-link <%= mod==='soruDagilim'?'active':'' %>">📊 Soru Dağılımı</a>
     <a href="/oyun" class="admin-alt-link">🪐 Oyun (Önizleme)</a>
     <a href="/admin?mod=duello" class="admin-alt-link <%= mod==='duello'?'active':'' %>">⚔️ Düello</a>
+    <a href="/admin?mod=duelloAnaliz" class="admin-alt-link <%= mod==='duelloAnaliz'?'active':'' %>">🔍 Düello Analizi</a>
   <% } else if (aktifGrup === 'kullanicilar') { %>
     <a href="/admin?mod=kullanicilar" class="admin-alt-link <%= mod==='kullanicilar'?'active':'' %>">👥 Kullanıcılar</a>
     <a href="/admin?mod=referans" class="admin-alt-link <%= mod==='referans'?'active':'' %>">🔗 Referans</a>
@@ -3882,6 +3883,118 @@ function gosterExcelHata(msg) {
       </div><!-- /soru-liste-kolon -->
     </div><!-- /soru-liste-duzen -->
 
+  </div>
+<% } else if (mod === 'duelloAnaliz') { %>
+  <% /* v4.17.37-2: Duello Analizi — services/duelloKural.js (oyundaki kurallarla ayni esikler) */ %>
+  <% var da = duelloAnalizVeri || {}; var E = da.esik || {}; var oz = da.ozet || { toplam:0, supheli:0, k1:0, k2:0, biri:0 }; %>
+  <% function daYz(x){ return x==null ? '-' : Math.round(x*100) + '%'; } %>
+  <% function daSn(x){ return (x==null || x>=99999) ? '-' : (Math.round(x*10)/10); } %>
+  <% function daTar(d){ if(!d) return '-'; try { return new Date(d).toLocaleString('tr-TR', { timeZone:'Europe/Istanbul', day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(e){ return '-'; } } %>
+  <% function daQ(ek){ var q = { mod:'duelloAnaliz', daGun: da.daGun||'', daKullanici: da.daKullanici||'', daTumu: da.daTumu?'1':'' }; for (var k in ek) q[k]=ek[k]; return '/admin?' + Object.keys(q).filter(function(k){ return q[k]!=='' && q[k]!=null; }).map(function(k){ return k + '=' + encodeURIComponent(q[k]); }).join('&'); } %>
+  <% var daRumuz = {}; (da.oyuncular||[]).forEach(function(o){ daRumuz[o.ad] = o.rumuz; }); %>
+  <% function daAd(a){ return (daRumuz[a] ? daRumuz[a] + ' ' : '') + '(' + a + ')'; } %>
+
+  <style>.da-tablo th,.da-tablo td{padding:7px 8px;vertical-align:middle}.da-tablo th{white-space:nowrap}.da-tablo td{white-space:nowrap}</style>
+  <div class="admin-card">
+    <div class="admin-card-title">🔍 Düello Analizi</div>
+    <% if (da.hata) { %><div style="padding:12px; background:#fdecea; color:#b71c1c; border-radius:8px;">Analiz yapılamadı: <%= da.hata %></div><% } %>
+    <div style="font-size:13px; color:#555; line-height:1.6; margin-bottom:10px;">
+      Oyundaki düello kurallarıyla aynı eşikler kullanılır:<br>
+      <b>Geçerli süre:</b> en az <%= E.TABAN_SN %> sn ve sorunun doğru çözüm süresi ortancasının %<%= Math.round((E.ORAN||0)*100) %>'i. Daha kısa doğrular <b style="color:#c62828;">şans eseri</b> sayılır.<br>
+      <b>Hızlı işaretleme:</b> son <%= E.SON_CEVAP %> cevapta doğru oranı %<%= Math.round((E.ISABET||0)*100) %>'ın altında <u>ve</u> cevapların en az %<%= Math.round((E.HIZLI_ORAN||0)*100) %>'i <%= E.HIZLI_SN %> sn'den kısa → saldırı kapalı.<br>
+      <span style="color:#888;">K1: kazananın süresi şans eseri, yeni kuralla bu sonuç olmazdı. K2: saldıran o an hızlı işaretliyordu, yeni kuralla saldıramazdı.</span>
+    </div>
+    <form method="GET" action="/admin" style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:13px;">
+      <input type="hidden" name="mod" value="duelloAnaliz">
+      <label>Dönem:
+        <select name="daGun" onchange="this.form.submit()" style="padding:5px 8px;">
+          <option value="" <%= !da.daGun?'selected':'' %>>Tüm zamanlar</option>
+          <% [7,30,90].forEach(function(g){ %><option value="<%= g %>" <%= da.daGun===g?'selected':'' %>>Son <%= g %> gün</option><% }); %>
+        </select>
+      </label>
+      <label>Oyuncu:
+        <select name="daKullanici" onchange="this.form.submit()" style="padding:5px 8px; max-width:220px;">
+          <option value="">Hepsi</option>
+          <% (da.tumAdlar||[]).forEach(function(a){ %><option value="<%= a %>" <%= da.daKullanici===a?'selected':'' %>><%= daRumuz[a] ? daRumuz[a] + ' (' + a + ')' : a %></option><% }); %>
+        </select>
+      </label>
+      <label><input type="checkbox" name="daTumu" value="1" <%= da.daTumu?'checked':'' %> onchange="this.form.submit()"> Şüpheli olmayan düellolar da listelensin</label>
+    </form>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px;">
+      <div style="flex:1; min-width:130px; background:#f5f7fb; border-radius:10px; padding:10px 12px;"><div style="font-size:12px; color:#666;">Toplam düello</div><div style="font-size:22px; font-weight:700;"><%= oz.toplam %></div></div>
+      <div style="flex:1; min-width:130px; background:#fdecea; border-radius:10px; padding:10px 12px;"><div style="font-size:12px; color:#666;">Şans eseri süreyle kazanılan (K1)</div><div style="font-size:22px; font-weight:700; color:#c62828;"><%= oz.k1 %> <span style="font-size:13px; font-weight:400;">(%<%= oz.toplam ? Math.round(100*oz.k1/oz.toplam) : 0 %>)</span></div></div>
+      <div style="flex:1; min-width:130px; background:#fff4e5; border-radius:10px; padding:10px 12px;"><div style="font-size:12px; color:#666;">Hızlı işaretlerken açılan (K2)</div><div style="font-size:22px; font-weight:700; color:#e65100;"><%= oz.k2 %></div></div>
+      <div style="flex:1; min-width:130px; background:#eef7ee; border-radius:10px; padding:10px 12px;"><div style="font-size:12px; color:#666;">Yeni kurallarla değişecek</div><div style="font-size:22px; font-weight:700; color:#2e7d32;"><%= oz.biri %></div></div>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-title">Oyuncu özeti <span style="font-size:12px; font-weight:400; color:#888;">— en çok şüpheli kazanandan başlayarak; ada tıkla: yalnız onun düelloları</span></div>
+    <% if (!(da.oyuncular||[]).length) { %>
+      <div style="padding:18px; color:#888;">Düello kaydı yok.</div>
+    <% } else { %>
+    <div style="overflow-x:auto;">
+    <table class="da-tablo" style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid #eee; color:#555;">
+        <th style="padding:7px 8px;">Oyuncu</th><th>Sınıf</th><th>Hücre</th><th>Saldırı (kazandı)</th><th>Savunma (korudu)</th><th>Şans eseri kazanım</th><th>Kazandığı süre (ortanca)</th>
+        <th style="border-left:2px solid #eee; padding-left:8px;">Son <%= E.SON_CEVAP %>: doğru</th><th>ortanca süre</th><th>&lt;<%= E.HIZLI_SN %> sn</th><th>Toplam cevap</th><th>Saldırı</th>
+      </tr></thead>
+      <tbody>
+      <% da.oyuncular.forEach(function(o){ %>
+        <tr style="border-bottom:1px solid #f3f3f3; <%= o.engelSimdi ? 'background:#fdecea;' : '' %>">
+          <td style="padding:7px 8px; white-space:nowrap;"><a href="<%= daQ({ daKullanici: o.ad }) %>" style="color:#1a73e8; text-decoration:none;"><b><%= o.rumuz || o.ad %></b> <span style="color:#999;">(<%= o.ad %>)</span></a></td>
+          <td><%= o.sinif || '-' %></td>
+          <td><b><%= o.hucre %></b></td>
+          <td><%= o.sald %> (<%= o.saldK %>)</td>
+          <td><%= o.sav %> (<%= o.savK %>)</td>
+          <td style="<%= o.supheliK ? 'color:#c62828; font-weight:700;' : 'color:#999;' %>"><%= o.supheliK %></td>
+          <td><%= daSn(o.kazanSureMedyan) %><%= o.kazanSureMedyan!=null ? ' sn' : '' %></td>
+          <td style="border-left:2px solid #eee; padding-left:8px; <%= (o.sonDogru!=null && o.sonDogru < E.ISABET) ? 'color:#c62828; font-weight:700;' : '' %>"><%= daYz(o.sonDogru) %></td>
+          <td><%= daSn(o.sonMedyanSure) %><%= o.sonMedyanSure!=null ? ' sn' : '' %></td>
+          <td style="<%= (o.sonHizli!=null && o.sonHizli >= E.HIZLI_ORAN) ? 'color:#c62828; font-weight:700;' : '' %>"><%= daYz(o.sonHizli) %></td>
+          <td><%= o.toplamCevap %> <span style="color:#999;">(%<%= o.toplamDogru==null ? '-' : Math.round(o.toplamDogru*100) %> doğru)</span></td>
+          <td style="white-space:nowrap;"><%- o.engelSimdi ? '<b style="color:#c62828;">⛔ Kapalı</b> <span style="color:#c62828;">hızlı işaretleme</span>' : (o.sonN < E.EN_AZ_CEVAP ? '<span style="color:#999;">açık (az cevap)</span>' : '<span style="color:#2e7d32;">✓ Açık</span>') %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+
+  <% var daListe = (da.duellolar||[]).filter(function(d){ return da.daTumu || d.k1 || d.k2; }).slice().reverse(); var daGoster = daListe.slice(0, 300); %>
+  <div class="admin-card">
+    <div class="admin-card-title"><%= da.daTumu ? 'Tüm düellolar' : 'Şüpheli düellolar' %> (<%= daListe.length %>)<%= daListe.length > 300 ? ' — son 300 gösteriliyor' : '' %></div>
+    <div style="font-size:12px; color:#888; margin-bottom:8px;"><span style="color:#c62828; font-weight:700;">Kırmızı süre</span> = eşiğin altında (şans eseri). İsabet = saldıranın o anki son <%= E.SON_CEVAP %> cevabı: doğru oranı / <%= E.HIZLI_SN %> sn altı oranı.</div>
+    <% if (!daGoster.length) { %>
+      <div style="padding:18px; color:#888;">Listelenecek düello yok.</div>
+    <% } else { %>
+    <div style="overflow-x:auto;">
+    <table class="da-tablo" style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid #eee; color:#555;">
+        <th style="padding:7px 8px;">Tarih</th><th>Sınıf</th><th>Saldıran</th><th>Süre</th><th>Rakip</th><th>Süre</th><th>Soru</th><th>Eşik</th><th>Kazanan</th><th>İsabet</th><th>K1</th><th>K2</th>
+      </tr></thead>
+      <tbody>
+      <% daGoster.forEach(function(d){ %>
+        <tr style="border-bottom:1px solid #f3f3f3;">
+          <td style="padding:7px 8px; white-space:nowrap;"><%= daTar(d.tarih) %></td>
+          <td><%= d.sinif %></td>
+          <td style="white-space:nowrap;"><%= daAd(d.saldiranAd) %></td>
+          <td style="<%= d.sG ? '' : 'color:#c62828; font-weight:700;' %>"><%= daSn(d.saldiranSure) %></td>
+          <td style="white-space:nowrap;"><%= daAd(d.rakipAd) %></td>
+          <td style="<%= d.rG ? '' : 'color:#c62828; font-weight:700;' %>"><%= daSn(d.rakipSure) %></td>
+          <td style="white-space:nowrap;"><%= d.soruNo || '?' %><% if (d.soruId) { %> <button type="button" onclick="soruOnizle('<%= d.soruId %>')" style="background:#1a73e8; color:#fff; border:none; border-radius:5px; padding:2px 8px; font-size:11px; cursor:pointer;">Önizle</button><% } %></td>
+          <td style="color:#777;"><%= Math.round(d.esik) %> sn</td>
+          <td style="white-space:nowrap;"><b style="color:<%= d.sKazandi ? '#1565c0' : '#6d4c41' %>;"><%= d.sKazandi ? 'Saldıran' : 'Savunan' %></b><%= d.rakipGecersiz ? ' (rakip süresi sayılmadı)' : '' %></td>
+          <td style="white-space:nowrap; <%= d.k2 ? 'color:#e65100; font-weight:700;' : '' %>"><%= daYz(d.isabet && d.isabet.dogruOran) %> / <%= daYz(d.isabet && d.isabet.hizliOran) %></td>
+          <td><%- d.k1 ? '<b style="color:#c62828;">✗</b>' : '<span style="color:#ccc;">·</span>' %></td>
+          <td><%- d.k2 ? '<b style="color:#e65100;">✗</b>' : '<span style="color:#ccc;">·</span>' %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
   </div>
 <% } else if (mod === 'duello') { %>
   <% function dtFmt(d){ if(!d) return '-'; try { return new Date(d).toLocaleString('tr-TR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }); } catch(e){ return '-'; } } %>

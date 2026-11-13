@@ -226,6 +226,18 @@ router.get('/admin', async (req, res) => {
         const dSiniflar = (await OyunOyuncu.distinct('sinif')).filter(Boolean).sort();
         duelloVeri = { dSinif, oyuncular, kayitlar, istatListe, dSiniflar };
     }
+    // v4.17.37-2: Duello Analizi — sans eseri kisa surelerle kazanilan duellolar ve hizli isaretleyen oyuncular
+    let duelloAnalizVeri = null;
+    if (mod === 'duelloAnaliz') {
+        try {
+            const daGun = Math.max(0, parseInt(req.query.daGun, 10) || 0);
+            const daKullanici = String(req.query.daKullanici || '').trim().slice(0, 60);
+            const daTumu = req.query.daTumu === '1';
+            duelloAnalizVeri = await require('../services/duelloKural').duelloAnaliz({ gun: daGun, kullanici: daKullanici });
+            const tumAdlar = new Set([...(await DuelloKayit.distinct('saldiranAd')), ...(await DuelloKayit.distinct('rakipAd'))].filter(Boolean));
+            Object.assign(duelloAnalizVeri, { daGun, daKullanici, daTumu, tumAdlar: [...tumAdlar].sort() });
+        } catch (e) { console.error('[duello analiz]', e.message); duelloAnalizVeri = { hata: e.message }; }
+    }
     // Tüm sekmelerde nav rozeti için okunmamış sayısı
     const okunmamisMesajSayisi = await Mesaj.countDocuments({ okundu: false });
     // v4.3.29: Filtre seçenekleri (sınıf/ders/ünite/konu) artık Unite
@@ -279,7 +291,7 @@ router.get('/admin', async (req, res) => {
         tumSoruSiniflar, tumSoruDersler, tumSoruUniteler, tumSoruKonular,
         tumOkullar, adminToken,
         tumUniteler: await Unite.find().sort({ sinif:1, ders:1, sira:1, uniteNo:1 }),
-        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, ayarMinOrt30, ayarStandartLimit, ayarAnalizLimit, ayarTamSoru, ayarTamEsik, aktifDuyuru, duyuruOgrenciler,
+        tumReferanslar, yasakliKelimeler, tumHaberler, tumMesajlar, okunmamisMesajSayisi, duelloVeri, duelloAnalizVeri, ayarMinOrt30, ayarStandartLimit, ayarAnalizLimit, ayarTamSoru, ayarTamEsik, aktifDuyuru, duyuruOgrenciler,
         aktiviteOzetiData, soruHavuzu
     });
     } catch (err) {
